@@ -215,3 +215,22 @@ CREATE POLICY "tenant_bookings" ON bookings
 -- passengers只能看自己的订单
 CREATE POLICY "passenger_own_bookings" ON bookings
   FOR SELECT USING (passenger_id = auth.uid());
+
+CREATE OR REPLACE FUNCTION public.custom_access_token_hook(event JSONB)
+RETURNS JSONB LANGUAGE plpgsql AS $$
+DECLARE
+  claims JSONB;
+  user_profile RECORD;
+BEGIN
+  SELECT role, tenant_id INTO user_profile
+  FROM profiles WHERE id = (event->>'user_id')::UUID;
+
+  claims := event->'claims';
+  claims := jsonb_set(claims, '{role}', to_jsonb(user_profile.role));
+  claims := jsonb_set(claims, '{tenant_id}', to_jsonb(user_profile.tenant_id::TEXT));
+
+  RETURN jsonb_set(event, '{claims}', claims);
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.custom_access_token_hook TO supabase_auth_admin;
