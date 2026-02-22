@@ -4,6 +4,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { supabaseAdmin } from '../../config/supabase.config';
+import { NotificationsService } from '../notifications/notifications.service';
 import { InviteDriverDto } from './dto/invite-driver.dto';
 import { LoginDto } from './dto/login.dto';
 import { RegisterPassengerDto } from './dto/register-passenger.dto';
@@ -11,6 +12,7 @@ import { RegisterTenantDto } from './dto/register-tenant.dto';
 
 @Injectable()
 export class AuthService {
+  constructor(private readonly notificationsService: NotificationsService) {}
   // 乘客注册
   async registerPassenger(dto: RegisterPassengerDto) {
     const { data, error } = await supabaseAdmin.auth.admin.createUser({
@@ -73,6 +75,8 @@ export class AuthService {
       first_name: dto.first_name,
       last_name: dto.last_name,
     });
+
+    await this.notificationsService.notifyTenantPendingApproval(tenant.id);
 
     return {
       message: 'Tenant registered, pending approval',
