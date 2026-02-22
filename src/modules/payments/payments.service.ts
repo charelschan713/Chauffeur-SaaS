@@ -6,21 +6,31 @@ import {
 import Stripe from 'stripe';
 import { supabaseAdmin } from '../../config/supabase.config';
 import { NotificationsService } from '../notifications/notifications.service';
+import { TenantKeysService } from '../tenants/tenant-keys.service';
 import { CreatePaymentIntentDto } from './dto/create-payment-intent.dto';
 
 @Injectable()
 export class PaymentsService {
-  private stripe: Stripe;
+  constructor(
+    private readonly notificationsService: NotificationsService,
+    private readonly tenantKeysService: TenantKeysService,
+  ) {}
 
-  constructor(private readonly notificationsService: NotificationsService) {
-    this.stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+  // 动态获取租户Stripe实例
+  private async getStripeForTenant(tenant_id: string): Promise<Stripe> {
+    const keys = await this.tenantKeysService.getDecryptedKeys(tenant_id);
+    if (!keys.stripe_secret_key) {
+      throw new BadRequestException(
+        'Stripe not configured. Please add your Stripe API key in settings.',
+      );
+    }
+    return new Stripe(keys.stripe_secret_key, {
       apiVersion: '2026-01-28.clover',
     });
   }
 
   // 乘客：创建 Payment Intent
   async createPaymentIntent(passenger_id: string, dto: CreatePaymentIntentDto) {
-    // 1. 获取预约
     const { data: booking } = await supabaseAdmin
       .from('bookings')
       .select('*, tenants(commission_rate)')
@@ -29,23 +39,13 @@ export class PaymentsService {
       .single();
 
     if (!booking) throw new NotFoundException('Booking not found');
-
     if (booking.status !== 'PENDING') {
       throw new BadRequestException('Booking is not in PENDING status');
     }
 
-    // 2. 检查是否已有Payment记录
-    const { data: existing } = await supabaseAdmin
-      .from('payments')
-      .select('stripe_payment_intent_id, status')
-      .eq('booking_id', dto.booking_id)
-      .single();
+    // 用租户自己的Stripe
+    const stripe = await this.getStripeForTenant(booking.tenant_id);
 
-    if (existing?.status === 'CAPTURED') {
-      throw new BadRequestException('Booking already paid');
-    }
-
-    // 3. 计算平台抽成
     const commission_rate = booking.tenants?.commission_rate ?? 20;
     const platform_fee = parseFloat(
       (booking.total_price * (commission_rate / 100)).toFixed(2),
@@ -54,9 +54,8 @@ export class PaymentsService {
       (booking.total_price - platform_fee).toFixed(2),
     );
 
-    // 4. 创建 Stripe Payment Intent
-    const amount = Math.round(booking.total_price * 100); // cents
-    const paymentIntent = await this.stripe.paymentIntents.create({
+    const amount = Math.round(booking.total_price * 100);
+    const paymentIntent = await stripe.paymentIntents.create({
       amount,
       currency: booking.currency.toLowerCase(),
       metadata: {
@@ -66,7 +65,12 @@ export class PaymentsService {
       },
     });
 
-    // 5. 创建或更新 Payment 记录
+    const { data: existing } = await supabaseAdmin
+      .from('payments')
+      .select('stripe_payment_intent_id, status')
+      .eq('booking_id', dto.booking_id)
+      .single();
+
     if (existing) {
       await supabaseAdmin
         .from('payments')
@@ -93,15 +97,21 @@ export class PaymentsService {
     };
   }
 
-  // Stripe Webhook 处理
-  async handleWebhook(rawBody: Buffer, signature: string) {
+  // handleWebhook 改为动态验证
+  async handleWebhook(rawBody: Buffer, signature: string, tenant_id: string) {
+    const keys = await this.tenantKeysService.getDecryptedKeys(tenant_id);
+    if (!keys.stripe_webhook_secret) {
+      throw new BadRequestException('Stripe webhook not configured');
+    }
+
+    const stripe = await this.getStripeForTenant(tenant_id);
     let event: Stripe.Event;
 
     try {
-      event = this.stripe.webhooks.constructEvent(
+      event = stripe.webhooks.constructEvent(
         rawBody,
         signature,
-        process.env.STRIPE_WEBHOOK_SECRET!,
+        keys.stripe_webhook_secret,
       );
     } catch {
       throw new BadRequestException('Invalid webhook signature');
@@ -109,14 +119,14 @@ export class PaymentsService {
 
     switch (event.type) {
       case 'payment_intent.succeeded':
-        await this.handlePaymentSuccess(event.data.object as Stripe.PaymentIntent);
+        await this.handlePaymentSuccess(
+          event.data.object as Stripe.PaymentIntent,
+        );
         break;
-
       case 'payment_intent.payment_failed':
-        await this.handlePaymentFailed(event.data.object as Stripe.PaymentIntent);
-        break;
-
-      default:
+        await this.handlePaymentFailed(
+          event.data.object as Stripe.PaymentIntent,
+        );
         break;
     }
 
@@ -126,7 +136,6 @@ export class PaymentsService {
   private async handlePaymentSuccess(paymentIntent: Stripe.PaymentIntent) {
     const booking_id = paymentIntent.metadata.booking_id;
 
-    // 更新 payment 状态
     await supabaseAdmin
       .from('payments')
       .update({
@@ -135,7 +144,6 @@ export class PaymentsService {
       })
       .eq('stripe_payment_intent_id', paymentIntent.id);
 
-    // 更新 booking 状态为 CONFIRMED
     await supabaseAdmin
       .from('bookings')
       .update({ status: 'CONFIRMED' })
@@ -151,9 +159,8 @@ export class PaymentsService {
       .eq('stripe_payment_intent_id', paymentIntent.id);
   }
 
-  // 退款（取消订单时调用）
+  // refund 改为动态Stripe
   async refund(booking_id: string, requested_by: string) {
-    // 获取payment记录
     const { data: payment } = await supabaseAdmin
       .from('payments')
       .select('*, bookings(passenger_id, status, tenant_id)')
@@ -161,23 +168,15 @@ export class PaymentsService {
       .single();
 
     if (!payment) throw new NotFoundException('Payment not found');
-
-    // 权限检查：只有乘客本人或租户管理员可退款
-    const booking = payment.bookings;
-    if (booking.passenger_id !== requested_by && booking.tenant_id !== requested_by) {
-      // 允许继续（tenant admin会通过不同路由调用）
-    }
-
     if (payment.status !== 'CAPTURED') {
-      throw new BadRequestException('Payment is not in CAPTURED status');
+      throw new BadRequestException('Payment is not capturable');
     }
 
-    // Stripe 退款
-    await this.stripe.refunds.create({
+    const stripe = await this.getStripeForTenant(payment.tenant_id);
+    await stripe.refunds.create({
       payment_intent: payment.stripe_payment_intent_id,
     });
 
-    // 更新记录
     await supabaseAdmin
       .from('payments')
       .update({ status: 'REFUNDED' })

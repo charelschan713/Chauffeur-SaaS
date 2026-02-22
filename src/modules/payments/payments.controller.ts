@@ -21,13 +21,18 @@ import { PaymentsService } from './payments.service';
 export class PaymentsController {
   constructor(private readonly paymentsService: PaymentsService) {}
 
-  // Stripe Webhook（不需要JWT，Stripe直接调用）
-  @Post('webhook')
+  // Stripe Webhook（不需要JWT，Stripe直接调用，按租户路由）
+  @Post('webhook/:tenant_id')
   async handleWebhook(
+    @Param('tenant_id') tenant_id: string,
     @Req() req: RawBodyRequest<Request>,
     @Headers('stripe-signature') signature: string,
   ) {
-    return this.paymentsService.handleWebhook(req.rawBody!, signature);
+    return this.paymentsService.handleWebhook(
+      req.rawBody!,
+      signature,
+      tenant_id,
+    );
   }
 
   // 以下需要JWT

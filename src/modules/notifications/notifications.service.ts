@@ -1,18 +1,17 @@
 import { Injectable, Logger } from '@nestjs/common';
-import sgMail from '@sendgrid/mail';
+import { Resend } from 'resend';
 import { supabaseAdmin } from '../../config/supabase.config';
+import { TenantKeysService } from '../tenants/tenant-keys.service';
 import { EmailTemplates } from './templates/email.templates';
 
 @Injectable()
 export class NotificationsService {
   private readonly logger = new Logger(NotificationsService.name);
 
-  constructor() {
-    sgMail.setApiKey(process.env.SENDGRID_API_KEY!);
-  }
+  constructor(private readonly tenantKeysService: TenantKeysService) {}
 
-  // 核心发送方法
   private async sendEmail(
+    tenant_id: string,
     to: string,
     subject: string,
     html: string,
@@ -20,17 +19,23 @@ export class NotificationsService {
     user_id?: string,
   ) {
     try {
-      await sgMail.send({
+      const keys = await this.tenantKeysService.getDecryptedKeys(tenant_id);
+
+      if (!keys.resend_api_key) {
+        this.logger.warn(
+          `No Resend key for tenant ${tenant_id}, skipping email`,
+        );
+        return;
+      }
+
+      const resend = new Resend(keys.resend_api_key);
+      await resend.emails.send({
+        from: process.env.SENDGRID_FROM_EMAIL!,
         to,
-        from: {
-          email: process.env.SENDGRID_FROM_EMAIL!,
-          name: process.env.SENDGRID_FROM_NAME ?? 'Platform',
-        },
         subject,
         html,
       });
 
-      // 记录到notifications表
       if (user_id) {
         await supabaseAdmin.from('notifications').insert({
           user_id,
@@ -45,7 +50,6 @@ export class NotificationsService {
       this.logger.log(`Email sent to ${to}: ${subject}`);
     } catch (error) {
       this.logger.error(`Failed to send email to ${to}`, error);
-      // 不抛出错误，通知失败不影响主业务流程
     }
   }
 
@@ -54,17 +58,13 @@ export class NotificationsService {
   async notifyBookingConfirmed(booking_id: string) {
     const { data: booking } = await supabaseAdmin
       .from('bookings')
-      .select(`
-        *,
-        profiles!passenger_id(id, first_name, last_name),
-        payments(amount, currency)
-      `)
+      .select('*, profiles!passenger_id(id, first_name, last_name)')
       .eq('id', booking_id)
       .single();
 
     if (!booking) return;
 
-    const { data: user } = await supabaseAdmin.auth.admin.getUserById(
+    const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(
       booking.profiles.id,
     );
 
@@ -80,7 +80,8 @@ export class NotificationsService {
     });
 
     await this.sendEmail(
-      user.user!.email!,
+      booking.tenant_id,
+      authUser.user!.email!,
       template.subject,
       template.html,
       booking_id,
@@ -103,13 +104,13 @@ export class NotificationsService {
       .eq('id', booking_id)
       .single();
 
-    if (!booking || !booking.drivers) return;
+    if (!booking?.drivers) return;
 
     const driver = booking.drivers;
     const vehicle = driver.vehicles?.[0];
 
     // 通知乘客
-    const { data: passengerUser } = await supabaseAdmin.auth.admin.getUserById(
+    const { data: passengerAuth } = await supabaseAdmin.auth.admin.getUserById(
       booking.profiles.id,
     );
 
@@ -125,7 +126,8 @@ export class NotificationsService {
     });
 
     await this.sendEmail(
-      passengerUser.user!.email!,
+      booking.tenant_id,
+      passengerAuth.user!.email!,
       passengerTemplate.subject,
       passengerTemplate.html,
       booking_id,
@@ -133,7 +135,7 @@ export class NotificationsService {
     );
 
     // 通知司机
-    const { data: driverUser } = await supabaseAdmin.auth.admin.getUserById(
+    const { data: driverAuth } = await supabaseAdmin.auth.admin.getUserById(
       driver.user_id,
     );
 
@@ -147,7 +149,8 @@ export class NotificationsService {
     });
 
     await this.sendEmail(
-      driverUser.user!.email!,
+      booking.tenant_id,
+      driverAuth.user!.email!,
       driverTemplate.subject,
       driverTemplate.html,
       booking_id,
@@ -164,7 +167,7 @@ export class NotificationsService {
 
     if (!booking) return;
 
-    const { data: user } = await supabaseAdmin.auth.admin.getUserById(
+    const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(
       booking.profiles.id,
     );
 
@@ -177,7 +180,8 @@ export class NotificationsService {
     });
 
     await this.sendEmail(
-      user.user!.email!,
+      booking.tenant_id,
+      authUser.user!.email!,
       template.subject,
       template.html,
       booking_id,
@@ -194,7 +198,7 @@ export class NotificationsService {
 
     if (!booking) return;
 
-    const { data: user } = await supabaseAdmin.auth.admin.getUserById(
+    const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(
       booking.profiles.id,
     );
 
@@ -206,7 +210,8 @@ export class NotificationsService {
     });
 
     await this.sendEmail(
-      user.user!.email!,
+      booking.tenant_id,
+      authUser.user!.email!,
       template.subject,
       template.html,
       booking_id,
@@ -230,14 +235,21 @@ export class NotificationsService {
 
     if (!tenant || !admin) return;
 
-    const { data: user } = await supabaseAdmin.auth.admin.getUserById(admin.id);
+    const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(
+      admin.id,
+    );
 
     const template = EmailTemplates.tenantPendingApproval({
       admin_name: `${admin.first_name} ${admin.last_name}`,
       company_name: tenant.name,
     });
 
-    await this.sendEmail(user.user!.email!, template.subject, template.html);
+    await this.sendEmail(
+      tenant_id,
+      authUser.user!.email!,
+      template.subject,
+      template.html,
+    );
   }
 
   async notifyTenantApproved(tenant_id: string) {
@@ -256,7 +268,9 @@ export class NotificationsService {
 
     if (!tenant || !admin) return;
 
-    const { data: user } = await supabaseAdmin.auth.admin.getUserById(admin.id);
+    const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(
+      admin.id,
+    );
 
     const template = EmailTemplates.tenantApproved({
       admin_name: `${admin.first_name} ${admin.last_name}`,
@@ -264,6 +278,11 @@ export class NotificationsService {
       dashboard_url: `${process.env.FRONTEND_URL}/dashboard`,
     });
 
-    await this.sendEmail(user.user!.email!, template.subject, template.html);
+    await this.sendEmail(
+      tenant_id,
+      authUser.user!.email!,
+      template.subject,
+      template.html,
+    );
   }
 }
