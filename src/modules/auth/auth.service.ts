@@ -109,7 +109,7 @@ export class AuthService {
 
   // 登录（所有角色统一入口）
   async login(dto: LoginDto) {
-    const { data, error } = await supabaseClient.auth.signInWithPassword({
+    const { data, error } = await supabaseAdmin.auth.signInWithPassword({
       email: dto.email,
       password: dto.password,
     });
@@ -150,7 +150,7 @@ export class AuthService {
 
   // 刷新Token
   async refreshToken(refresh_token: string) {
-    const { data, error } = await supabaseClient.auth.refreshSession({
+    const { data, error } = await supabaseAdmin.auth.refreshSession({
       refresh_token,
     });
     if (error || !data.session)
