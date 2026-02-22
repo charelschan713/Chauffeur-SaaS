@@ -22,14 +22,18 @@ export class AuthService {
     });
     if (error) throw new BadRequestException(error.message);
 
-    await supabaseAdmin.from('profiles').insert({
-      id: data.user.id,
-      role: 'PASSENGER',
-      first_name: dto.first_name,
-      last_name: dto.last_name,
-      phone: dto.phone ?? null,
-      tenant_id: null,
-    });
+    const { error: profileError } = await supabaseAdmin
+      .from('profiles')
+      .insert({
+        id: data.user.id,
+        role: 'PASSENGER',
+        first_name: dto.first_name,
+        last_name: dto.last_name,
+        phone: dto.phone ?? null,
+        tenant_id: null,
+      });
+
+    if (profileError) throw new BadRequestException(profileError.message);
 
     return { message: 'Registration successful', user_id: data.user.id };
   }
@@ -68,13 +72,20 @@ export class AuthService {
       throw new BadRequestException(userError.message);
     }
 
-    await supabaseAdmin.from('profiles').insert({
-      id: user.user.id,
-      role: 'TENANT_ADMIN',
-      tenant_id: tenant.id,
-      first_name: dto.first_name,
-      last_name: dto.last_name,
-    });
+    const { error: profileError } = await supabaseAdmin
+      .from('profiles')
+      .insert({
+        id: user.user.id,
+        role: 'TENANT_ADMIN',
+        tenant_id: tenant.id,
+        first_name: dto.first_name,
+        last_name: dto.last_name,
+      });
+
+    if (profileError) {
+      await supabaseAdmin.from('tenants').delete().eq('id', tenant.id);
+      throw new BadRequestException(profileError.message);
+    }
 
     await this.notificationsService.notifyTenantPendingApproval(tenant.id);
 
@@ -94,13 +105,19 @@ export class AuthService {
     if (error) throw new UnauthorizedException('Invalid credentials');
 
     // 获取profile
-    const { data: profile } = await supabaseAdmin
+    const { data: profile, error: profileError } = await supabaseAdmin
       .from('profiles')
       .select('*, tenants(name, slug, status)')
       .eq('id', data.user.id)
       .single();
 
-    if (!profile?.is_active) {
+    if (profileError || !profile) {
+      throw new UnauthorizedException(
+        'Profile not found. Please contact support.',
+      );
+    }
+
+    if (!profile.is_active) {
       throw new UnauthorizedException('Account is disabled');
     }
 

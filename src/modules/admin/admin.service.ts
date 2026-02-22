@@ -23,13 +23,17 @@ export class AdminService {
 
     if (error) throw new BadRequestException(error.message);
 
-    await supabaseAdmin.from('profiles').insert({
-      id: data.user.id,
-      role: 'SUPER_ADMIN',
-      first_name: dto.first_name,
-      last_name: dto.last_name,
-      tenant_id: null,
-    });
+    const { error: profileError } = await supabaseAdmin
+      .from('profiles')
+      .insert({
+        id: data.user.id,
+        role: 'SUPER_ADMIN',
+        first_name: dto.first_name,
+        last_name: dto.last_name,
+        tenant_id: null,
+      });
+
+    if (profileError) throw new BadRequestException(profileError.message);
 
     return { message: 'Super admin created', user_id: data.user.id };
   }

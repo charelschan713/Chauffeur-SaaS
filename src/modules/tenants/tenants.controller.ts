@@ -17,6 +17,7 @@ import { CreatePricingRuleDto } from './dto/create-pricing-rule.dto';
 import { SaveApiKeysDto } from './dto/save-api-keys.dto';
 import { UpdateTenantDto } from './dto/update-tenant.dto';
 import { TenantKeysService } from './tenant-keys.service';
+import { ApiTokensService } from './api-tokens.service';
 import { TenantsService } from './tenants.service';
 
 @Controller('tenants')
@@ -25,6 +26,7 @@ export class TenantsController {
   constructor(
     private readonly tenantsService: TenantsService,
     private readonly tenantKeysService: TenantKeysService,
+    private readonly apiTokensService: ApiTokensService,
   ) {}
 
   // SUPER_ADMIN: 所有租户列表
@@ -108,6 +110,32 @@ export class TenantsController {
   deletePricing(@Param('rule_id') rule_id: string, @Request() req: any) {
     return this.tenantsService.deletePricingRule(
       rule_id,
+      req.user.profile.tenant_id,
+    );
+  }
+
+  // ── API Tokens ──
+
+  @Post('me/tokens')
+  @Roles('TENANT_ADMIN')
+  createToken(@Body('name') name: string, @Request() req: any) {
+    return this.apiTokensService.createToken(
+      req.user.profile.tenant_id,
+      name,
+    );
+  }
+
+  @Get('me/tokens')
+  @Roles('TENANT_ADMIN')
+  listTokens(@Request() req: any) {
+    return this.apiTokensService.listTokens(req.user.profile.tenant_id);
+  }
+
+  @Delete('me/tokens/:token_id')
+  @Roles('TENANT_ADMIN')
+  revokeToken(@Param('token_id') token_id: string, @Request() req: any) {
+    return this.apiTokensService.revokeToken(
+      token_id,
       req.user.profile.tenant_id,
     );
   }
