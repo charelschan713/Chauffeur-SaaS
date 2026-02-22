@@ -180,3 +180,38 @@ CREATE TRIGGER trg_bookings BEFORE UPDATE ON bookings
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 CREATE TRIGGER trg_pricing_rules BEFORE UPDATE ON pricing_rules 
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+-- 开启所有表的RLS
+ALTER TABLE tenants ENABLE ROW LEVEL SECURITY;
+ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE drivers ENABLE ROW LEVEL SECURITY;
+ALTER TABLE vehicles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE corporate_accounts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE bookings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE payments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE pricing_rules ENABLE ROW LEVEL SECURITY;
+ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
+
+-- profiles：用户只能看自己，租户管理员能看本租户所有人
+CREATE POLICY "self_read" ON profiles
+  FOR SELECT USING (id = auth.uid());
+
+CREATE POLICY "tenant_admin_read" ON profiles
+  FOR SELECT USING (
+    tenant_id = (
+      SELECT tenant_id FROM profiles WHERE id = auth.uid()
+    )
+    AND (auth.jwt()->>'role') IN ('TENANT_ADMIN','TENANT_STAFF')
+  );
+
+-- bookings：租户数据隔离
+CREATE POLICY "tenant_bookings" ON bookings
+  FOR ALL USING (
+    tenant_id = (
+      SELECT tenant_id FROM profiles WHERE id = auth.uid()
+    )
+  );
+
+-- passengers只能看自己的订单
+CREATE POLICY "passenger_own_bookings" ON bookings
+  FOR SELECT USING (passenger_id = auth.uid());
