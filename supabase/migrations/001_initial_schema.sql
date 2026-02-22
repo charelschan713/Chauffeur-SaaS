@@ -1,9 +1,10 @@
 -- 开启UUID扩展
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 -- tenants表
 CREATE TABLE tenants (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name VARCHAR(255) NOT NULL,
   slug VARCHAR(100) UNIQUE NOT NULL,
   logo_url TEXT,
@@ -37,7 +38,7 @@ CREATE TABLE profiles (
 
 -- drivers表
 CREATE TABLE drivers (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID REFERENCES profiles(id),
   tenant_id UUID REFERENCES tenants(id),
   license_number VARCHAR(100),
@@ -53,7 +54,7 @@ CREATE TABLE drivers (
 
 -- vehicles表
 CREATE TABLE vehicles (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   driver_id UUID REFERENCES drivers(id),
   tenant_id UUID REFERENCES tenants(id),
   make VARCHAR(100),
@@ -71,7 +72,7 @@ CREATE TABLE vehicles (
 
 -- corporate_accounts表
 CREATE TABLE corporate_accounts (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   tenant_id UUID REFERENCES tenants(id),
   company_name VARCHAR(255) NOT NULL,
   tax_id VARCHAR(100),
@@ -88,7 +89,7 @@ CREATE TABLE corporate_accounts (
 
 -- bookings表
 CREATE TABLE bookings (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   tenant_id UUID REFERENCES tenants(id),
   passenger_id UUID REFERENCES profiles(id),
   driver_id UUID REFERENCES drivers(id),
@@ -118,7 +119,7 @@ CREATE TABLE bookings (
 
 -- payments表
 CREATE TABLE payments (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   booking_id UUID REFERENCES bookings(id),
   tenant_id UUID REFERENCES tenants(id),
   amount DECIMAL(10,2) NOT NULL,
@@ -136,7 +137,7 @@ CREATE TABLE payments (
 
 -- pricing_rules表
 CREATE TABLE pricing_rules (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   tenant_id UUID REFERENCES tenants(id),
   vehicle_class VARCHAR(20),
   base_fare DECIMAL(10,2) NOT NULL,
@@ -151,7 +152,7 @@ CREATE TABLE pricing_rules (
 
 -- notifications表
 CREATE TABLE notifications (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID REFERENCES profiles(id),
   booking_id UUID REFERENCES bookings(id),
   type VARCHAR(10) CHECK (type IN ('EMAIL','SMS','PUSH')),
