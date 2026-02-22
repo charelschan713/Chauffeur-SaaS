@@ -3,7 +3,7 @@ import {
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
-import { supabaseAdmin } from '../../config/supabase.config';
+import { supabaseAdmin, supabaseClient } from '../../config/supabase.config';
 import { NotificationsService } from '../notifications/notifications.service';
 import { InviteDriverDto } from './dto/invite-driver.dto';
 import { LoginDto } from './dto/login.dto';
@@ -33,7 +33,12 @@ export class AuthService {
         tenant_id: null,
       });
 
-    if (profileError) throw new BadRequestException(profileError.message);
+    if (profileError) {
+      await supabaseAdmin.auth.admin.deleteUser(data.user.id);
+      throw new BadRequestException(
+        `Failed to create profile: ${profileError.message}`,
+      );
+    }
 
     return { message: 'Registration successful', user_id: data.user.id };
   }
@@ -84,7 +89,10 @@ export class AuthService {
 
     if (profileError) {
       await supabaseAdmin.from('tenants').delete().eq('id', tenant.id);
-      throw new BadRequestException(profileError.message);
+      await supabaseAdmin.auth.admin.deleteUser(user.user.id);
+      throw new BadRequestException(
+        `Failed to create tenant admin profile: ${profileError.message}`,
+      );
     }
 
     await this.notificationsService.notifyTenantPendingApproval(tenant.id);
@@ -97,7 +105,7 @@ export class AuthService {
 
   // 登录（所有角色统一入口）
   async login(dto: LoginDto) {
-    const { data, error } = await supabaseAdmin.auth.signInWithPassword({
+    const { data, error } = await supabaseClient.auth.signInWithPassword({
       email: dto.email,
       password: dto.password,
     });
@@ -137,7 +145,7 @@ export class AuthService {
 
   // 刷新Token
   async refreshToken(refresh_token: string) {
-    const { data, error } = await supabaseAdmin.auth.refreshSession({
+    const { data, error } = await supabaseClient.auth.refreshSession({
       refresh_token,
     });
     if (error || !data.session)
