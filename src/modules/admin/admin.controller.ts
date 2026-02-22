@@ -30,6 +30,12 @@ export class AdminController {
     return this.adminService.healthCheck();
   }
 
+  // 诊断Supabase配置（需要super_admin_secret）
+  @Get('diag/supabase')
+  diagSupabase(@Query('secret') secret: string) {
+    return this.adminService.supabaseConfigDiag(secret);
+  }
+
   // 以下全部需要 SUPER_ADMIN
   @Get('dashboard')
   @UseGuards(JwtGuard, RolesGuard)

@@ -260,6 +260,46 @@ export class AdminService {
     return data;
   }
 
+  // Supabase配置诊断（不返回完整密钥）
+  supabaseConfigDiag(secret: string) {
+    if (secret !== process.env.SUPER_ADMIN_SECRET) {
+      throw new ForbiddenException('Invalid super admin secret');
+    }
+
+    const key = process.env.SUPABASE_SERVICE_ROLE_KEY ?? '';
+    const hasNewline = /\r|\n/.test(key);
+    const hasSpaces = /^\s|\s$/.test(key);
+
+    let jwtRole: string | null = null;
+    let jwtRef: string | null = null;
+    let jwtDecodeError: string | null = null;
+
+    try {
+      if (key.startsWith('eyJ')) {
+        const payload = key.split('.')[1];
+        const decoded = JSON.parse(
+          Buffer.from(payload, 'base64url').toString('utf8'),
+        );
+        jwtRole = decoded.role ?? null;
+        jwtRef = decoded.ref ?? null;
+      }
+    } catch (e: any) {
+      jwtDecodeError = e?.message ?? 'decode failed';
+    }
+
+    return {
+      url: process.env.SUPABASE_URL,
+      key_prefix: key.slice(0, 16),
+      key_suffix: key.slice(-8),
+      key_length: key.length,
+      has_newline: hasNewline,
+      has_edge_spaces: hasSpaces,
+      jwt_role: jwtRole,
+      jwt_ref: jwtRef,
+      jwt_decode_error: jwtDecodeError,
+    };
+  }
+
   // 系统健康检查
   async healthCheck() {
     const checks = await Promise.allSettled([
