@@ -14,13 +14,18 @@ import { Roles } from '../../common/decorators/roles.decorator';
 import { JwtGuard } from '../../common/guards/jwt.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { CreatePricingRuleDto } from './dto/create-pricing-rule.dto';
+import { SaveApiKeysDto } from './dto/save-api-keys.dto';
 import { UpdateTenantDto } from './dto/update-tenant.dto';
+import { TenantKeysService } from './tenant-keys.service';
 import { TenantsService } from './tenants.service';
 
 @Controller('tenants')
 @UseGuards(JwtGuard, RolesGuard)
 export class TenantsController {
-  constructor(private readonly tenantsService: TenantsService) {}
+  constructor(
+    private readonly tenantsService: TenantsService,
+    private readonly tenantKeysService: TenantKeysService,
+  ) {}
 
   // SUPER_ADMIN: 所有租户列表
   @Get()
@@ -62,6 +67,23 @@ export class TenantsController {
   @Roles('TENANT_ADMIN', 'TENANT_STAFF')
   getDashboard(@Request() req: any) {
     return this.tenantsService.getDashboard(req.user.profile.tenant_id);
+  }
+
+  // ── API Keys ──
+
+  @Post('me/keys')
+  @Roles('TENANT_ADMIN')
+  saveKeys(@Body() dto: SaveApiKeysDto, @Request() req: any) {
+    return this.tenantKeysService.saveKeys(
+      req.user.profile.tenant_id,
+      dto as Record<string, string>,
+    );
+  }
+
+  @Get('me/keys/status')
+  @Roles('TENANT_ADMIN')
+  getKeysStatus(@Request() req: any) {
+    return this.tenantKeysService.getKeysStatus(req.user.profile.tenant_id);
   }
 
   // ── 定价规则 ──
