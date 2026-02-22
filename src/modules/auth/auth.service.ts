@@ -119,7 +119,8 @@ export class AuthService {
     const { data, error } = await supabaseAdmin.auth.refreshSession({
       refresh_token,
     });
-    if (error) throw new UnauthorizedException('Invalid refresh token');
+    if (error || !data.session)
+      throw new UnauthorizedException('Invalid refresh token');
     return {
       access_token: data.session.access_token,
       refresh_token: data.session.refresh_token,
