@@ -1,6 +1,7 @@
 import { Module, ValidationPipe } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_PIPE } from '@nestjs/core';
+import { AdminModule } from './modules/admin/admin.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { BookingsModule } from './modules/bookings/bookings.module';
 import { DriversModule } from './modules/drivers/drivers.module';
@@ -17,6 +18,7 @@ import { TenantsModule } from './modules/tenants/tenants.module';
     BookingsModule,
     PaymentsModule,
     NotificationsModule,
+    AdminModule,
   ],
   providers: [
     { provide: APP_PIPE, useValue: new ValidationPipe({ whitelist: true }) },
