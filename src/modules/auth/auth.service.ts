@@ -3,7 +3,11 @@ import {
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
-import { supabaseAdmin, supabaseClient } from '../../config/supabase.config';
+import {
+  newSupabaseAdminClient,
+  supabaseAdmin,
+  supabaseClient,
+} from '../../config/supabase.config';
 import { NotificationsService } from '../notifications/notifications.service';
 import { InviteDriverDto } from './dto/invite-driver.dto';
 import { LoginDto } from './dto/login.dto';
@@ -112,8 +116,9 @@ export class AuthService {
 
     if (error) throw new UnauthorizedException('Invalid credentials');
 
-    // 获取profile
-    const { data: profile, error: profileError } = await supabaseAdmin
+    // 获取profile（使用全新service-role client，避免会话污染）
+    const adminClient = newSupabaseAdminClient();
+    const { data: profile, error: profileError } = await adminClient
       .from('profiles')
       .select('*, tenants(name, slug, status)')
       .eq('id', data.user.id)
