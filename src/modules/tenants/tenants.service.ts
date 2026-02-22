@@ -26,6 +26,32 @@ export class TenantsService {
     return data;
   }
 
+  // 根据域名查找租户（公开接口，不需要Auth）
+  async findByDomain(domain: string) {
+    const { data, error } = await supabaseAdmin
+      .from('tenants')
+      .select('id, name, slug, logo_url, domain, status')
+      .eq('domain', domain)
+      .eq('status', 'ACTIVE')
+      .single();
+
+    if (error || !data) throw new NotFoundException('Tenant not found');
+    return data;
+  }
+
+  // 根据slug查找租户（公开接口）
+  async findBySlug(slug: string) {
+    const { data, error } = await supabaseAdmin
+      .from('tenants')
+      .select('id, name, slug, logo_url, domain, status')
+      .eq('slug', slug)
+      .eq('status', 'ACTIVE')
+      .single();
+
+    if (error || !data) throw new NotFoundException('Tenant not found');
+    return data;
+  }
+
   // 获取单个租户
   async findOne(id: string) {
     const { data, error } = await supabaseAdmin
