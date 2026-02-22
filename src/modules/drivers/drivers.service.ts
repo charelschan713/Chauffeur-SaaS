@@ -1,0 +1,218 @@
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import { supabaseAdmin } from '../../config/supabase.config';
+import { CompleteDriverProfileDto } from './dto/complete-driver-profile.dto';
+import { CreateVehicleDto } from './dto/create-vehicle.dto';
+import { UpdateDriverStatusDto } from './dto/update-driver-status.dto';
+
+@Injectable()
+export class DriversService {
+  // 司机完善自己的资料（接受邀请后第一步）
+  async completeProfile(
+    user_id: string,
+    tenant_id: string,
+    dto: CompleteDriverProfileDto,
+  ) {
+    // 检查driver记录是否存在，不存在则创建
+    const { data: existing } = await supabaseAdmin
+      .from('drivers')
+      .select('id')
+      .eq('user_id', user_id)
+      .single();
+
+    if (existing) {
+      // 更新
+      const { data, error } = await supabaseAdmin
+        .from('drivers')
+        .update({
+          license_number: dto.license_number,
+          license_expiry: dto.license_expiry,
+        })
+        .eq('user_id', user_id)
+        .select()
+        .single();
+
+      if (error) throw new BadRequestException(error.message);
+      return data;
+    } else {
+      // 创建
+      const { data, error } = await supabaseAdmin
+        .from('drivers')
+        .insert({
+          user_id,
+          tenant_id,
+          license_number: dto.license_number,
+          license_expiry: dto.license_expiry,
+          status: 'PENDING',
+        })
+        .select()
+        .single();
+
+      if (error) throw new BadRequestException(error.message);
+
+      // 更新profile phone
+      if (dto.phone) {
+        await supabaseAdmin.from('profiles').update({ phone: dto.phone }).eq('id', user_id);
+      }
+
+      return data;
+    }
+  }
+
+  // 司机获取自己的资料
+  async getMyProfile(user_id: string) {
+    const { data, error } = await supabaseAdmin
+      .from('drivers')
+      .select('*, profiles(first_name, last_name, phone, avatar_url), vehicles(*)')
+      .eq('user_id', user_id)
+      .single();
+
+    if (error || !data) throw new NotFoundException('Driver profile not found');
+    return data;
+  }
+
+  // 司机切换可接单状态
+  async toggleAvailability(user_id: string, is_available: boolean) {
+    const { data: driver } = await supabaseAdmin
+      .from('drivers')
+      .select('id, status')
+      .eq('user_id', user_id)
+      .single();
+
+    if (!driver) throw new NotFoundException('Driver not found');
+    if (driver.status !== 'ACTIVE') {
+      throw new ForbiddenException('Only active drivers can change availability');
+    }
+
+    const { data, error } = await supabaseAdmin
+      .from('drivers')
+      .update({ is_available })
+      .eq('user_id', user_id)
+      .select()
+      .single();
+
+    if (error) throw new BadRequestException(error.message);
+    return data;
+  }
+
+  // TENANT_ADMIN：获取本租户所有司机
+  async findAllByTenant(tenant_id: string, status?: string) {
+    let query = supabaseAdmin
+      .from('drivers')
+      .select('*, profiles(first_name, last_name, phone, avatar_url), vehicles(*)')
+      .eq('tenant_id', tenant_id)
+      .order('created_at', { ascending: false });
+
+    if (status) query = query.eq('status', status);
+
+    const { data, error } = await query;
+    if (error) throw new BadRequestException(error.message);
+    return data;
+  }
+
+  // TENANT_ADMIN：审核司机（PENDING → ACTIVE 或 SUSPENDED）
+  async updateStatus(
+    driver_id: string,
+    tenant_id: string,
+    dto: UpdateDriverStatusDto,
+  ) {
+    // 确认司机属于该租户
+    const { data: driver } = await supabaseAdmin
+      .from('drivers')
+      .select('id')
+      .eq('id', driver_id)
+      .eq('tenant_id', tenant_id)
+      .single();
+
+    if (!driver) throw new NotFoundException('Driver not found in your tenant');
+
+    const { data, error } = await supabaseAdmin
+      .from('drivers')
+      .update({ status: dto.status })
+      .eq('id', driver_id)
+      .select()
+      .single();
+
+    if (error) throw new BadRequestException(error.message);
+    return data;
+  }
+
+  // TENANT_ADMIN：获取单个司机详情
+  async findOne(driver_id: string, tenant_id: string) {
+    const { data, error } = await supabaseAdmin
+      .from('drivers')
+      .select('*, profiles(first_name, last_name, phone, avatar_url), vehicles(*)')
+      .eq('id', driver_id)
+      .eq('tenant_id', tenant_id)
+      .single();
+
+    if (error || !data) throw new NotFoundException('Driver not found');
+    return data;
+  }
+
+  // ── 车辆管理 ──
+
+  // 司机添加车辆
+  async addVehicle(user_id: string, tenant_id: string, dto: CreateVehicleDto) {
+    const { data: driver } = await supabaseAdmin
+      .from('drivers')
+      .select('id')
+      .eq('user_id', user_id)
+      .single();
+
+    if (!driver) throw new NotFoundException('Complete your driver profile first');
+
+    const { data, error } = await supabaseAdmin
+      .from('vehicles')
+      .insert({ ...dto, driver_id: driver.id, tenant_id })
+      .select()
+      .single();
+
+    if (error) throw new BadRequestException(error.message);
+    return data;
+  }
+
+  // 司机获取自己的车辆列表
+  async getMyVehicles(user_id: string) {
+    const { data: driver } = await supabaseAdmin
+      .from('drivers')
+      .select('id')
+      .eq('user_id', user_id)
+      .single();
+
+    if (!driver) throw new NotFoundException('Driver profile not found');
+
+    const { data, error } = await supabaseAdmin
+      .from('vehicles')
+      .select('*')
+      .eq('driver_id', driver.id)
+      .eq('is_active', true);
+
+    if (error) throw new BadRequestException(error.message);
+    return data;
+  }
+
+  // 司机删除（停用）车辆
+  async deactivateVehicle(vehicle_id: string, user_id: string) {
+    const { data: driver } = await supabaseAdmin
+      .from('drivers')
+      .select('id')
+      .eq('user_id', user_id)
+      .single();
+
+    if (!driver) throw new NotFoundException('Driver not found');
+
+    const { error } = await supabaseAdmin
+      .from('vehicles')
+      .update({ is_active: false })
+      .eq('id', vehicle_id)
+      .eq('driver_id', driver.id);
+
+    if (error) throw new BadRequestException(error.message);
+    return { message: 'Vehicle deactivated' };
+  }
+}
