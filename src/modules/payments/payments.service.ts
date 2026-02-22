@@ -5,13 +5,14 @@ import {
 } from '@nestjs/common';
 import Stripe from 'stripe';
 import { supabaseAdmin } from '../../config/supabase.config';
+import { NotificationsService } from '../notifications/notifications.service';
 import { CreatePaymentIntentDto } from './dto/create-payment-intent.dto';
 
 @Injectable()
 export class PaymentsService {
   private stripe: Stripe;
 
-  constructor() {
+  constructor(private readonly notificationsService: NotificationsService) {
     this.stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
       apiVersion: '2026-01-28.clover',
     });
@@ -139,6 +140,8 @@ export class PaymentsService {
       .from('bookings')
       .update({ status: 'CONFIRMED' })
       .eq('id', booking_id);
+
+    await this.notificationsService.notifyBookingConfirmed(booking_id);
   }
 
   private async handlePaymentFailed(paymentIntent: Stripe.PaymentIntent) {

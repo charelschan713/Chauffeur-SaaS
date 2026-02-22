@@ -4,12 +4,14 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { supabaseAdmin } from '../../config/supabase.config';
+import { NotificationsService } from '../notifications/notifications.service';
 import { AssignDriverDto } from './dto/assign-driver.dto';
 import { CancelBookingDto } from './dto/cancel-booking.dto';
 import { CreateBookingDto } from './dto/create-booking.dto';
 
 @Injectable()
 export class BookingsService {
+  constructor(private readonly notificationsService: NotificationsService) {}
   // 乘客创建预约
   async create(passenger_id: string, dto: CreateBookingDto) {
     // 1. 获取定价规则计算价格
@@ -155,6 +157,9 @@ export class BookingsService {
       .single();
 
     if (error) throw new BadRequestException(error.message);
+
+    await this.notificationsService.notifyBookingCancelled(booking_id);
+
     return data;
   }
 
@@ -234,6 +239,8 @@ export class BookingsService {
       .from('drivers')
       .update({ is_available: false })
       .eq('id', dto.driver_id);
+
+    await this.notificationsService.notifyDriverAssigned(booking_id);
 
     return data;
   }
@@ -337,6 +344,8 @@ export class BookingsService {
         is_available: true,
       })
       .eq('id', driver.id);
+
+    await this.notificationsService.notifyTripCompleted(booking_id);
 
     return data;
   }

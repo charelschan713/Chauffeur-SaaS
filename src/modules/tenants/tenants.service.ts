@@ -5,11 +5,13 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { supabaseAdmin } from '../../config/supabase.config';
+import { NotificationsService } from '../notifications/notifications.service';
 import { CreatePricingRuleDto } from './dto/create-pricing-rule.dto';
 import { UpdateTenantDto } from './dto/update-tenant.dto';
 
 @Injectable()
 export class TenantsService {
+  constructor(private readonly notificationsService: NotificationsService) {}
   // SUPER_ADMIN：获取所有租户列表
   async findAll(status?: string) {
     let query = supabaseAdmin
@@ -63,6 +65,11 @@ export class TenantsService {
       .single();
 
     if (error) throw new BadRequestException(error.message);
+
+    if (status === 'ACTIVE') {
+      await this.notificationsService.notifyTenantApproved(id);
+    }
+
     return data;
   }
 
