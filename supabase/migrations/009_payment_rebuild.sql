@@ -32,3 +32,18 @@ ALTER TABLE booking_confirm_tokens ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "service_role_only_confirm_tokens"
   ON booking_confirm_tokens FOR ALL
   USING (true);
+
+-- =====================
+-- 增加用户总消费
+-- =====================
+CREATE OR REPLACE FUNCTION increment_total_spend(
+  p_user_id UUID,
+  p_amount DECIMAL
+)
+RETURNS VOID AS $$
+BEGIN
+  UPDATE profiles
+  SET total_spend = COALESCE(total_spend, 0) + p_amount
+  WHERE id = p_user_id;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
