@@ -218,6 +218,59 @@ export class AdminService {
     return { year, monthly: formatted, totals };
   }
 
+  // 平台统计
+  async getPlatformStats() {
+    const { count: total_tenants } = await supabaseAdmin
+      .from('tenants')
+      .select('*', { count: 'exact', head: true });
+
+    const { count: total_bookings } = await supabaseAdmin
+      .from('bookings')
+      .select('*', { count: 'exact', head: true });
+
+    const { count: total_drivers } = await supabaseAdmin
+      .from('drivers')
+      .select('*', { count: 'exact', head: true });
+
+    return {
+      total_tenants: total_tenants ?? 0,
+      total_bookings: total_bookings ?? 0,
+      total_drivers: total_drivers ?? 0,
+    };
+  }
+
+  // 重新激活租户
+  async reactivateTenant(tenant_id: string) {
+    const { data, error } = await supabaseAdmin
+      .from('tenants')
+      .update({
+        tenant_status: 'ACTIVE',
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', tenant_id)
+      .select()
+      .single();
+
+    if (error) throw new BadRequestException(error.message);
+    return data;
+  }
+
+  // 拒绝租户
+  async declineTenant(tenant_id: string, note?: string) {
+    const { data, error } = await supabaseAdmin
+      .from('tenants')
+      .update({
+        tenant_status: 'DECLINED',
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', tenant_id)
+      .select()
+      .single();
+
+    if (error) throw new BadRequestException(error.message);
+    return data;
+  }
+
   // 所有用户列表
   async getAllUsers(role?: string, page = 1, limit = 20) {
     const from = (page - 1) * limit;

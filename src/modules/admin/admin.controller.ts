@@ -83,6 +83,30 @@ export class AdminController {
     return this.adminService.suspendTenant(tenant_id, reason);
   }
 
+  @Get('stats')
+  @UseGuards(JwtGuard, RolesGuard)
+  @Roles('SUPER_ADMIN')
+  getPlatformStats() {
+    return this.adminService.getPlatformStats();
+  }
+
+  @Patch('tenants/:tenant_id/reactivate')
+  @UseGuards(JwtGuard, RolesGuard)
+  @Roles('SUPER_ADMIN')
+  reactivateTenant(@Param('tenant_id') tenant_id: string) {
+    return this.adminService.reactivateTenant(tenant_id);
+  }
+
+  @Patch('tenants/:tenant_id/decline')
+  @UseGuards(JwtGuard, RolesGuard)
+  @Roles('SUPER_ADMIN')
+  declineTenant(
+    @Param('tenant_id') tenant_id: string,
+    @Body('note') note?: string,
+  ) {
+    return this.adminService.declineTenant(tenant_id, note);
+  }
+
   @Get('users')
   @UseGuards(JwtGuard, RolesGuard)
   @Roles('SUPER_ADMIN')
