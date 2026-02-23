@@ -1,0 +1,13 @@
+[
+  {
+    "name": "AS Chauffeured",
+    "slug": "aschauffeured",
+    "railway_backend": "aschauffeur-elite-backend",
+    "supabase_url": "https://hsaulfavydlmmbyxtxru.supabase.co",
+    "db_url": "postgresql://postgres:[PASSWORD]@db.hsaulfavydlmmbyxtxru.supabase.co:5432/postgres",
+    "cloudflare_project": "aschauffeur-admin",
+    "admin_url": "https://admin.aschauffeured.com.au",
+    "contact_email": "admin@aschauffeured.com.au",
+    "active": true
+  }
+]

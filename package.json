@@ -10,7 +10,10 @@
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\"",
     "test": "jest",
     "test:watch": "jest --watch",
-    "test:cov": "jest --coverage"
+    "test:cov": "jest --coverage",
+    "sync:all": "bash scripts/sync-clients.sh all",
+    "sync:client": "bash scripts/sync-clients.sh",
+    "clients:list": "cat scripts/clients.json | jq '.[].name'"
   },
   "dependencies": {
     "@nestjs/common": "^11.1.14",
