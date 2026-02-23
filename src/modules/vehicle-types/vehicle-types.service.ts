@@ -32,6 +32,7 @@ export class VehicleTypesService {
       type_name: string;
       description?: string;
       max_luggage: number;
+      max_passengers?: number;
       base_fare: number;
       per_km_rate: number;
       per_minute_rate?: number;
@@ -75,6 +76,7 @@ export class VehicleTypesService {
         type_name: dto.type_name,
         description: dto.description,
         max_luggage: dto.max_luggage,
+        max_passengers: dto.max_passengers ?? 4,
         base_fare: dto.base_fare,
         per_km_rate: dto.per_km_rate,
         per_minute_rate: dto.per_minute_rate ?? 0,
@@ -103,6 +105,7 @@ export class VehicleTypesService {
       type_name?: string;
       description?: string;
       max_luggage?: number;
+      max_passengers?: number;
       base_fare?: number;
       per_km_rate?: number;
       per_minute_rate?: number;

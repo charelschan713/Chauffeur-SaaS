@@ -2,6 +2,7 @@ export class CreateVehicleTypeDto {
   type_name?: string;
   description?: string;
   max_luggage?: number;
+  max_passengers?: number;
   base_fare?: number;
   per_km_rate?: number;
   per_minute_rate?: number;
