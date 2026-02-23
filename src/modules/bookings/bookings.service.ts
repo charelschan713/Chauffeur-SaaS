@@ -5,9 +5,13 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { supabaseAdmin } from '../../config/supabase.config';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class BookingsService {
+  constructor(
+    private readonly notificationsService: NotificationsService,
+  ) {}
   // =====================
   // 创建订单
   // =====================
@@ -150,7 +154,7 @@ export class BookingsService {
     );
 
     // 获取乘客信息
-    await supabaseAdmin
+    const { data: profile } = await supabaseAdmin
       .from('profiles')
       .select('first_name, last_name, phone, email')
       .eq('id', passenger_id)
@@ -218,6 +222,14 @@ export class BookingsService {
       note: 'Booking created',
     });
 
+    // 通知：订单收到
+    await this.notificationsService.notifyBookingReceived({
+      ...booking,
+      booker_email: (profile as any)?.email,
+      booker_name: `${(profile as any)?.first_name ?? ''} ${(profile as any)?.last_name ?? ''}`.trim(),
+      tenant_name: await this.getTenantName(tenant_id),
+    });
+
     return booking;
   }
 
@@ -278,6 +290,11 @@ export class BookingsService {
       changed_by_role: 'TENANT_ADMIN',
       note: 'Booking confirmed by admin',
     });
+
+    const fullBooking = await this.getBookingWithDetails(booking_id, tenant_id);
+    if (fullBooking) {
+      await this.notificationsService.notifyBookingConfirmed(fullBooking);
+    }
 
     return data;
   }
@@ -370,6 +387,11 @@ export class BookingsService {
       note: `Driver assigned: ${dto.driver_id}`,
     });
 
+    const fullBooking = await this.getBookingWithDetails(booking_id, tenant_id);
+    if (fullBooking) {
+      await this.notificationsService.notifyDriverAssigned(fullBooking);
+    }
+
     return data;
   }
 
@@ -460,26 +482,62 @@ export class BookingsService {
   // 司机出发
   // =====================
   async driverOnTheWay(booking_id: string, driver_id: string) {
-    return this.updateDriverStatus(
+    const data = await this.updateDriverStatus(
       booking_id,
       driver_id,
       'ACCEPTED',
       'ON_THE_WAY',
       'Driver is on the way',
     );
+
+    const { data: booking } = await supabaseAdmin
+      .from('bookings')
+      .select('tenant_id')
+      .eq('id', booking_id)
+      .single();
+
+    if (booking?.tenant_id) {
+      const fullBooking = await this.getBookingWithDetails(
+        booking_id,
+        booking.tenant_id as string,
+      );
+      if (fullBooking) {
+        await this.notificationsService.notifyDriverOnTheWay(fullBooking);
+      }
+    }
+
+    return data;
   }
 
   // =====================
   // 司机到达
   // =====================
   async driverArrived(booking_id: string, driver_id: string) {
-    return this.updateDriverStatus(
+    const data = await this.updateDriverStatus(
       booking_id,
       driver_id,
       'ON_THE_WAY',
       'ARRIVED',
       'Driver has arrived',
     );
+
+    const { data: booking } = await supabaseAdmin
+      .from('bookings')
+      .select('tenant_id')
+      .eq('id', booking_id)
+      .single();
+
+    if (booking?.tenant_id) {
+      const fullBooking = await this.getBookingWithDetails(
+        booking_id,
+        booking.tenant_id as string,
+      );
+      if (fullBooking) {
+        await this.notificationsService.notifyDriverArrived(fullBooking);
+      }
+    }
+
+    return data;
   }
 
   // =====================
@@ -588,6 +646,14 @@ export class BookingsService {
       changed_by_role: 'DRIVER',
       note: dto.note ?? 'Job completed by driver',
     });
+
+    const fullBooking = await this.getBookingWithDetails(
+      booking_id,
+      booking.tenant_id as string,
+    );
+    if (fullBooking) {
+      await this.notificationsService.notifyTripCompleted(fullBooking);
+    }
 
     return data;
   }
@@ -796,6 +862,14 @@ export class BookingsService {
       note: `Booking modified. Old total: ${old_total}, New total: ${new_total}`,
     });
 
+    const fullBooking = await this.getBookingWithDetails(booking_id, tenant_id);
+    if (fullBooking) {
+      await this.notificationsService.notifyBookingModified(
+        fullBooking,
+        `Old total: ${old_total}, New total: ${new_total}`,
+      );
+    }
+
     return data;
   }
 
@@ -869,6 +943,11 @@ export class BookingsService {
       changed_by_role: cancelled_by_role,
       note: reason ?? 'Booking cancelled',
     });
+
+    const fullBooking = await this.getBookingWithDetails(booking_id, tenant_id);
+    if (fullBooking) {
+      await this.notificationsService.notifyBookingCancelled(fullBooking);
+    }
 
     return data;
   }
@@ -1336,6 +1415,55 @@ export class BookingsService {
       subtotal: parseFloat(subtotal.toFixed(2)),
       total_price,
     };
+  }
+
+  // 获取完整booking数据（含关联数据）
+  private async getBookingWithDetails(booking_id: string, tenant_id: string) {
+    const { data } = await supabaseAdmin
+      .from('bookings')
+      .select(
+        `
+      *,
+      profiles!bookings_passenger_id_fkey(
+        first_name, last_name, phone, email
+      ),
+      drivers(
+        id,
+        profiles(first_name, last_name, phone),
+        vehicles(make, model, year, color, plate_number)
+      ),
+      tenant_service_cities(city_name, timezone, currency),
+      tenants(name)
+    `,
+      )
+      .eq('id', booking_id)
+      .eq('tenant_id', tenant_id)
+      .single();
+
+    if (!data) return null;
+
+    const profile = data.profiles as any;
+    const tenant = data.tenants as any;
+
+    return {
+      ...data,
+      booker_name:
+        data.booker_name ??
+        `${profile?.first_name ?? ''} ${profile?.last_name ?? ''}`.trim(),
+      booker_email: data.booker_email ?? profile?.email,
+      booker_phone: data.booker_phone ?? profile?.phone,
+      tenant_name: tenant?.name ?? '',
+    };
+  }
+
+  // 获取租户名称
+  private async getTenantName(tenant_id: string): Promise<string> {
+    const { data } = await supabaseAdmin
+      .from('tenants')
+      .select('name')
+      .eq('id', tenant_id)
+      .single();
+    return (data as any)?.name ?? '';
   }
 
   private formatBookingResponse(booking: any) {

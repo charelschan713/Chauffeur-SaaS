@@ -6,12 +6,15 @@ import {
 import { supabaseAdmin } from '../../config/supabase.config';
 import Stripe from 'stripe';
 import * as crypto from 'crypto';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class PaymentsService {
   private readonly stripe: Stripe;
 
-  constructor() {
+  constructor(
+    private readonly notificationsService: NotificationsService,
+  ) {
     this.stripe = new Stripe(process.env.STRIPE_SECRET_KEY ?? '', {
       apiVersion: '2026-01-28.clover',
     });
@@ -315,6 +318,23 @@ export class PaymentsService {
         processed_by: admin_id,
       });
 
+      const { data: booking_for_notify } = await supabaseAdmin
+        .from('bookings')
+        .select('*, profiles!bookings_passenger_id_fkey(email)')
+        .eq('id', booking_id)
+        .single();
+
+      if (booking_for_notify) {
+        await this.notificationsService.notifySupplementCharged(
+          {
+            ...booking_for_notify,
+            booker_email: (booking_for_notify as any).profiles?.email,
+          },
+          dto.supplement_amount,
+          dto.note,
+        );
+      }
+
       return {
         message: 'Supplement charged',
         supplement_amount: dto.supplement_amount,
@@ -390,6 +410,23 @@ export class PaymentsService {
         note: dto.note ?? 'Credit note issued',
         processed_by: admin_id,
       });
+
+      const { data: booking_for_notify } = await supabaseAdmin
+        .from('bookings')
+        .select('*, profiles!bookings_passenger_id_fkey(email)')
+        .eq('id', booking_id)
+        .single();
+
+      if (booking_for_notify) {
+        await this.notificationsService.notifyCreditNoteIssued(
+          {
+            ...booking_for_notify,
+            booker_email: (booking_for_notify as any).profiles?.email,
+          },
+          dto.credit_amount,
+          dto.note,
+        );
+      }
 
       return {
         message: 'Credit note issued',
