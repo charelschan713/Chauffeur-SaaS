@@ -1730,4 +1730,180 @@ export class BookingsService {
   private toRad(deg: number): number {
     return (deg * Math.PI) / 180;
   }
+
+  // ========================
+  // REPORTS
+  // ========================
+
+  async getRevenueReport(tenant_id: string, query: any) {
+    const now = new Date();
+    const {
+      from = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`,
+      to = now.toISOString().slice(0, 10),
+      group_by = 'day',
+    } = query;
+
+    const { data: bookings } = await supabaseAdmin
+      .from('bookings')
+      .select(
+        'id, status, payment_status, total_price, fare, toll, extras, surcharge_amount, discount_amount, currency, pickup_datetime, vehicle_class, service_type',
+      )
+      .eq('tenant_id', tenant_id)
+      .eq('payment_status', 'PAID')
+      .gte('pickup_datetime', `${from}T00:00:00`)
+      .lte('pickup_datetime', `${to}T23:59:59`)
+      .order('pickup_datetime', { ascending: true });
+
+    const all = bookings ?? [];
+
+    const grouped: Record<string, { date: string; revenue: number; bookings: number; avg_fare: number }> = {};
+    all.forEach((b) => {
+      const dt = new Date(b.pickup_datetime);
+      let key = '';
+      if (group_by === 'day') key = dt.toISOString().slice(0, 10);
+      else if (group_by === 'week') {
+        const ws = new Date(dt);
+        ws.setDate(dt.getDate() - dt.getDay());
+        key = ws.toISOString().slice(0, 10);
+      } else if (group_by === 'month') key = dt.toISOString().slice(0, 7);
+
+      if (!grouped[key]) grouped[key] = { date: key, revenue: 0, bookings: 0, avg_fare: 0 };
+      grouped[key].revenue += b.total_price ?? 0;
+      grouped[key].bookings += 1;
+    });
+
+    Object.values(grouped).forEach((g) => {
+      g.avg_fare = g.bookings > 0 ? g.revenue / g.bookings : 0;
+      g.revenue = parseFloat(g.revenue.toFixed(2));
+      g.avg_fare = parseFloat(g.avg_fare.toFixed(2));
+    });
+
+    const byVehicleClass: Record<string, { vehicle_class: string; revenue: number; bookings: number }> = {};
+    all.forEach((b) => {
+      const vc = b.vehicle_class ?? 'UNKNOWN';
+      if (!byVehicleClass[vc]) byVehicleClass[vc] = { vehicle_class: vc, revenue: 0, bookings: 0 };
+      byVehicleClass[vc].revenue += b.total_price ?? 0;
+      byVehicleClass[vc].bookings += 1;
+    });
+
+    const byServiceType: Record<string, number> = {};
+    all.forEach((b) => {
+      const st = b.service_type ?? 'UNKNOWN';
+      byServiceType[st] = (byServiceType[st] ?? 0) + 1;
+    });
+
+    const total_revenue = all.reduce((sum, b) => sum + (b.total_price ?? 0), 0);
+
+    return {
+      from,
+      to,
+      group_by,
+      total_revenue: parseFloat(total_revenue.toFixed(2)),
+      total_bookings: all.length,
+      currency: all[0]?.currency ?? 'AUD',
+      timeline: Object.values(grouped).sort((a, b) => a.date.localeCompare(b.date)),
+      by_vehicle_class: Object.values(byVehicleClass).map((v) => ({
+        ...v,
+        revenue: parseFloat(v.revenue.toFixed(2)),
+      })),
+      by_service_type: Object.entries(byServiceType).map(([service_type, count]) => ({
+        service_type,
+        count,
+      })),
+    };
+  }
+
+  async getDriverReport(tenant_id: string, query: any) {
+    const now = new Date();
+    const {
+      from = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`,
+      to = now.toISOString().slice(0, 10),
+    } = query;
+
+    const { data: bookings } = await supabaseAdmin
+      .from('bookings')
+      .select(
+        `id, driver_id, status, total_price, pickup_datetime, vehicle_class,
+         drivers(profiles(first_name, last_name))`,
+      )
+      .eq('tenant_id', tenant_id)
+      .eq('status', 'COMPLETED')
+      .not('driver_id', 'is', null)
+      .gte('pickup_datetime', `${from}T00:00:00`)
+      .lte('pickup_datetime', `${to}T23:59:59`);
+
+    const all = bookings ?? [];
+
+    const byDriver: Record<
+      string,
+      { driver_id: string; driver_name: string; total_earnings: number; total_jobs: number; avg_earnings: number }
+    > = {};
+
+    all.forEach((b: any) => {
+      if (!b.driver_id) return;
+      const key = b.driver_id;
+      if (!byDriver[key]) {
+        const p = b.drivers?.profiles;
+        byDriver[key] = {
+          driver_id: b.driver_id,
+          driver_name: `${p?.first_name ?? ''} ${p?.last_name ?? ''}`.trim() || 'Unknown',
+          total_earnings: 0,
+          total_jobs: 0,
+          avg_earnings: 0,
+        };
+      }
+      byDriver[key].total_earnings += b.total_price ?? 0;
+      byDriver[key].total_jobs += 1;
+    });
+
+    Object.values(byDriver).forEach((d) => {
+      d.avg_earnings = d.total_jobs > 0 ? d.total_earnings / d.total_jobs : 0;
+      d.total_earnings = parseFloat(d.total_earnings.toFixed(2));
+      d.avg_earnings = parseFloat(d.avg_earnings.toFixed(2));
+    });
+
+    return {
+      from,
+      to,
+      total_jobs: all.length,
+      drivers: Object.values(byDriver).sort((a, b) => b.total_jobs - a.total_jobs),
+    };
+  }
+
+  async getReportSummary(tenant_id: string, query: any) {
+    const now = new Date();
+    const {
+      from = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`,
+      to = now.toISOString().slice(0, 10),
+    } = query;
+
+    const { data: bookings } = await supabaseAdmin
+      .from('bookings')
+      .select('id, status, payment_status, total_price, currency')
+      .eq('tenant_id', tenant_id)
+      .gte('pickup_datetime', `${from}T00:00:00`)
+      .lte('pickup_datetime', `${to}T23:59:59`);
+
+    const all = bookings ?? [];
+    const total = all.length;
+    const completed = all.filter((b) => b.status === 'COMPLETED').length;
+    const cancelled = all.filter((b) => b.status === 'CANCELLED').length;
+    const pending = all.filter((b) => b.status === 'PENDING').length;
+    const revenue = all
+      .filter((b) => b.payment_status === 'PAID')
+      .reduce((sum, b) => sum + (b.total_price ?? 0), 0);
+
+    return {
+      from,
+      to,
+      total_bookings: total,
+      completed,
+      cancelled,
+      pending,
+      completion_rate: total > 0 ? parseFloat(((completed / total) * 100).toFixed(1)) : 0,
+      cancellation_rate: total > 0 ? parseFloat(((cancelled / total) * 100).toFixed(1)) : 0,
+      total_revenue: parseFloat(revenue.toFixed(2)),
+      currency: all[0]?.currency ?? 'AUD',
+    };
+  }
 }

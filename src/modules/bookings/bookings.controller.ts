@@ -320,6 +320,27 @@ export class BookingsController {
     );
   }
 
+  @Get('reports/revenue')
+  @UseGuards(RolesGuard)
+  @Roles('TENANT_ADMIN', 'TENANT_STAFF')
+  getRevenueReport(@Request() req: any, @Query() query: any) {
+    return this.bookingsService.getRevenueReport(req.user.profile.tenant_id, query);
+  }
+
+  @Get('reports/drivers')
+  @UseGuards(RolesGuard)
+  @Roles('TENANT_ADMIN', 'TENANT_STAFF')
+  getDriverReport(@Request() req: any, @Query() query: any) {
+    return this.bookingsService.getDriverReport(req.user.profile.tenant_id, query);
+  }
+
+  @Get('reports/summary')
+  @UseGuards(RolesGuard)
+  @Roles('TENANT_ADMIN', 'TENANT_STAFF')
+  getReportSummary(@Request() req: any, @Query() query: any) {
+    return this.bookingsService.getReportSummary(req.user.profile.tenant_id, query);
+  }
+
   @Patch(':booking_id/no-show')
   @UseGuards(RolesGuard)
   @Roles('TENANT_ADMIN')

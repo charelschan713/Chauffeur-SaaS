@@ -13,6 +13,7 @@ import { InvoicesModule } from './modules/invoices/invoices.module';
 import { PaymentsModule } from './modules/payments/payments.module';
 import { PublicApiModule } from './modules/public-api/public-api.module';
 import { PricingModule } from './modules/pricing/pricing.module';
+import { ApiKeysModule } from './modules/api-keys/api-keys.module';
 import { TenantsModule } from './modules/tenants/tenants.module';
 
 @Module({
@@ -36,6 +37,7 @@ import { TenantsModule } from './modules/tenants/tenants.module';
     AdminModule,
     PublicApiModule,
     ConstantsModule,
+    ApiKeysModule,
   ],
   providers: [
     { provide: APP_PIPE, useValue: new ValidationPipe({ whitelist: true }) },
