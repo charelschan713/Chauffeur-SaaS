@@ -1222,6 +1222,88 @@ export class BookingsService {
     throw new BadRequestException('Invalid driver status');
   }
 
+  async getMyBookings(user_id: string, query: any = {}) {
+    let request = supabaseAdmin
+      .from('booking_summary')
+      .select('*')
+      .eq('passenger_id', user_id)
+      .order('pickup_datetime', { ascending: false });
+
+    if (query.booking_status) {
+      const statuses = String(query.booking_status)
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean);
+      if (statuses.length > 0) {
+        request = request.in('booking_status', statuses);
+      }
+    }
+
+    const limit = parseInt(String(query.limit ?? '20'), 10);
+    request = request.limit(Number.isNaN(limit) ? 20 : limit);
+
+    const { data, error } = await request;
+    if (error) throw new BadRequestException(error.message);
+
+    return {
+      data: data ?? [],
+      total: data?.length ?? 0,
+    };
+  }
+
+  async getMyBookingById(booking_id: string, user_id: string) {
+    const { data, error } = await supabaseAdmin
+      .from('booking_summary')
+      .select('*')
+      .eq('id', booking_id)
+      .eq('passenger_id', user_id)
+      .single();
+
+    if (error || !data) throw new NotFoundException('Booking not found');
+    return data;
+  }
+
+  async cancelMyBooking(booking_id: string, user_id: string) {
+    const { data: booking } = await supabaseAdmin
+      .from('bookings')
+      .select('id, tenant_id, booking_status, driver_status, total_price, payment_status')
+      .eq('id', booking_id)
+      .eq('passenger_id', user_id)
+      .single();
+
+    if (!booking) throw new NotFoundException('Booking not found');
+
+    if (!['PENDING', 'CONFIRMED'].includes(booking.booking_status)) {
+      throw new BadRequestException('Cannot cancel this booking');
+    }
+
+    if (booking.driver_status !== 'UNASSIGNED') {
+      throw new BadRequestException(
+        'Cannot cancel after driver has been assigned. Please contact support.',
+      );
+    }
+
+    const { data, error } = await supabaseAdmin
+      .from('bookings')
+      .update({
+        booking_status: 'CANCELLED',
+        payment_status:
+          booking.payment_status === 'PAID' ? 'REFUNDED' : booking.payment_status,
+        refunded_amount:
+          booking.payment_status === 'PAID' ? booking.total_price : 0,
+        cancellation_reason: 'Customer cancellation',
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', booking_id)
+      .select()
+      .single();
+
+    if (error) throw new BadRequestException(error.message);
+
+    await this.notificationsService.notifyBookingCancelled(data).catch(() => {});
+    return data;
+  }
+
   async getPassengerBookings(passenger_id: string) {
     const { data, error } = await supabaseAdmin
       .from('bookings')

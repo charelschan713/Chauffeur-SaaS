@@ -36,21 +36,15 @@ export class BookingsController {
   @Get('my')
   @UseGuards(RolesGuard)
   @Roles('PASSENGER')
-  getMyBookings(@Request() req: any) {
-    return this.bookingsService.getPassengerBookings(req.user.id);
+  getMyBookings(@Request() req: any, @Query() query: any) {
+    return this.bookingsService.getMyBookings(req.user.id, query);
   }
 
-  @Get('my/:booking_id')
+  @Get('my/:id')
   @UseGuards(RolesGuard)
   @Roles('PASSENGER')
-  getMyBooking(
-    @Param('booking_id') booking_id: string,
-    @Request() req: any,
-  ) {
-    return this.bookingsService.getBooking(
-      booking_id,
-      req.user.profile.tenant_id,
-    );
+  getMyBookingById(@Param('id') id: string, @Request() req: any) {
+    return this.bookingsService.getMyBookingById(id, req.user.id);
   }
 
   @Patch('my/:booking_id/modify')
@@ -70,21 +64,11 @@ export class BookingsController {
     );
   }
 
-  @Patch('my/:booking_id/cancel')
+  @Patch('my/:id/cancel')
   @UseGuards(RolesGuard)
   @Roles('PASSENGER')
-  cancelMyBooking(
-    @Param('booking_id') booking_id: string,
-    @Body('reason') reason: string,
-    @Request() req: any,
-  ) {
-    return this.bookingsService.cancelBooking(
-      booking_id,
-      req.user.profile.tenant_id,
-      req.user.id,
-      'PASSENGER',
-      reason,
-    );
+  cancelMyBooking(@Param('id') id: string, @Request() req: any) {
+    return this.bookingsService.cancelMyBooking(id, req.user.id);
   }
 
   // =====================
