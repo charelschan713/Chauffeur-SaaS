@@ -6,6 +6,7 @@ import { AdminModule } from './modules/admin/admin.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { BookingsModule } from './modules/bookings/bookings.module';
 import { ConstantsModule } from './modules/constants/constants.module';
+import { ConnectionsModule } from './modules/connections/connections.module';
 import { DriversModule } from './modules/drivers/drivers.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { InvoicesModule } from './modules/invoices/invoices.module';
@@ -31,6 +32,7 @@ import { TenantsModule } from './modules/tenants/tenants.module';
     PaymentsModule,
     NotificationsModule,
     InvoicesModule,
+    ConnectionsModule,
     AdminModule,
     PublicApiModule,
     ConstantsModule,
