@@ -1,17 +1,17 @@
 export class CreateBookingDto {
-  service_city_id!: string;
-  vehicle_type_id!: string;
-  service_type!: string;
-  pickup_address!: string;
+  service_city_id?: string;
+  vehicle_type_id?: string;
+  service_type?: string;
+  pickup_address?: string;
   pickup_lat?: number;
   pickup_lng?: number;
   dropoff_address?: string;
   dropoff_lat?: number;
   dropoff_lng?: number;
-  pickup_datetime!: string;
+  pickup_datetime?: string;
   duration_hours?: number;
-  passenger_name!: string;
-  passenger_phone!: string;
+  passenger_name?: string;
+  passenger_phone?: string;
   passenger_email?: string;
   passenger_count?: number;
   luggage_count?: number;
