@@ -5,11 +5,12 @@ import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { AdminModule } from './modules/admin/admin.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { BookingsModule } from './modules/bookings/bookings.module';
+import { ConstantsModule } from './modules/constants/constants.module';
 import { DriversModule } from './modules/drivers/drivers.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { PaymentsModule } from './modules/payments/payments.module';
-import { TenantsModule } from './modules/tenants/tenants.module';
 import { PublicApiModule } from './modules/public-api/public-api.module';
+import { TenantsModule } from './modules/tenants/tenants.module';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { PublicApiModule } from './modules/public-api/public-api.module';
     NotificationsModule,
     AdminModule,
     PublicApiModule,
+    ConstantsModule,
   ],
   providers: [
     { provide: APP_PIPE, useValue: new ValidationPipe({ whitelist: true }) },
