@@ -24,8 +24,8 @@ export class PlatformVehiclesController {
 
   @Get()
   @UseGuards(JwtGuard)
-  findAll(@Query('include_inactive') inc: string) {
-    return this.service.findAll(inc === 'true');
+  findAll(@Query('includeInactive') includeInactive?: string) {
+    return this.service.findAll(includeInactive === 'true');
   }
 
   @Get('search')
