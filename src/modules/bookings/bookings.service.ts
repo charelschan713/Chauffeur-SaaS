@@ -6,11 +6,13 @@ import {
 } from '@nestjs/common';
 import { supabaseAdmin } from '../../config/supabase.config';
 import { NotificationsService } from '../notifications/notifications.service';
+import { WebhooksService } from '../webhooks/webhooks.service';
 
 @Injectable()
 export class BookingsService {
   constructor(
     private readonly notificationsService: NotificationsService,
+    private readonly webhooksService: WebhooksService,
   ) {}
   // =====================
   // 创建订单
@@ -296,6 +298,12 @@ export class BookingsService {
       await this.notificationsService.notifyBookingConfirmed(fullBooking);
     }
 
+    await this.webhooksService.triggerEvent(
+      tenant_id,
+      'booking.confirmed',
+      { booking_id: data.id, booking_number: data.booking_number },
+    ).catch(() => {});
+
     return data;
   }
 
@@ -391,6 +399,12 @@ export class BookingsService {
     if (fullBooking) {
       await this.notificationsService.notifyDriverAssigned(fullBooking);
     }
+
+    await this.webhooksService.triggerEvent(
+      tenant_id,
+      'booking.driver_assigned',
+      { booking_id: data.id, driver_id: dto.driver_id },
+    ).catch(() => {});
 
     return data;
   }
@@ -510,6 +524,11 @@ export class BookingsService {
       if (fullBooking) {
         await this.notificationsService.notifyDriverOnTheWay(fullBooking);
       }
+      await this.webhooksService.triggerEvent(
+        booking.tenant_id as string,
+        'booking.driver_on_the_way',
+        { booking_id },
+      ).catch(() => {});
     }
 
     return data;
@@ -543,6 +562,11 @@ export class BookingsService {
       if (fullBooking) {
         await this.notificationsService.notifyDriverArrived(fullBooking);
       }
+      await this.webhooksService.triggerEvent(
+        booking.tenant_id as string,
+        'booking.driver_arrived',
+        { booking_id },
+      ).catch(() => {});
     }
 
     return data;
@@ -668,6 +692,12 @@ export class BookingsService {
     if (fullBooking) {
       await this.notificationsService.notifyTripCompleted(fullBooking);
     }
+
+    await this.webhooksService.triggerEvent(
+      booking.tenant_id as string,
+      'booking.completed',
+      { booking_id: data.id, booking_number: data.booking_number },
+    ).catch(() => {});
 
     return data;
   }
@@ -962,6 +992,12 @@ export class BookingsService {
     if (fullBooking) {
       await this.notificationsService.notifyBookingCancelled(fullBooking);
     }
+
+    await this.webhooksService.triggerEvent(
+      tenant_id,
+      'booking.cancelled',
+      { booking_id: data.id, reason: reason ?? 'Booking cancelled' },
+    ).catch(() => {});
 
     return data;
   }

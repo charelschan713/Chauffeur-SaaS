@@ -15,6 +15,7 @@ import { PublicApiModule } from './modules/public-api/public-api.module';
 import { PricingModule } from './modules/pricing/pricing.module';
 import { ApiKeysModule } from './modules/api-keys/api-keys.module';
 import { TenantsModule } from './modules/tenants/tenants.module';
+import { WebhooksModule } from './modules/webhooks/webhooks.module';
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { TenantsModule } from './modules/tenants/tenants.module';
     PublicApiModule,
     ConstantsModule,
     ApiKeysModule,
+    WebhooksModule,
   ],
   providers: [
     { provide: APP_PIPE, useValue: new ValidationPipe({ whitelist: true }) },
