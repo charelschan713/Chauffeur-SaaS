@@ -10,6 +10,7 @@ import { DriversModule } from './modules/drivers/drivers.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { PaymentsModule } from './modules/payments/payments.module';
 import { PublicApiModule } from './modules/public-api/public-api.module';
+import { PricingModule } from './modules/pricing/pricing.module';
 import { TenantsModule } from './modules/tenants/tenants.module';
 
 @Module({
@@ -30,6 +31,7 @@ import { TenantsModule } from './modules/tenants/tenants.module';
     AdminModule,
     PublicApiModule,
     ConstantsModule,
+    PricingModule,
   ],
   providers: [
     { provide: APP_PIPE, useValue: new ValidationPipe({ whitelist: true }) },
