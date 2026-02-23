@@ -33,6 +33,10 @@ const webhooksService = {
   triggerEvent: jest.fn(),
 };
 
+const contactsService = {
+  updateStats: jest.fn(),
+};
+
 describe('BookingsService', () => {
   let service: BookingsService;
 
@@ -40,6 +44,7 @@ describe('BookingsService', () => {
     service = new BookingsService(
       notificationsService as any,
       webhooksService as any,
+      contactsService as any,
     );
   });
 
