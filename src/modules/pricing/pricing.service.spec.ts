@@ -1,4 +1,19 @@
 import { Test, TestingModule } from '@nestjs/testing';
+
+jest.mock('../../config/supabase.config', () => ({
+  supabaseAdmin: {
+    from: jest.fn(() => ({
+      select: jest.fn().mockReturnThis(),
+      insert: jest.fn().mockReturnThis(),
+      update: jest.fn().mockReturnThis(),
+      delete: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      single: jest.fn().mockResolvedValue({ data: null, error: null }),
+    })),
+  },
+  newSupabaseAdminClient: jest.fn(),
+}));
+
 import { PricingService } from './pricing.service';
 
 describe('PricingService', () => {
