@@ -9,7 +9,7 @@ export class PricingService {
   async getQuote(tenant_id: string, dto: {
     service_city_id: string;
     service_type: 'POINT_TO_POINT' | 'HOURLY_CHARTER';
-    vehicle_class: string;
+    vehicle_type_id: string;
     pickup_lat: number;
     pickup_lng: number;
     dropoff_lat?: number;
@@ -118,7 +118,7 @@ export class PricingService {
         );
 
         return {
-          vehicle_class: rule.vehicle_class,
+          vehicle_type_id: rule.vehicle_type_id,
           service_type: dto.service_type,
           currency: serviceCity.currency,
           distance_km: parseFloat(distance_km.toFixed(2)),
@@ -163,7 +163,7 @@ export class PricingService {
       .from('pricing_rules')
       .select('*')
       .eq('tenant_id', tenant_id)
-      .order('vehicle_class')
+      .order('vehicle_type_id')
       .order('service_type');
 
     if (error) throw new BadRequestException(error.message);
@@ -171,7 +171,7 @@ export class PricingService {
   }
 
   async createPricingRule(tenant_id: string, dto: {
-    vehicle_class: string;
+    vehicle_type_id: string;
     service_type: 'POINT_TO_POINT' | 'HOURLY_CHARTER';
     service_city_id?: string;
     base_fare?: number;
@@ -189,7 +189,7 @@ export class PricingService {
       .from('pricing_rules')
       .insert({
         tenant_id,
-        vehicle_class: dto.vehicle_class,
+        vehicle_type_id: dto.vehicle_type_id,
         service_type: dto.service_type,
         service_city_id: dto.service_city_id ?? null,
         base_fare: dto.base_fare ?? 0,
@@ -345,7 +345,7 @@ export class PricingService {
     max_uses?: number;
     valid_from?: string;
     valid_until?: string;
-    applicable_vehicle_classes?: string[];
+    applicable_vehicle_type_ides?: string[];
   }) {
     const { data, error } = await supabaseAdmin
       .from('promo_codes')
@@ -359,7 +359,7 @@ export class PricingService {
         max_uses: dto.max_uses ?? null,
         valid_from: dto.valid_from ?? null,
         valid_until: dto.valid_until ?? null,
-        applicable_vehicle_classes: dto.applicable_vehicle_classes ?? [],
+        applicable_vehicle_type_ides: dto.applicable_vehicle_type_ides ?? [],
         is_active: true,
         used_count: 0,
       })

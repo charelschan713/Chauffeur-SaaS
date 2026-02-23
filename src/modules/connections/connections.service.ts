@@ -398,7 +398,7 @@ export class ConnectionsService {
           pickup_datetime,
           pickup_address,
           dropoff_address,
-          vehicle_class,
+          vehicle_type_id,
           total_price,
           currency,
           booking_status,

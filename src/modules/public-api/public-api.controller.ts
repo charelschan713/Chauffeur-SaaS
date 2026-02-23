@@ -24,14 +24,14 @@ import {
   IsNumber,
   IsOptional,
   IsDateString,
-  IsIn,
+  IsUUID,
   IsEmail,
   IsInt,
 } from 'class-validator';
 
 class QuoteQueryDto {
-  @ApiProperty({ example: 'BUSINESS' })
-  vehicle_class!: string;
+  @ApiProperty({ example: 'uuid-of-vehicle-type' })
+  vehicle_type_id!: string;
 
   @ApiProperty({ example: 'SYD Terminal 3, Sydney' })
   pickup_address!: string;
@@ -98,12 +98,9 @@ class CreateBookingApiDto {
   @IsDateString()
   pickup_datetime!: string;
 
-  @ApiProperty({
-    example: 'BUSINESS',
-    enum: ['BUSINESS', 'FIRST', 'VAN', 'ELECTRIC'],
-  })
-  @IsIn(['BUSINESS', 'FIRST', 'VAN', 'ELECTRIC'])
-  vehicle_class!: string;
+  @ApiProperty({ example: 'uuid-of-vehicle-type' })
+  @IsUUID()
+  vehicle_type_id!: string;
 
   @ApiProperty({ example: 1 })
   @IsInt()
@@ -132,10 +129,10 @@ export class PublicApiController {
   constructor(private readonly publicApiService: PublicApiService) {}
 
   @Get('vehicles')
-  @ApiOperation({ summary: 'Get available vehicle classes and pricing' })
-  @ApiResponse({ status: 200, description: 'List of available vehicle classes' })
+  @ApiOperation({ summary: 'Get available vehicle types and pricing' })
+  @ApiResponse({ status: 200, description: 'List of available vehicle types' })
   getVehicles(@Request() req: any) {
-    return this.publicApiService.getAvailableVehicleClasses(req.tenant_id);
+    return this.publicApiService.getAvailableVehicleTypes(req.tenant_id);
   }
 
   @Get('quote')
@@ -144,7 +141,7 @@ export class PublicApiController {
   getQuote(@Request() req: any, @Query() query: QuoteQueryDto) {
     return this.publicApiService.getQuote(
       req.tenant_id,
-      query.vehicle_class,
+      query.vehicle_type_id,
       query.pickup_address,
       query.dropoff_address,
       parseFloat(query.pickup_lat as any),

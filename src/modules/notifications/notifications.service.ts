@@ -753,7 +753,7 @@ export class NotificationsService {
       pickup_date,
       pickup_time,
       pickup_city: city_name,
-      vehicle_class: booking.vehicle_class ?? '',
+      vehicle_type: booking.vehicle_type ?? '',
       currency: booking.currency ?? 'AUD',
       fare: (booking.fare ?? 0).toFixed(2),
       toll: (booking.toll ?? 0).toFixed(2),

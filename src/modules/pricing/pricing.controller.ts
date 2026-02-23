@@ -16,7 +16,7 @@ export class PricingController {
     return this.pricingService.getQuote(query.tenant_id, {
       service_city_id: query.service_city_id,
       service_type: query.service_type ?? 'POINT_TO_POINT',
-      vehicle_class: query.vehicle_class,
+      vehicle_type_id: query.vehicle_type_id,
       pickup_lat: parseFloat(query.pickup_lat),
       pickup_lng: parseFloat(query.pickup_lng),
       dropoff_lat: query.dropoff_lat ? parseFloat(query.dropoff_lat) : undefined,

@@ -9,7 +9,7 @@ import { supabaseAdmin } from '../../config/supabase.config';
 export class PublicApiService {
   async getQuote(
     tenant_id: string,
-    vehicle_class: string,
+    vehicle_type_id: string,
     pickup_address: string,
     dropoff_address: string,
     pickup_lat: number,
@@ -17,17 +17,17 @@ export class PublicApiService {
     dropoff_lat: number,
     dropoff_lng: number,
   ) {
-    const { data: rule } = await supabaseAdmin
-      .from('pricing_rules')
-      .select('*')
+    const { data: vtype } = await supabaseAdmin
+      .from('tenant_vehicle_types')
+      .select('*, platform_vehicles(name, category)')
       .eq('tenant_id', tenant_id)
-      .eq('vehicle_class', vehicle_class)
+      .eq('id', vehicle_type_id)
       .eq('is_active', true)
       .single();
 
-    if (!rule)
+    if (!vtype)
       throw new NotFoundException(
-        'No pricing available for this vehicle class',
+        'No pricing available for this vehicle type',
       );
 
     const distance_km = this.calcDistance(
@@ -37,23 +37,23 @@ export class PublicApiService {
       dropoff_lng,
     );
     const duration_minutes = Math.round(distance_km * 1.5);
-    const calculated =
-      rule.base_fare +
-      rule.price_per_km * distance_km +
-      rule.price_per_minute * duration_minutes;
-    const total = parseFloat(
-      Math.max(calculated, rule.minimum_fare).toFixed(2),
-    );
+
+    const per_km = vtype.per_km_rate ?? 0;
+    const base = vtype.base_fare ?? 0;
+    const min_fare = vtype.minimum_fare ?? 0;
+    const calculated = base + per_km * distance_km;
+    const total = parseFloat(Math.max(calculated, min_fare).toFixed(2));
 
     return {
-      vehicle_class,
+      vehicle_type_id,
+      vehicle_name: vtype.platform_vehicles?.name ?? vtype.display_name,
       pickup_address,
       dropoff_address,
       distance_km: parseFloat(distance_km.toFixed(2)),
       duration_minutes,
-      base_fare: rule.base_fare,
+      base_fare: base,
       total_price: total,
-      currency: rule.currency,
+      currency: vtype.currency ?? 'AUD',
     };
   }
 
@@ -102,15 +102,16 @@ export class PublicApiService {
       );
     }
 
-    const { data: rule } = await supabaseAdmin
-      .from('pricing_rules')
+    // Look up vehicle type for pricing
+    const { data: vtype } = await supabaseAdmin
+      .from('tenant_vehicle_types')
       .select('*')
       .eq('tenant_id', tenant_id)
-      .eq('vehicle_class', dto.vehicle_class)
+      .eq('id', dto.vehicle_type_id)
       .eq('is_active', true)
       .single();
 
-    if (!rule) throw new NotFoundException('No pricing rule found');
+    if (!vtype) throw new NotFoundException('Vehicle type not found');
 
     const distance_km = this.calcDistance(
       dto.pickup_lat,
@@ -119,13 +120,11 @@ export class PublicApiService {
       dto.dropoff_lng,
     );
     const duration_minutes = Math.round(distance_km * 1.5);
-    const calculated =
-      rule.base_fare +
-      rule.price_per_km * distance_km +
-      rule.price_per_minute * duration_minutes;
-    const total_price = parseFloat(
-      Math.max(calculated, rule.minimum_fare).toFixed(2),
-    );
+    const per_km = vtype.per_km_rate ?? 0;
+    const base = vtype.base_fare ?? 0;
+    const min_fare = vtype.minimum_fare ?? 0;
+    const calculated = base + per_km * distance_km;
+    const total_price = parseFloat(Math.max(calculated, min_fare).toFixed(2));
 
     const { data, error } = await supabaseAdmin
       .from('bookings')
@@ -139,13 +138,13 @@ export class PublicApiService {
         dropoff_lat: dto.dropoff_lat,
         dropoff_lng: dto.dropoff_lng,
         pickup_datetime: dto.pickup_datetime,
-        vehicle_class: dto.vehicle_class,
+        vehicle_type_id: dto.vehicle_type_id,
         passenger_count: dto.passenger_count ?? 1,
         special_requests: dto.special_requests ?? null,
         flight_number: dto.flight_number ?? null,
-        base_price: rule.base_fare,
+        base_price: base,
         total_price,
-        currency: rule.currency,
+        currency: vtype.currency ?? 'AUD',
         status: 'PENDING',
       })
       .select()
@@ -161,7 +160,7 @@ export class PublicApiService {
       .select(
         `
         id, status, pickup_address, dropoff_address, pickup_datetime,
-        vehicle_class, total_price, currency, passenger_count,
+        vehicle_type_id, total_price, currency, passenger_count,
         flight_number, special_requests, created_at
       `,
       )
@@ -173,10 +172,10 @@ export class PublicApiService {
     return data;
   }
 
-  async getAvailableVehicleClasses(tenant_id: string) {
+  async getAvailableVehicleTypes(tenant_id: string) {
     const { data, error } = await supabaseAdmin
-      .from('pricing_rules')
-      .select('vehicle_class, base_fare, minimum_fare, currency')
+      .from('tenant_vehicle_types')
+      .select('id, display_name, base_fare, minimum_fare, per_km_rate, currency, platform_vehicles(name, category)')
       .eq('tenant_id', tenant_id)
       .eq('is_active', true);
 

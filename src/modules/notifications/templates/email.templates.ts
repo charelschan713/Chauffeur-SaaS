@@ -4,7 +4,7 @@ export const EmailTemplates = {
     pickup_address: string;
     dropoff_address: string;
     pickup_datetime: string;
-    vehicle_class: string;
+    vehicle_type: string;
     total_price: number;
     currency: string;
     booking_id: string;
@@ -18,7 +18,7 @@ export const EmailTemplates = {
         <tr><td><b>From</b></td><td>${data.pickup_address}</td></tr>
         <tr><td><b>To</b></td><td>${data.dropoff_address}</td></tr>
         <tr><td><b>Pickup Time</b></td><td>${new Date(data.pickup_datetime).toLocaleString()}</td></tr>
-        <tr><td><b>Vehicle</b></td><td>${data.vehicle_class}</td></tr>
+        <tr><td><b>Vehicle</b></td><td>${data.vehicle_type}</td></tr>
         <tr><td><b>Total</b></td><td>${data.currency} ${data.total_price}</td></tr>
       </table>
       <p>We'll notify you when a driver is assigned.</p>
