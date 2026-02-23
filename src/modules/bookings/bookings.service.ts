@@ -47,6 +47,7 @@ export class BookingsService {
       contact_id?: string;
       crm_passenger_id?: string;
       promo_code?: string;
+      billing_method?: 'KM' | 'DT';
       created_timezone?: string;
     },
   ) {
@@ -192,6 +193,7 @@ export class BookingsService {
         passenger_name: dto.passenger_name ?? null,
         passenger_phone: dto.passenger_phone ?? null,
         passenger_email: dto.passenger_email ?? null,
+        billing_method: dto.billing_method ?? null,
         contact_id: dto.contact_id ?? null,
         distance_km: parseFloat(distance_km.toFixed(2)),
         duration_minutes,

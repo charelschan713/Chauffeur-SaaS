@@ -20,4 +20,5 @@ export class CreateBookingDto {
   flight_number?: string;
   special_requests?: string;
   promo_code?: string;
+  billing_method?: 'KM' | 'DT';
 }
