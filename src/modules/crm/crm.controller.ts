@@ -33,6 +33,15 @@ export class CrmController {
     return this.contactsService.findAll(req.user.profile.tenant_id, query);
   }
 
+  @Get('contacts/search/quick')
+  @UseGuards(JwtGuard)
+  quickSearchContacts(@Query('q') q: string, @Request() req: any) {
+    return this.contactsService.findAll(req.user.profile.tenant_id, {
+      search: q,
+      limit: '10',
+    });
+  }
+
   @Get('contacts/:id')
   getContact(@Param('id') id: string, @Request() req: any) {
     return this.contactsService.findById(id, req.user.profile.tenant_id);
@@ -56,6 +65,15 @@ export class CrmController {
   @Get('passengers')
   getPassengers(@Request() req: any, @Query() query: any) {
     return this.passengersService.findAll(req.user.profile.tenant_id, query);
+  }
+
+  @Get('passengers/search/quick')
+  @UseGuards(JwtGuard)
+  quickSearchPassengers(@Query('q') q: string, @Request() req: any) {
+    return this.passengersService.findAll(req.user.profile.tenant_id, {
+      search: q,
+      limit: '10',
+    });
   }
 
   @Get('passengers/:id')

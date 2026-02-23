@@ -13,6 +13,8 @@ export class CreateBookingDto {
   passenger_name?: string;
   passenger_phone?: string;
   passenger_email?: string;
+  contact_id?: string;
+  crm_passenger_id?: string;
   passenger_count?: number;
   luggage_count?: number;
   flight_number?: string;

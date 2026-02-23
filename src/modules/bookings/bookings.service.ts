@@ -7,12 +7,14 @@ import {
 import { supabaseAdmin } from '../../config/supabase.config';
 import { NotificationsService } from '../notifications/notifications.service';
 import { WebhooksService } from '../webhooks/webhooks.service';
+import { ContactsService } from '../crm/contacts.service';
 
 @Injectable()
 export class BookingsService {
   constructor(
     private readonly notificationsService: NotificationsService,
     private readonly webhooksService: WebhooksService,
+    private readonly contactsService: ContactsService,
   ) {}
   // =====================
   // 创建订单
@@ -42,6 +44,8 @@ export class BookingsService {
       passenger_name?: string;
       passenger_phone?: string;
       passenger_email?: string;
+      contact_id?: string;
+      crm_passenger_id?: string;
       promo_code?: string;
       created_timezone?: string;
     },
@@ -188,6 +192,7 @@ export class BookingsService {
         passenger_name: dto.passenger_name ?? null,
         passenger_phone: dto.passenger_phone ?? null,
         passenger_email: dto.passenger_email ?? null,
+        contact_id: dto.contact_id ?? null,
         distance_km: parseFloat(distance_km.toFixed(2)),
         duration_minutes,
         fare: parseFloat(fare.toFixed(2)),
@@ -211,6 +216,11 @@ export class BookingsService {
       .single();
 
     if (error) throw new BadRequestException(error.message);
+
+    // 更新联系人统计
+    if (dto.contact_id) {
+      await this.contactsService.updateStats(dto.contact_id, booking.total_price ?? 0);
+    }
 
     // 记录状态日志
     await this.logStatusChange(booking.id, {
