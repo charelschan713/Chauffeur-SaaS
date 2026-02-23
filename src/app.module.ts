@@ -14,7 +14,9 @@ import { PaymentsModule } from './modules/payments/payments.module';
 import { PublicApiModule } from './modules/public-api/public-api.module';
 import { PricingModule } from './modules/pricing/pricing.module';
 import { ApiKeysModule } from './modules/api-keys/api-keys.module';
+import { PlatformVehiclesModule } from './modules/platform-vehicles/platform-vehicles.module';
 import { TenantsModule } from './modules/tenants/tenants.module';
+import { VehicleTypesModule } from './modules/vehicle-types/vehicle-types.module';
 import { WebhooksModule } from './modules/webhooks/webhooks.module';
 
 @Module({
@@ -39,6 +41,8 @@ import { WebhooksModule } from './modules/webhooks/webhooks.module';
     PublicApiModule,
     ConstantsModule,
     ApiKeysModule,
+    PlatformVehiclesModule,
+    VehicleTypesModule,
     WebhooksModule,
   ],
   providers: [
