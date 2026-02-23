@@ -171,6 +171,13 @@ export class BookingsController {
   // =====================
   // Admin路由
   // =====================
+  @Get('stats/today')
+  @UseGuards(RolesGuard)
+  @Roles('TENANT_ADMIN', 'TENANT_STAFF')
+  getTodayStats(@Request() req: any) {
+    return this.bookingsService.getTodayStats(req.user.profile.tenant_id);
+  }
+
   @Get()
   @UseGuards(RolesGuard)
   @Roles('TENANT_ADMIN', 'TENANT_STAFF')

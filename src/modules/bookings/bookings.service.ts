@@ -1003,6 +1003,49 @@ export class BookingsService {
   }
 
   // =====================
+  // 今日统计
+  // =====================
+  async getTodayStats(tenant_id: string) {
+    const today = new Date();
+    const startOfDay = new Date(
+      today.getFullYear(),
+      today.getMonth(),
+      today.getDate(),
+    ).toISOString();
+    const endOfDay = new Date(
+      today.getFullYear(),
+      today.getMonth(),
+      today.getDate() + 1,
+    ).toISOString();
+
+    const { data: bookings } = await supabaseAdmin
+      .from('bookings')
+      .select('id, status, payment_status, total_price, currency')
+      .eq('tenant_id', tenant_id)
+      .gte('pickup_datetime', startOfDay)
+      .lt('pickup_datetime', endOfDay);
+
+    const all = bookings ?? [];
+    const pending = all.filter((b: any) => b.status === 'PENDING').length;
+    const in_progress = all.filter(
+      (b: any) => b.status === 'CONFIRMED' || b.status === 'IN_PROGRESS',
+    ).length;
+    const today_revenue = all
+      .filter((b: any) => b.payment_status === 'PAID')
+      .reduce((sum: number, b: any) => sum + (b.total_price ?? 0), 0);
+    const currency = all[0]?.currency ?? 'AUD';
+
+    return {
+      today_total: all.length,
+      pending,
+      in_progress,
+      completed: all.filter((b: any) => b.status === 'COMPLETED').length,
+      today_revenue: parseFloat(today_revenue.toFixed(2)),
+      currency,
+    };
+  }
+
+  // =====================
   // 查询方法
   // =====================
   async getBooking(booking_id: string, tenant_id: string) {
