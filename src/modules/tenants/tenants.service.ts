@@ -220,37 +220,45 @@ export class TenantsService {
   // 价格估算（乘客预约前调用）
   async estimatePrice(
     tenant_id: string,
-    vehicle_class: string,
-    distance_km: number,
-    duration_minutes: number,
+    vehicle_type_id: string,
+    service_type: string,
+    distance_km?: number,
+    duration_hours?: number,
   ) {
-    const { data: rule } = await supabaseAdmin
-      .from('pricing_rules')
+    const { data: vtype, error } = await supabaseAdmin
+      .from('tenant_vehicle_types')
       .select('*')
+      .eq('id', vehicle_type_id)
       .eq('tenant_id', tenant_id)
-      .eq('vehicle_class', vehicle_class)
       .eq('is_active', true)
       .single();
 
-    if (!rule)
-      throw new NotFoundException(
-        'No pricing rule found for this vehicle class',
-      );
+    if (error || !vtype) {
+      throw new BadRequestException('Vehicle type not found or inactive');
+    }
 
-    const calculated =
-      rule.base_fare +
-      rule.price_per_km * distance_km +
-      rule.price_per_minute * duration_minutes;
+    let fare = vtype.base_fare ?? 0;
 
-    const total = Math.max(calculated, rule.minimum_fare);
+    if (service_type === 'POINT_TO_POINT' && distance_km) {
+      fare += distance_km * (vtype.per_km_rate ?? 0);
+    } else if (service_type === 'HOURLY_CHARTER' && duration_hours) {
+      fare = duration_hours * (vtype.hourly_rate ?? 0);
+    }
+
+    if (vtype.minimum_fare && fare < vtype.minimum_fare) {
+      fare = vtype.minimum_fare;
+    }
 
     return {
-      vehicle_class,
-      distance_km,
-      duration_minutes,
-      base_fare: rule.base_fare,
-      calculated_price: parseFloat(total.toFixed(2)),
-      currency: rule.currency,
+      vehicle_type_id,
+      type_name: vtype.type_name,
+      base_fare: vtype.base_fare,
+      per_km_rate: vtype.per_km_rate,
+      hourly_rate: vtype.hourly_rate,
+      minimum_fare: vtype.minimum_fare,
+      estimated_fare: parseFloat(fare.toFixed(2)),
+      currency: vtype.currency,
+      max_luggage: vtype.max_luggage,
     };
   }
 

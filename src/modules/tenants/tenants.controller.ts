@@ -200,15 +200,17 @@ export class TenantsController {
   @Get(':tenant_id/estimate')
   estimatePrice(
     @Param('tenant_id') tenant_id: string,
-    @Query('vehicle_class') vehicle_class: string,
-    @Query('distance_km') distance_km: string,
-    @Query('duration_minutes') duration_minutes: string,
+    @Query('vehicle_type_id') vehicle_type_id: string,
+    @Query('service_type') service_type: string,
+    @Query('distance_km') distance_km?: string,
+    @Query('duration_hours') duration_hours?: string,
   ) {
     return this.tenantsService.estimatePrice(
       tenant_id,
-      vehicle_class,
-      parseFloat(distance_km),
-      parseFloat(duration_minutes),
+      vehicle_type_id,
+      service_type,
+      distance_km ? parseFloat(distance_km) : undefined,
+      duration_hours ? parseFloat(duration_hours) : undefined,
     );
   }
 }
