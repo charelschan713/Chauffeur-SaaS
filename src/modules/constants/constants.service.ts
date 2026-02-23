@@ -177,7 +177,6 @@ export class ConstantsService {
   private fieldToCategory(field: string): string | null {
     const map: Record<string, string> = {
       vehicle_class: 'VEHICLE_CLASS',
-      platform_class: 'VEHICLE_CLASS',
       service_type: 'SERVICE_TYPE',
       trip_type: 'TRIP_TYPE',
       booking_status: 'BOOKING_STATUS',

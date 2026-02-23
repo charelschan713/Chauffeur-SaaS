@@ -24,7 +24,6 @@ export class BookingsService {
       service_city_id: string;
       service_type: 'POINT_TO_POINT' | 'HOURLY_CHARTER';
       trip_type: 'ONE_WAY' | 'RETURN';
-      vehicle_class: string;
       vehicle_type_id?: string;
       pickup_address: string;
       pickup_lat: number;
@@ -64,7 +63,7 @@ export class BookingsService {
       .from('pricing_rules')
       .select('*')
       .eq('tenant_id', tenant_id)
-      .eq('vehicle_class', dto.vehicle_class)
+      .eq('vehicle_type_id', dto.vehicle_type_id)
       .eq('is_active', true)
       .single();
 
@@ -171,7 +170,6 @@ export class BookingsService {
         service_city_id: dto.service_city_id,
         service_type: dto.service_type,
         trip_type: dto.trip_type,
-        vehicle_class: dto.vehicle_class,
         vehicle_type_id: dto.vehicle_type_id ?? null,
         pickup_address: dto.pickup_address,
         pickup_lat: dto.pickup_lat,
@@ -797,7 +795,6 @@ export class BookingsService {
       return_datetime?: string;
       duration_hours?: number;
       service_type?: string;
-      vehicle_class?: string;
       vehicle_type_id?: string;
       passenger_name?: string;
       passenger_phone?: string;
@@ -830,7 +827,7 @@ export class BookingsService {
     const needsRecalculation =
       dto.pickup_address !== undefined ||
       dto.dropoff_address !== undefined ||
-      dto.vehicle_class !== undefined ||
+      dto.vehicle_type_id !== undefined ||
       dto.service_type !== undefined ||
       dto.duration_hours !== undefined ||
       dto.pickup_datetime !== undefined;
@@ -1110,7 +1107,11 @@ export class BookingsService {
           drivers(
             id,
             profiles(first_name, last_name, phone),
-            vehicles(make, model, year, color, plate_number, platform_class)
+            vehicles:driver_vehicles(
+              make, model, year, color, plate_number,
+              platform_vehicle_id,
+              platform_vehicle:platform_vehicles(make, model)
+            )
           ),
           tenant_service_cities(city_name, timezone, currency),
           tenant_vehicle_types(name),
@@ -1575,7 +1576,7 @@ export class BookingsService {
   }
 
   private async recalculatePrice(booking: any, dto: any) {
-    const vehicle_class = dto.vehicle_class ?? booking.vehicle_class;
+    const vehicle_type_id = dto.vehicle_type_id ?? booking.vehicle_type_id;
     const service_type = dto.service_type ?? booking.service_type;
     const pickup_datetime = dto.pickup_datetime ?? booking.pickup_datetime;
 
@@ -1583,7 +1584,7 @@ export class BookingsService {
       .from('pricing_rules')
       .select('*')
       .eq('tenant_id', booking.tenant_id)
-      .eq('vehicle_class', vehicle_class)
+      .eq('vehicle_type_id', vehicle_type_id)
       .eq('is_active', true)
       .single();
 
@@ -1650,7 +1651,7 @@ export class BookingsService {
     );
 
     return {
-      vehicle_class,
+      vehicle_type_id,
       service_type,
       fare: parseFloat(fare.toFixed(2)),
       distance_km: parseFloat(distance_km.toFixed(2)),
@@ -1782,7 +1783,7 @@ export class BookingsService {
     const { data: bookings } = await supabaseAdmin
       .from('bookings')
       .select(
-        'id, status, payment_status, total_price, fare, toll, extras, surcharge_amount, discount_amount, currency, pickup_datetime, vehicle_class, service_type',
+        'id, status, payment_status, total_price, fare, toll, extras, surcharge_amount, discount_amount, currency, pickup_datetime, vehicle_type_id, service_type',
       )
       .eq('tenant_id', tenant_id)
       .eq('payment_status', 'PAID')
@@ -1814,12 +1815,12 @@ export class BookingsService {
       g.avg_fare = parseFloat(g.avg_fare.toFixed(2));
     });
 
-    const byVehicleClass: Record<string, { vehicle_class: string; revenue: number; bookings: number }> = {};
+    const byVehicleType: Record<string, { vehicle_type_id: string; revenue: number; bookings: number }> = {};
     all.forEach((b) => {
-      const vc = b.vehicle_class ?? 'UNKNOWN';
-      if (!byVehicleClass[vc]) byVehicleClass[vc] = { vehicle_class: vc, revenue: 0, bookings: 0 };
-      byVehicleClass[vc].revenue += b.total_price ?? 0;
-      byVehicleClass[vc].bookings += 1;
+      const vt = b.vehicle_type_id ?? 'UNKNOWN';
+      if (!byVehicleType[vt]) byVehicleType[vt] = { vehicle_type_id: vt, revenue: 0, bookings: 0 };
+      byVehicleType[vt].revenue += b.total_price ?? 0;
+      byVehicleType[vt].bookings += 1;
     });
 
     const byServiceType: Record<string, number> = {};
@@ -1838,7 +1839,7 @@ export class BookingsService {
       total_bookings: all.length,
       currency: all[0]?.currency ?? 'AUD',
       timeline: Object.values(grouped).sort((a, b) => a.date.localeCompare(b.date)),
-      by_vehicle_class: Object.values(byVehicleClass).map((v) => ({
+      by_vehicle_type: Object.values(byVehicleType).map((v) => ({
         ...v,
         revenue: parseFloat(v.revenue.toFixed(2)),
       })),
@@ -1859,7 +1860,7 @@ export class BookingsService {
     const { data: bookings } = await supabaseAdmin
       .from('bookings')
       .select(
-        `id, driver_id, status, total_price, pickup_datetime, vehicle_class,
+        `id, driver_id, status, total_price, pickup_datetime, vehicle_type_id,
          drivers(profiles(first_name, last_name))`,
       )
       .eq('tenant_id', tenant_id)
