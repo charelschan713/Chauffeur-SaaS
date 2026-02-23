@@ -1,66 +1,161 @@
 import {
-  Body,
   Controller,
   Get,
-  Headers,
-  Param,
   Post,
-  RawBodyRequest,
-  Req,
+  Body,
+  Param,
   Request,
   UseGuards,
+  Headers,
+  RawBodyRequest,
+  Req,
 } from '@nestjs/common';
-import { Roles } from '../../common/decorators/roles.decorator';
+import { PaymentsService } from './payments.service';
 import { JwtGuard } from '../../common/guards/jwt.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
-import { CreatePaymentIntentDto } from './dto/create-payment-intent.dto';
-import { RefundDto } from './dto/refund.dto';
-import { PaymentsService } from './payments.service';
+import { Roles } from '../../common/decorators/roles.decorator';
 
 @Controller('payments')
 export class PaymentsController {
   constructor(private readonly paymentsService: PaymentsService) {}
 
-  // Stripe Webhook（不需要JWT，Stripe直接调用，按租户路由）
-  @Post('webhook/:tenant_id')
-  async handleWebhook(
-    @Param('tenant_id') tenant_id: string,
-    @Req() req: RawBodyRequest<Request>,
-    @Headers('stripe-signature') signature: string,
+  // =====================
+  // 乘客路由
+  // =====================
+
+  @Post('intent/:booking_id')
+  @UseGuards(JwtGuard, RolesGuard)
+  @Roles('PASSENGER')
+  createIntent(
+    @Param('booking_id') booking_id: string,
+    @Request() req: any,
   ) {
-    return this.paymentsService.handleWebhook(
-      req.rawBody!,
-      signature,
-      tenant_id,
+    return this.paymentsService.createPaymentIntent(
+      req.user.id,
+      booking_id,
+      req.user.profile.tenant_id,
     );
   }
 
-  // 以下需要JWT
-  @Post('intent')
-  @UseGuards(JwtGuard, RolesGuard)
-  @Roles('PASSENGER', 'CORPORATE_ADMIN')
-  createIntent(@Body() dto: CreatePaymentIntentDto, @Request() req: any) {
-    return this.paymentsService.createPaymentIntent(req.user.id, dto);
+  @Post('payment-method')
+  @UseGuards(JwtGuard)
+  savePaymentMethod(
+    @Body('payment_method_id') payment_method_id: string,
+    @Request() req: any,
+  ) {
+    return this.paymentsService.savePaymentMethod(req.user.id, payment_method_id);
   }
 
-  @Get('booking/:booking_id')
-  @UseGuards(JwtGuard, RolesGuard)
-  @Roles('PASSENGER', 'CORPORATE_ADMIN')
-  getPayment(@Param('booking_id') booking_id: string, @Request() req: any) {
-    return this.paymentsService.getPaymentByBooking(booking_id, req.user.id);
+  @Get('payment-method')
+  @UseGuards(JwtGuard)
+  getSavedPaymentMethod(@Request() req: any) {
+    return this.paymentsService.getSavedPaymentMethod(req.user.id);
   }
 
-  @Post('refund')
+  // =====================
+  // Admin路由
+  // =====================
+
+  @Post('charge/:booking_id')
   @UseGuards(JwtGuard, RolesGuard)
-  @Roles('PASSENGER', 'TENANT_ADMIN')
-  refund(@Body() dto: RefundDto, @Request() req: any) {
-    return this.paymentsService.refund(dto.booking_id, req.user.id);
+  @Roles('TENANT_ADMIN', 'TENANT_STAFF')
+  chargeBooking(
+    @Param('booking_id') booking_id: string,
+    @Request() req: any,
+  ) {
+    return this.paymentsService.chargeBooking(
+      booking_id,
+      req.user.profile.tenant_id,
+      req.user.id,
+    );
   }
 
-  @Get('revenue')
+  @Post('supplement/:booking_id')
   @UseGuards(JwtGuard, RolesGuard)
   @Roles('TENANT_ADMIN')
-  getRevenue(@Request() req: any) {
-    return this.paymentsService.getTenantRevenue(req.user.profile.tenant_id);
+  supplement(
+    @Param('booking_id') booking_id: string,
+    @Body() dto: { supplement_amount: number; note?: string },
+    @Request() req: any,
+  ) {
+    return this.paymentsService.chargeSupplementAmount(
+      booking_id,
+      req.user.profile.tenant_id,
+      req.user.id,
+      dto,
+    );
+  }
+
+  @Post('credit-note/:booking_id')
+  @UseGuards(JwtGuard, RolesGuard)
+  @Roles('TENANT_ADMIN')
+  creditNote(
+    @Param('booking_id') booking_id: string,
+    @Body() dto: { credit_amount: number; note?: string },
+    @Request() req: any,
+  ) {
+    return this.paymentsService.issueCreditNote(
+      booking_id,
+      req.user.profile.tenant_id,
+      req.user.id,
+      dto,
+    );
+  }
+
+  @Post('refund/:booking_id')
+  @UseGuards(JwtGuard, RolesGuard)
+  @Roles('TENANT_ADMIN')
+  refund(
+    @Param('booking_id') booking_id: string,
+    @Body('note') note: string,
+    @Request() req: any,
+  ) {
+    return this.paymentsService.issueFullRefund(
+      booking_id,
+      req.user.profile.tenant_id,
+      req.user.id,
+      note,
+    );
+  }
+
+  @Get('history/:booking_id')
+  @UseGuards(JwtGuard, RolesGuard)
+  @Roles('TENANT_ADMIN', 'TENANT_STAFF')
+  getPaymentHistory(
+    @Param('booking_id') booking_id: string,
+    @Request() req: any,
+  ) {
+    return this.paymentsService.getPaymentHistory(
+      booking_id,
+      req.user.profile.tenant_id,
+    );
+  }
+
+  // =====================
+  // 确认Token（公开路由）
+  // =====================
+
+  @Get('confirm/:token')
+  validateConfirmToken(@Param('token') token: string) {
+    return this.paymentsService.validateConfirmToken(token);
+  }
+
+  @Post('confirm/:token')
+  useConfirmToken(
+    @Param('token') token: string,
+    @Body('payment_method_id') payment_method_id?: string,
+  ) {
+    return this.paymentsService.useConfirmToken(token, payment_method_id);
+  }
+
+  // =====================
+  // Stripe Webhook
+  // =====================
+  @Post('webhook')
+  handleWebhook(
+    @Req() req: RawBodyRequest<Request>,
+    @Headers('stripe-signature') signature: string,
+  ) {
+    return this.paymentsService.handleWebhook(req.rawBody!, signature);
   }
 }
