@@ -178,6 +178,45 @@ export class TenantsService {
     return { message: 'Pricing rule deleted' };
   }
 
+  // 更新集成配置（Stripe/Resend/Twilio）
+  async updateIntegrations(tenant_id: string, dto: any) {
+    const updateData: any = {};
+
+    const fields = [
+      'resend_api_key',
+      'resend_from_email',
+      'twilio_account_sid',
+      'twilio_auth_token',
+      'twilio_from_number',
+      'stripe_publishable_key',
+      'stripe_webhook_secret',
+    ];
+
+    fields.forEach((field) => {
+      if (dto[field] !== undefined && dto[field] !== '') {
+        updateData[field] = dto[field];
+      }
+    });
+
+    if (dto.stripe_secret_key && dto.stripe_secret_key !== '') {
+      updateData.stripe_secret_key = this.encrypt(dto.stripe_secret_key);
+    }
+
+    updateData.updated_at = new Date().toISOString();
+
+    const { data, error } = await supabaseAdmin
+      .from('tenants')
+      .update(updateData)
+      .eq('id', tenant_id)
+      .select()
+      .single();
+
+    if (error) throw new BadRequestException(error.message);
+
+    const { stripe_secret_key, ...safe } = data as any;
+    return safe;
+  }
+
   // 价格估算（乘客预约前调用）
   async estimatePrice(
     tenant_id: string,
@@ -213,5 +252,9 @@ export class TenantsService {
       calculated_price: parseFloat(total.toFixed(2)),
       currency: rule.currency,
     };
+  }
+
+  private encrypt(value: string): string {
+    return Buffer.from(value, 'utf8').toString('base64');
   }
 }

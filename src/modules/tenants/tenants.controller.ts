@@ -68,6 +68,30 @@ export class TenantsController {
     );
   }
 
+  // 更新集成配置（Stripe/Resend/Twilio）
+  @Patch('me/integrations')
+  @UseGuards(JwtGuard, RolesGuard)
+  @Roles('TENANT_ADMIN')
+  updateIntegrations(
+    @Body()
+    dto: {
+      resend_api_key?: string;
+      resend_from_email?: string;
+      twilio_account_sid?: string;
+      twilio_auth_token?: string;
+      twilio_from_number?: string;
+      stripe_publishable_key?: string;
+      stripe_secret_key?: string;
+      stripe_webhook_secret?: string;
+    },
+    @Request() req: any,
+  ) {
+    return this.tenantsService.updateIntegrations(
+      req.user.profile.tenant_id,
+      dto,
+    );
+  }
+
   // TENANT_ADMIN: 仪表板统计
   @Get('me/dashboard')
   @Roles('TENANT_ADMIN', 'TENANT_STAFF')
