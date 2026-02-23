@@ -19,6 +19,7 @@ import { TenantsModule } from './modules/tenants/tenants.module';
 import { VehicleTypesModule } from './modules/vehicle-types/vehicle-types.module';
 import { WebhooksModule } from './modules/webhooks/webhooks.module';
 import { CrmModule } from './modules/crm/crm.module';
+import { ServiceTypesModule } from './modules/service-types/service-types.module';
 
 @Module({
   imports: [
@@ -46,6 +47,7 @@ import { CrmModule } from './modules/crm/crm.module';
     VehicleTypesModule,
     WebhooksModule,
     CrmModule,
+    ServiceTypesModule,
   ],
   providers: [
     { provide: APP_PIPE, useValue: new ValidationPipe({ whitelist: true }) },
