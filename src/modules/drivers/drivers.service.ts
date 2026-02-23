@@ -65,6 +65,10 @@ export class DriversService {
 
   // 司机获取自己的资料
   async getMyProfile(user_id: string) {
+    return this.getDriverByUserId(user_id);
+  }
+
+  async getDriverByUserId(user_id: string) {
     const { data, error } = await supabaseAdmin
       .from('drivers')
       .select('*, profiles(first_name, last_name, phone, avatar_url), vehicles(*)')
@@ -72,6 +76,39 @@ export class DriversService {
       .single();
 
     if (error || !data) throw new NotFoundException('Driver profile not found');
+    return data;
+  }
+
+  async updateBanking(
+    user_id: string,
+    dto: {
+      abn?: string;
+      bank_bsb?: string;
+      bank_account?: string;
+      bank_name?: string;
+      is_gst_registered?: boolean;
+    },
+  ) {
+    const updateData: Record<string, any> = {
+      updated_at: new Date().toISOString(),
+    };
+
+    if (dto.abn !== undefined) updateData.abn = dto.abn;
+    if (dto.bank_bsb !== undefined) updateData.bank_bsb = dto.bank_bsb;
+    if (dto.bank_account !== undefined) updateData.bank_account = dto.bank_account;
+    if (dto.bank_name !== undefined) updateData.bank_name = dto.bank_name;
+    if (dto.is_gst_registered !== undefined) {
+      updateData.is_gst_registered = dto.is_gst_registered;
+    }
+
+    const { data, error } = await supabaseAdmin
+      .from('drivers')
+      .update(updateData)
+      .eq('user_id', user_id)
+      .select()
+      .single();
+
+    if (error) throw new BadRequestException(error.message);
     return data;
   }
 

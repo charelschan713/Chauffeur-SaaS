@@ -30,7 +30,23 @@ export class DriversController {
   @Get('me')
   @Roles('DRIVER')
   getMyProfile(@Request() req: any) {
-    return this.driversService.getMyProfile(req.user.id);
+    return this.driversService.getDriverByUserId(req.user.id);
+  }
+
+  @Patch('me/banking')
+  @Roles('DRIVER')
+  updateBanking(
+    @Body()
+    dto: {
+      abn?: string;
+      bank_bsb?: string;
+      bank_account?: string;
+      bank_name?: string;
+      is_gst_registered?: boolean;
+    },
+    @Request() req: any,
+  ) {
+    return this.driversService.updateBanking(req.user.id, dto);
   }
 
   @Post('me/profile')

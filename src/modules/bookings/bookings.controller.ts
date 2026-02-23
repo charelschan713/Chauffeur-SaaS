@@ -93,58 +93,84 @@ export class BookingsController {
   @Get('driver')
   @UseGuards(RolesGuard)
   @Roles('DRIVER')
-  getDriverBookings(@Request() req: any) {
-    return this.bookingsService.getDriverBookings(req.user.id);
+  getDriverBookings(@Request() req: any, @Query() query: any) {
+    return this.bookingsService.getDriverBookings(req.user.id, query);
   }
 
-  @Patch('driver/:booking_id/accept')
+  @Get('driver/:id')
   @UseGuards(RolesGuard)
   @Roles('DRIVER')
-  acceptJob(
-    @Param('booking_id') booking_id: string,
+  getDriverBookingById(
+    @Param('id') id: string,
     @Request() req: any,
   ) {
-    return this.bookingsService.acceptJob(booking_id, req.user.id);
+    return this.bookingsService.getDriverBookingById(id, req.user.id);
   }
 
-  @Patch('driver/:booking_id/decline')
+  @Patch('driver/:id/accept')
   @UseGuards(RolesGuard)
   @Roles('DRIVER')
-  declineJob(
-    @Param('booking_id') booking_id: string,
+  driverAccept(
+    @Param('id') id: string,
     @Request() req: any,
   ) {
-    return this.bookingsService.declineJob(booking_id, req.user.id);
+    return this.bookingsService.driverUpdateStatus(
+      id,
+      req.user.id,
+      'ACCEPTED',
+    );
   }
 
-  @Patch('driver/:booking_id/on-the-way')
+  @Patch('driver/:id/decline')
   @UseGuards(RolesGuard)
   @Roles('DRIVER')
-  onTheWay(
-    @Param('booking_id') booking_id: string,
+  driverDecline(
+    @Param('id') id: string,
     @Request() req: any,
   ) {
-    return this.bookingsService.driverOnTheWay(booking_id, req.user.id);
+    return this.bookingsService.declineJob(id, req.user.id);
   }
 
-  @Patch('driver/:booking_id/arrived')
+  @Patch('driver/:id/on-the-way')
   @UseGuards(RolesGuard)
   @Roles('DRIVER')
-  arrived(
-    @Param('booking_id') booking_id: string,
+  driverOnTheWay(
+    @Param('id') id: string,
     @Request() req: any,
   ) {
-    return this.bookingsService.driverArrived(booking_id, req.user.id);
+    return this.bookingsService.driverUpdateStatus(
+      id,
+      req.user.id,
+      'ON_THE_WAY',
+    );
   }
 
-  @Patch('driver/:booking_id/passenger-on-board')
+  @Patch('driver/:id/arrived')
   @UseGuards(RolesGuard)
   @Roles('DRIVER')
-  passengerOnBoard(
-    @Param('booking_id') booking_id: string,
+  driverArrived(
+    @Param('id') id: string,
     @Request() req: any,
   ) {
-    return this.bookingsService.passengerOnBoard(booking_id, req.user.id);
+    return this.bookingsService.driverUpdateStatus(
+      id,
+      req.user.id,
+      'ARRIVED',
+    );
+  }
+
+  @Patch('driver/:id/passenger-on-board')
+  @UseGuards(RolesGuard)
+  @Roles('DRIVER')
+  driverPassengerOnBoard(
+    @Param('id') id: string,
+    @Request() req: any,
+  ) {
+    return this.bookingsService.driverUpdateStatus(
+      id,
+      req.user.id,
+      'PASSENGER_ON_BOARD',
+    );
   }
 
   @Patch('driver/:booking_id/no-show')

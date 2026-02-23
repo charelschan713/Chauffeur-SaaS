@@ -398,7 +398,9 @@ export class BookingsService {
   // =====================
   // 司机接单
   // =====================
-  async acceptJob(booking_id: string, driver_id: string) {
+  async acceptJob(booking_id: string, user_id: string) {
+    const driver_id = await this.getDriverIdByUserId(user_id);
+
     const { data: booking } = await supabaseAdmin
       .from('bookings')
       .select('*')
@@ -437,7 +439,9 @@ export class BookingsService {
   // =====================
   // 司机拒绝
   // =====================
-  async declineJob(booking_id: string, driver_id: string) {
+  async declineJob(booking_id: string, user_id: string) {
+    const driver_id = await this.getDriverIdByUserId(user_id);
+
     const { data: booking } = await supabaseAdmin
       .from('bookings')
       .select('*')
@@ -481,7 +485,9 @@ export class BookingsService {
   // =====================
   // 司机出发
   // =====================
-  async driverOnTheWay(booking_id: string, driver_id: string) {
+  async driverOnTheWay(booking_id: string, user_id: string) {
+    const driver_id = await this.getDriverIdByUserId(user_id);
+
     const data = await this.updateDriverStatus(
       booking_id,
       driver_id,
@@ -512,7 +518,9 @@ export class BookingsService {
   // =====================
   // 司机到达
   // =====================
-  async driverArrived(booking_id: string, driver_id: string) {
+  async driverArrived(booking_id: string, user_id: string) {
+    const driver_id = await this.getDriverIdByUserId(user_id);
+
     const data = await this.updateDriverStatus(
       booking_id,
       driver_id,
@@ -543,7 +551,9 @@ export class BookingsService {
   // =====================
   // 乘客上车
   // =====================
-  async passengerOnBoard(booking_id: string, driver_id: string) {
+  async passengerOnBoard(booking_id: string, user_id: string) {
+    const driver_id = await this.getDriverIdByUserId(user_id);
+
     await this.updateDriverStatus(
       booking_id,
       driver_id,
@@ -567,7 +577,9 @@ export class BookingsService {
   // =====================
   // No Show
   // =====================
-  async markNoShow(booking_id: string, driver_id: string) {
+  async markNoShow(booking_id: string, user_id: string) {
+    const driver_id = await this.getDriverIdByUserId(user_id);
+
     return this.updateDriverStatus(
       booking_id,
       driver_id,
@@ -582,13 +594,15 @@ export class BookingsService {
   // =====================
   async jobDone(
     booking_id: string,
-    driver_id: string,
+    user_id: string,
     dto: {
       actual_km?: number;
       driver_extras?: number;
       note?: string;
     } = {},
   ) {
+    const driver_id = await this.getDriverIdByUserId(user_id);
+
     const { data: booking } = await supabaseAdmin
       .from('bookings')
       .select('*')
@@ -1131,8 +1145,16 @@ export class BookingsService {
     };
   }
 
-  async getDriverBookings(driver_id: string) {
-    const { data, error } = await supabaseAdmin
+  async getDriverBookings(user_id: string, query: any = {}) {
+    const { data: driver } = await supabaseAdmin
+      .from('drivers')
+      .select('id')
+      .eq('user_id', user_id)
+      .single();
+
+    if (!driver) throw new NotFoundException('Driver not found');
+
+    let request = supabaseAdmin
       .from('bookings')
       .select(
         `
@@ -1140,12 +1162,64 @@ export class BookingsService {
           tenant_service_cities(city_name, timezone)
         `,
       )
-      .eq('driver_id', driver_id)
-      .in('booking_status', ['CONFIRMED', 'IN_PROGRESS'])
+      .eq('driver_id', driver.id)
       .order('pickup_datetime', { ascending: true });
+
+    if (query?.active) {
+      request = request.in('driver_status', [
+        'ASSIGNED',
+        'ACCEPTED',
+        'ON_THE_WAY',
+        'ARRIVED',
+        'PASSENGER_ON_BOARD',
+      ]);
+    }
+
+    const { data, error } = await request;
 
     if (error) throw new BadRequestException(error.message);
     return (data ?? []).map((b: any) => this.formatBookingResponse(b));
+  }
+
+  async getDriverBookingById(booking_id: string, user_id: string) {
+    const { data: driver } = await supabaseAdmin
+      .from('drivers')
+      .select('id, tenant_id')
+      .eq('user_id', user_id)
+      .single();
+
+    if (!driver) throw new NotFoundException('Driver not found');
+
+    const { data, error } = await supabaseAdmin
+      .from('bookings')
+      .select('*, tenant_service_cities(city_name, timezone)')
+      .eq('id', booking_id)
+      .eq('driver_id', driver.id)
+      .single();
+
+    if (error || !data) throw new NotFoundException('Booking not found');
+    return this.formatBookingResponse(data);
+  }
+
+  async driverUpdateStatus(
+    booking_id: string,
+    user_id: string,
+    status:
+      | 'ACCEPTED'
+      | 'ON_THE_WAY'
+      | 'ARRIVED'
+      | 'PASSENGER_ON_BOARD'
+      | 'JOB_DONE',
+  ) {
+    if (status === 'ACCEPTED') return this.acceptJob(booking_id, user_id);
+    if (status === 'ON_THE_WAY') return this.driverOnTheWay(booking_id, user_id);
+    if (status === 'ARRIVED') return this.driverArrived(booking_id, user_id);
+    if (status === 'PASSENGER_ON_BOARD') {
+      return this.passengerOnBoard(booking_id, user_id);
+    }
+    if (status === 'JOB_DONE') return this.jobDone(booking_id, user_id, {});
+
+    throw new BadRequestException('Invalid driver status');
   }
 
   async getPassengerBookings(passenger_id: string) {
@@ -1171,6 +1245,17 @@ export class BookingsService {
   // =====================
   // 辅助方法
   // =====================
+  private async getDriverIdByUserId(user_id: string): Promise<string> {
+    const { data: driver } = await supabaseAdmin
+      .from('drivers')
+      .select('id')
+      .eq('user_id', user_id)
+      .single();
+
+    if (!driver?.id) throw new NotFoundException('Driver not found');
+    return driver.id as string;
+  }
+
   private async getBookingOrFail(booking_id: string, tenant_id: string) {
     const { data, error } = await supabaseAdmin
       .from('bookings')
