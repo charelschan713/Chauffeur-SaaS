@@ -8,6 +8,7 @@ import { BookingsModule } from './modules/bookings/bookings.module';
 import { ConstantsModule } from './modules/constants/constants.module';
 import { DriversModule } from './modules/drivers/drivers.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
+import { InvoicesModule } from './modules/invoices/invoices.module';
 import { PaymentsModule } from './modules/payments/payments.module';
 import { PublicApiModule } from './modules/public-api/public-api.module';
 import { PricingModule } from './modules/pricing/pricing.module';
@@ -26,12 +27,13 @@ import { TenantsModule } from './modules/tenants/tenants.module';
     TenantsModule,
     DriversModule,
     BookingsModule,
+    PricingModule,
     PaymentsModule,
     NotificationsModule,
+    InvoicesModule,
     AdminModule,
     PublicApiModule,
     ConstantsModule,
-    PricingModule,
   ],
   providers: [
     { provide: APP_PIPE, useValue: new ValidationPipe({ whitelist: true }) },
