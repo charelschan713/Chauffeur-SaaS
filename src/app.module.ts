@@ -18,6 +18,7 @@ import { PlatformVehiclesModule } from './modules/platform-vehicles/platform-veh
 import { TenantsModule } from './modules/tenants/tenants.module';
 import { VehicleTypesModule } from './modules/vehicle-types/vehicle-types.module';
 import { WebhooksModule } from './modules/webhooks/webhooks.module';
+import { CrmModule } from './modules/crm/crm.module';
 
 @Module({
   imports: [
@@ -44,6 +45,7 @@ import { WebhooksModule } from './modules/webhooks/webhooks.module';
     PlatformVehiclesModule,
     VehicleTypesModule,
     WebhooksModule,
+    CrmModule,
   ],
   providers: [
     { provide: APP_PIPE, useValue: new ValidationPipe({ whitelist: true }) },
