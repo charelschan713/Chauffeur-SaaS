@@ -34,6 +34,9 @@ export class VehicleTypesService {
       max_luggage: number;
       base_fare: number;
       per_km_rate: number;
+      per_minute_rate?: number;
+      included_km_per_hour?: number;
+      extra_km_rate?: number;
       hourly_rate: number;
       minimum_fare: number;
       currency: string;
@@ -74,6 +77,9 @@ export class VehicleTypesService {
         max_luggage: dto.max_luggage,
         base_fare: dto.base_fare,
         per_km_rate: dto.per_km_rate,
+        per_minute_rate: dto.per_minute_rate ?? 0,
+        included_km_per_hour: dto.included_km_per_hour ?? 0,
+        extra_km_rate: dto.extra_km_rate ?? 0,
         hourly_rate: dto.hourly_rate,
         minimum_fare: dto.minimum_fare,
         currency: dto.currency,
@@ -99,6 +105,9 @@ export class VehicleTypesService {
       max_luggage?: number;
       base_fare?: number;
       per_km_rate?: number;
+      per_minute_rate?: number;
+      included_km_per_hour?: number;
+      extra_km_rate?: number;
       hourly_rate?: number;
       minimum_fare?: number;
       currency?: string;

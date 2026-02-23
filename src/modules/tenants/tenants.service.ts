@@ -224,6 +224,7 @@ export class TenantsService {
     service_type: string,
     distance_km?: number,
     duration_hours?: number,
+    duration_minutes?: number,
   ) {
     const { data: vtype, error } = await supabaseAdmin
       .from('tenant_vehicle_types')
@@ -237,29 +238,100 @@ export class TenantsService {
       throw new BadRequestException('Vehicle type not found or inactive');
     }
 
-    let fare = vtype.base_fare ?? 0;
+    const safe_distance_km = distance_km ?? 0;
+    const safe_duration_hours = duration_hours ?? 0;
+    const safe_duration_minutes =
+      duration_minutes ?? Math.round(safe_duration_hours * 60);
 
-    if (service_type === 'POINT_TO_POINT' && distance_km) {
-      fare += distance_km * (vtype.per_km_rate ?? 0);
-    } else if (service_type === 'HOURLY_CHARTER' && duration_hours) {
-      fare = duration_hours * (vtype.hourly_rate ?? 0);
+    if (
+      service_type === 'POINT_TO_POINT' ||
+      service_type === 'AIRPORT_PICKUP' ||
+      service_type === 'AIRPORT_DROPOFF'
+    ) {
+      const km_fare =
+        (vtype.per_km_rate ?? 0) > 0
+          ? (vtype.base_fare ?? 0) + safe_distance_km * (vtype.per_km_rate ?? 0)
+          : null;
+
+      const dt_fare =
+        (vtype.per_minute_rate ?? 0) > 0
+          ? (vtype.base_fare ?? 0) +
+            safe_duration_minutes * (vtype.per_minute_rate ?? 0)
+          : null;
+
+      const estimated_fare =
+        km_fare && dt_fare ? Math.min(km_fare, dt_fare) : (km_fare ?? dt_fare ?? 0);
+
+      const billing_options = [
+        ...(km_fare
+          ? [
+              {
+                method: 'KM',
+                fare: parseFloat(km_fare.toFixed(2)),
+                label: `${safe_distance_km}km × $${vtype.per_km_rate}/km`,
+              },
+            ]
+          : []),
+        ...(dt_fare
+          ? [
+              {
+                method: 'DT',
+                fare: parseFloat(dt_fare.toFixed(2)),
+                label: `${safe_duration_minutes}min × $${vtype.per_minute_rate}/min`,
+              },
+            ]
+          : []),
+      ];
+
+      return {
+        vehicle_type_id: vtype.id,
+        type_name: vtype.type_name,
+        km_fare: km_fare ? parseFloat(km_fare.toFixed(2)) : null,
+        dt_fare: dt_fare ? parseFloat(dt_fare.toFixed(2)) : null,
+        estimated_fare: parseFloat(estimated_fare.toFixed(2)),
+        billing_options,
+        currency: vtype.currency,
+        max_luggage: vtype.max_luggage,
+      };
     }
 
-    if (vtype.minimum_fare && fare < vtype.minimum_fare) {
-      fare = vtype.minimum_fare;
+    if (service_type === 'HOURLY_CHARTER') {
+      const base_fare = safe_duration_hours * (vtype.hourly_rate ?? 0);
+
+      let extra_km_charge = 0;
+      if (
+        (vtype.included_km_per_hour ?? 0) > 0 &&
+        (vtype.extra_km_rate ?? 0) > 0 &&
+        safe_distance_km > 0
+      ) {
+        const included_km = safe_duration_hours * (vtype.included_km_per_hour ?? 0);
+        const extra_km = Math.max(0, safe_distance_km - included_km);
+        extra_km_charge = extra_km * (vtype.extra_km_rate ?? 0);
+      }
+
+      const total = base_fare + extra_km_charge;
+
+      return {
+        vehicle_type_id: vtype.id,
+        type_name: vtype.type_name,
+        estimated_fare: parseFloat(total.toFixed(2)),
+        billing_options: [
+          {
+            method: 'HOURLY',
+            fare: parseFloat(total.toFixed(2)),
+            label: `${safe_duration_hours}hr × $${vtype.hourly_rate}/hr${
+              extra_km_charge > 0
+                ? ` + $${extra_km_charge.toFixed(2)} extra km`
+                : ''
+            }`,
+          },
+        ],
+        currency: vtype.currency,
+        max_luggage: vtype.max_luggage,
+      };
     }
 
-    return {
-      vehicle_type_id,
-      type_name: vtype.type_name,
-      base_fare: vtype.base_fare,
-      per_km_rate: vtype.per_km_rate,
-      hourly_rate: vtype.hourly_rate,
-      minimum_fare: vtype.minimum_fare,
-      estimated_fare: parseFloat(fare.toFixed(2)),
-      currency: vtype.currency,
-      max_luggage: vtype.max_luggage,
-    };
+    throw new BadRequestException('Unsupported service type');
   }
 
   private encrypt(value: string): string {

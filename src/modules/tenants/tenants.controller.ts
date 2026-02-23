@@ -204,6 +204,7 @@ export class TenantsController {
     @Query('service_type') service_type: string,
     @Query('distance_km') distance_km?: string,
     @Query('duration_hours') duration_hours?: string,
+    @Query('duration_minutes') duration_minutes?: string,
   ) {
     return this.tenantsService.estimatePrice(
       tenant_id,
@@ -211,6 +212,7 @@ export class TenantsController {
       service_type,
       distance_km ? parseFloat(distance_km) : undefined,
       duration_hours ? parseFloat(duration_hours) : undefined,
+      duration_minutes ? parseFloat(duration_minutes) : undefined,
     );
   }
 }
