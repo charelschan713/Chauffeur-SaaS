@@ -1,5 +1,4 @@
 import {
-  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -14,7 +13,6 @@ import {
 import { Roles } from '../../common/decorators/roles.decorator';
 import { JwtGuard } from '../../common/guards/jwt.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
-import { supabaseAdmin } from '../../config/supabase.config';
 import { CompleteDriverProfileDto } from './dto/complete-driver-profile.dto';
 import { CreateVehicleDto } from './dto/create-vehicle.dto';
 import { UpdateDriverStatusDto } from './dto/update-driver-status.dto';
@@ -88,29 +86,6 @@ export class DriversController {
   @Roles('DRIVER')
   deactivateVehicle(@Param('vehicle_id') vehicle_id: string, @Request() req: any) {
     return this.driversService.deactivateVehicle(vehicle_id, req.user.id);
-  }
-
-  @Patch('me/vehicles/:vehicle_id/platform-class')
-  @Roles('DRIVER', 'TENANT_ADMIN')
-  async assignPlatformClass(
-    @Param('vehicle_id') vehicle_id: string,
-    @Body('platform_class') platform_class: string,
-  ) {
-    const validClasses = ['BUSINESS', 'FIRST', 'VAN', 'ELECTRIC'];
-
-    if (!validClasses.includes(platform_class)) {
-      throw new BadRequestException('Invalid platform_class');
-    }
-
-    const { data, error } = await supabaseAdmin
-      .from('vehicles')
-      .update({ platform_class })
-      .eq('id', vehicle_id)
-      .select()
-      .single();
-
-    if (error) throw new BadRequestException(error.message);
-    return data;
   }
 
   // ── 租户管理路由 ──

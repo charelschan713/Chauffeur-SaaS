@@ -1,56 +1,21 @@
-import {
-  IsDateString,
-  IsIn,
-  IsInt,
-  IsNumber,
-  IsOptional,
-  IsString,
-  Max,
-  Min,
-} from 'class-validator';
-
 export class CreateBookingDto {
-  @IsString()
-  tenant_id!: string;
-
-  @IsString()
+  service_city_id!: string;
+  vehicle_type_id!: string;
+  service_type!: string;
   pickup_address!: string;
-
-  @IsNumber()
-  pickup_lat!: number;
-
-  @IsNumber()
-  pickup_lng!: number;
-
-  @IsString()
-  dropoff_address!: string;
-
-  @IsNumber()
-  dropoff_lat!: number;
-
-  @IsNumber()
-  dropoff_lng!: number;
-
-  @IsDateString()
+  pickup_lat?: number;
+  pickup_lng?: number;
+  dropoff_address?: string;
+  dropoff_lat?: number;
+  dropoff_lng?: number;
   pickup_datetime!: string;
-
-  @IsIn(['BUSINESS', 'FIRST', 'VAN', 'ELECTRIC'])
-  vehicle_class!: string;
-
-  @IsInt()
-  @Min(1)
-  @Max(20)
-  passenger_count!: number;
-
-  @IsOptional()
-  @IsString()
-  special_requests?: string;
-
-  @IsOptional()
-  @IsString()
+  duration_hours?: number;
+  passenger_name!: string;
+  passenger_phone!: string;
+  passenger_email?: string;
+  passenger_count?: number;
+  luggage_count?: number;
   flight_number?: string;
-
-  @IsOptional()
-  @IsString()
-  corporate_account_id?: string;
+  special_requests?: string;
+  promo_code?: string;
 }

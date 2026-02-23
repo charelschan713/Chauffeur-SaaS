@@ -20,7 +20,6 @@ import { ApiTokensService } from './api-tokens.service';
 import { ServiceCitiesService } from './service-cities.service';
 import { TenantKeysService } from './tenant-keys.service';
 import { TenantsService } from './tenants.service';
-import { VehicleTypesService } from './vehicle-types.service';
 
 @Controller('tenants')
 @UseGuards(JwtGuard, RolesGuard)
@@ -29,7 +28,6 @@ export class TenantsController {
     private readonly tenantsService: TenantsService,
     private readonly tenantKeysService: TenantKeysService,
     private readonly apiTokensService: ApiTokensService,
-    private readonly vehicleTypesService: VehicleTypesService,
     private readonly serviceCitiesService: ServiceCitiesService,
   ) {}
 
@@ -165,62 +163,6 @@ export class TenantsController {
     return this.apiTokensService.revokeToken(
       token_id,
       req.user.profile.tenant_id,
-    );
-  }
-
-  // 平台车型（公开）
-  @Get('vehicle-classes')
-  getPlatformClasses() {
-    return this.vehicleTypesService.getPlatformClasses();
-  }
-
-  // 租户自定义车型
-  @Get('me/vehicle-types')
-  @Roles('TENANT_ADMIN', 'TENANT_STAFF')
-  getVehicleTypes(@Request() req: any) {
-    return this.vehicleTypesService.getTenantVehicleTypes(
-      req.user.profile.tenant_id,
-    );
-  }
-
-  @Post('me/vehicle-types')
-  @Roles('TENANT_ADMIN')
-  createVehicleType(@Body() dto: any, @Request() req: any) {
-    return this.vehicleTypesService.createVehicleType(
-      req.user.profile.tenant_id,
-      dto,
-    );
-  }
-
-  @Patch('me/vehicle-types/:type_id')
-  @Roles('TENANT_ADMIN')
-  updateVehicleType(
-    @Param('type_id') type_id: string,
-    @Body() dto: any,
-    @Request() req: any,
-  ) {
-    return this.vehicleTypesService.updateVehicleType(
-      type_id,
-      req.user.profile.tenant_id,
-      dto,
-    );
-  }
-
-  @Delete('me/vehicle-types/:type_id')
-  @Roles('TENANT_ADMIN')
-  deleteVehicleType(@Param('type_id') type_id: string, @Request() req: any) {
-    return this.vehicleTypesService.deleteVehicleType(
-      type_id,
-      req.user.profile.tenant_id,
-    );
-  }
-
-  @Get('me/vehicle-types/:type_id/available-drivers')
-  @Roles('TENANT_ADMIN', 'TENANT_STAFF')
-  getAvailableDrivers(@Param('type_id') type_id: string, @Request() req: any) {
-    return this.vehicleTypesService.getAvailableDriversForVehicleType(
-      req.user.profile.tenant_id,
-      type_id,
     );
   }
 

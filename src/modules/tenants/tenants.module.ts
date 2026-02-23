@@ -6,7 +6,6 @@ import { TenantKeysService } from './tenant-keys.service';
 import { TenantsController } from './tenants.controller';
 import { TenantsPublicController } from './tenants-public.controller';
 import { TenantsService } from './tenants.service';
-import { VehicleTypesService } from './vehicle-types.service';
 
 @Module({
   imports: [forwardRef(() => NotificationsModule)],
@@ -15,14 +14,12 @@ import { VehicleTypesService } from './vehicle-types.service';
     TenantsService,
     TenantKeysService,
     ApiTokensService,
-    VehicleTypesService,
     ServiceCitiesService,
   ],
   exports: [
     TenantsService,
     TenantKeysService,
     ApiTokensService,
-    VehicleTypesService,
     ServiceCitiesService,
   ],
 })

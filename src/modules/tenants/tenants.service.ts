@@ -154,7 +154,7 @@ export class TenantsService {
       .from('pricing_rules')
       .update({ is_active: false })
       .eq('tenant_id', tenant_id)
-      .eq('vehicle_class', dto.vehicle_class);
+      .eq('vehicle_type_id', dto.vehicle_type_id);
 
     const { data, error } = await supabaseAdmin
       .from('pricing_rules')
