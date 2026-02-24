@@ -25,6 +25,7 @@ import { TenantVehiclesModule } from './modules/vehicles/tenant-vehicles.module'
 import { MapsModule } from './modules/maps/maps.module';
 import { DriverInvitationsModule } from './modules/driver-invitations/driver-invitations.module';
 import { TenantSettingsModule } from './modules/tenant-settings/tenant-settings.module';
+import { AirportsModule } from './modules/airports/airports.module';
 
 @Module({
   imports: [
@@ -58,6 +59,7 @@ import { TenantSettingsModule } from './modules/tenant-settings/tenant-settings.
     MapsModule,
     DriverInvitationsModule,
     TenantSettingsModule,
+    AirportsModule,
   ],
   providers: [
     { provide: APP_PIPE, useValue: new ValidationPipe({ whitelist: true }) },

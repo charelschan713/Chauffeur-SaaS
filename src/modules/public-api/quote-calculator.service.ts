@@ -1,8 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { supabaseAdmin } from '../../config/supabase.config';
+import { TenantAirportFeesService } from '../airports/tenant-airport-fees.service';
 
 @Injectable()
 export class QuoteCalculatorService {
+  constructor(private readonly tenantAirportFeesService: TenantAirportFeesService) {}
   async calculate(params: {
     tenant_id: string;
     service_type: string;
@@ -12,6 +14,7 @@ export class QuoteCalculatorService {
     duration_minutes?: number;
     duration_hours?: number;
     hours?: number;
+    hours_booked?: number;
     waiting_minutes?: number;
     waypoint_count?: number;
     passenger_count?: number;
@@ -41,6 +44,7 @@ export class QuoteCalculatorService {
     duration_minutes?: number;
     duration_hours?: number;
     hours?: number;
+    hours_booked?: number;
     waiting_minutes?: number;
     waypoint_count?: number;
     passenger_count?: number;
@@ -66,6 +70,7 @@ export class QuoteCalculatorService {
       duration_minutes = 0,
       duration_hours = 0,
       hours,
+      hours_booked,
       waiting_minutes = 0,
       waypoint_count = 0,
       baby_seat_infant = 0,
@@ -82,7 +87,7 @@ export class QuoteCalculatorService {
       trip_type = 'ONE_WAY',
     } = params;
 
-    const resolvedHours = hours ?? duration_hours ?? 0;
+    const resolvedHours = hours_booked ?? hours ?? duration_hours ?? 0;
 
     const { data: vehicleTypes } = await supabaseAdmin
       .from('tenant_vehicle_types')
@@ -97,7 +102,7 @@ export class QuoteCalculatorService {
       timeSurcharge,
       holidaySurcharge,
       eventSurcharge,
-      airportRule,
+      airportMatch,
       serviceTypeSurcharge,
       surgeMultiplier,
       contactDiscount,
@@ -108,12 +113,10 @@ export class QuoteCalculatorService {
       pickup_datetime
         ? this.getEventSurcharge(tenant_id, pickup_datetime, trip_type)
         : null,
-      this.getAirportRule(
+      this.tenantAirportFeesService.matchAirport(
         tenant_id,
-        pickup_address,
-        dropoff_address,
-        pickup_place_id,
-        dropoff_place_id,
+        `${pickup_address} ${dropoff_address}`.trim(),
+        pickup_place_id || dropoff_place_id,
       ),
       this.getServiceTypeSurcharge(tenant_id, service_type),
       this.getSurgeMultiplier(tenant_id, service_type, service_city_id),
@@ -145,7 +148,8 @@ export class QuoteCalculatorService {
         baby_seat_convertible * (vt.baby_seat_convertible_fee ?? 0) +
         baby_seat_booster * (vt.baby_seat_booster_fee ?? 0);
 
-      const airport_parking_fee = airportRule ? airportRule.parking_fee ?? 0 : 0;
+      const airport_parking_fee =
+        service_type === 'AIRPORT_PICKUP' ? airportMatch?.parking_fee ?? 0 : 0;
 
       const baseSubtotal = pricing.subtotal + baby_seat_fee + airport_parking_fee;
 
@@ -219,6 +223,9 @@ export class QuoteCalculatorService {
           time_charge: this.round2(pricing.time_charge),
           waiting_charge: this.round2(pricing.waiting_charge),
           waypoint_charge: this.round2(pricing.waypoint_charge),
+          parking_fee: this.round2(airport_parking_fee),
+          overtime_charge: this.round2(pricing.overtime_charge ?? 0),
+          extra_km_charge: this.round2(pricing.extra_km_charge ?? 0),
           toll_fee: this.round2(pricing.toll_fee),
           subtotal: this.round2(pricing.subtotal),
           surcharges: surcharges_applied,
@@ -247,12 +254,11 @@ export class QuoteCalculatorService {
           booster: vt.baby_seat_booster_fee ?? 0,
         },
         surcharges_applied,
-        airport_rule: airportRule
+        airport_rule: airportMatch
           ? {
-              name: airportRule.name,
-              terminal_type: airportRule.terminal_type,
-              free_waiting_minutes: airportRule.free_waiting_minutes,
-              parking_fee: airportRule.parking_fee,
+              name: airportMatch.airport?.name,
+              city: airportMatch.airport?.city,
+              parking_fee: airport_parking_fee,
             }
           : null,
       };
@@ -293,6 +299,8 @@ export class QuoteCalculatorService {
     let time_charge = 0;
     let waiting_charge = 0;
     let waypoint_charge = 0;
+    let overtime_charge = 0;
+    let extra_km_charge = 0;
 
     if (service_type === 'HOURLY_CHARTER') {
       const billableHours = Math.max(hours, vt.min_booking_hours ?? 1);
@@ -300,9 +308,11 @@ export class QuoteCalculatorService {
       const extraKm = Math.max(0, distance_km - includedKm);
       const overtimeMinutes = Math.max(0, duration_minutes - billableHours * 60);
 
-      km_charge = extraKm * (vt.per_km_rate ?? 0);
+      km_charge = 0;
       time_charge = (vt.hourly_rate ?? 0) * billableHours;
-      waiting_charge = overtimeMinutes * (vt.extra_minute_rate ?? 0);
+      overtime_charge = overtimeMinutes * (vt.extra_minute_rate ?? 0);
+      extra_km_charge = extraKm * (vt.per_km_rate ?? 0);
+      waiting_charge = 0;
       waypoint_charge = 0;
     } else {
       // POINT_TO_POINT / AIRPORT / SPECIAL_EVENT(base P2P)
@@ -316,7 +326,7 @@ export class QuoteCalculatorService {
     }
 
     const subtotal =
-      base_fare + km_charge + time_charge + waiting_charge + waypoint_charge + (toll_cost || 0);
+      base_fare + km_charge + time_charge + waiting_charge + waypoint_charge + overtime_charge + extra_km_charge + (toll_cost || 0);
 
     return {
       base_fare,
@@ -324,6 +334,8 @@ export class QuoteCalculatorService {
       time_charge,
       waiting_charge,
       waypoint_charge,
+      overtime_charge,
+      extra_km_charge,
       toll_fee: toll_cost || 0,
       subtotal,
     };
@@ -425,40 +437,6 @@ export class QuoteCalculatorService {
       surcharge_value: rate,
       surcharge_type: 'PERCENTAGE',
     };
-  }
-
-  private async getAirportRule(
-    tenant_id: string,
-    pickup_address: string,
-    dropoff_address: string,
-    pickup_place_id?: string,
-    dropoff_place_id?: string,
-  ) {
-    const { data: rules } = await supabaseAdmin
-      .from('tenant_airport_rules')
-      .select('*')
-      .eq('tenant_id', tenant_id)
-      .eq('is_active', true);
-
-    if (!rules?.length) return null;
-
-    for (const rule of rules) {
-      if (rule.place_id) {
-        if (rule.place_id === pickup_place_id || rule.place_id === dropoff_place_id) {
-          return rule;
-        }
-      }
-
-      if (rule.address_keywords?.length) {
-        const combined = `${pickup_address} ${dropoff_address}`.toLowerCase();
-        const matched = rule.address_keywords.some((kw: string) =>
-          combined.includes(kw.toLowerCase()),
-        );
-        if (matched) return rule;
-      }
-    }
-
-    return null;
   }
 
   private async getSurgeMultiplier(

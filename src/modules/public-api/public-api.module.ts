@@ -8,9 +8,10 @@ import { StripeWebhookController } from './stripe-webhook.controller';
 import { TenantsModule } from '../tenants/tenants.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { MapsModule } from '../maps/maps.module';
+import { AirportsModule } from '../airports/airports.module';
 
 @Module({
-  imports: [TenantsModule, NotificationsModule, MapsModule],
+  imports: [TenantsModule, NotificationsModule, MapsModule, AirportsModule],
   controllers: [
     PublicOpenController,
     PublicApiController,

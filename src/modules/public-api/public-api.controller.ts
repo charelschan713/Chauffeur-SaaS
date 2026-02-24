@@ -55,6 +55,9 @@ class QuoteQueryDto {
   @ApiProperty({ required: false, example: '2' })
   hours?: string;
 
+  @ApiProperty({ required: false, example: '3' })
+  hours_booked?: string;
+
   @ApiProperty({ required: false, example: '90' })
   duration_minutes?: string;
 
@@ -166,6 +169,7 @@ export class PublicOpenController {
     @Query('distance_km') distance_km?: string,
     @Query('duration_hours') duration_hours?: string,
     @Query('hours') hours?: string,
+    @Query('hours_booked') hours_booked?: string,
     @Query('duration_minutes') duration_minutes?: string,
     @Query('waiting_minutes') waiting_minutes?: string,
     @Query('waypoint_count') waypoint_count?: string,
@@ -189,6 +193,7 @@ export class PublicOpenController {
       distance_km,
       duration_hours,
       hours,
+      hours_booked,
       duration_minutes,
       waiting_minutes,
       waypoint_count,
@@ -288,6 +293,7 @@ export class PublicApiController {
     @Query('distance_km') distance_km?: string,
     @Query('duration_hours') duration_hours?: string,
     @Query('hours') hours?: string,
+    @Query('hours_booked') hours_booked?: string,
     @Query('duration_minutes') duration_minutes?: string,
     @Query('waiting_minutes') waiting_minutes?: string,
     @Query('waypoint_count') waypoint_count?: string,
@@ -311,6 +317,7 @@ export class PublicApiController {
       distance_km,
       duration_hours,
       hours,
+      hours_booked,
       duration_minutes,
       waiting_minutes,
       waypoint_count,

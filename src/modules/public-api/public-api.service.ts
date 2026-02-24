@@ -18,6 +18,7 @@ export class PublicApiService {
     distance_km?: string;
     duration_hours?: string;
     hours?: string;
+    hours_booked?: string;
     duration_minutes?: string;
     waiting_minutes?: string;
     waypoint_count?: string;
@@ -61,6 +62,7 @@ export class PublicApiService {
       distance_km: parseFloat(query.distance_km ?? '0'),
       duration_hours: parseFloat(query.duration_hours ?? '0'),
       hours: parseFloat(query.hours ?? query.duration_hours ?? '0'),
+      hours_booked: parseFloat(query.hours_booked ?? query.hours ?? query.duration_hours ?? '0'),
       duration_minutes: parseFloat(query.duration_minutes ?? '0'),
       waiting_minutes: parseFloat(query.waiting_minutes ?? '0') || 0,
       waypoint_count: parseInt(query.waypoint_count ?? '0', 10) || 0,
