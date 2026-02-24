@@ -61,6 +61,14 @@ export class QuoteCalculatorService {
       ? await this.validatePromoCode(tenant_id, promo_code)
       : null;
 
+    const vehicleTypeIds = vehicleTypes.map((vt: any) => vt.id);
+    const { data: allExtras } = await supabaseAdmin
+      .from('vehicle_type_extras')
+      .select('*')
+      .in('tenant_vehicle_type_id', vehicleTypeIds)
+      .eq('is_active', true)
+      .order('sort_order', { ascending: true });
+
     return vehicleTypes.map((vt: any) => {
       const billing_options: any[] = [];
 
@@ -168,6 +176,10 @@ export class QuoteCalculatorService {
         };
       });
 
+      const extras = (allExtras ?? []).filter(
+        (e: any) => e.tenant_vehicle_type_id === vt.id,
+      );
+
       return {
         vehicle_type_id: vt.id,
         type_name: vt.type_name,
@@ -180,6 +192,14 @@ export class QuoteCalculatorService {
           finalOptions.length > 0
             ? Math.min(...finalOptions.map((b: any) => b.fare))
             : 0,
+        extras: extras.map((e: any) => ({
+          id: e.id,
+          name: e.name,
+          description: e.description,
+          category: e.category,
+          price: e.price,
+          max_quantity: e.max_quantity,
+        })),
         surcharges_applied: [
           surgeMultiplier > 1 ? `Surge ×${surgeMultiplier}` : null,
           timeSurcharge ? `${timeSurcharge.name}` : null,

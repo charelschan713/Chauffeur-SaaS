@@ -48,6 +48,7 @@ export class BookingsService {
       crm_passenger_id?: string;
       promo_code?: string;
       billing_method?: 'KM' | 'DT';
+      selected_extras?: any[];
       created_timezone?: string;
     },
   ) {
@@ -72,6 +73,19 @@ export class BookingsService {
 
     if (!vehicleType) {
       throw new BadRequestException('Vehicle type not found');
+    }
+
+    // 验证婴儿座椅数量
+    const babySeatExtras = dto.selected_extras?.filter(
+      (e: any) => e.category === 'BABY_SEAT',
+    );
+    const totalBabySeats =
+      babySeatExtras?.reduce((sum: number, e: any) => sum + (e.quantity ?? 0), 0) ?? 0;
+
+    if (totalBabySeats >= (vehicleType.max_passengers ?? 4)) {
+      throw new BadRequestException(
+        `Baby seats cannot exceed ${(vehicleType.max_passengers ?? 4) - 1} (max_passengers - 1)`,
+      );
     }
 
     // pricing_rules is optional (surge only)
