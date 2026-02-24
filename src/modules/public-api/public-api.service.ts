@@ -21,16 +21,17 @@ export class PublicApiService {
     promo_code?: string;
     contact_id?: string;
   }) {
-    const { data: tenant, error: tenant_error } = await supabaseAdmin
+    const { data: tenants, error: tenant_error } = await supabaseAdmin
       .from('tenants')
       .select('id, name, slug')
       .eq('slug', query.tenant_slug)
-      .single();
+      .limit(1);
 
     if (tenant_error) {
       throw new NotFoundException(`Tenant lookup failed: ${tenant_error.message}`);
     }
 
+    const tenant = tenants?.[0];
     if (!tenant) {
       throw new NotFoundException('Tenant not found');
     }
