@@ -126,6 +126,54 @@ class CreateBookingApiDto {
   special_requests?: string;
 }
 
+// ─── Public endpoints (no auth required) ───
+@ApiTags('Public API')
+@Controller('public')
+export class PublicOpenController {
+  constructor(
+    private readonly publicApiService: PublicApiService,
+    private readonly quoteCalculator: QuoteCalculatorService,
+  ) {}
+
+  @Get('quote')
+  @ApiOperation({ summary: 'Get instant price quote (no auth)' })
+  @ApiResponse({ status: 200, description: 'Price estimate for the trip' })
+  getQuote(@Query() query: QuoteQueryDto) {
+    return this.publicApiService.getQuote(query);
+  }
+
+  @Get('promo-code/validate')
+  @ApiOperation({ summary: 'Validate a promo code (no auth)' })
+  async validatePromoCode(
+    @Query('tenant_slug') tenant_slug: string,
+    @Query('code') code: string,
+  ) {
+    const { data: tenant } = await supabaseAdmin
+      .from('tenants')
+      .select('id')
+      .eq('slug', tenant_slug)
+      .single();
+
+    if (!tenant) {
+      throw new NotFoundException('Tenant not found');
+    }
+
+    const result = await this.quoteCalculator.validatePromoCode(tenant.id, code);
+
+    if (!result) {
+      return { valid: false, message: 'Invalid or expired promo code' };
+    }
+
+    return {
+      valid: true,
+      code: result.code,
+      discount_type: result.type,
+      discount_value: result.value,
+    };
+  }
+}
+
+// ─── API-Key protected endpoints ───
 @ApiTags('Public API')
 @ApiHeader({
   name: 'X-API-Key',
@@ -148,7 +196,7 @@ export class PublicApiController {
   }
 
   @Get('quote')
-  @ApiOperation({ summary: 'Get instant price quote' })
+  @ApiOperation({ summary: 'Get instant price quote (requires API key)' })
   @ApiResponse({ status: 200, description: 'Price estimate for the trip' })
   getQuote(@Query() query: QuoteQueryDto) {
     return this.publicApiService.getQuote(query);
