@@ -20,6 +20,7 @@ import {
 } from '@nestjs/swagger';
 import { PublicApiService } from './public-api.service';
 import { QuoteCalculatorService } from './quote-calculator.service';
+import { GoogleMapsService } from '../maps/google-maps.service';
 import { ApiKeyGuard } from '../../common/guards/api-key.guard';
 import { supabaseAdmin } from '../../config/supabase.config';
 import {
@@ -145,6 +146,7 @@ export class PublicOpenController {
   constructor(
     private readonly publicApiService: PublicApiService,
     private readonly quoteCalculator: QuoteCalculatorService,
+    private readonly mapsService: GoogleMapsService,
   ) {}
 
   @Get('quote')
@@ -164,6 +166,7 @@ export class PublicOpenController {
     @Query('baby_seat_booster') baby_seat_booster?: string,
     @Query('promo_code') promo_code?: string,
     @Query('contact_id') contact_id?: string,
+    @Query('toll_cost') toll_cost?: string,
   ) {
     return this.publicApiService.getQuote({
       tenant_slug,
@@ -179,7 +182,26 @@ export class PublicOpenController {
       baby_seat_booster,
       promo_code,
       contact_id,
+      toll_cost,
     });
+  }
+
+  @Post('route')
+  @ApiOperation({ summary: 'Compute route with distance, duration, tolls' })
+  @ApiResponse({ status: 200, description: 'Route computation result' })
+  async computeRoute(@Body() body: any) {
+    const route = await this.mapsService.computeRoute({
+      origin: {
+        lat: parseFloat(body.origin_lat),
+        lng: parseFloat(body.origin_lng),
+      },
+      destination: {
+        lat: parseFloat(body.destination_lat),
+        lng: parseFloat(body.destination_lng),
+      },
+      waypoints: body.waypoints ?? [],
+    });
+    return route;
   }
 
   @Get('promo-code/validate')
@@ -252,6 +274,7 @@ export class PublicApiController {
     @Query('baby_seat_booster') baby_seat_booster?: string,
     @Query('promo_code') promo_code?: string,
     @Query('contact_id') contact_id?: string,
+    @Query('toll_cost') toll_cost?: string,
   ) {
     return this.publicApiService.getQuote({
       tenant_slug,
@@ -267,6 +290,7 @@ export class PublicApiController {
       baby_seat_booster,
       promo_code,
       contact_id,
+      toll_cost,
     });
   }
 

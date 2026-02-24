@@ -24,6 +24,7 @@ export class PublicApiService {
     baby_seat_booster?: string;
     promo_code?: string;
     contact_id?: string;
+    toll_cost?: string;
   }) {
     const tenant_slug = (query as any).tenant_slug ?? (query as any).tenantSlug;
     if (!tenant_slug) {
@@ -59,6 +60,7 @@ export class PublicApiService {
       baby_seat_booster: parseInt(query.baby_seat_booster ?? '0', 10) || 0,
       promo_code: query.promo_code,
       contact_id: query.contact_id,
+      toll_cost: parseFloat(query.toll_cost ?? '0') || 0,
     });
 
     return {

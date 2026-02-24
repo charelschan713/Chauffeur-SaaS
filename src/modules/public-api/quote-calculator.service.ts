@@ -68,6 +68,7 @@ export class QuoteCalculatorService {
     baby_seat_booster?: number;
     promo_code?: string;
     contact_id?: string;
+    toll_cost?: number;
   }) {
     const {
       tenant_id,
@@ -82,6 +83,7 @@ export class QuoteCalculatorService {
       baby_seat_booster = 0,
       promo_code,
       contact_id,
+      toll_cost = 0,
     } = params;
 
     const { data: vehicleTypes } = await supabaseAdmin
@@ -251,6 +253,11 @@ export class QuoteCalculatorService {
         },
         billing_options,
         estimated_fare: parseFloat(subtotal.toFixed(2)),
+        toll_cost: (vt.include_tolls !== false) ? toll_cost : 0,
+        toll_estimated: true,
+        total_with_tolls: parseFloat(
+          (subtotal + ((vt.include_tolls !== false) ? toll_cost : 0)).toFixed(2),
+        ),
         extras: extras.map((e: any) => ({
           id: e.id,
           name: e.name,

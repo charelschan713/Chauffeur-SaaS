@@ -7,9 +7,10 @@ import { PublicBookingsService } from './public-bookings.service';
 import { StripeWebhookController } from './stripe-webhook.controller';
 import { TenantsModule } from '../tenants/tenants.module';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { MapsModule } from '../maps/maps.module';
 
 @Module({
-  imports: [TenantsModule, NotificationsModule],
+  imports: [TenantsModule, NotificationsModule, MapsModule],
   controllers: [
     PublicOpenController,
     PublicApiController,

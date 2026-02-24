@@ -22,6 +22,7 @@ import { CrmModule } from './modules/crm/crm.module';
 import { ServiceTypesModule } from './modules/service-types/service-types.module';
 import { SurchargesModule } from './modules/surcharges/surcharges.module';
 import { TenantVehiclesModule } from './modules/vehicles/tenant-vehicles.module';
+import { MapsModule } from './modules/maps/maps.module';
 
 @Module({
   imports: [
@@ -52,6 +53,7 @@ import { TenantVehiclesModule } from './modules/vehicles/tenant-vehicles.module'
     ServiceTypesModule,
     SurchargesModule,
     TenantVehiclesModule,
+    MapsModule,
   ],
   providers: [
     { provide: APP_PIPE, useValue: new ValidationPipe({ whitelist: true }) },
