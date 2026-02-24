@@ -404,6 +404,7 @@ export class BookingsService {
       .from('bookings')
       .update({
         driver_id: dto.driver_id,
+        booking_status: 'ASSIGNED',
         driver_status: 'ASSIGNED',
         driver_fare: dto.driver_fare,
         driver_toll: dto.driver_toll,
@@ -418,6 +419,7 @@ export class BookingsService {
     if (error) throw new BadRequestException(error.message);
 
     await this.logStatusChange(booking_id, {
+      booking_status: 'ASSIGNED',
       driver_status: 'ASSIGNED',
       changed_by: admin_id,
       changed_by_role: 'TENANT_ADMIN',
@@ -694,7 +696,7 @@ export class BookingsService {
       .from('bookings')
       .update({
         driver_status: 'JOB_DONE',
-        booking_status: 'COMPLETED',
+        booking_status: 'JOB_DONE',
         actual_km: dto.actual_km ?? null,
         driver_extras,
         driver_total,
@@ -707,7 +709,7 @@ export class BookingsService {
     if (error) throw new BadRequestException(error.message);
 
     await this.logStatusChange(booking_id, {
-      booking_status: 'COMPLETED',
+      booking_status: 'JOB_DONE',
       driver_status: 'JOB_DONE',
       changed_by: driver_id,
       changed_by_role: 'DRIVER',
@@ -761,7 +763,7 @@ export class BookingsService {
     const { data, error } = await supabaseAdmin
       .from('bookings')
       .update({
-        booking_status: 'COMPLETED',
+        booking_status: 'FULFILLED',
         payment_status: 'PAID',
         supplement_amount,
         credit_amount,
@@ -796,7 +798,7 @@ export class BookingsService {
     }
 
     await this.logStatusChange(booking_id, {
-      booking_status: 'COMPLETED',
+      booking_status: 'FULFILLED',
       payment_status: 'PAID',
       changed_by: admin_id,
       changed_by_role: 'TENANT_ADMIN',
@@ -838,7 +840,7 @@ export class BookingsService {
     const booking = await this.getBookingOrFail(booking_id, tenant_id);
 
     // 检查是否可以修改
-    if (['COMPLETED', 'CANCELLED'].includes(booking.booking_status)) {
+    if (['FULFILLED', 'CANCELLED'].includes(booking.booking_status)) {
       throw new BadRequestException(
         'Cannot modify completed or cancelled bookings',
       );
@@ -957,7 +959,7 @@ export class BookingsService {
   ) {
     const booking = await this.getBookingOrFail(booking_id, tenant_id);
 
-    if (['COMPLETED', 'CANCELLED'].includes(booking.booking_status)) {
+    if (['FULFILLED', 'CANCELLED'].includes(booking.booking_status)) {
       throw new BadRequestException(
         'Booking is already completed or cancelled',
       );
@@ -1045,7 +1047,7 @@ export class BookingsService {
     const booking = await this.getBookingOrFail(booking_id, tenant_id);
 
     const updates: any = {
-      booking_status: 'NO_SHOW',
+      booking_status: 'JOB_DONE',
       updated_at: new Date().toISOString(),
     };
 
@@ -1071,7 +1073,7 @@ export class BookingsService {
     if (error) throw new BadRequestException(error.message);
 
     await this.logStatusChange(booking_id, {
-      booking_status: 'NO_SHOW',
+      booking_status: 'JOB_DONE',
       changed_by: admin_id,
       changed_by_role: 'TENANT_ADMIN',
       note: dto.note ?? `No show - ${dto.action}`,
@@ -1098,15 +1100,15 @@ export class BookingsService {
 
     const { data: bookings } = await supabaseAdmin
       .from('bookings')
-      .select('id, status, payment_status, total_price, currency')
+      .select('id, booking_status, payment_status, total_price, currency')
       .eq('tenant_id', tenant_id)
       .gte('pickup_datetime', startOfDay)
       .lt('pickup_datetime', endOfDay);
 
     const all = bookings ?? [];
-    const pending = all.filter((b: any) => b.status === 'PENDING').length;
+    const pending = all.filter((b: any) => (b.booking_status ?? b.status) === 'PENDING').length;
     const in_progress = all.filter(
-      (b: any) => b.status === 'CONFIRMED' || b.status === 'IN_PROGRESS',
+      (b: any) => ['CONFIRMED','ASSIGNED','IN_PROGRESS'].includes(b.booking_status ?? b.status),
     ).length;
     const today_revenue = all
       .filter((b: any) => b.payment_status === 'PAID')
@@ -1117,7 +1119,7 @@ export class BookingsService {
       today_total: all.length,
       pending,
       in_progress,
-      completed: all.filter((b: any) => b.status === 'COMPLETED').length,
+      completed: all.filter((b: any) => (b.booking_status ?? b.status) === 'FULFILLED').length,
       today_revenue: parseFloat(today_revenue.toFixed(2)),
       currency,
     };
@@ -1751,6 +1753,7 @@ export class BookingsService {
 
     return {
       ...booking,
+      tags: this.computeBookingTags(booking),
       pickup_datetime_local: booking.pickup_datetime
         ? this.formatLocalTime(booking.pickup_datetime, timezone, cityName)
         : null,
@@ -1758,6 +1761,44 @@ export class BookingsService {
         ? this.formatLocalTime(booking.return_datetime, timezone, cityName)
         : null,
     };
+  }
+
+  private computeBookingTags(booking: any): string[] {
+    const tags: string[] = [];
+    const now = new Date();
+    const pickup = booking.pickup_datetime ? new Date(booking.pickup_datetime) : null;
+
+    const hasSavedCard = Boolean(
+      booking.payment_method_id ||
+      booking.saved_payment_method_id ||
+      booking.card_id ||
+      booking.book_with_saved_card ||
+      String(booking.source ?? '').toLowerCase().includes('saved_card'),
+    );
+
+    if (hasSavedCard) tags.push('Card Saved');
+
+    if (pickup) {
+      const startToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const startTomorrow = new Date(startToday);
+      startTomorrow.setDate(startToday.getDate() + 1);
+      const startDayAfterTomorrow = new Date(startTomorrow);
+      startDayAfterTomorrow.setDate(startTomorrow.getDate() + 1);
+
+      if (pickup >= startToday && pickup < startTomorrow) tags.push('Today');
+      if (pickup >= startTomorrow && pickup < startDayAfterTomorrow) tags.push('Tomorrow');
+
+      const status = booking.booking_status ?? booking.status;
+      if (pickup < now && ['PENDING', 'CONFIRMED'].includes(status)) tags.push('Overdue');
+    }
+
+    const status = booking.booking_status ?? booking.status;
+    const assignedDriverId = booking.assigned_driver_id ?? booking.driver_id;
+    if (!assignedDriverId && status !== 'CANCELLED') {
+      tags.push('Unassigned');
+    }
+
+    return tags;
   }
 
   private formatLocalTime(
@@ -1895,7 +1936,7 @@ export class BookingsService {
          drivers(profiles(first_name, last_name))`,
       )
       .eq('tenant_id', tenant_id)
-      .eq('status', 'COMPLETED')
+      .eq('booking_status', 'FULFILLED')
       .not('driver_id', 'is', null)
       .gte('pickup_datetime', `${from}T00:00:00`)
       .lte('pickup_datetime', `${to}T23:59:59`);
@@ -1947,16 +1988,16 @@ export class BookingsService {
 
     const { data: bookings } = await supabaseAdmin
       .from('bookings')
-      .select('id, status, payment_status, total_price, currency')
+      .select('id, booking_status, payment_status, total_price, currency')
       .eq('tenant_id', tenant_id)
       .gte('pickup_datetime', `${from}T00:00:00`)
       .lte('pickup_datetime', `${to}T23:59:59`);
 
     const all = bookings ?? [];
     const total = all.length;
-    const completed = all.filter((b) => b.status === 'COMPLETED').length;
-    const cancelled = all.filter((b) => b.status === 'CANCELLED').length;
-    const pending = all.filter((b) => b.status === 'PENDING').length;
+    const completed = all.filter((b) => b.booking_status === 'FULFILLED').length;
+    const cancelled = all.filter((b) => b.booking_status === 'CANCELLED').length;
+    const pending = all.filter((b) => b.booking_status === 'PENDING').length;
     const revenue = all
       .filter((b) => b.payment_status === 'PAID')
       .reduce((sum, b) => sum + (b.total_price ?? 0), 0);

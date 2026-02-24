@@ -23,6 +23,7 @@ import { ServiceTypesModule } from './modules/service-types/service-types.module
 import { SurchargesModule } from './modules/surcharges/surcharges.module';
 import { TenantVehiclesModule } from './modules/vehicles/tenant-vehicles.module';
 import { MapsModule } from './modules/maps/maps.module';
+import { DriverInvitationsModule } from './modules/driver-invitations/driver-invitations.module';
 
 @Module({
   imports: [
@@ -54,6 +55,7 @@ import { MapsModule } from './modules/maps/maps.module';
     SurchargesModule,
     TenantVehiclesModule,
     MapsModule,
+    DriverInvitationsModule,
   ],
   providers: [
     { provide: APP_PIPE, useValue: new ValidationPipe({ whitelist: true }) },

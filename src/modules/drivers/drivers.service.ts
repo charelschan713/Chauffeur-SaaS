@@ -148,7 +148,43 @@ export class DriversService {
 
     const { data, error } = await query;
     if (error) throw new BadRequestException(error.message);
-    return data;
+
+    const drivers = data ?? [];
+
+    const { data: invitations } = await supabaseAdmin
+      .from('driver_invitations')
+      .select('id, email, phone, status, expires_at, created_at')
+      .eq('tenant_id', tenant_id)
+      .eq('status', 'PENDING');
+
+    const pending = (invitations ?? []).filter(
+      (inv: any) => new Date(inv.expires_at).getTime() > Date.now(),
+    );
+
+    const byEmail = new Map<string, any>();
+    const byPhone = new Map<string, any>();
+    for (const inv of pending) {
+      if (inv.email) byEmail.set(String(inv.email).toLowerCase(), inv);
+      if (inv.phone) byPhone.set(String(inv.phone), inv);
+    }
+
+    return drivers.map((driver: any) => {
+      const email = String(driver.email ?? '').toLowerCase();
+      const phone = String(driver.phone ?? '');
+      const invitation = byEmail.get(email) ?? byPhone.get(phone) ?? null;
+
+      const login_status = driver.user_id && driver.is_active
+        ? 'LOGIN_READY'
+        : invitation
+          ? 'INVITED'
+          : 'NO_LOGIN';
+
+      return {
+        ...driver,
+        pending_invitation: invitation,
+        login_status,
+      };
+    });
   }
 
   async create(tenant_id: string, dto: any) {
