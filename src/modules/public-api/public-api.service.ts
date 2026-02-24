@@ -18,6 +18,10 @@ export class PublicApiService {
     distance_km?: string;
     duration_hours?: string;
     duration_minutes?: string;
+    waypoint_count?: string;
+    baby_seat_infant?: string;
+    baby_seat_convertible?: string;
+    baby_seat_booster?: string;
     promo_code?: string;
     contact_id?: string;
   }) {
@@ -49,6 +53,10 @@ export class PublicApiService {
       distance_km: parseFloat(query.distance_km ?? '0'),
       duration_hours: parseFloat(query.duration_hours ?? '0'),
       duration_minutes: parseFloat(query.duration_minutes ?? '0'),
+      waypoint_count: parseInt(query.waypoint_count ?? '0', 10) || 0,
+      baby_seat_infant: parseInt(query.baby_seat_infant ?? '0', 10) || 0,
+      baby_seat_convertible: parseInt(query.baby_seat_convertible ?? '0', 10) || 0,
+      baby_seat_booster: parseInt(query.baby_seat_booster ?? '0', 10) || 0,
       promo_code: query.promo_code,
       contact_id: query.contact_id,
     });

@@ -54,6 +54,18 @@ class QuoteQueryDto {
   @ApiProperty({ required: false, example: '90' })
   duration_minutes?: string;
 
+  @ApiProperty({ required: false, example: '2' })
+  waypoint_count?: string;
+
+  @ApiProperty({ required: false, example: '1' })
+  baby_seat_infant?: string;
+
+  @ApiProperty({ required: false, example: '0' })
+  baby_seat_convertible?: string;
+
+  @ApiProperty({ required: false, example: '1' })
+  baby_seat_booster?: string;
+
   @ApiProperty({ required: false })
   promo_code?: string;
 
@@ -146,6 +158,10 @@ export class PublicOpenController {
     @Query('distance_km') distance_km?: string,
     @Query('duration_hours') duration_hours?: string,
     @Query('duration_minutes') duration_minutes?: string,
+    @Query('waypoint_count') waypoint_count?: string,
+    @Query('baby_seat_infant') baby_seat_infant?: string,
+    @Query('baby_seat_convertible') baby_seat_convertible?: string,
+    @Query('baby_seat_booster') baby_seat_booster?: string,
     @Query('promo_code') promo_code?: string,
     @Query('contact_id') contact_id?: string,
   ) {
@@ -157,6 +173,10 @@ export class PublicOpenController {
       distance_km,
       duration_hours,
       duration_minutes,
+      waypoint_count,
+      baby_seat_infant,
+      baby_seat_convertible,
+      baby_seat_booster,
       promo_code,
       contact_id,
     });
@@ -226,6 +246,10 @@ export class PublicApiController {
     @Query('distance_km') distance_km?: string,
     @Query('duration_hours') duration_hours?: string,
     @Query('duration_minutes') duration_minutes?: string,
+    @Query('waypoint_count') waypoint_count?: string,
+    @Query('baby_seat_infant') baby_seat_infant?: string,
+    @Query('baby_seat_convertible') baby_seat_convertible?: string,
+    @Query('baby_seat_booster') baby_seat_booster?: string,
     @Query('promo_code') promo_code?: string,
     @Query('contact_id') contact_id?: string,
   ) {
@@ -237,6 +261,10 @@ export class PublicApiController {
       distance_km,
       duration_hours,
       duration_minutes,
+      waypoint_count,
+      baby_seat_infant,
+      baby_seat_convertible,
+      baby_seat_booster,
       promo_code,
       contact_id,
     });

@@ -11,6 +11,10 @@ export class QuoteCalculatorService {
     distance_km: number;
     duration_hours: number;
     duration_minutes: number;
+    waypoint_count?: number;
+    baby_seat_infant?: number;
+    baby_seat_convertible?: number;
+    baby_seat_booster?: number;
     promo_code?: string;
     contact_id?: string;
   }) {
@@ -21,6 +25,10 @@ export class QuoteCalculatorService {
       distance_km,
       duration_hours,
       duration_minutes,
+      waypoint_count = 0,
+      baby_seat_infant = 0,
+      baby_seat_convertible = 0,
+      baby_seat_booster = 0,
       promo_code,
       contact_id,
     } = params;
@@ -72,113 +80,107 @@ export class QuoteCalculatorService {
     return vehicleTypes.map((vt: any) => {
       const billing_options: any[] = [];
 
+      if (vt.per_km_rate > 0 && distance_km > 0) {
+        billing_options.push({
+          method: 'KM',
+          fare: parseFloat((((vt.base_fare ?? 0) + distance_km * vt.per_km_rate)).toFixed(2)),
+          label: `${distance_km}km × $${vt.per_km_rate}/km`,
+        });
+      }
+
+      if (vt.per_minute_rate > 0 && duration_minutes > 0) {
+        billing_options.push({
+          method: 'DT',
+          fare: parseFloat((((vt.base_fare ?? 0) + duration_minutes * vt.per_minute_rate)).toFixed(2)),
+          label: `${duration_minutes}min × $${vt.per_minute_rate}/min`,
+        });
+      }
+
+      let baseFare = vt.base_fare ?? 0;
       if (
         service_type === 'POINT_TO_POINT' ||
         service_type === 'AIRPORT_PICKUP' ||
         service_type === 'AIRPORT_DROPOFF' ||
         serviceTypeSurcharge?.base_type === 'POINT_TO_POINT'
       ) {
-        if (vt.per_km_rate > 0 && distance_km > 0) {
-          let base = (vt.base_fare ?? 0) + distance_km * vt.per_km_rate;
-          base = this.applyAllSurcharges(
-            base,
-            vt,
-            surgeMultiplier,
-            timeSurcharge,
-            holidaySurcharge,
-            serviceTypeSurcharge,
-            contactDiscount,
-          );
-          billing_options.push({
-            method: 'KM',
-            fare: parseFloat(base.toFixed(2)),
-            label: `${distance_km}km × $${vt.per_km_rate}/km`,
-          });
+        if ((vt.billing_method ?? 'KM') === 'DT' && duration_minutes > 0) {
+          baseFare = (vt.base_fare ?? 0) + duration_minutes * (vt.per_minute_rate ?? 0);
+        } else {
+          baseFare = (vt.base_fare ?? 0) + distance_km * (vt.per_km_rate ?? 0);
         }
-
-        if (vt.per_minute_rate > 0 && duration_minutes > 0) {
-          let base = (vt.base_fare ?? 0) + duration_minutes * vt.per_minute_rate;
-          base = this.applyAllSurcharges(
-            base,
-            vt,
-            surgeMultiplier,
-            timeSurcharge,
-            holidaySurcharge,
-            serviceTypeSurcharge,
-            contactDiscount,
-          );
-          billing_options.push({
-            method: 'DT',
-            fare: parseFloat(base.toFixed(2)),
-            label: `${duration_minutes}min × $${vt.per_minute_rate}/min`,
-          });
-        }
-
-        if (billing_options.length === 0) {
-          let base = vt.minimum_fare ?? vt.base_fare ?? 0;
-          base = this.applyAllSurcharges(
-            base,
-            vt,
-            surgeMultiplier,
-            timeSurcharge,
-            holidaySurcharge,
-            serviceTypeSurcharge,
-            contactDiscount,
-          );
-          billing_options.push({
-            method: 'BASE',
-            fare: parseFloat(base.toFixed(2)),
-            label: 'Base fare',
-          });
-        }
-      }
-
-      if (
+      } else if (
         service_type === 'HOURLY_CHARTER' ||
         serviceTypeSurcharge?.base_type === 'HOURLY_CHARTER'
       ) {
-        let base = duration_hours * (vt.hourly_rate ?? 0);
+        baseFare = duration_hours * (vt.hourly_rate ?? vt.base_fare ?? 0);
         if (vt.included_km_per_hour > 0 && vt.extra_km_rate > 0 && distance_km > 0) {
           const included_km = duration_hours * vt.included_km_per_hour;
           const extra_km = Math.max(0, distance_km - included_km);
-          base += extra_km * vt.extra_km_rate;
+          baseFare += extra_km * vt.extra_km_rate;
         }
-        base = this.applyAllSurcharges(
-          base,
-          vt,
-          surgeMultiplier,
-          timeSurcharge,
-          holidaySurcharge,
-          serviceTypeSurcharge,
-          contactDiscount,
-        );
-        billing_options.push({
-          method: 'HOURLY',
-          fare: parseFloat(base.toFixed(2)),
-          label: `${duration_hours}hr × $${vt.hourly_rate}/hr`,
-        });
       }
 
-      const finalOptions = billing_options.map((opt) => {
-        if (!promoDiscount) return opt;
-        if ((promoDiscount.min_fare ?? 0) > opt.fare) return opt;
+      const waypointFee = waypoint_count * (vt.waypoint_fee ?? 0);
+      const babySeatFee =
+        baby_seat_infant * (vt.baby_seat_infant_fee ?? 0) +
+        baby_seat_convertible * (vt.baby_seat_convertible_fee ?? 0) +
+        baby_seat_booster * (vt.baby_seat_booster_fee ?? 0);
 
+      let subtotal = (baseFare + waypointFee) * surgeMultiplier;
+
+      if (timeSurcharge) {
+        subtotal =
+          timeSurcharge.surcharge_type === 'FIXED'
+            ? subtotal + timeSurcharge.surcharge_value
+            : subtotal * (1 + timeSurcharge.surcharge_value / 100);
+      }
+
+      if (holidaySurcharge) {
+        subtotal =
+          holidaySurcharge.surcharge_type === 'FIXED'
+            ? subtotal + holidaySurcharge.surcharge_value
+            : subtotal * (1 + holidaySurcharge.surcharge_value / 100);
+      }
+
+      if (serviceTypeSurcharge?.surcharge_value > 0) {
+        subtotal =
+          serviceTypeSurcharge.surcharge_type === 'FIXED'
+            ? subtotal + serviceTypeSurcharge.surcharge_value
+            : subtotal * (1 + serviceTypeSurcharge.surcharge_value / 100);
+      }
+
+      subtotal += babySeatFee;
+
+      if (contactDiscount > 0) {
+        subtotal = subtotal * (1 - contactDiscount / 100);
+      }
+
+      if (promoDiscount && (promoDiscount.min_fare ?? 0) <= subtotal) {
         const discount =
           promoDiscount.type === 'FIXED'
             ? promoDiscount.value
-            : (opt.fare * promoDiscount.value) / 100;
+            : (subtotal * promoDiscount.value) / 100;
+        subtotal = Math.max(0, subtotal - discount);
+      }
 
-        return {
-          ...opt,
-          original_fare: opt.fare,
-          promo_discount: parseFloat(discount.toFixed(2)),
-          fare: parseFloat(Math.max(0, opt.fare - discount).toFixed(2)),
-        };
-      });
+      subtotal = Math.max(subtotal, vt.minimum_fare ?? 0);
+
+      if (billing_options.length === 0) {
+        billing_options.push({
+          method: 'BASE',
+          fare: parseFloat(subtotal.toFixed(2)),
+          label: 'Base fare',
+        });
+      }
 
       const extras = (allExtras ?? []).filter(
         (e: any) => e.tenant_vehicle_type_id === vt.id,
       );
+
+      const max_baby_seats =
+        vt.max_baby_seats !== null && vt.max_baby_seats !== undefined
+          ? vt.max_baby_seats
+          : Math.max((vt.max_passengers ?? 1) - 1, 0);
 
       return {
         vehicle_type_id: vt.id,
@@ -186,12 +188,18 @@ export class QuoteCalculatorService {
         description: vt.description,
         max_luggage: vt.max_luggage,
         max_passengers: vt.max_passengers ?? 4,
+        max_baby_seats,
         currency: vt.currency ?? 'AUD',
-        billing_options: finalOptions,
-        estimated_fare:
-          finalOptions.length > 0
-            ? Math.min(...finalOptions.map((b: any) => b.fare))
-            : 0,
+        billing_method: vt.billing_method ?? 'KM',
+        waypoint_fee: parseFloat(waypointFee.toFixed(2)),
+        baby_seat_fee: parseFloat(babySeatFee.toFixed(2)),
+        baby_seat_pricing: {
+          infant: vt.baby_seat_infant_fee ?? 0,
+          convertible: vt.baby_seat_convertible_fee ?? 0,
+          booster: vt.baby_seat_booster_fee ?? 0,
+        },
+        billing_options,
+        estimated_fare: parseFloat(subtotal.toFixed(2)),
         extras: extras.map((e: any) => ({
           id: e.id,
           name: e.name,

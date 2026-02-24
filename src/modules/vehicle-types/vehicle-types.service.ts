@@ -36,6 +36,11 @@ export class VehicleTypesService {
       base_fare: number;
       per_km_rate: number;
       per_minute_rate?: number;
+      waypoint_fee?: number;
+      baby_seat_infant_fee?: number;
+      baby_seat_convertible_fee?: number;
+      baby_seat_booster_fee?: number;
+      max_baby_seats?: number | null;
       included_km_per_hour?: number;
       extra_km_rate?: number;
       hourly_rate: number;
@@ -67,6 +72,12 @@ export class VehicleTypesService {
         tenant_id,
         max_passengers: type_data.max_passengers ?? 4,
         per_minute_rate: type_data.per_minute_rate ?? 0,
+        waypoint_fee: type_data.waypoint_fee ?? 0,
+        baby_seat_infant_fee: type_data.baby_seat_infant_fee ?? 0,
+        baby_seat_convertible_fee: type_data.baby_seat_convertible_fee ?? 0,
+        baby_seat_booster_fee: type_data.baby_seat_booster_fee ?? 0,
+        max_baby_seats:
+          type_data.max_baby_seats === undefined ? null : type_data.max_baby_seats,
         included_km_per_hour: type_data.included_km_per_hour ?? 0,
         extra_km_rate: type_data.extra_km_rate ?? 0,
       })
@@ -103,6 +114,11 @@ export class VehicleTypesService {
       base_fare?: number;
       per_km_rate?: number;
       per_minute_rate?: number;
+      waypoint_fee?: number;
+      baby_seat_infant_fee?: number;
+      baby_seat_convertible_fee?: number;
+      baby_seat_booster_fee?: number;
+      max_baby_seats?: number | null;
       included_km_per_hour?: number;
       extra_km_rate?: number;
       hourly_rate?: number;

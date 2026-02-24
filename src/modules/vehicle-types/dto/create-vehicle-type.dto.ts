@@ -6,6 +6,11 @@ export class CreateVehicleTypeDto {
   base_fare?: number;
   per_km_rate?: number;
   per_minute_rate?: number;
+  waypoint_fee?: number;
+  baby_seat_infant_fee?: number;
+  baby_seat_convertible_fee?: number;
+  baby_seat_booster_fee?: number;
+  max_baby_seats?: number | null;
   included_km_per_hour?: number;
   extra_km_rate?: number;
   hourly_rate?: number;
