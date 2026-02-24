@@ -14,12 +14,9 @@ CREATE TABLE IF NOT EXISTS platform_vehicles (
 );
 
 -- =====================
--- 2. 重建租户车辆等级表
+-- 2. 租户车辆等级表（安全升级，避免删表）
 -- =====================
-DROP TABLE IF EXISTS tenant_vehicle_type_vehicles CASCADE;
-DROP TABLE IF EXISTS tenant_vehicle_types CASCADE;
-
-CREATE TABLE tenant_vehicle_types (
+CREATE TABLE IF NOT EXISTS tenant_vehicle_types (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   tenant_id UUID NOT NULL REFERENCES tenants(id)
     ON DELETE CASCADE,
@@ -41,7 +38,7 @@ CREATE TABLE tenant_vehicle_types (
 -- =====================
 -- 3. 车辆等级关联表
 -- =====================
-CREATE TABLE tenant_vehicle_type_vehicles (
+CREATE TABLE IF NOT EXISTS tenant_vehicle_type_vehicles (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   tenant_id UUID NOT NULL REFERENCES tenants(id)
     ON DELETE CASCADE,
