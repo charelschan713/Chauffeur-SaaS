@@ -1,4 +1,5 @@
 import { Module, ValidationPipe } from '@nestjs/common';
+import { ScheduleModule } from '@nestjs/schedule';
 import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD, APP_PIPE } from '@nestjs/core';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
@@ -26,10 +27,12 @@ import { MapsModule } from './modules/maps/maps.module';
 import { DriverInvitationsModule } from './modules/driver-invitations/driver-invitations.module';
 import { TenantSettingsModule } from './modules/tenant-settings/tenant-settings.module';
 import { AirportsModule } from './modules/airports/airports.module';
+import { ComplianceModule } from './modules/compliance/compliance.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+    ScheduleModule.forRoot(),
     ThrottlerModule.forRoot([
       {
         ttl: 60000,
@@ -60,6 +63,7 @@ import { AirportsModule } from './modules/airports/airports.module';
     DriverInvitationsModule,
     TenantSettingsModule,
     AirportsModule,
+    ComplianceModule,
   ],
   providers: [
     { provide: APP_PIPE, useValue: new ValidationPipe({ whitelist: true }) },

@@ -4,9 +4,12 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { supabaseAdmin } from '../../config/supabase.config';
+import { ComplianceService } from '../compliance/compliance.service';
 
 @Injectable()
 export class BookingTransferService {
+  constructor(private readonly complianceService: ComplianceService) {}
+
   // 发起转单
   async initiateTransfer(
     booking_id: string,
@@ -43,6 +46,15 @@ export class BookingTransferService {
       : booking.vehicle_type?.requirements?.map(
           (r: any) => r.platform_vehicle_id,
         ) ?? [];
+
+    const check = await this.complianceService.checkComplianceForTransfer(
+      dto.to_tenant_id,
+    );
+    if (!check.eligible) {
+      throw new BadRequestException(
+        `Target tenant not eligible: ${check.issues.join(', ')}`,
+      );
+    }
 
     // 检查目标租户是否有符合的车辆
     if (required_ids.length > 0) {
@@ -152,6 +164,15 @@ export class BookingTransferService {
 
     if (!transfer) {
       throw new NotFoundException('Transfer not found');
+    }
+
+    const check = await this.complianceService.checkComplianceForTransfer(
+      tenant_id,
+    );
+    if (!check.eligible) {
+      throw new BadRequestException(
+        `Target tenant not eligible: ${check.issues.join(', ')}`,
+      );
     }
 
     // 验证车辆符合要求
