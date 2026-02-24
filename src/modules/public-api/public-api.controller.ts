@@ -138,8 +138,28 @@ export class PublicOpenController {
   @Get('quote')
   @ApiOperation({ summary: 'Get instant price quote (no auth)' })
   @ApiResponse({ status: 200, description: 'Price estimate for the trip' })
-  getQuote(@Query() query: QuoteQueryDto) {
-    return this.publicApiService.getQuote(query);
+  getQuote(
+    @Query('tenant_slug') tenant_slug: string,
+    @Query('service_type') service_type: string,
+    @Query('service_city_id') service_city_id?: string,
+    @Query('pickup_datetime') pickup_datetime?: string,
+    @Query('distance_km') distance_km?: string,
+    @Query('duration_hours') duration_hours?: string,
+    @Query('duration_minutes') duration_minutes?: string,
+    @Query('promo_code') promo_code?: string,
+    @Query('contact_id') contact_id?: string,
+  ) {
+    return this.publicApiService.getQuote({
+      tenant_slug,
+      service_type,
+      service_city_id,
+      pickup_datetime,
+      distance_km,
+      duration_hours,
+      duration_minutes,
+      promo_code,
+      contact_id,
+    });
   }
 
   @Get('promo-code/validate')
@@ -198,8 +218,28 @@ export class PublicApiController {
   @Get('quote')
   @ApiOperation({ summary: 'Get instant price quote (requires API key)' })
   @ApiResponse({ status: 200, description: 'Price estimate for the trip' })
-  getQuote(@Query() query: QuoteQueryDto) {
-    return this.publicApiService.getQuote(query);
+  getQuote(
+    @Query('tenant_slug') tenant_slug: string,
+    @Query('service_type') service_type: string,
+    @Query('service_city_id') service_city_id?: string,
+    @Query('pickup_datetime') pickup_datetime?: string,
+    @Query('distance_km') distance_km?: string,
+    @Query('duration_hours') duration_hours?: string,
+    @Query('duration_minutes') duration_minutes?: string,
+    @Query('promo_code') promo_code?: string,
+    @Query('contact_id') contact_id?: string,
+  ) {
+    return this.publicApiService.getQuote({
+      tenant_slug,
+      service_type,
+      service_city_id,
+      pickup_datetime,
+      distance_km,
+      duration_hours,
+      duration_minutes,
+      promo_code,
+      contact_id,
+    });
   }
 
   @Get('promo-code/validate')
