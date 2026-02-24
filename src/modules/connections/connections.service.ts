@@ -25,7 +25,7 @@ export class ConnectionsService {
 
     const { data: receiver } = await supabaseAdmin
       .from('tenants')
-      .select('id, tenant_name, tenant_status')
+      .select('id, name, status')
       .eq('id', dto.receiver_tenant_id)
       .single();
 
@@ -33,7 +33,7 @@ export class ConnectionsService {
       throw new NotFoundException('Tenant not found');
     }
 
-    if ((receiver as any).tenant_status !== 'ACTIVE') {
+    if ((receiver as any).status !== 'ACTIVE') {
       throw new BadRequestException('Target tenant is not active');
     }
 
@@ -174,10 +174,10 @@ export class ConnectionsService {
         `
         *,
         requester:tenants!tenant_connections_requester_id_fkey(
-          id, tenant_name, tenant_slug
+          id, name, slug
         ),
         receiver:tenants!tenant_connections_receiver_id_fkey(
-          id, tenant_name, tenant_slug
+          id, name, slug
         )
       `,
       )
@@ -201,10 +201,10 @@ export class ConnectionsService {
   async searchTenants(tenant_id: string, keyword: string) {
     const { data, error } = await supabaseAdmin
       .from('tenants')
-      .select('id, tenant_name, tenant_slug')
-      .eq('tenant_status', 'ACTIVE')
+      .select('id, name, slug')
+      .eq('status', 'ACTIVE')
       .neq('id', tenant_id)
-      .ilike('tenant_name', `%${keyword}%`)
+      .ilike('name', `%${keyword}%`)
       .limit(10);
 
     if (error) throw new BadRequestException(error.message);
@@ -405,10 +405,10 @@ export class ConnectionsService {
           tenant_service_cities(city_name, timezone)
         ),
         from_tenant:tenants!booking_transfers_from_tenant_id_fkey(
-          tenant_name
+          name
         ),
         to_tenant:tenants!booking_transfers_to_tenant_id_fkey(
-          tenant_name
+          name
         )
       `,
       )

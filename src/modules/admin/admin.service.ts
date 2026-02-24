@@ -244,7 +244,7 @@ export class AdminService {
     const { data, error } = await supabaseAdmin
       .from('tenants')
       .update({
-        tenant_status: 'ACTIVE',
+        status: 'ACTIVE',
         updated_at: new Date().toISOString(),
       })
       .eq('id', tenant_id)
@@ -260,7 +260,7 @@ export class AdminService {
     const { data, error } = await supabaseAdmin
       .from('tenants')
       .update({
-        tenant_status: 'DECLINED',
+        status: 'DECLINED',
         updated_at: new Date().toISOString(),
       })
       .eq('id', tenant_id)
