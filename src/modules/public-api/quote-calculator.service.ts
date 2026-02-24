@@ -3,6 +3,230 @@ import { supabaseAdmin } from '../../config/supabase.config';
 
 @Injectable()
 export class QuoteCalculatorService {
+  async calculate(params: {
+    tenant_id: string;
+    service_type: string;
+    pickup_datetime?: string;
+    return_datetime?: string;
+    distance_km?: number;
+    duration_minutes?: number;
+    duration_hours?: number;
+    waypoint_count?: number;
+    passenger_count?: number;
+    luggage_count?: number;
+    baby_seat_infant?: number;
+    baby_seat_convertible?: number;
+    baby_seat_booster?: number;
+    toll_cost?: number;
+    pickup_address?: string;
+    dropoff_address?: string;
+    pickup_place_id?: string;
+    dropoff_place_id?: string;
+    promo_code?: string;
+    contact_id?: string;
+    service_city_id?: string;
+    trip_type?: string;
+  }) {
+    const {
+      tenant_id,
+      service_type,
+      pickup_datetime,
+      distance_km = 0,
+      duration_minutes = 0,
+      duration_hours = 0,
+      waypoint_count = 0,
+      baby_seat_infant = 0,
+      baby_seat_convertible = 0,
+      baby_seat_booster = 0,
+      toll_cost = 0,
+      pickup_address = '',
+      dropoff_address = '',
+      pickup_place_id,
+      dropoff_place_id,
+      promo_code,
+      contact_id,
+      service_city_id,
+      trip_type = 'ONE_WAY',
+    } = params;
+
+    const { data: vehicleTypes } = await supabaseAdmin
+      .from('tenant_vehicle_types')
+      .select('*')
+      .eq('tenant_id', tenant_id)
+      .eq('is_active', true)
+      .order('sort_order', { ascending: true });
+
+    if (!vehicleTypes?.length) return [];
+
+    const [
+      timeSurcharge,
+      holidaySurcharge,
+      eventSurcharge,
+      airportRule,
+      surgeMultiplier,
+      contactDiscount,
+      promo,
+    ] = await Promise.all([
+      pickup_datetime ? this.getTimeSurcharge(tenant_id, pickup_datetime) : null,
+      pickup_datetime ? this.getHolidaySurcharge(tenant_id, pickup_datetime) : null,
+      pickup_datetime
+        ? this.getEventSurcharge(tenant_id, pickup_datetime, trip_type)
+        : null,
+      this.getAirportRule(
+        tenant_id,
+        pickup_address,
+        dropoff_address,
+        pickup_place_id,
+        dropoff_place_id,
+      ),
+      this.getSurgeMultiplier(tenant_id, service_type, service_city_id),
+      contact_id
+        ? this.getContactDiscount(contact_id, service_type, tenant_id)
+        : 0,
+      promo_code ? this.validatePromoCode(tenant_id, promo_code) : null,
+    ]);
+
+    return vehicleTypes.map((vt: any) => {
+      const base_fare = this.calculateBaseFare(
+        vt,
+        service_type,
+        distance_km,
+        duration_minutes,
+        duration_hours,
+        waypoint_count,
+      );
+
+      const baby_seat_fee =
+        baby_seat_infant * (vt.baby_seat_infant_fee ?? 0) +
+        baby_seat_convertible * (vt.baby_seat_convertible_fee ?? 0) +
+        baby_seat_booster * (vt.baby_seat_booster_fee ?? 0);
+
+      const airport_parking_fee = airportRule ? airportRule.parking_fee ?? 0 : 0;
+
+      const fare_after_surcharges = this.applyAllSurcharges(
+        base_fare,
+        vt,
+        surgeMultiplier,
+        timeSurcharge,
+        holidaySurcharge,
+        eventSurcharge,
+        contactDiscount,
+      );
+
+      let promo_discount = 0;
+      if (promo) {
+        const eligible_fare = fare_after_surcharges + baby_seat_fee;
+        if (!promo.min_fare || eligible_fare >= promo.min_fare) {
+          promo_discount =
+            promo.type === 'PERCENTAGE'
+              ? eligible_fare * (promo.value / 100)
+              : promo.value;
+        }
+      }
+
+      const subtotal = Math.max(
+        fare_after_surcharges + baby_seat_fee + airport_parking_fee - promo_discount,
+        vt.minimum_fare ?? 0,
+      );
+
+      const effective_toll = vt.include_tolls !== false ? toll_cost : 0;
+      const total = Math.round((subtotal + effective_toll) * 100) / 100;
+
+      const max_baby_seats =
+        vt.max_baby_seats !== null && vt.max_baby_seats !== undefined
+          ? vt.max_baby_seats
+          : Math.max((vt.max_passengers ?? 1) - 1, 0);
+
+      const surcharges_applied = [
+        surgeMultiplier > 1 ? `Surge ×${surgeMultiplier}` : null,
+        timeSurcharge
+          ? `${timeSurcharge.name} +${timeSurcharge.surcharge_value}${
+              timeSurcharge.surcharge_type === 'PERCENTAGE' ? '%' : '$'
+            }`
+          : null,
+        holidaySurcharge
+          ? `${holidaySurcharge.name} +${holidaySurcharge.surcharge_value}${
+              holidaySurcharge.surcharge_type === 'PERCENTAGE' ? '%' : '$'
+            }`
+          : null,
+        eventSurcharge
+          ? `${eventSurcharge.name} +${eventSurcharge.surcharge_value}${
+              eventSurcharge.surcharge_type === 'PERCENTAGE' ? '%' : '$'
+            }`
+          : null,
+        contactDiscount > 0 ? `${contactDiscount}% client discount` : null,
+        promo_discount > 0 ? `Promo: ${promo_code}` : null,
+      ].filter(Boolean);
+
+      return {
+        vehicle_type_id: vt.id,
+        type_name: vt.type_name,
+        description: vt.description,
+        max_passengers: vt.max_passengers ?? 4,
+        max_luggage: vt.max_luggage ?? 2,
+        max_baby_seats,
+        currency: 'AUD',
+        fare_breakdown: {
+          base_fare: Math.round(base_fare * 100) / 100,
+          waypoint_fee:
+            Math.round(
+              this.calculateWaypointFee(vt, base_fare, waypoint_count) * 100,
+            ) / 100,
+          baby_seat_fee: Math.round(baby_seat_fee * 100) / 100,
+          airport_parking_fee: Math.round(airport_parking_fee * 100) / 100,
+          surge_multiplier: surgeMultiplier,
+          time_surcharge: timeSurcharge
+            ? {
+                name: timeSurcharge.name,
+                type: timeSurcharge.surcharge_type,
+                value: timeSurcharge.surcharge_value,
+              }
+            : null,
+          holiday_surcharge: holidaySurcharge
+            ? {
+                name: holidaySurcharge.name,
+                type: holidaySurcharge.surcharge_type,
+                value: holidaySurcharge.surcharge_value,
+              }
+            : null,
+          event_surcharge: eventSurcharge
+            ? {
+                name: eventSurcharge.name,
+                type: eventSurcharge.surcharge_type,
+                value: eventSurcharge.surcharge_value,
+              }
+            : null,
+          contact_discount: contactDiscount,
+          promo_discount: Math.round(promo_discount * 100) / 100,
+          subtotal: Math.round(subtotal * 100) / 100,
+          toll_cost: Math.round(effective_toll * 100) / 100,
+          total,
+        },
+        estimated_fare: subtotal,
+        toll_cost: effective_toll,
+        toll_estimated: true,
+        total_with_tolls: total,
+        billing_method: vt.billing_method ?? 'KM',
+        pricing_model: vt.pricing_model ?? 'STRAIGHT',
+        included_km: vt.included_km ?? 10,
+        included_minutes: vt.included_minutes ?? 30,
+        baby_seat_pricing: {
+          infant: vt.baby_seat_infant_fee ?? 0,
+          convertible: vt.baby_seat_convertible_fee ?? 0,
+          booster: vt.baby_seat_booster_fee ?? 0,
+        },
+        surcharges_applied,
+        airport_rule: airportRule
+          ? {
+              name: airportRule.name,
+              terminal_type: airportRule.terminal_type,
+              free_waiting_minutes: airportRule.free_waiting_minutes,
+              parking_fee: airportRule.parking_fee,
+            }
+          : null,
+      };
+    });
+  }
 
   private calculateBaseFare(
     vt: any,
@@ -17,265 +241,39 @@ export class QuoteCalculatorService {
     if (service_type === 'HOURLY_CHARTER') {
       const hours = Math.max(duration_hours, vt.min_booking_hours ?? 1);
       fare = (vt.hourly_rate ?? vt.base_fare ?? 0) * hours;
-
-      const includedKmPerHour = vt.hourly_included_km ?? 0;
-      if (includedKmPerHour > 0 && (vt.extra_km_rate ?? 0) > 0 && distance_km > 0) {
-        const included_km = hours * includedKmPerHour;
-        const extra_km = Math.max(0, distance_km - included_km);
-        fare += extra_km * (vt.extra_km_rate ?? 0);
-      }
     } else if (vt.pricing_model === 'INCLUDED') {
       const included_km = vt.included_km ?? 10;
       const included_min = vt.included_minutes ?? 30;
-
       const extra_km = Math.max(0, distance_km - included_km);
       const extra_min = Math.max(0, duration_minutes - included_min);
-
       fare =
         (vt.base_fare ?? 0) +
         extra_km * (vt.extra_km_rate ?? 0) +
         extra_min * (vt.extra_minute_rate ?? 0);
     } else {
-      if ((vt.billing_method ?? 'KM') === 'KM') {
+      if (vt.billing_method === 'KM') {
         fare = (vt.base_fare ?? 0) + distance_km * (vt.per_km_rate ?? 0);
       } else {
         fare = (vt.base_fare ?? 0) + duration_minutes * (vt.per_minute_rate ?? 0);
       }
     }
 
-    if (waypoint_count > 0) {
-      if ((vt.waypoint_fee_type ?? 'FIXED') === 'PERCENTAGE') {
-        fare += waypoint_count * (vt.base_fare ?? 0) * ((vt.waypoint_fee ?? 0) / 100);
-      } else {
-        fare += waypoint_count * (vt.waypoint_fee ?? 0);
-      }
-    }
-
-    return Math.max(fare, vt.minimum_fare ?? 0);
+    fare += this.calculateWaypointFee(vt, fare, waypoint_count);
+    return Math.max(fare, 0);
   }
 
-  async calculate(params: {
-    tenant_id: string;
-    service_type: string;
-    service_city_id?: string;
-    pickup_datetime?: string;
-    distance_km: number;
-    duration_hours: number;
-    duration_minutes: number;
-    waypoint_count?: number;
-    baby_seat_infant?: number;
-    baby_seat_convertible?: number;
-    baby_seat_booster?: number;
-    promo_code?: string;
-    contact_id?: string;
-    toll_cost?: number;
-  }) {
-    const {
-      tenant_id,
-      service_type,
-      pickup_datetime,
-      distance_km,
-      duration_hours,
-      duration_minutes,
-      waypoint_count = 0,
-      baby_seat_infant = 0,
-      baby_seat_convertible = 0,
-      baby_seat_booster = 0,
-      promo_code,
-      contact_id,
-      toll_cost = 0,
-    } = params;
+  private calculateWaypointFee(
+    vt: any,
+    base_fare: number,
+    waypoint_count: number,
+  ): number {
+    if (!waypoint_count || !vt.waypoint_fee) return 0;
 
-    const { data: vehicleTypes } = await supabaseAdmin
-      .from('tenant_vehicle_types')
-      .select('*')
-      .eq('tenant_id', tenant_id)
-      .eq('is_active', true)
-      .order('sort_order', { ascending: true });
+    if (vt.waypoint_fee_type === 'PERCENTAGE') {
+      return waypoint_count * base_fare * ((vt.waypoint_fee ?? 0) / 100);
+    }
 
-    if (!vehicleTypes?.length) return [];
-
-    const surgeMultiplier = await this.getSurgeMultiplier(
-      tenant_id,
-      service_type,
-      params.service_city_id,
-    );
-
-    const timeSurcharge = pickup_datetime
-      ? await this.getTimeSurcharge(tenant_id, pickup_datetime)
-      : null;
-
-    const holidaySurcharge = pickup_datetime
-      ? await this.getHolidaySurcharge(tenant_id, pickup_datetime)
-      : null;
-
-    const serviceTypeSurcharge = await this.getServiceTypeSurcharge(
-      tenant_id,
-      service_type,
-    );
-
-    const contactDiscount = contact_id
-      ? await this.getContactDiscount(contact_id, service_type, tenant_id)
-      : 0;
-
-    const promoDiscount = promo_code
-      ? await this.validatePromoCode(tenant_id, promo_code)
-      : null;
-
-    const vehicleTypeIds = vehicleTypes.map((vt: any) => vt.id);
-    const { data: allExtras } = await supabaseAdmin
-      .from('vehicle_type_extras')
-      .select('*')
-      .in('tenant_vehicle_type_id', vehicleTypeIds)
-      .eq('is_active', true)
-      .order('sort_order', { ascending: true });
-
-    return vehicleTypes.map((vt: any) => {
-      const billing_options: any[] = [];
-
-      const effectiveServiceType =
-        serviceTypeSurcharge?.base_type === 'HOURLY_CHARTER'
-          ? 'HOURLY_CHARTER'
-          : service_type;
-
-      if ((vt.billing_method ?? 'KM') === 'KM' && vt.per_km_rate > 0 && distance_km > 0) {
-        billing_options.push({
-          method: 'KM',
-          fare: parseFloat((((vt.base_fare ?? 0) + distance_km * vt.per_km_rate)).toFixed(2)),
-          label: `${distance_km}km × $${vt.per_km_rate}/km`,
-        });
-      }
-
-      if ((vt.billing_method ?? 'KM') === 'DT' && vt.per_minute_rate > 0 && duration_minutes > 0) {
-        billing_options.push({
-          method: 'DT',
-          fare: parseFloat((((vt.base_fare ?? 0) + duration_minutes * vt.per_minute_rate)).toFixed(2)),
-          label: `${duration_minutes}min × $${vt.per_minute_rate}/min`,
-        });
-      }
-
-      const baseFare = this.calculateBaseFare(
-        vt,
-        effectiveServiceType,
-        distance_km,
-        duration_minutes,
-        duration_hours,
-        waypoint_count,
-      );
-
-      const waypointFee = waypoint_count > 0
-        ? (vt.waypoint_fee_type ?? 'FIXED') === 'PERCENTAGE'
-          ? waypoint_count * (vt.base_fare ?? 0) * ((vt.waypoint_fee ?? 0) / 100)
-          : waypoint_count * (vt.waypoint_fee ?? 0)
-        : 0;
-      const babySeatFee =
-        baby_seat_infant * (vt.baby_seat_infant_fee ?? 0) +
-        baby_seat_convertible * (vt.baby_seat_convertible_fee ?? 0) +
-        baby_seat_booster * (vt.baby_seat_booster_fee ?? 0);
-
-      let subtotal = baseFare * surgeMultiplier;
-
-      if (timeSurcharge) {
-        subtotal =
-          timeSurcharge.surcharge_type === 'FIXED'
-            ? subtotal + timeSurcharge.surcharge_value
-            : subtotal * (1 + timeSurcharge.surcharge_value / 100);
-      }
-
-      if (holidaySurcharge) {
-        subtotal =
-          holidaySurcharge.surcharge_type === 'FIXED'
-            ? subtotal + holidaySurcharge.surcharge_value
-            : subtotal * (1 + holidaySurcharge.surcharge_value / 100);
-      }
-
-      if (serviceTypeSurcharge?.surcharge_value > 0) {
-        subtotal =
-          serviceTypeSurcharge.surcharge_type === 'FIXED'
-            ? subtotal + serviceTypeSurcharge.surcharge_value
-            : subtotal * (1 + serviceTypeSurcharge.surcharge_value / 100);
-      }
-
-      subtotal += babySeatFee;
-
-      if (contactDiscount > 0) {
-        subtotal = subtotal * (1 - contactDiscount / 100);
-      }
-
-      if (promoDiscount && (promoDiscount.min_fare ?? 0) <= subtotal) {
-        const discount =
-          promoDiscount.type === 'FIXED'
-            ? promoDiscount.value
-            : (subtotal * promoDiscount.value) / 100;
-        subtotal = Math.max(0, subtotal - discount);
-      }
-
-      subtotal = Math.max(subtotal, vt.minimum_fare ?? 0);
-
-      if (billing_options.length === 0) {
-        billing_options.push({
-          method: 'BASE',
-          fare: parseFloat(subtotal.toFixed(2)),
-          label: 'Base fare',
-        });
-      }
-
-      const extras = (allExtras ?? []).filter(
-        (e: any) => e.tenant_vehicle_type_id === vt.id,
-      );
-
-      const max_baby_seats =
-        vt.max_baby_seats !== null && vt.max_baby_seats !== undefined
-          ? vt.max_baby_seats
-          : Math.max((vt.max_passengers ?? 1) - 1, 0);
-
-      return {
-        vehicle_type_id: vt.id,
-        type_name: vt.type_name,
-        description: vt.description,
-        max_luggage: vt.max_luggage,
-        max_passengers: vt.max_passengers ?? 4,
-        max_baby_seats,
-        currency: vt.currency ?? 'AUD',
-        billing_method: vt.billing_method ?? 'KM',
-        pricing_model: vt.pricing_model ?? 'STRAIGHT',
-        included_km: vt.included_km ?? 10,
-        included_minutes: vt.included_minutes ?? 30,
-        hourly_included_km: vt.hourly_included_km ?? 20,
-        min_booking_hours: vt.min_booking_hours ?? 1,
-        waypoint_fee: parseFloat(waypointFee.toFixed(2)),
-        waypoint_fee_type: vt.waypoint_fee_type ?? 'FIXED',
-        baby_seat_fee: parseFloat(babySeatFee.toFixed(2)),
-        baby_seat_pricing: {
-          infant: vt.baby_seat_infant_fee ?? 0,
-          convertible: vt.baby_seat_convertible_fee ?? 0,
-          booster: vt.baby_seat_booster_fee ?? 0,
-        },
-        billing_options,
-        estimated_fare: parseFloat(subtotal.toFixed(2)),
-        toll_cost: (vt.include_tolls !== false) ? toll_cost : 0,
-        toll_estimated: true,
-        total_with_tolls: parseFloat(
-          (subtotal + ((vt.include_tolls !== false) ? toll_cost : 0)).toFixed(2),
-        ),
-        extras: extras.map((e: any) => ({
-          id: e.id,
-          name: e.name,
-          description: e.description,
-          category: e.category,
-          price: e.price,
-          max_quantity: e.max_quantity,
-        })),
-        surcharges_applied: [
-          surgeMultiplier > 1 ? `Surge ×${surgeMultiplier}` : null,
-          timeSurcharge ? `${timeSurcharge.name}` : null,
-          holidaySurcharge ? `${holidaySurcharge.name}` : null,
-          serviceTypeSurcharge ? `${serviceTypeSurcharge.name}` : null,
-          contactDiscount > 0 ? `${contactDiscount}% discount` : null,
-          promoDiscount ? `Promo: ${promo_code}` : null,
-        ].filter(Boolean),
-      };
-    });
+    return waypoint_count * (vt.waypoint_fee ?? 0);
   }
 
   private applyAllSurcharges(
@@ -284,10 +282,11 @@ export class QuoteCalculatorService {
     surgeMultiplier: number,
     timeSurcharge: any,
     holidaySurcharge: any,
-    serviceTypeSurcharge: any,
+    eventSurcharge: any,
     contactDiscount: number,
   ): number {
     let fare = base_fare;
+
     fare = fare * surgeMultiplier;
 
     if (timeSurcharge) {
@@ -304,11 +303,11 @@ export class QuoteCalculatorService {
           : fare * (1 + holidaySurcharge.surcharge_value / 100);
     }
 
-    if (serviceTypeSurcharge?.surcharge_value > 0) {
+    if (eventSurcharge) {
       fare =
-        serviceTypeSurcharge.surcharge_type === 'FIXED'
-          ? fare + serviceTypeSurcharge.surcharge_value
-          : fare * (1 + serviceTypeSurcharge.surcharge_value / 100);
+        eventSurcharge.surcharge_type === 'FIXED'
+          ? fare + eventSurcharge.surcharge_value
+          : fare * (1 + eventSurcharge.surcharge_value / 100);
     }
 
     if (contactDiscount > 0) {
@@ -320,6 +319,67 @@ export class QuoteCalculatorService {
     }
 
     return fare;
+  }
+
+  private async getEventSurcharge(
+    tenant_id: string,
+    pickup_datetime: string,
+    trip_type: string,
+  ) {
+    const dateStr = new Date(pickup_datetime).toISOString().slice(0, 10);
+
+    const { data } = await supabaseAdmin
+      .from('tenant_event_surcharges')
+      .select('*')
+      .eq('tenant_id', tenant_id)
+      .eq('is_active', true)
+      .lte('start_date', dateStr)
+      .gte('end_date', dateStr);
+
+    if (!data?.length) return null;
+
+    const event = data[0];
+    const rate = trip_type === 'RETURN' ? event.return_rate ?? 50 : event.one_way_rate ?? 100;
+
+    return {
+      ...event,
+      surcharge_value: rate,
+      surcharge_type: 'PERCENTAGE',
+    };
+  }
+
+  private async getAirportRule(
+    tenant_id: string,
+    pickup_address: string,
+    dropoff_address: string,
+    pickup_place_id?: string,
+    dropoff_place_id?: string,
+  ) {
+    const { data: rules } = await supabaseAdmin
+      .from('tenant_airport_rules')
+      .select('*')
+      .eq('tenant_id', tenant_id)
+      .eq('is_active', true);
+
+    if (!rules?.length) return null;
+
+    for (const rule of rules) {
+      if (rule.place_id) {
+        if (rule.place_id === pickup_place_id || rule.place_id === dropoff_place_id) {
+          return rule;
+        }
+      }
+
+      if (rule.address_keywords?.length) {
+        const combined = `${pickup_address} ${dropoff_address}`.toLowerCase();
+        const matched = rule.address_keywords.some((kw: string) =>
+          combined.includes(kw.toLowerCase()),
+        );
+        if (matched) return rule;
+      }
+    }
+
+    return null;
   }
 
   private async getSurgeMultiplier(
@@ -348,14 +408,12 @@ export class QuoteCalculatorService {
   private async getTimeSurcharge(tenant_id: string, pickup_datetime: string) {
     const dt = new Date(pickup_datetime);
     const timeStr = dt.toTimeString().slice(0, 5);
-    const isWeekend = dt.getDay() === 0 || dt.getDay() === 6;
 
     const { data } = await supabaseAdmin
       .from('tenant_time_surcharges')
       .select('*')
       .eq('tenant_id', tenant_id)
-      .eq('is_active', true)
-      .or(`day_type.eq.ALL,day_type.eq.${isWeekend ? 'WEEKEND' : 'WEEKDAY'}`);
+      .eq('is_active', true);
 
     if (!data?.length) return null;
 
@@ -363,7 +421,9 @@ export class QuoteCalculatorService {
       data.find((ts: any) => {
         const start = ts.start_time.slice(0, 5);
         const end = ts.end_time.slice(0, 5);
-        if (start > end) return timeStr >= start || timeStr <= end;
+        if (start > end) {
+          return timeStr >= start || timeStr <= end;
+        }
         return timeStr >= start && timeStr <= end;
       }) ?? null
     );
@@ -375,7 +435,7 @@ export class QuoteCalculatorService {
     const monthDay = dateStr.slice(5);
 
     const { data } = await supabaseAdmin
-      .from('tenant_holidays')
+      .from('tenant_holiday_surcharges')
       .select('*')
       .eq('tenant_id', tenant_id)
       .eq('is_active', true);
@@ -383,21 +443,10 @@ export class QuoteCalculatorService {
     if (!data?.length) return null;
 
     return (
-      data.find((h: any) => (h.recurring ? h.date.slice(5) === monthDay : h.date === dateStr)) ??
-      null
+      data.find((h: any) =>
+        h.is_recurring ? h.date?.slice(5) === monthDay : h.date === dateStr,
+      ) ?? null
     );
-  }
-
-  private async getServiceTypeSurcharge(tenant_id: string, service_type: string) {
-    const { data } = await supabaseAdmin
-      .from('tenant_service_types')
-      .select('*')
-      .eq('tenant_id', tenant_id)
-      .eq('name', service_type)
-      .eq('is_active', true)
-      .maybeSingle();
-
-    return data ?? null;
   }
 
   private async getContactDiscount(
@@ -415,9 +464,9 @@ export class QuoteCalculatorService {
     if (!data) return 0;
     if (service_type === 'POINT_TO_POINT') return data.discount_p2p ?? 0;
     if (service_type === 'HOURLY_CHARTER') return data.discount_charter ?? 0;
-    if (service_type === 'AIRPORT_PICKUP' || service_type === 'AIRPORT_DROPOFF') {
+    if (service_type === 'AIRPORT_PICKUP' || service_type === 'AIRPORT_DROPOFF')
       return data.discount_airport ?? 0;
-    }
+
     return 0;
   }
 
