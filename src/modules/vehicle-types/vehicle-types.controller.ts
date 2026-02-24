@@ -27,17 +27,10 @@ export class VehicleTypesController {
     return this.service.findByTenant(req.user.profile.tenant_id);
   }
 
-  @Get('assigned-vehicles')
-  @UseGuards(JwtGuard, RolesGuard)
-  @Roles('TENANT_ADMIN', 'TENANT_STAFF')
-  getAssigned(@Request() req: any) {
-    return this.service.getAssignedVehicleIds(req.user.profile.tenant_id);
-  }
-
   @Get(':id')
   @UseGuards(JwtGuard)
-  findOne(@Param('id') id: string) {
-    return this.service.findById(id);
+  findOne(@Param('id') id: string, @Request() req: any) {
+    return this.service.findById(id, req.user.profile.tenant_id);
   }
 
   @Post()

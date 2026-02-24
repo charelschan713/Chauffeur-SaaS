@@ -11,5 +11,5 @@ export class CreateVehicleTypeDto {
   hourly_rate?: number;
   minimum_fare?: number;
   currency?: string;
-  vehicle_ids?: string[];
+  required_platform_vehicle_ids?: string[];
 }

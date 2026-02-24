@@ -12,7 +12,7 @@ export class VehicleTypesService {
       .from('tenant_vehicle_types')
       .select(`
         *,
-        vehicles:tenant_vehicle_type_vehicles(
+        requirements:vehicle_type_requirements(
           id,
           platform_vehicle:platform_vehicles(
             id, make, model, images
@@ -41,61 +41,55 @@ export class VehicleTypesService {
       hourly_rate: number;
       minimum_fare: number;
       currency: string;
-      vehicle_ids: string[];
+      required_platform_vehicle_ids?: string[];
     },
   ) {
+    const {
+      required_platform_vehicle_ids = [],
+      ...type_data
+    } = dto;
+
     const { data: existing } = await supabaseAdmin
       .from('tenant_vehicle_types')
       .select('id')
       .eq('tenant_id', tenant_id)
-      .eq('type_name', dto.type_name)
-      .single();
+      .eq('type_name', type_data.type_name)
+      .limit(1);
 
-    if (existing) {
+    if (existing && existing.length > 0) {
       throw new BadRequestException('Vehicle type name already exists');
     }
 
-    if (dto.vehicle_ids.length > 0) {
-      const { data: conflicts } = await supabaseAdmin
-        .from('tenant_vehicle_type_vehicles')
-        .select('platform_vehicle_id')
-        .eq('tenant_id', tenant_id)
-        .in('platform_vehicle_id', dto.vehicle_ids);
-
-      if (conflicts && conflicts.length > 0) {
-        throw new BadRequestException(
-          'Some vehicles are already assigned to another type',
-        );
-      }
-    }
-
-    const { data: vtype, error } = await supabaseAdmin
+    const { data: vehicle_type, error } = await supabaseAdmin
       .from('tenant_vehicle_types')
       .insert({
+        ...type_data,
         tenant_id,
-        type_name: dto.type_name,
-        description: dto.description,
-        max_luggage: dto.max_luggage,
-        max_passengers: dto.max_passengers ?? 4,
-        base_fare: dto.base_fare,
-        per_km_rate: dto.per_km_rate,
-        per_minute_rate: dto.per_minute_rate ?? 0,
-        included_km_per_hour: dto.included_km_per_hour ?? 0,
-        extra_km_rate: dto.extra_km_rate ?? 0,
-        hourly_rate: dto.hourly_rate,
-        minimum_fare: dto.minimum_fare,
-        currency: dto.currency,
+        max_passengers: type_data.max_passengers ?? 4,
+        per_minute_rate: type_data.per_minute_rate ?? 0,
+        included_km_per_hour: type_data.included_km_per_hour ?? 0,
+        extra_km_rate: type_data.extra_km_rate ?? 0,
       })
       .select()
       .single();
 
     if (error) throw new BadRequestException(error.message);
 
-    if (dto.vehicle_ids.length > 0) {
-      await this.assignVehicles(vtype.id, tenant_id, dto.vehicle_ids);
+    if (required_platform_vehicle_ids.length > 0) {
+      const { error: req_error } = await supabaseAdmin
+        .from('vehicle_type_requirements')
+        .insert(
+          required_platform_vehicle_ids.map((platform_vehicle_id: string) => ({
+            tenant_vehicle_type_id: vehicle_type.id,
+            platform_vehicle_id,
+            tenant_id,
+          })),
+        );
+
+      if (req_error) throw new BadRequestException(req_error.message);
     }
 
-    return this.findById(vtype.id);
+    return this.findById(vehicle_type.id, tenant_id);
   }
 
   async update(
@@ -115,15 +109,15 @@ export class VehicleTypesService {
       minimum_fare?: number;
       currency?: string;
       is_active?: boolean;
-      vehicle_ids?: string[];
+      required_platform_vehicle_ids?: string[];
     },
   ) {
-    const { vehicle_ids, ...update_data } = dto;
+    const { required_platform_vehicle_ids, ...type_data } = dto;
 
-    const { data, error } = await supabaseAdmin
+    const { data: updated, error } = await supabaseAdmin
       .from('tenant_vehicle_types')
       .update({
-        ...update_data,
+        ...type_data,
         updated_at: new Date().toISOString(),
       })
       .eq('id', id)
@@ -133,28 +127,34 @@ export class VehicleTypesService {
 
     if (error) throw new NotFoundException('Type not found');
 
-    if (vehicle_ids !== undefined) {
-      await supabaseAdmin
-        .from('tenant_vehicle_type_vehicles')
+    if (required_platform_vehicle_ids !== undefined) {
+      const { error: delete_error } = await supabaseAdmin
+        .from('vehicle_type_requirements')
         .delete()
-        .eq('vehicle_type_id', id)
+        .eq('tenant_vehicle_type_id', id)
         .eq('tenant_id', tenant_id);
 
-      if (vehicle_ids.length > 0) {
-        await this.assignVehicles(id, tenant_id, vehicle_ids);
+      if (delete_error) throw new BadRequestException(delete_error.message);
+
+      if (required_platform_vehicle_ids.length > 0) {
+        const { error: insert_error } = await supabaseAdmin
+          .from('vehicle_type_requirements')
+          .insert(
+            required_platform_vehicle_ids.map((platform_vehicle_id: string) => ({
+              tenant_vehicle_type_id: id,
+              platform_vehicle_id,
+              tenant_id,
+            })),
+          );
+
+        if (insert_error) throw new BadRequestException(insert_error.message);
       }
     }
 
-    return this.findById(id);
+    return this.findById(updated.id, tenant_id);
   }
 
   async remove(id: string, tenant_id: string) {
-    await supabaseAdmin
-      .from('tenant_vehicle_type_vehicles')
-      .delete()
-      .eq('vehicle_type_id', id)
-      .eq('tenant_id', tenant_id);
-
     const { error } = await supabaseAdmin
       .from('tenant_vehicle_types')
       .delete()
@@ -165,12 +165,12 @@ export class VehicleTypesService {
     return { message: 'Vehicle type deleted', id };
   }
 
-  async findById(id: string) {
+  async findById(id: string, tenant_id: string) {
     const { data, error } = await supabaseAdmin
       .from('tenant_vehicle_types')
       .select(`
         *,
-        vehicles:tenant_vehicle_type_vehicles(
+        requirements:vehicle_type_requirements(
           id,
           platform_vehicle:platform_vehicles(
             id, make, model, images
@@ -178,36 +178,10 @@ export class VehicleTypesService {
         )
       `)
       .eq('id', id)
+      .eq('tenant_id', tenant_id)
       .single();
 
     if (error) throw new NotFoundException('Type not found');
     return data;
-  }
-
-  private async assignVehicles(
-    vehicle_type_id: string,
-    tenant_id: string,
-    vehicle_ids: string[],
-  ) {
-    const rows = vehicle_ids.map((vid) => ({
-      vehicle_type_id,
-      tenant_id,
-      platform_vehicle_id: vid,
-    }));
-
-    const { error } = await supabaseAdmin
-      .from('tenant_vehicle_type_vehicles')
-      .insert(rows);
-
-    if (error) throw new BadRequestException(error.message);
-  }
-
-  async getAssignedVehicleIds(tenant_id: string): Promise<string[]> {
-    const { data } = await supabaseAdmin
-      .from('tenant_vehicle_type_vehicles')
-      .select('platform_vehicle_id')
-      .eq('tenant_id', tenant_id);
-
-    return (data ?? []).map((d) => d.platform_vehicle_id);
   }
 }
