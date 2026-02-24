@@ -24,10 +24,10 @@ export class BookingsController {
   // =====================
   @Post()
   @UseGuards(RolesGuard)
-  @Roles('PASSENGER')
+  @Roles('PASSENGER', 'TENANT_ADMIN', 'TENANT_STAFF')
   createBooking(@Body() dto: any, @Request() req: any) {
     return this.bookingsService.createBooking(
-      req.user.id,
+      dto.passenger_id ?? req.user.id,
       req.user.profile.tenant_id,
       dto,
     );
