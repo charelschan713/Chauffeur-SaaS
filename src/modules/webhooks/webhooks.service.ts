@@ -5,6 +5,8 @@ import {
 } from '@nestjs/common';
 import { supabaseAdmin } from '../../config/supabase.config';
 import * as crypto from 'crypto';
+import Stripe from 'stripe';
+import { NotificationsService } from '../notifications/notifications.service';
 
 export const WEBHOOK_EVENTS = [
   'booking.created',
@@ -24,6 +26,12 @@ export type WebhookEvent = (typeof WEBHOOK_EVENTS)[number];
 
 @Injectable()
 export class WebhooksService {
+  constructor(private readonly notificationsService: NotificationsService) {}
+
+  private getStripeClient(secretKey: string): Stripe {
+    return new Stripe(secretKey, { apiVersion: '2026-01-28.clover' });
+  }
+
   private generateSecret(): string {
     return 'whsec_' + crypto.randomBytes(24).toString('hex');
   }
@@ -255,6 +263,153 @@ export class WebhooksService {
     }
 
     return { success, status_code, duration_ms };
+  }
+
+  async handlePlatformWebhook(payload: Buffer, signature: string) {
+    const platformSecret = process.env.STRIPE_WEBHOOK_SECRET ?? '';
+    const stripeSecret = process.env.STRIPE_SECRET_KEY ?? '';
+    if (!platformSecret || !stripeSecret) {
+      throw new BadRequestException('Platform Stripe webhook not configured');
+    }
+
+    let event: Stripe.Event;
+    try {
+      event = this.getStripeClient(stripeSecret).webhooks.constructEvent(
+        payload,
+        signature,
+        platformSecret,
+      );
+    } catch (err: any) {
+      throw new BadRequestException(`Invalid platform Stripe signature: ${err.message}`);
+    }
+
+    switch (event.type) {
+      case 'customer.subscription.updated': {
+        const sub = event.data.object as Stripe.Subscription;
+        await supabaseAdmin
+          .from('tenants')
+          .update({ subscription_status: String(sub.status).toUpperCase(), updated_at: new Date().toISOString() })
+          .eq('subscription_plan_id', sub.id);
+        break;
+      }
+      case 'customer.subscription.deleted': {
+        const sub = event.data.object as Stripe.Subscription;
+        await supabaseAdmin
+          .from('tenants')
+          .update({ subscription_status: 'CANCELLED', updated_at: new Date().toISOString() })
+          .eq('subscription_plan_id', sub.id);
+        break;
+      }
+      case 'invoice.payment_failed': {
+        const invoice: any = event.data.object as any;
+        const subscriptionId = typeof invoice.subscription === 'string' ? invoice.subscription : invoice.subscription?.id;
+        if (subscriptionId) {
+          await supabaseAdmin
+            .from('tenants')
+            .update({ subscription_status: 'PAST_DUE', updated_at: new Date().toISOString() })
+            .eq('subscription_plan_id', subscriptionId);
+        }
+        break;
+      }
+      case 'invoice.payment_succeeded': {
+        const invoice: any = event.data.object as any;
+        const subscriptionId = typeof invoice.subscription === 'string' ? invoice.subscription : invoice.subscription?.id;
+        if (subscriptionId) {
+          await supabaseAdmin
+            .from('tenants')
+            .update({ subscription_status: 'ACTIVE', updated_at: new Date().toISOString() })
+            .eq('subscription_plan_id', subscriptionId);
+        }
+        break;
+      }
+      default:
+        break;
+    }
+
+    return { received: true, mode: 'platform', event: event.type };
+  }
+
+  async handleTenantWebhook(tenant_slug: string, payload: Buffer, signature: string) {
+    const { data: tenant, error: tenantError } = await supabaseAdmin
+      .from('tenants')
+      .select('id, slug')
+      .eq('slug', tenant_slug)
+      .maybeSingle();
+
+    if (tenantError || !tenant) {
+      throw new NotFoundException('Tenant not found');
+    }
+
+    const { data: settings } = await supabaseAdmin
+      .from('tenant_settings')
+      .select('stripe_secret_key, stripe_webhook_secret')
+      .eq('tenant_id', tenant.id)
+      .maybeSingle();
+
+    const tenantStripeSecret = (settings as any)?.stripe_secret_key;
+    const tenantWebhookSecret = (settings as any)?.stripe_webhook_secret;
+
+    if (!tenantStripeSecret || !tenantWebhookSecret) {
+      throw new BadRequestException('Tenant Stripe webhook is not configured');
+    }
+
+    let event: Stripe.Event;
+    try {
+      event = this.getStripeClient(tenantStripeSecret).webhooks.constructEvent(
+        payload,
+        signature,
+        tenantWebhookSecret,
+      );
+    } catch (err: any) {
+      throw new BadRequestException(`Invalid tenant Stripe signature: ${err.message}`);
+    }
+
+    switch (event.type) {
+      case 'payment_intent.succeeded': {
+        const pi = event.data.object as Stripe.PaymentIntent;
+        await this.updateBookingFromPayment(pi.id, 'PAID', 'CONFIRMED');
+        if (pi.metadata?.booking_id) {
+          await this.notificationsService.notifyBookingConfirmed(pi.metadata.booking_id);
+        }
+        break;
+      }
+      case 'payment_intent.payment_failed': {
+        const pi = event.data.object as Stripe.PaymentIntent;
+        await this.updateBookingFromPayment(pi.id, 'FAILED');
+        break;
+      }
+      case 'charge.refunded': {
+        const charge = event.data.object as Stripe.Charge;
+        const paymentIntentId = typeof charge.payment_intent === 'string' ? charge.payment_intent : charge.payment_intent?.id;
+        if (paymentIntentId) {
+          await this.updateBookingFromPayment(paymentIntentId, 'REFUNDED');
+        }
+        break;
+      }
+      default:
+        break;
+    }
+
+    return { received: true, mode: 'tenant', tenant_slug, event: event.type };
+  }
+
+  async updateBookingFromPayment(payment_intent_id: string, payment_status: string, booking_status?: string) {
+    const patch: any = {
+      payment_status,
+      updated_at: new Date().toISOString(),
+    };
+
+    if (booking_status) patch.booking_status = booking_status;
+
+    const { data, error } = await supabaseAdmin
+      .from('bookings')
+      .update(patch)
+      .eq('stripe_payment_intent_id', payment_intent_id)
+      .select('id')
+      .maybeSingle();
+
+    if (error) throw new BadRequestException(error.message);
+    return data;
   }
 
   async triggerEvent(tenant_id: string, event_type: WebhookEvent, data: any) {

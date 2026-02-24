@@ -52,6 +52,14 @@ export class PaymentsController {
     return this.paymentsService.getSavedPaymentMethod(req.user.id);
   }
 
+  @Get('stripe-key')
+  @UseGuards(JwtGuard)
+  getStripePublishableKey(@Request() req: any) {
+    return this.paymentsService
+      .getPublishableKey(req.user.profile.tenant_id)
+      .then((publishable_key) => ({ publishable_key }));
+  }
+
   // =====================
   // Admin路由
   // =====================

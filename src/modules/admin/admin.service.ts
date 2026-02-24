@@ -101,6 +101,18 @@ export class AdminService {
   }
 
   // 审核租户
+  async updateTenantType(tenant_id: string, tenant_type: 'STANDARD' | 'PREMIUM') {
+    const { data, error } = await supabaseAdmin
+      .from('tenants')
+      .update({ tenant_type, updated_at: new Date().toISOString() })
+      .eq('id', tenant_id)
+      .select()
+      .single();
+
+    if (error || !data) throw new NotFoundException('Tenant not found');
+    return data;
+  }
+
   async approveTenant(tenant_id: string) {
     const { data, error } = await supabaseAdmin
       .from('tenants')

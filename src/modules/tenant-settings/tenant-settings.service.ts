@@ -47,4 +47,47 @@ export class TenantSettingsService {
     if (error) throw new BadRequestException(error.message);
     return data;
   }
+
+  async getNotifications(tenant_id: string) {
+    const { data: tenant } = await supabaseAdmin
+      .from('tenants')
+      .select('id, tenant_type')
+      .eq('id', tenant_id)
+      .maybeSingle();
+
+    const { data: settings, error } = await supabaseAdmin
+      .from('tenant_settings')
+      .select('tenant_id, sms_account_sid, sms_auth_token, twilio_from_number, sms_sender_type, sms_sender_id')
+      .eq('tenant_id', tenant_id)
+      .maybeSingle();
+
+    if (error) throw new BadRequestException(error.message);
+
+    return {
+      tenant_id,
+      tenant_type: (tenant as any)?.tenant_type ?? 'STANDARD',
+      ...(settings ?? {}),
+    };
+  }
+
+  async updateNotifications(tenant_id: string, dto: any) {
+    const payload = {
+      tenant_id,
+      sms_account_sid: dto.sms_account_sid ?? null,
+      sms_auth_token: dto.sms_auth_token ?? null,
+      twilio_from_number: dto.twilio_from_number ?? null,
+      sms_sender_type: dto.sms_sender_type ?? 'PHONE',
+      sms_sender_id: dto.sms_sender_id ?? null,
+      updated_at: new Date().toISOString(),
+    };
+
+    const { data, error } = await supabaseAdmin
+      .from('tenant_settings')
+      .upsert(payload, { onConflict: 'tenant_id' })
+      .select('tenant_id, sms_account_sid, sms_auth_token, twilio_from_number, sms_sender_type, sms_sender_id')
+      .single();
+
+    if (error) throw new BadRequestException(error.message);
+    return data;
+  }
 }

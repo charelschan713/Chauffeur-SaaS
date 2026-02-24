@@ -20,6 +20,50 @@ export class PaymentsService {
     });
   }
 
+  private buildStripe(secretKey: string): Stripe {
+    return new Stripe(secretKey, { apiVersion: '2026-01-28.clover' });
+  }
+
+  async getStripeKey(tenant_id: string): Promise<string> {
+    const { data: tenant } = await supabaseAdmin
+      .from('tenants')
+      .select('tenant_type, stripe_secret_key')
+      .eq('id', tenant_id)
+      .maybeSingle();
+
+    const { data: settings } = await supabaseAdmin
+      .from('tenant_settings')
+      .select('stripe_secret_key')
+      .eq('tenant_id', tenant_id)
+      .maybeSingle();
+
+    const tenantType = (tenant as any)?.tenant_type ?? 'STANDARD';
+    const premiumKey = (settings as any)?.stripe_secret_key ?? (tenant as any)?.stripe_secret_key;
+
+    if (tenantType === 'PREMIUM' && premiumKey) return premiumKey;
+    return process.env.STRIPE_SECRET_KEY ?? '';
+  }
+
+  async getPublishableKey(tenant_id: string): Promise<string> {
+    const { data: tenant } = await supabaseAdmin
+      .from('tenants')
+      .select('tenant_type, stripe_publishable_key')
+      .eq('id', tenant_id)
+      .maybeSingle();
+
+    const { data: settings } = await supabaseAdmin
+      .from('tenant_settings')
+      .select('stripe_publishable_key')
+      .eq('tenant_id', tenant_id)
+      .maybeSingle();
+
+    const tenantType = (tenant as any)?.tenant_type ?? 'STANDARD';
+    const premiumKey = (settings as any)?.stripe_publishable_key ?? (tenant as any)?.stripe_publishable_key;
+
+    if (tenantType === 'PREMIUM' && premiumKey) return premiumKey;
+    return process.env.STRIPE_PUBLISHABLE_KEY ?? '';
+  }
+
   // =====================
   // Stripe Customer管理
   // =====================
@@ -145,7 +189,11 @@ export class PaymentsService {
     const stripe_customer_id = await this.getOrCreateStripeCustomer(user_id);
     const amount = Math.round(Number(booking.total_price ?? 0) * 100);
 
-    const intent = await this.stripe.paymentIntents.create({
+    const stripeKey = await this.getStripeKey(tenant_id);
+    if (!stripeKey) throw new BadRequestException('Stripe secret key not configured');
+    const stripe = this.buildStripe(stripeKey);
+
+    const intent = await stripe.paymentIntents.create({
       amount,
       currency: String(booking.currency ?? 'AUD').toLowerCase(),
       customer: stripe_customer_id,

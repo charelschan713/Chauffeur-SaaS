@@ -155,16 +155,37 @@ export class NotificationsService {
     try {
       const { data: tenant } = await supabaseAdmin
         .from('tenants')
-        .select('twilio_account_sid, twilio_auth_token, twilio_from_number')
+        .select('tenant_type, twilio_account_sid, twilio_auth_token, twilio_from_number')
         .eq('id', tenant_id)
-        .single();
+        .maybeSingle();
 
-      const account_sid =
-        (tenant as any)?.twilio_account_sid ?? process.env.TWILIO_ACCOUNT_SID;
-      const auth_token =
-        (tenant as any)?.twilio_auth_token ?? process.env.TWILIO_AUTH_TOKEN;
-      const from =
-        (tenant as any)?.twilio_from_number ?? process.env.TWILIO_FROM_NUMBER;
+      const { data: settings } = await supabaseAdmin
+        .from('tenant_settings')
+        .select('sms_account_sid, sms_auth_token, twilio_from_number, sms_sender_type, sms_sender_id')
+        .eq('tenant_id', tenant_id)
+        .maybeSingle();
+
+      const tenantType = (tenant as any)?.tenant_type ?? 'STANDARD';
+
+      const account_sid = tenantType === 'PREMIUM'
+        ? ((settings as any)?.sms_account_sid ?? '')
+        : ((tenant as any)?.twilio_account_sid ?? process.env.TWILIO_ACCOUNT_SID);
+      const auth_token = tenantType === 'PREMIUM'
+        ? ((settings as any)?.sms_auth_token ?? '')
+        : ((tenant as any)?.twilio_auth_token ?? process.env.TWILIO_AUTH_TOKEN);
+
+      if (tenantType === 'PREMIUM' && (!account_sid || !auth_token)) {
+        // eslint-disable-next-line no-console
+        console.warn(`Premium tenant ${tenant_id} missing SMS credentials`);
+        return { success: false, error: 'Premium SMS credentials missing' };
+      }
+
+      const senderType = (settings as any)?.sms_sender_type ?? 'PHONE';
+      const from = tenantType === 'PREMIUM'
+        ? (senderType === 'SENDER_ID'
+            ? ((settings as any)?.sms_sender_id ?? '')
+            : ((settings as any)?.twilio_from_number ?? ''))
+        : ((tenant as any)?.twilio_from_number ?? process.env.TWILIO_FROM_NUMBER);
 
       if (!account_sid || !auth_token || !from) {
         return { success: false, error: 'Twilio config missing' };

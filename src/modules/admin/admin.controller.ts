@@ -83,6 +83,16 @@ export class AdminController {
     return this.adminService.suspendTenant(tenant_id, reason);
   }
 
+  @Patch('tenants/:tenant_id/type')
+  @UseGuards(JwtGuard, RolesGuard)
+  @Roles('SUPER_ADMIN')
+  updateTenantType(
+    @Param('tenant_id') tenant_id: string,
+    @Body('tenant_type') tenant_type: 'STANDARD' | 'PREMIUM',
+  ) {
+    return this.adminService.updateTenantType(tenant_id, tenant_type);
+  }
+
   @Get('stats')
   @UseGuards(JwtGuard, RolesGuard)
   @Roles('SUPER_ADMIN')

@@ -24,4 +24,20 @@ export class TenantSettingsController {
     const id = role === 'SUPER_ADMIN' ? (dto.tenant_id ?? req.user?.profile?.tenant_id) : req.user?.profile?.tenant_id;
     return this.service.updateTheme(id, dto);
   }
+
+  @Get('notifications')
+  @Roles('TENANT_ADMIN', 'TENANT_STAFF', 'SUPER_ADMIN')
+  getNotifications(@Request() req: any, @Query('tenant_id') tenant_id?: string) {
+    const role = req.user?.role;
+    const id = role === 'SUPER_ADMIN' ? (tenant_id ?? req.user?.profile?.tenant_id) : req.user?.profile?.tenant_id;
+    return this.service.getNotifications(id);
+  }
+
+  @Patch('notifications')
+  @Roles('TENANT_ADMIN', 'SUPER_ADMIN')
+  updateNotifications(@Request() req: any, @Body() dto: any) {
+    const role = req.user?.role;
+    const id = role === 'SUPER_ADMIN' ? (dto.tenant_id ?? req.user?.profile?.tenant_id) : req.user?.profile?.tenant_id;
+    return this.service.updateNotifications(id, dto);
+  }
 }

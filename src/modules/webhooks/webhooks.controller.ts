@@ -9,18 +9,41 @@ import {
   Query,
   Request,
   UseGuards,
+  Headers,
+  Req,
+  RawBodyRequest,
 } from '@nestjs/common';
 import { WebhooksService, WEBHOOK_EVENTS } from './webhooks.service';
 import { JwtGuard } from '../../common/guards/jwt.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
+import type { Request as ExpressRequest } from 'express';
 
 @ApiTags('Webhooks')
 @ApiBearerAuth('JWT-auth')
 @Controller('webhooks')
 export class WebhooksController {
   constructor(private readonly webhooksService: WebhooksService) {}
+
+  @Post('stripe/platform')
+  @ApiOperation({ summary: 'Platform Stripe webhook (subscription billing)' })
+  handlePlatformStripeWebhook(
+    @Req() req: RawBodyRequest<ExpressRequest>,
+    @Headers('stripe-signature') signature: string,
+  ) {
+    return this.webhooksService.handlePlatformWebhook(req.rawBody!, signature);
+  }
+
+  @Post('stripe/:tenant_slug')
+  @ApiOperation({ summary: 'Tenant Stripe webhook (premium payment billing)' })
+  handleTenantStripeWebhook(
+    @Param('tenant_slug') tenant_slug: string,
+    @Req() req: RawBodyRequest<ExpressRequest>,
+    @Headers('stripe-signature') signature: string,
+  ) {
+    return this.webhooksService.handleTenantWebhook(tenant_slug, req.rawBody!, signature);
+  }
 
   @Get('events')
   @ApiOperation({ summary: 'List available webhook events' })
