@@ -25,7 +25,14 @@ CREATE TABLE IF NOT EXISTS booking_transfers (
 CREATE INDEX IF NOT EXISTS idx_transfers_booking ON booking_transfers(booking_id);
 CREATE INDEX IF NOT EXISTS idx_transfers_from ON booking_transfers(from_tenant_id);
 CREATE INDEX IF NOT EXISTS idx_transfers_to ON booking_transfers(to_tenant_id);
-CREATE INDEX IF NOT EXISTS idx_transfers_status ON booking_transfers(status);
+DO $$ BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'booking_transfers' AND column_name = 'status'
+  ) THEN
+    CREATE INDEX IF NOT EXISTS idx_transfers_status ON booking_transfers(status);
+  END IF;
+END $$;
 
 -- 3. booking_status constraint 更新 (column is booking_status, not status)
 ALTER TABLE bookings DROP CONSTRAINT IF EXISTS bookings_booking_status_check;
