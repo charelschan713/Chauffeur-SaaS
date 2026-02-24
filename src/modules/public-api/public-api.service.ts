@@ -4,56 +4,55 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { supabaseAdmin } from '../../config/supabase.config';
+import { QuoteCalculatorService } from './quote-calculator.service';
 
 @Injectable()
 export class PublicApiService {
-  async getQuote(
-    tenant_id: string,
-    vehicle_type_id: string,
-    pickup_address: string,
-    dropoff_address: string,
-    pickup_lat: number,
-    pickup_lng: number,
-    dropoff_lat: number,
-    dropoff_lng: number,
-  ) {
-    const { data: vtype } = await supabaseAdmin
-      .from('tenant_vehicle_types')
-      .select('*, platform_vehicles(name, category)')
-      .eq('tenant_id', tenant_id)
-      .eq('id', vehicle_type_id)
-      .eq('is_active', true)
+  constructor(private readonly quoteCalculator: QuoteCalculatorService) {}
+
+  async getQuote(query: {
+    tenant_slug: string;
+    service_type: string;
+    service_city_id?: string;
+    pickup_datetime?: string;
+    distance_km?: string;
+    duration_hours?: string;
+    duration_minutes?: string;
+    promo_code?: string;
+    contact_id?: string;
+  }) {
+    const { data: tenant } = await supabaseAdmin
+      .from('tenants')
+      .select('id, name, slug')
+      .eq('slug', query.tenant_slug)
+      .eq('tenant_status', 'ACTIVE')
       .single();
 
-    if (!vtype)
-      throw new NotFoundException(
-        'No pricing available for this vehicle type',
-      );
+    if (!tenant) {
+      throw new NotFoundException('Tenant not found');
+    }
 
-    const distance_km = this.calcDistance(
-      pickup_lat,
-      pickup_lng,
-      dropoff_lat,
-      dropoff_lng,
-    );
-    const duration_minutes = Math.round(distance_km * 1.5);
-
-    const per_km = vtype.per_km_rate ?? 0;
-    const base = vtype.base_fare ?? 0;
-    const min_fare = vtype.minimum_fare ?? 0;
-    const calculated = base + per_km * distance_km;
-    const total = parseFloat(Math.max(calculated, min_fare).toFixed(2));
+    const quotes = await this.quoteCalculator.calculate({
+      tenant_id: tenant.id,
+      service_type: query.service_type,
+      service_city_id: query.service_city_id,
+      pickup_datetime: query.pickup_datetime,
+      distance_km: parseFloat(query.distance_km ?? '0'),
+      duration_hours: parseFloat(query.duration_hours ?? '0'),
+      duration_minutes: parseFloat(query.duration_minutes ?? '0'),
+      promo_code: query.promo_code,
+      contact_id: query.contact_id,
+    });
 
     return {
-      vehicle_type_id,
-      vehicle_name: vtype.platform_vehicles?.name ?? vtype.display_name,
-      pickup_address,
-      dropoff_address,
-      distance_km: parseFloat(distance_km.toFixed(2)),
-      duration_minutes,
-      base_fare: base,
-      total_price: total,
-      currency: vtype.currency ?? 'AUD',
+      tenant: {
+        slug: tenant.slug,
+        name: tenant.name,
+      },
+      service_type: query.service_type,
+      distance_km: parseFloat(query.distance_km ?? '0'),
+      duration_hours: parseFloat(query.duration_hours ?? '0'),
+      quotes,
     };
   }
 

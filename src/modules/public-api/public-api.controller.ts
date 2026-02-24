@@ -9,6 +9,7 @@ import {
   Request,
   UseGuards,
   HttpCode,
+  NotFoundException,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -18,7 +19,9 @@ import {
   ApiProperty,
 } from '@nestjs/swagger';
 import { PublicApiService } from './public-api.service';
+import { QuoteCalculatorService } from './quote-calculator.service';
 import { ApiKeyGuard } from '../../common/guards/api-key.guard';
+import { supabaseAdmin } from '../../config/supabase.config';
 import {
   IsString,
   IsNumber,
@@ -30,26 +33,32 @@ import {
 } from 'class-validator';
 
 class QuoteQueryDto {
-  @ApiProperty({ example: 'uuid-of-vehicle-type' })
-  vehicle_type_id!: string;
+  @ApiProperty({ example: 'aschauffeured' })
+  tenant_slug!: string;
 
-  @ApiProperty({ example: 'SYD Terminal 3, Sydney' })
-  pickup_address!: string;
+  @ApiProperty({ example: 'POINT_TO_POINT' })
+  service_type!: string;
 
-  @ApiProperty({ example: 'Craig Ave, Vaucluse NSW' })
-  dropoff_address!: string;
+  @ApiProperty({ required: false })
+  service_city_id?: string;
 
-  @ApiProperty({ example: -33.9399 })
-  pickup_lat!: number;
+  @ApiProperty({ required: false })
+  pickup_datetime?: string;
 
-  @ApiProperty({ example: 151.1753 })
-  pickup_lng!: number;
+  @ApiProperty({ required: false, example: '25.5' })
+  distance_km?: string;
 
-  @ApiProperty({ example: -33.8577 })
-  dropoff_lat!: number;
+  @ApiProperty({ required: false, example: '2' })
+  duration_hours?: string;
 
-  @ApiProperty({ example: 151.2751 })
-  dropoff_lng!: number;
+  @ApiProperty({ required: false, example: '90' })
+  duration_minutes?: string;
+
+  @ApiProperty({ required: false })
+  promo_code?: string;
+
+  @ApiProperty({ required: false })
+  contact_id?: string;
 }
 
 class CreateBookingApiDto {
@@ -126,7 +135,10 @@ class CreateBookingApiDto {
 @Controller('v1')
 @UseGuards(ApiKeyGuard)
 export class PublicApiController {
-  constructor(private readonly publicApiService: PublicApiService) {}
+  constructor(
+    private readonly publicApiService: PublicApiService,
+    private readonly quoteCalculator: QuoteCalculatorService,
+  ) {}
 
   @Get('vehicles')
   @ApiOperation({ summary: 'Get available vehicle types and pricing' })
@@ -138,17 +150,37 @@ export class PublicApiController {
   @Get('quote')
   @ApiOperation({ summary: 'Get instant price quote' })
   @ApiResponse({ status: 200, description: 'Price estimate for the trip' })
-  getQuote(@Request() req: any, @Query() query: QuoteQueryDto) {
-    return this.publicApiService.getQuote(
-      req.tenant_id,
-      query.vehicle_type_id,
-      query.pickup_address,
-      query.dropoff_address,
-      parseFloat(query.pickup_lat as any),
-      parseFloat(query.pickup_lng as any),
-      parseFloat(query.dropoff_lat as any),
-      parseFloat(query.dropoff_lng as any),
-    );
+  getQuote(@Query() query: QuoteQueryDto) {
+    return this.publicApiService.getQuote(query);
+  }
+
+  @Get('promo-code/validate')
+  async validatePromoCode(
+    @Query('tenant_slug') tenant_slug: string,
+    @Query('code') code: string,
+  ) {
+    const { data: tenant } = await supabaseAdmin
+      .from('tenants')
+      .select('id')
+      .eq('slug', tenant_slug)
+      .single();
+
+    if (!tenant) {
+      throw new NotFoundException('Tenant not found');
+    }
+
+    const result = await this.quoteCalculator.validatePromoCode(tenant.id, code);
+
+    if (!result) {
+      return { valid: false, message: 'Invalid or expired promo code' };
+    }
+
+    return {
+      valid: true,
+      code: result.code,
+      discount_type: result.type,
+      discount_value: result.value,
+    };
   }
 
   @Post('bookings')
