@@ -167,6 +167,11 @@ export class PublicOpenController {
     @Query('promo_code') promo_code?: string,
     @Query('contact_id') contact_id?: string,
     @Query('toll_cost') toll_cost?: string,
+    @Query('trip_type') trip_type?: string,
+    @Query('pickup_address') pickup_address?: string,
+    @Query('dropoff_address') dropoff_address?: string,
+    @Query('pickup_place_id') pickup_place_id?: string,
+    @Query('dropoff_place_id') dropoff_place_id?: string,
   ) {
     return this.publicApiService.getQuote({
       tenant_slug,
@@ -183,6 +188,11 @@ export class PublicOpenController {
       promo_code,
       contact_id,
       toll_cost,
+      trip_type,
+      pickup_address,
+      dropoff_address,
+      pickup_place_id,
+      dropoff_place_id,
     });
   }
 
@@ -275,6 +285,11 @@ export class PublicApiController {
     @Query('promo_code') promo_code?: string,
     @Query('contact_id') contact_id?: string,
     @Query('toll_cost') toll_cost?: string,
+    @Query('trip_type') trip_type?: string,
+    @Query('pickup_address') pickup_address?: string,
+    @Query('dropoff_address') dropoff_address?: string,
+    @Query('pickup_place_id') pickup_place_id?: string,
+    @Query('dropoff_place_id') dropoff_place_id?: string,
   ) {
     return this.publicApiService.getQuote({
       tenant_slug,
@@ -291,6 +306,11 @@ export class PublicApiController {
       promo_code,
       contact_id,
       toll_cost,
+      trip_type,
+      pickup_address,
+      dropoff_address,
+      pickup_place_id,
+      dropoff_place_id,
     });
   }
 

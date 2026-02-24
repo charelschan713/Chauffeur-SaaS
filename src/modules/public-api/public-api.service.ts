@@ -25,6 +25,11 @@ export class PublicApiService {
     promo_code?: string;
     contact_id?: string;
     toll_cost?: string;
+    trip_type?: string;
+    pickup_address?: string;
+    dropoff_address?: string;
+    pickup_place_id?: string;
+    dropoff_place_id?: string;
   }) {
     const tenant_slug = (query as any).tenant_slug ?? (query as any).tenantSlug;
     if (!tenant_slug) {
@@ -46,7 +51,7 @@ export class PublicApiService {
       throw new NotFoundException('Tenant not found');
     }
 
-    const quotes = await this.quoteCalculator.calculate({
+    const quotes = await this.quoteCalculator.calculateQuote({
       tenant_id: tenant.id,
       service_type: query.service_type,
       service_city_id: query.service_city_id,
@@ -61,6 +66,11 @@ export class PublicApiService {
       promo_code: query.promo_code,
       contact_id: query.contact_id,
       toll_cost: parseFloat(query.toll_cost ?? '0') || 0,
+      trip_type: query.trip_type,
+      pickup_address: query.pickup_address,
+      dropoff_address: query.dropoff_address,
+      pickup_place_id: query.pickup_place_id,
+      dropoff_place_id: query.dropoff_place_id,
     });
 
     return {

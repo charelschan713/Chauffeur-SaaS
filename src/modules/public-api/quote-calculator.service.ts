@@ -27,6 +27,33 @@ export class QuoteCalculatorService {
     service_city_id?: string;
     trip_type?: string;
   }) {
+    return this.calculateQuote(params);
+  }
+
+  async calculateQuote(params: {
+    tenant_id: string;
+    service_type: string;
+    pickup_datetime?: string;
+    return_datetime?: string;
+    distance_km?: number;
+    duration_minutes?: number;
+    duration_hours?: number;
+    waypoint_count?: number;
+    passenger_count?: number;
+    luggage_count?: number;
+    baby_seat_infant?: number;
+    baby_seat_convertible?: number;
+    baby_seat_booster?: number;
+    toll_cost?: number;
+    pickup_address?: string;
+    dropoff_address?: string;
+    pickup_place_id?: string;
+    dropoff_place_id?: string;
+    promo_code?: string;
+    contact_id?: string;
+    service_city_id?: string;
+    trip_type?: string;
+  }) {
     const {
       tenant_id,
       service_type,
