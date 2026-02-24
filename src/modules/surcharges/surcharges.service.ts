@@ -1,13 +1,9 @@
-import {
-  Injectable,
-  BadRequestException,
-  NotFoundException,
-} from '@nestjs/common';
+import { Injectable, BadRequestException } from '@nestjs/common';
 import { supabaseAdmin } from '../../config/supabase.config';
 
 @Injectable()
 export class SurchargesService {
-  async getTimeSurcharges(tenant_id: string) {
+  async getTime(tenant_id: string) {
     const { data, error } = await supabaseAdmin
       .from('tenant_time_surcharges')
       .select('*')
@@ -18,10 +14,10 @@ export class SurchargesService {
     return data ?? [];
   }
 
-  async createTimeSurcharge(tenant_id: string, dto: any) {
+  async createTime(tenant_id: string, dto: any) {
     const { data, error } = await supabaseAdmin
       .from('tenant_time_surcharges')
-      .insert({ ...dto, tenant_id })
+      .insert({ tenant_id, ...dto })
       .select()
       .single();
 
@@ -29,20 +25,33 @@ export class SurchargesService {
     return data;
   }
 
-  async deleteTimeSurcharge(id: string, tenant_id: string) {
+  async updateTime(id: string, tenant_id: string, dto: any) {
+    const { data, error } = await supabaseAdmin
+      .from('tenant_time_surcharges')
+      .update(dto)
+      .eq('id', id)
+      .eq('tenant_id', tenant_id)
+      .select()
+      .single();
+
+    if (error) throw new BadRequestException(error.message);
+    return data;
+  }
+
+  async deleteTime(id: string, tenant_id: string) {
     const { error } = await supabaseAdmin
       .from('tenant_time_surcharges')
       .delete()
       .eq('id', id)
       .eq('tenant_id', tenant_id);
 
-    if (error) throw new NotFoundException();
-    return { message: 'Deleted', id };
+    if (error) throw new BadRequestException(error.message);
+    return { success: true };
   }
 
-  async getHolidays(tenant_id: string) {
+  async getHoliday(tenant_id: string) {
     const { data, error } = await supabaseAdmin
-      .from('tenant_holidays')
+      .from('tenant_holiday_surcharges')
       .select('*')
       .eq('tenant_id', tenant_id)
       .order('date');
@@ -53,8 +62,21 @@ export class SurchargesService {
 
   async createHoliday(tenant_id: string, dto: any) {
     const { data, error } = await supabaseAdmin
-      .from('tenant_holidays')
-      .insert({ ...dto, tenant_id })
+      .from('tenant_holiday_surcharges')
+      .insert({ tenant_id, ...dto })
+      .select()
+      .single();
+
+    if (error) throw new BadRequestException(error.message);
+    return data;
+  }
+
+  async updateHoliday(id: string, tenant_id: string, dto: any) {
+    const { data, error } = await supabaseAdmin
+      .from('tenant_holiday_surcharges')
+      .update(dto)
+      .eq('id', id)
+      .eq('tenant_id', tenant_id)
       .select()
       .single();
 
@@ -64,51 +86,104 @@ export class SurchargesService {
 
   async deleteHoliday(id: string, tenant_id: string) {
     const { error } = await supabaseAdmin
-      .from('tenant_holidays')
+      .from('tenant_holiday_surcharges')
       .delete()
       .eq('id', id)
       .eq('tenant_id', tenant_id);
 
-    if (error) throw new NotFoundException();
-    return { message: 'Deleted', id };
+    if (error) throw new BadRequestException(error.message);
+    return { success: true };
   }
 
-  async getPromoCodes(tenant_id: string) {
+  async getEvent(tenant_id: string) {
     const { data, error } = await supabaseAdmin
-      .from('promo_codes')
+      .from('tenant_event_surcharges')
       .select('*')
       .eq('tenant_id', tenant_id)
-      .order('created_at', { ascending: false });
+      .order('start_date');
 
     if (error) throw new BadRequestException(error.message);
     return data ?? [];
   }
 
-  async createPromoCode(tenant_id: string, dto: any) {
+  async createEvent(tenant_id: string, dto: any) {
     const { data, error } = await supabaseAdmin
-      .from('promo_codes')
-      .insert({ ...dto, tenant_id, code: dto.code.toUpperCase() })
+      .from('tenant_event_surcharges')
+      .insert({ tenant_id, ...dto })
       .select()
       .single();
 
-    if (error) {
-      if (error.code === '23505') {
-        throw new BadRequestException('Promo code already exists');
-      }
-      throw new BadRequestException(error.message);
-    }
-
+    if (error) throw new BadRequestException(error.message);
     return data;
   }
 
-  async deletePromoCode(id: string, tenant_id: string) {
+  async updateEvent(id: string, tenant_id: string, dto: any) {
+    const { data, error } = await supabaseAdmin
+      .from('tenant_event_surcharges')
+      .update(dto)
+      .eq('id', id)
+      .eq('tenant_id', tenant_id)
+      .select()
+      .single();
+
+    if (error) throw new BadRequestException(error.message);
+    return data;
+  }
+
+  async deleteEvent(id: string, tenant_id: string) {
     const { error } = await supabaseAdmin
-      .from('promo_codes')
+      .from('tenant_event_surcharges')
       .delete()
       .eq('id', id)
       .eq('tenant_id', tenant_id);
 
-    if (error) throw new NotFoundException();
-    return { message: 'Deleted', id };
+    if (error) throw new BadRequestException(error.message);
+    return { success: true };
+  }
+
+  async getAirport(tenant_id: string) {
+    const { data, error } = await supabaseAdmin
+      .from('tenant_airport_rules')
+      .select('*')
+      .eq('tenant_id', tenant_id)
+      .order('name');
+
+    if (error) throw new BadRequestException(error.message);
+    return data ?? [];
+  }
+
+  async createAirport(tenant_id: string, dto: any) {
+    const { data, error } = await supabaseAdmin
+      .from('tenant_airport_rules')
+      .insert({ tenant_id, ...dto })
+      .select()
+      .single();
+
+    if (error) throw new BadRequestException(error.message);
+    return data;
+  }
+
+  async updateAirport(id: string, tenant_id: string, dto: any) {
+    const { data, error } = await supabaseAdmin
+      .from('tenant_airport_rules')
+      .update(dto)
+      .eq('id', id)
+      .eq('tenant_id', tenant_id)
+      .select()
+      .single();
+
+    if (error) throw new BadRequestException(error.message);
+    return data;
+  }
+
+  async deleteAirport(id: string, tenant_id: string) {
+    const { error } = await supabaseAdmin
+      .from('tenant_airport_rules')
+      .delete()
+      .eq('id', id)
+      .eq('tenant_id', tenant_id);
+
+    if (error) throw new BadRequestException(error.message);
+    return { success: true };
   }
 }
