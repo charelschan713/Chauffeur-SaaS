@@ -140,4 +140,30 @@ export class DriversController {
       dto,
     );
   }
+
+  @Post('invite/email')
+  @Roles('TENANT_ADMIN', 'TENANT_STAFF')
+  inviteEmail(@Request() req: any, @Body('email') email: string) {
+    return this.driversService.inviteByEmail(
+      req.user.profile.tenant_id,
+      req.user.id,
+      email,
+    );
+  }
+
+  @Post('invite/sms')
+  @Roles('TENANT_ADMIN', 'TENANT_STAFF')
+  inviteSMS(@Request() req: any, @Body('phone') phone: string) {
+    return this.driversService.inviteBySMS(
+      req.user.profile.tenant_id,
+      req.user.id,
+      phone,
+    );
+  }
+
+  @Post(':id/test-sms')
+  @Roles('TENANT_ADMIN', 'TENANT_STAFF')
+  testSMS(@Request() req: any, @Param('id') driver_id: string) {
+    return this.driversService.testSMS(req.user.profile.tenant_id, driver_id);
+  }
 }

@@ -127,7 +127,7 @@ export class InvoicesService {
       `)
       .eq('driver_id', driver_id)
       .eq('driver_status', 'JOB_DONE')
-      .eq('booking_status', 'COMPLETED')
+      .eq('booking_status', 'JOB_DONE')
       .not('id', 'in', `(SELECT booking_id FROM driver_invoice_items WHERE booking_id IS NOT NULL)`);
 
     if (error) throw new BadRequestException(error.message);
@@ -296,56 +296,51 @@ export class InvoicesService {
   // =====================
   async getTenantInvoices(
     tenant_id: string,
-    filters: {
+    _filters: {
       invoice_status?: string;
       page?: number;
       limit?: number;
     } = {},
   ) {
-    let query = supabaseAdmin
-      .from('driver_invoices')
-      .select(
-        `
-        *,
-        driver_invoice_items(
-          id,
-          booking_id,
-          description,
-          driver_subtotal,
-          service_date
-        ),
-        drivers(
-          abn,
-          abn_name,
-          is_gst_registered,
-          bank_bsb,
-          bank_account,
-          bank_name,
-          profiles(first_name, last_name, phone, email)
-        )
-      `,
-        { count: 'exact' },
-      )
+    const { data, error } = await supabaseAdmin
+      .from('bookings')
+      .select('id, booking_number, pickup_datetime, total_price, currency, booking_status')
       .eq('tenant_id', tenant_id)
-      .order('created_at', { ascending: false });
+      .eq('booking_status', 'FULFILLED')
+      .order('pickup_datetime', { ascending: false });
 
-    if (filters.invoice_status) {
-      query = query.eq('invoice_status', filters.invoice_status);
-    }
-
-    const page = filters.page ?? 1;
-    const limit = filters.limit ?? 20;
-    const from = (page - 1) * limit;
-    query = query.range(from, from + limit - 1);
-
-    const { data, count, error } = await query;
     if (error) throw new BadRequestException(error.message);
 
+    const byMonth = new Map<string, any>();
+    for (const booking of data ?? []) {
+      const d = new Date(booking.pickup_datetime as string);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      if (!byMonth.has(key)) {
+        byMonth.set(key, {
+          month: key,
+          invoice_status: 'READY',
+          booking_count: 0,
+          total_amount: 0,
+          currency: booking.currency ?? 'AUD',
+          bookings: [],
+        });
+      }
+      const bucket = byMonth.get(key);
+      bucket.booking_count += 1;
+      bucket.total_amount = Number(bucket.total_amount) + Number(booking.total_price ?? 0);
+      bucket.bookings.push(booking);
+    }
+
+    const invoices = Array.from(byMonth.values()).map((i) => ({
+      ...i,
+      total_amount: Number(i.total_amount.toFixed(2)),
+    }));
+
     return {
-      data: data ?? [],
-      total: count ?? 0,
-      page,
-      limit,
+      data: invoices,
+      total: invoices.length,
+      page: 1,
+      limit: invoices.length,
     };
   }
 

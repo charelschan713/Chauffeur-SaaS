@@ -383,8 +383,9 @@ export class BookingsService {
     admin_id: string,
     dto: {
       driver_id: string;
-      driver_fare: number;
-      driver_toll: number;
+      vehicle_id?: string;
+      driver_fare?: number;
+      driver_toll?: number;
       driver_extras?: number;
     },
   ) {
@@ -396,19 +397,24 @@ export class BookingsService {
       );
     }
 
+    const driver_fare = Number(dto.driver_fare ?? 0);
+    const driver_toll = Number(dto.driver_toll ?? 0);
+    const driver_extras = Number(dto.driver_extras ?? 0);
     const driver_total = parseFloat(
-      (dto.driver_fare + dto.driver_toll + (dto.driver_extras ?? 0)).toFixed(2),
+      (driver_fare + driver_toll + driver_extras).toFixed(2),
     );
 
     const { data, error } = await supabaseAdmin
       .from('bookings')
       .update({
         driver_id: dto.driver_id,
-        booking_status: 'ASSIGNED',
+        assigned_driver_id: dto.driver_id,
+        assigned_vehicle_id: dto.vehicle_id ?? null,
+        booking_status: 'DRIVER_ASSIGNED',
         driver_status: 'ASSIGNED',
-        driver_fare: dto.driver_fare,
-        driver_toll: dto.driver_toll,
-        driver_extras: dto.driver_extras ?? 0,
+        driver_fare,
+        driver_toll,
+        driver_extras,
         driver_total,
         updated_at: new Date().toISOString(),
       })
@@ -419,7 +425,7 @@ export class BookingsService {
     if (error) throw new BadRequestException(error.message);
 
     await this.logStatusChange(booking_id, {
-      booking_status: 'ASSIGNED',
+      booking_status: 'DRIVER_ASSIGNED',
       driver_status: 'ASSIGNED',
       changed_by: admin_id,
       changed_by_role: 'TENANT_ADMIN',
@@ -729,6 +735,33 @@ export class BookingsService {
       'booking.completed',
       { booking_id: data.id, booking_number: data.booking_number },
     ).catch(() => {});
+
+    return data;
+  }
+
+  async markJobDoneByAdmin(booking_id: string, tenant_id: string, admin_id: string) {
+    const booking = await this.getBookingOrFail(booking_id, tenant_id);
+
+    const { data, error } = await supabaseAdmin
+      .from('bookings')
+      .update({
+        booking_status: 'JOB_DONE',
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', booking_id)
+      .eq('tenant_id', tenant_id)
+      .select()
+      .single();
+
+    if (error) throw new BadRequestException(error.message);
+
+    await this.logStatusChange(booking_id, {
+      booking_status: 'JOB_DONE',
+      driver_status: booking.driver_status,
+      changed_by: admin_id,
+      changed_by_role: 'TENANT_ADMIN',
+      note: 'Job marked done by admin',
+    });
 
     return data;
   }
@@ -1108,7 +1141,7 @@ export class BookingsService {
     const all = bookings ?? [];
     const pending = all.filter((b: any) => (b.booking_status ?? b.status) === 'PENDING').length;
     const in_progress = all.filter(
-      (b: any) => ['CONFIRMED','ASSIGNED','IN_PROGRESS'].includes(b.booking_status ?? b.status),
+      (b: any) => ['CONFIRMED','DRIVER_ASSIGNED','IN_PROGRESS'].includes(b.booking_status ?? b.status),
     ).length;
     const today_revenue = all
       .filter((b: any) => b.payment_status === 'PAID')

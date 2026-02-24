@@ -70,6 +70,22 @@ export class PaymentsController {
     );
   }
 
+  @Post('supplement/:id')
+  @UseGuards(JwtGuard, RolesGuard)
+  @Roles('TENANT_ADMIN')
+  addSupplement(
+    @Param('id') booking_id: string,
+    @Body() dto: { amount: number; reason?: string },
+    @Request() req: any,
+  ) {
+    return this.paymentsService.addSupplement(
+      booking_id,
+      req.user.profile.tenant_id,
+      req.user.id,
+      dto,
+    );
+  }
+
   @Post('supplement/:booking_id')
   @UseGuards(JwtGuard, RolesGuard)
   @Roles('TENANT_ADMIN')
@@ -79,6 +95,22 @@ export class PaymentsController {
     @Request() req: any,
   ) {
     return this.paymentsService.chargeSupplementAmount(
+      booking_id,
+      req.user.profile.tenant_id,
+      req.user.id,
+      dto,
+    );
+  }
+
+  @Post('credit-note/:id')
+  @UseGuards(JwtGuard, RolesGuard)
+  @Roles('TENANT_ADMIN')
+  addCreditNote(
+    @Param('id') booking_id: string,
+    @Body() dto: { amount: number; reason?: string },
+    @Request() req: any,
+  ) {
+    return this.paymentsService.addCreditNote(
       booking_id,
       req.user.profile.tenant_id,
       req.user.id,

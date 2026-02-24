@@ -304,6 +304,20 @@ export class BookingsController {
     );
   }
 
+  @Patch(':booking_id/job-done')
+  @UseGuards(RolesGuard)
+  @Roles('TENANT_ADMIN', 'TENANT_STAFF')
+  adminJobDone(
+    @Param('booking_id') booking_id: string,
+    @Request() req: any,
+  ) {
+    return this.bookingsService.markJobDoneByAdmin(
+      booking_id,
+      req.user.profile.tenant_id,
+      req.user.id,
+    );
+  }
+
   @Patch(':booking_id/fulfil')
   @UseGuards(RolesGuard)
   @Roles('TENANT_ADMIN')

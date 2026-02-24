@@ -255,6 +255,18 @@ export class PaymentsService {
   // =====================
   // Supplement（补收差价）
   // =====================
+  async addSupplement(
+    booking_id: string,
+    tenant_id: string,
+    admin_id: string,
+    dto: { amount: number; reason?: string },
+  ) {
+    return this.chargeSupplementAmount(booking_id, tenant_id, admin_id, {
+      supplement_amount: dto.amount,
+      note: dto.reason,
+    });
+  }
+
   async chargeSupplementAmount(
     booking_id: string,
     tenant_id: string,
@@ -347,6 +359,18 @@ export class PaymentsService {
   // =====================
   // Credit Note（退款）
   // =====================
+  async addCreditNote(
+    booking_id: string,
+    tenant_id: string,
+    admin_id: string,
+    dto: { amount: number; reason?: string },
+  ) {
+    return this.issueCreditNote(booking_id, tenant_id, admin_id, {
+      credit_amount: dto.amount,
+      note: dto.reason,
+    });
+  }
+
   async issueCreditNote(
     booking_id: string,
     tenant_id: string,

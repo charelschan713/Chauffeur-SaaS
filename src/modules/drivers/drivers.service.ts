@@ -8,9 +8,13 @@ import { supabaseAdmin } from '../../config/supabase.config';
 import { CompleteDriverProfileDto } from './dto/complete-driver-profile.dto';
 import { CreateVehicleDto } from './dto/create-vehicle.dto';
 import { UpdateDriverStatusDto } from './dto/update-driver-status.dto';
+import { DriverInvitationsService } from '../driver-invitations/driver-invitations.service';
 
 @Injectable()
 export class DriversService {
+  constructor(
+    private readonly driverInvitationsService: DriverInvitationsService,
+  ) {}
   // 司机完善自己的资料（接受邀请后第一步）
   async completeProfile(
     user_id: string,
@@ -220,6 +224,18 @@ export class DriversService {
 
     if (error) throw new BadRequestException(error.message);
     return { success: true };
+  }
+
+  async inviteByEmail(tenant_id: string, invited_by: string, email: string) {
+    return this.driverInvitationsService.inviteByEmail(tenant_id, invited_by, email);
+  }
+
+  async inviteBySMS(tenant_id: string, invited_by: string, phone: string) {
+    return this.driverInvitationsService.inviteBySMS(tenant_id, invited_by, phone);
+  }
+
+  async testSMS(tenant_id: string, driver_id: string) {
+    return this.driverInvitationsService.testSMS(tenant_id, driver_id);
   }
 
   // TENANT_ADMIN：审核司机（PENDING → ACTIVE 或 SUSPENDED）
