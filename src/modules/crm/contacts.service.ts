@@ -130,4 +130,77 @@ export class ContactsService {
 
     return 0;
   }
+
+  // 获取联系人的乘客列表
+  async getPassengers(contact_id: string, tenant_id: string) {
+    const { data, error } = await supabaseAdmin
+      .from('contact_passengers')
+      .select(`
+        id,
+        is_default,
+        relationship,
+        passenger:passengers(
+          id, first_name, last_name,
+          phone, email,
+          preferred_temperature,
+          preferred_music,
+          preferred_language,
+          allergies,
+          special_requirements,
+          notes
+        )
+      `)
+      .eq('contact_id', contact_id)
+      .eq('tenant_id', tenant_id)
+      .order('is_default', { ascending: false });
+
+    if (error) throw new BadRequestException(error.message);
+    return data ?? [];
+  }
+
+  // 关联乘客到联系人
+  async linkPassenger(
+    contact_id: string,
+    passenger_id: string,
+    tenant_id: string,
+    is_default: boolean = false,
+    relationship?: string,
+  ) {
+    if (is_default) {
+      await supabaseAdmin
+        .from('contact_passengers')
+        .update({ is_default: false })
+        .eq('contact_id', contact_id)
+        .eq('tenant_id', tenant_id);
+    }
+
+    const { data, error } = await supabaseAdmin
+      .from('contact_passengers')
+      .upsert({
+        contact_id,
+        passenger_id,
+        tenant_id,
+        is_default,
+        relationship,
+      })
+      .select()
+      .single();
+
+    if (error) throw new BadRequestException(error.message);
+    return data;
+  }
+
+  // 取消关联
+  async unlinkPassenger(contact_id: string, passenger_id: string, tenant_id: string) {
+    const { error } = await supabaseAdmin
+      .from('contact_passengers')
+      .delete()
+      .eq('contact_id', contact_id)
+      .eq('passenger_id', passenger_id)
+      .eq('tenant_id', tenant_id);
+
+    if (error) throw new BadRequestException(error.message);
+    return { message: 'Unlinked successfully' };
+  }
 }
+

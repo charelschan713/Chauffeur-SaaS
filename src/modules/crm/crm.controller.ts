@@ -47,6 +47,52 @@ export class CrmController {
     return this.contactsService.findById(id, req.user.profile.tenant_id);
   }
 
+  // 获取联系人的乘客列表
+  @Get('contacts/:id/passengers')
+  @UseGuards(JwtGuard)
+  getContactPassengers(@Param('id') id: string, @Request() req: any) {
+    return this.contactsService.getPassengers(id, req.user.profile.tenant_id);
+  }
+
+  // 关联乘客到联系人
+  @Post('contacts/:id/passengers')
+  @UseGuards(JwtGuard, RolesGuard)
+  @Roles('TENANT_ADMIN', 'TENANT_STAFF')
+  linkPassenger(
+    @Param('id') contact_id: string,
+    @Body()
+    dto: {
+      passenger_id: string;
+      is_default?: boolean;
+      relationship?: string;
+    },
+    @Request() req: any,
+  ) {
+    return this.contactsService.linkPassenger(
+      contact_id,
+      dto.passenger_id,
+      req.user.profile.tenant_id,
+      dto.is_default,
+      dto.relationship,
+    );
+  }
+
+  // 取消关联
+  @Delete('contacts/:contactId/passengers/:passengerId')
+  @UseGuards(JwtGuard, RolesGuard)
+  @Roles('TENANT_ADMIN', 'TENANT_STAFF')
+  unlinkPassenger(
+    @Param('contactId') contact_id: string,
+    @Param('passengerId') passenger_id: string,
+    @Request() req: any,
+  ) {
+    return this.contactsService.unlinkPassenger(
+      contact_id,
+      passenger_id,
+      req.user.profile.tenant_id,
+    );
+  }
+
   @Post('contacts')
   createContact(@Body() dto: any, @Request() req: any) {
     return this.contactsService.create(req.user.profile.tenant_id, dto);
