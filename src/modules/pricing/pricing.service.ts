@@ -138,7 +138,7 @@ export class PricingService {
             duration_hours: dto.duration_hours,
             minimum_hours: rule.minimum_hours,
             hourly_rate: rule.hourly_rate,
-            included_km_per_hour: rule.included_km_per_hour,
+            hourly_included_km: rule.hourly_included_km,
             extra_km_rate: rule.extra_km_rate,
           }),
         };
@@ -180,7 +180,7 @@ export class PricingService {
     minimum_fare?: number;
     hourly_rate?: number;
     minimum_hours?: number;
-    included_km_per_hour?: number;
+    hourly_included_km?: number;
     extra_km_rate?: number;
     surcharge_rules?: any[];
     currency?: string;
@@ -198,7 +198,7 @@ export class PricingService {
         minimum_fare: dto.minimum_fare ?? 0,
         hourly_rate: dto.hourly_rate ?? 0,
         minimum_hours: dto.minimum_hours ?? 1,
-        included_km_per_hour: dto.included_km_per_hour ?? null,
+        hourly_included_km: dto.hourly_included_km ?? null,
         extra_km_rate: dto.extra_km_rate ?? 0,
         surcharge_rules: dto.surcharge_rules ?? [],
         currency: dto.currency ?? 'AUD',

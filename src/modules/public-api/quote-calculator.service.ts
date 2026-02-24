@@ -3,6 +3,57 @@ import { supabaseAdmin } from '../../config/supabase.config';
 
 @Injectable()
 export class QuoteCalculatorService {
+
+  private calculateBaseFare(
+    vt: any,
+    service_type: string,
+    distance_km: number,
+    duration_minutes: number,
+    duration_hours: number,
+    waypoint_count: number,
+  ): number {
+    let fare = 0;
+
+    if (service_type === 'HOURLY_CHARTER') {
+      const hours = Math.max(duration_hours, vt.min_booking_hours ?? 1);
+      fare = (vt.hourly_rate ?? vt.base_fare ?? 0) * hours;
+
+      const includedKmPerHour = vt.hourly_included_km ?? 0;
+      if (includedKmPerHour > 0 && (vt.extra_km_rate ?? 0) > 0 && distance_km > 0) {
+        const included_km = hours * includedKmPerHour;
+        const extra_km = Math.max(0, distance_km - included_km);
+        fare += extra_km * (vt.extra_km_rate ?? 0);
+      }
+    } else if (vt.pricing_model === 'INCLUDED') {
+      const included_km = vt.included_km ?? 10;
+      const included_min = vt.included_minutes ?? 30;
+
+      const extra_km = Math.max(0, distance_km - included_km);
+      const extra_min = Math.max(0, duration_minutes - included_min);
+
+      fare =
+        (vt.base_fare ?? 0) +
+        extra_km * (vt.extra_km_rate ?? 0) +
+        extra_min * (vt.extra_minute_rate ?? 0);
+    } else {
+      if ((vt.billing_method ?? 'KM') === 'KM') {
+        fare = (vt.base_fare ?? 0) + distance_km * (vt.per_km_rate ?? 0);
+      } else {
+        fare = (vt.base_fare ?? 0) + duration_minutes * (vt.per_minute_rate ?? 0);
+      }
+    }
+
+    if (waypoint_count > 0) {
+      if ((vt.waypoint_fee_type ?? 'FIXED') === 'PERCENTAGE') {
+        fare += waypoint_count * (vt.base_fare ?? 0) * ((vt.waypoint_fee ?? 0) / 100);
+      } else {
+        fare += waypoint_count * (vt.waypoint_fee ?? 0);
+      }
+    }
+
+    return Math.max(fare, vt.minimum_fare ?? 0);
+  }
+
   async calculate(params: {
     tenant_id: string;
     service_type: string;
@@ -80,7 +131,12 @@ export class QuoteCalculatorService {
     return vehicleTypes.map((vt: any) => {
       const billing_options: any[] = [];
 
-      if (vt.per_km_rate > 0 && distance_km > 0) {
+      const effectiveServiceType =
+        serviceTypeSurcharge?.base_type === 'HOURLY_CHARTER'
+          ? 'HOURLY_CHARTER'
+          : service_type;
+
+      if ((vt.billing_method ?? 'KM') === 'KM' && vt.per_km_rate > 0 && distance_km > 0) {
         billing_options.push({
           method: 'KM',
           fare: parseFloat((((vt.base_fare ?? 0) + distance_km * vt.per_km_rate)).toFixed(2)),
@@ -88,7 +144,7 @@ export class QuoteCalculatorService {
         });
       }
 
-      if (vt.per_minute_rate > 0 && duration_minutes > 0) {
+      if ((vt.billing_method ?? 'KM') === 'DT' && vt.per_minute_rate > 0 && duration_minutes > 0) {
         billing_options.push({
           method: 'DT',
           fare: parseFloat((((vt.base_fare ?? 0) + duration_minutes * vt.per_minute_rate)).toFixed(2)),
@@ -96,37 +152,26 @@ export class QuoteCalculatorService {
         });
       }
 
-      let baseFare = vt.base_fare ?? 0;
-      if (
-        service_type === 'POINT_TO_POINT' ||
-        service_type === 'AIRPORT_PICKUP' ||
-        service_type === 'AIRPORT_DROPOFF' ||
-        serviceTypeSurcharge?.base_type === 'POINT_TO_POINT'
-      ) {
-        if ((vt.billing_method ?? 'KM') === 'DT' && duration_minutes > 0) {
-          baseFare = (vt.base_fare ?? 0) + duration_minutes * (vt.per_minute_rate ?? 0);
-        } else {
-          baseFare = (vt.base_fare ?? 0) + distance_km * (vt.per_km_rate ?? 0);
-        }
-      } else if (
-        service_type === 'HOURLY_CHARTER' ||
-        serviceTypeSurcharge?.base_type === 'HOURLY_CHARTER'
-      ) {
-        baseFare = duration_hours * (vt.hourly_rate ?? vt.base_fare ?? 0);
-        if (vt.included_km_per_hour > 0 && vt.extra_km_rate > 0 && distance_km > 0) {
-          const included_km = duration_hours * vt.included_km_per_hour;
-          const extra_km = Math.max(0, distance_km - included_km);
-          baseFare += extra_km * vt.extra_km_rate;
-        }
-      }
+      const baseFare = this.calculateBaseFare(
+        vt,
+        effectiveServiceType,
+        distance_km,
+        duration_minutes,
+        duration_hours,
+        waypoint_count,
+      );
 
-      const waypointFee = waypoint_count * (vt.waypoint_fee ?? 0);
+      const waypointFee = waypoint_count > 0
+        ? (vt.waypoint_fee_type ?? 'FIXED') === 'PERCENTAGE'
+          ? waypoint_count * (vt.base_fare ?? 0) * ((vt.waypoint_fee ?? 0) / 100)
+          : waypoint_count * (vt.waypoint_fee ?? 0)
+        : 0;
       const babySeatFee =
         baby_seat_infant * (vt.baby_seat_infant_fee ?? 0) +
         baby_seat_convertible * (vt.baby_seat_convertible_fee ?? 0) +
         baby_seat_booster * (vt.baby_seat_booster_fee ?? 0);
 
-      let subtotal = (baseFare + waypointFee) * surgeMultiplier;
+      let subtotal = baseFare * surgeMultiplier;
 
       if (timeSurcharge) {
         subtotal =
@@ -191,7 +236,13 @@ export class QuoteCalculatorService {
         max_baby_seats,
         currency: vt.currency ?? 'AUD',
         billing_method: vt.billing_method ?? 'KM',
+        pricing_model: vt.pricing_model ?? 'STRAIGHT',
+        included_km: vt.included_km ?? 10,
+        included_minutes: vt.included_minutes ?? 30,
+        hourly_included_km: vt.hourly_included_km ?? 20,
+        min_booking_hours: vt.min_booking_hours ?? 1,
         waypoint_fee: parseFloat(waypointFee.toFixed(2)),
+        waypoint_fee_type: vt.waypoint_fee_type ?? 'FIXED',
         baby_seat_fee: parseFloat(babySeatFee.toFixed(2)),
         baby_seat_pricing: {
           infant: vt.baby_seat_infant_fee ?? 0,

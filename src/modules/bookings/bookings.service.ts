@@ -675,11 +675,11 @@ export class BookingsService {
     let extra_km_charge = 0;
     if (
       booking.service_type === 'HOURLY_CHARTER' &&
-      booking.included_km_per_hour &&
+      booking.hourly_included_km &&
       dto.actual_km
     ) {
       const included_km =
-        booking.included_km_per_hour * (booking.duration_hours ?? 1);
+        booking.hourly_included_km * (booking.duration_hours ?? 1);
       const extra_km = Math.max(0, dto.actual_km - included_km);
       extra_km_charge = extra_km * (booking.extra_km_rate ?? 0);
     }

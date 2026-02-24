@@ -36,14 +36,24 @@ export class VehicleTypesService {
       base_fare: number;
       per_km_rate: number;
       per_minute_rate?: number;
+      pricing_model?: 'STRAIGHT' | 'INCLUDED';
+      included_km?: number;
+      included_minutes?: number;
+      extra_km_rate?: number;
+      extra_minute_rate?: number;
+      waiting_rate?: number;
+      hourly_rate?: number;
+      hourly_included_km?: number;
+      min_booking_hours?: number;
+      free_waiting_standard?: number;
+      free_waiting_domestic?: number;
+      free_waiting_international?: number;
       waypoint_fee?: number;
+      waypoint_fee_type?: 'FIXED' | 'PERCENTAGE';
       baby_seat_infant_fee?: number;
       baby_seat_convertible_fee?: number;
       baby_seat_booster_fee?: number;
       max_baby_seats?: number | null;
-      included_km_per_hour?: number;
-      extra_km_rate?: number;
-      hourly_rate: number;
       minimum_fare: number;
       currency: string;
       required_platform_vehicle_ids?: string[];
@@ -72,14 +82,25 @@ export class VehicleTypesService {
         tenant_id,
         max_passengers: type_data.max_passengers ?? 4,
         per_minute_rate: type_data.per_minute_rate ?? 0,
+        pricing_model: type_data.pricing_model ?? 'STRAIGHT',
+        included_km: type_data.included_km ?? 10,
+        included_minutes: type_data.included_minutes ?? 30,
+        extra_km_rate: type_data.extra_km_rate ?? 0,
+        extra_minute_rate: type_data.extra_minute_rate ?? 0,
+        waiting_rate: type_data.waiting_rate ?? 0,
+        hourly_rate: type_data.hourly_rate ?? 0,
+        hourly_included_km: type_data.hourly_included_km ?? 20,
+        min_booking_hours: type_data.min_booking_hours ?? 1,
+        free_waiting_standard: type_data.free_waiting_standard ?? 15,
+        free_waiting_domestic: type_data.free_waiting_domestic ?? 30,
+        free_waiting_international: type_data.free_waiting_international ?? 60,
         waypoint_fee: type_data.waypoint_fee ?? 0,
+        waypoint_fee_type: type_data.waypoint_fee_type ?? 'FIXED',
         baby_seat_infant_fee: type_data.baby_seat_infant_fee ?? 0,
         baby_seat_convertible_fee: type_data.baby_seat_convertible_fee ?? 0,
         baby_seat_booster_fee: type_data.baby_seat_booster_fee ?? 0,
         max_baby_seats:
           type_data.max_baby_seats === undefined ? null : type_data.max_baby_seats,
-        included_km_per_hour: type_data.included_km_per_hour ?? 0,
-        extra_km_rate: type_data.extra_km_rate ?? 0,
       })
       .select()
       .single();
@@ -114,14 +135,24 @@ export class VehicleTypesService {
       base_fare?: number;
       per_km_rate?: number;
       per_minute_rate?: number;
+      pricing_model?: 'STRAIGHT' | 'INCLUDED';
+      included_km?: number;
+      included_minutes?: number;
+      extra_km_rate?: number;
+      extra_minute_rate?: number;
+      waiting_rate?: number;
+      hourly_rate?: number;
+      hourly_included_km?: number;
+      min_booking_hours?: number;
+      free_waiting_standard?: number;
+      free_waiting_domestic?: number;
+      free_waiting_international?: number;
       waypoint_fee?: number;
+      waypoint_fee_type?: 'FIXED' | 'PERCENTAGE';
       baby_seat_infant_fee?: number;
       baby_seat_convertible_fee?: number;
       baby_seat_booster_fee?: number;
       max_baby_seats?: number | null;
-      included_km_per_hour?: number;
-      extra_km_rate?: number;
-      hourly_rate?: number;
       minimum_fare?: number;
       currency?: string;
       is_active?: boolean;

@@ -300,11 +300,11 @@ export class TenantsService {
 
       let extra_km_charge = 0;
       if (
-        (vtype.included_km_per_hour ?? 0) > 0 &&
+        (vtype.hourly_included_km ?? 0) > 0 &&
         (vtype.extra_km_rate ?? 0) > 0 &&
         safe_distance_km > 0
       ) {
-        const included_km = safe_duration_hours * (vtype.included_km_per_hour ?? 0);
+        const included_km = safe_duration_hours * (vtype.hourly_included_km ?? 0);
         const extra_km = Math.max(0, safe_distance_km - included_km);
         extra_km_charge = extra_km * (vtype.extra_km_rate ?? 0);
       }
