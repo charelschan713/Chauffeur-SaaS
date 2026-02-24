@@ -25,7 +25,7 @@ export class PublicApiService {
       .from('tenants')
       .select('id, name, slug')
       .eq('slug', query.tenant_slug)
-      .eq('tenant_status', 'ACTIVE')
+      .eq('status', 'ACTIVE')
       .single();
 
     if (!tenant) {
