@@ -63,20 +63,24 @@ export class BookingsService {
       throw new NotFoundException('Service city not found');
     }
 
-    // 获取定价规则
-    const { data: pricingRule } = await supabaseAdmin
-      .from('pricing_rules')
+    const { data: vehicleType } = await supabaseAdmin
+      .from('tenant_vehicle_types')
       .select('*')
+      .eq('id', dto.vehicle_type_id)
       .eq('tenant_id', tenant_id)
-      .eq('vehicle_type_id', dto.vehicle_type_id)
-      .eq('is_active', true)
       .single();
 
-    if (!pricingRule) {
-      throw new NotFoundException(
-        'No pricing available for this vehicle class',
-      );
+    if (!vehicleType) {
+      throw new BadRequestException('Vehicle type not found');
     }
+
+    // pricing_rules is optional (surge only)
+    const { data: pricingRule } = await supabaseAdmin
+      .from('pricing_rules')
+      .select('surge_multiplier')
+      .eq('tenant_id', tenant_id)
+      .eq('is_active', true)
+      .maybeSingle();
 
     // 计算距离和价格
     let fare = 0;
@@ -97,11 +101,12 @@ export class BookingsService {
         dto.dropoff_lng!,
       );
       duration_minutes = Math.round(distance_km * 1.5);
+
       fare =
-        pricingRule.base_fare +
-        pricingRule.price_per_km * distance_km +
-        pricingRule.price_per_minute * duration_minutes;
-      fare = Math.max(fare, pricingRule.minimum_fare);
+        vehicleType.base_fare +
+        vehicleType.per_km_rate * distance_km +
+        (vehicleType.per_minute_rate ?? 0) * duration_minutes;
+      fare = Math.max(fare, vehicleType.minimum_fare ?? vehicleType.base_fare);
     } else if (dto.service_type === 'HOURLY_CHARTER') {
       if (!dto.duration_hours) {
         throw new BadRequestException(
@@ -109,12 +114,12 @@ export class BookingsService {
         );
       }
 
-      const hours = Math.max(
-        dto.duration_hours,
-        pricingRule.minimum_hours ?? 1,
-      );
-      fare = pricingRule.hourly_rate * hours;
-      fare = Math.max(fare, pricingRule.minimum_fare);
+      fare = dto.duration_hours * (vehicleType.hourly_rate ?? 0);
+      fare = Math.max(fare, vehicleType.minimum_fare ?? vehicleType.base_fare);
+    }
+
+    if (pricingRule?.surge_multiplier && pricingRule.surge_multiplier > 1) {
+      fare = fare * pricingRule.surge_multiplier;
     }
 
     // 时段加价计算
@@ -122,7 +127,7 @@ export class BookingsService {
       await this.calculateSurcharge(
         fare,
         dto.pickup_datetime,
-        pricingRule.surcharge_rules ?? [],
+        [],
       );
 
     // 折扣计算
