@@ -21,10 +21,15 @@ export class PublicApiService {
     promo_code?: string;
     contact_id?: string;
   }) {
+    const tenant_slug = (query as any).tenant_slug ?? (query as any).tenantSlug;
+    if (!tenant_slug) {
+      throw new NotFoundException('tenant_slug is required');
+    }
+
     const { data: tenants, error: tenant_error } = await supabaseAdmin
       .from('tenants')
       .select('id, name, slug')
-      .eq('slug', query.tenant_slug)
+      .eq('slug', tenant_slug)
       .limit(1);
 
     if (tenant_error) {
