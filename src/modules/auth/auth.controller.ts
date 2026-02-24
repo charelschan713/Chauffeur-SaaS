@@ -1,9 +1,11 @@
 import {
   Body,
   Controller,
+  Get,
   Headers,
   Post,
   Request,
+  UnauthorizedException,
   UseGuards,
 } from '@nestjs/common';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -37,6 +39,14 @@ export class AuthController {
   @Post('refresh')
   refresh(@Body('refresh_token') token: string) {
     return this.authService.refreshToken(token);
+  }
+
+  @Get('me')
+  @UseGuards(JwtGuard)
+  me(@Headers('authorization') auth: string) {
+    const token = auth?.split(' ')[1];
+    if (!token) throw new UnauthorizedException('Missing token');
+    return this.authService.getMe(token);
   }
 
   @Post('logout')

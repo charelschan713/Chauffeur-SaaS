@@ -164,6 +164,35 @@ export class AuthService {
     };
   }
 
+  async getMe(access_token: string) {
+    const { data, error } = await supabaseAdmin.auth.getUser(access_token);
+
+    if (error || !data.user) {
+      throw new UnauthorizedException('Invalid token');
+    }
+
+    const profileClient = newSupabaseAdminClient();
+    const { data: profile, error: profileError } = await profileClient
+      .from('profiles')
+      .select('*, tenants(*)')
+      .eq('id', data.user.id)
+      .single();
+
+    if (profileError || !profile) {
+      throw new UnauthorizedException('Profile not found');
+    }
+
+    return {
+      id: data.user.id,
+      email: data.user.email,
+      role: profile.role,
+      tenant_id: profile.tenant_id,
+      first_name: profile.first_name,
+      last_name: profile.last_name,
+      profile,
+    };
+  }
+
   // 租户邀请司机
   async inviteDriver(dto: InviteDriverDto, tenant_id: string) {
     const { data, error } = await supabaseAdmin.auth.admin.inviteUserByEmail(
