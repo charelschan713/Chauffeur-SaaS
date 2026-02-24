@@ -24,6 +24,7 @@ import { SurchargesModule } from './modules/surcharges/surcharges.module';
 import { TenantVehiclesModule } from './modules/vehicles/tenant-vehicles.module';
 import { MapsModule } from './modules/maps/maps.module';
 import { DriverInvitationsModule } from './modules/driver-invitations/driver-invitations.module';
+import { TenantSettingsModule } from './modules/tenant-settings/tenant-settings.module';
 
 @Module({
   imports: [
@@ -56,6 +57,7 @@ import { DriverInvitationsModule } from './modules/driver-invitations/driver-inv
     TenantVehiclesModule,
     MapsModule,
     DriverInvitationsModule,
+    TenantSettingsModule,
   ],
   providers: [
     { provide: APP_PIPE, useValue: new ValidationPipe({ whitelist: true }) },
