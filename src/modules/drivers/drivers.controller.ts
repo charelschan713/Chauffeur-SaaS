@@ -105,6 +105,28 @@ export class DriversController {
     return this.driversService.findOne(driver_id, req.user.profile.tenant_id);
   }
 
+  @Post()
+  @Roles('TENANT_ADMIN', 'TENANT_STAFF')
+  create(@Request() req: any, @Body() dto: any) {
+    return this.driversService.create(req.user.profile.tenant_id, dto);
+  }
+
+  @Patch(':driver_id')
+  @Roles('TENANT_ADMIN', 'TENANT_STAFF')
+  update(
+    @Param('driver_id') driver_id: string,
+    @Request() req: any,
+    @Body() dto: any,
+  ) {
+    return this.driversService.update(driver_id, req.user.profile.tenant_id, dto);
+  }
+
+  @Delete(':driver_id')
+  @Roles('TENANT_ADMIN', 'TENANT_STAFF')
+  remove(@Param('driver_id') driver_id: string, @Request() req: any) {
+    return this.driversService.remove(driver_id, req.user.profile.tenant_id);
+  }
+
   @Patch(':driver_id/status')
   @Roles('TENANT_ADMIN')
   updateStatus(

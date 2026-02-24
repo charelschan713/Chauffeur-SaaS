@@ -151,6 +151,41 @@ export class DriversService {
     return data;
   }
 
+  async create(tenant_id: string, dto: any) {
+    const { data, error } = await supabaseAdmin
+      .from('drivers')
+      .insert({ tenant_id, ...dto })
+      .select()
+      .single();
+
+    if (error) throw new BadRequestException(error.message);
+    return data;
+  }
+
+  async update(id: string, tenant_id: string, dto: any) {
+    const { data, error } = await supabaseAdmin
+      .from('drivers')
+      .update(dto)
+      .eq('id', id)
+      .eq('tenant_id', tenant_id)
+      .select()
+      .single();
+
+    if (error) throw new BadRequestException(error.message);
+    return data;
+  }
+
+  async remove(id: string, tenant_id: string) {
+    const { error } = await supabaseAdmin
+      .from('drivers')
+      .delete()
+      .eq('id', id)
+      .eq('tenant_id', tenant_id);
+
+    if (error) throw new BadRequestException(error.message);
+    return { success: true };
+  }
+
   // TENANT_ADMIN：审核司机（PENDING → ACTIVE 或 SUSPENDED）
   async updateStatus(
     driver_id: string,
