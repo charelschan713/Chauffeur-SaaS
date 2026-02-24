@@ -5,9 +5,10 @@ import { QuoteCalculatorService } from './quote-calculator.service';
 import { PublicBookingsController } from './public-bookings.controller';
 import { PublicBookingsService } from './public-bookings.service';
 import { TenantsModule } from '../tenants/tenants.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
-  imports: [TenantsModule],
+  imports: [TenantsModule, NotificationsModule],
   controllers: [PublicOpenController, PublicApiController, PublicBookingsController],
   providers: [PublicApiService, QuoteCalculatorService, PublicBookingsService],
 })

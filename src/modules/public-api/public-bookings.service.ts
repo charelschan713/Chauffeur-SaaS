@@ -1,54 +1,60 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import Stripe from 'stripe';
 import { supabaseAdmin } from '../../config/supabase.config';
+import { EmailService } from '../notifications/email.service';
 
 @Injectable()
 export class PublicBookingsService {
+  constructor(private readonly emailService: EmailService) {}
+
   private stripe = new Stripe(process.env.STRIPE_SECRET_KEY ?? '', {
     apiVersion: '2023-10-16' as any,
   });
 
   private async createBookingRecord(tenant_id: string, dto: any) {
     let passenger_id: string | null = null;
+    let isNewAccount = false;
+    let tempPassword: string | null = null;
 
     if (dto.passenger_email) {
-      const { data: existing } = await supabaseAdmin
-        .from('profiles')
-        .select('id')
-        .eq('tenant_id', tenant_id)
-        .eq('user_id', dto.passenger_email)
-        .limit(1);
+      tempPassword = Math.random().toString(36).slice(-8).toUpperCase();
 
-      if (existing && existing.length > 0) {
-        passenger_id = existing[0].id;
-      } else {
-        const { data: authUser } = await supabaseAdmin.auth.admin.createUser({
-          email: dto.passenger_email,
-          email_confirm: true,
-          user_metadata: {
+      const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.createUser({
+        email: dto.passenger_email,
+        password: tempPassword,
+        email_confirm: true,
+        user_metadata: {
+          first_name: dto.first_name,
+          last_name: dto.last_name,
+          phone: dto.passenger_phone,
+        },
+      });
+
+      if (!authError && authUser?.user) {
+        isNewAccount = true;
+        const { data: createdProfile } = await supabaseAdmin
+          .from('profiles')
+          .insert({
+            user_id: authUser.user.id,
+            tenant_id,
             first_name: dto.first_name,
             last_name: dto.last_name,
             phone: dto.passenger_phone,
-          },
-        });
+            role: 'PASSENGER',
+            status: 'ACTIVE',
+          })
+          .select('id')
+          .single();
 
-        if (authUser?.user) {
-          const { data: createdProfile } = await supabaseAdmin
-            .from('profiles')
-            .insert({
-              user_id: authUser.user.id,
-              tenant_id,
-              first_name: dto.first_name,
-              last_name: dto.last_name,
-              phone: dto.passenger_phone,
-              role: 'PASSENGER',
-              status: 'ACTIVE',
-            })
-            .select('id')
-            .single();
-
-          passenger_id = createdProfile?.id ?? null;
-        }
+        passenger_id = createdProfile?.id ?? null;
+      } else {
+        const { data: fallbackProfile } = await supabaseAdmin
+          .from('profiles')
+          .select('id')
+          .eq('tenant_id', tenant_id)
+          .eq('phone', dto.passenger_phone ?? '')
+          .limit(1);
+        passenger_id = fallbackProfile?.[0]?.id ?? null;
       }
     }
 
@@ -104,7 +110,12 @@ export class PublicBookingsService {
 
     if (error) throw new BadRequestException(error.message);
 
-    return { booking, passenger_id };
+    return {
+      booking,
+      passenger_id,
+      isNewAccount,
+      tempPassword: isNewAccount ? tempPassword : null,
+    };
   }
 
   async createSetupIntent(dto: any) {
@@ -138,10 +149,13 @@ export class PublicBookingsService {
       }
     }
 
-    const { booking } = await this.createBookingRecord(tenant.id, {
-      ...dto,
-      stripe_customer_id,
-    });
+    const { booking, isNewAccount, tempPassword } = await this.createBookingRecord(
+      tenant.id,
+      {
+        ...dto,
+        stripe_customer_id,
+      },
+    );
 
     const setupIntent = await this.stripe.setupIntents.create({
       customer: stripe_customer_id ?? undefined,
@@ -152,6 +166,34 @@ export class PublicBookingsService {
         amount: String(booking.total_fare ?? 0),
       },
     });
+
+    const { data: vehicleType } = await supabaseAdmin
+      .from('tenant_vehicle_types')
+      .select('type_name')
+      .eq('id', booking.vehicle_type_id)
+      .single();
+
+    if (booking.passenger_email) {
+      await this.emailService
+        .sendBookingConfirmation({
+          to: booking.passenger_email,
+          first_name: dto.first_name,
+          booking_number: booking.booking_number,
+          pickup_address: booking.pickup_address,
+          dropoff_address: booking.dropoff_address,
+          pickup_datetime: booking.pickup_datetime,
+          vehicle_type_name: vehicleType?.type_name ?? 'Chauffeur Vehicle',
+          total_fare: booking.total_fare,
+          is_new_account: isNewAccount,
+          temp_password: isNewAccount ? (tempPassword ?? undefined) : undefined,
+          booking_url:
+            process.env.BOOKING_URL ?? 'https://book.aschauffeured.com.au',
+        })
+        .catch((err) => {
+          // eslint-disable-next-line no-console
+          console.error('Email failed:', err.message);
+        });
+    }
 
     return {
       client_secret: setupIntent.client_secret,
@@ -172,7 +214,10 @@ export class PublicBookingsService {
       throw new BadRequestException('Tenant not found');
     }
 
-    const { booking } = await this.createBookingRecord(tenant.id, dto);
+    const { booking, isNewAccount, tempPassword } = await this.createBookingRecord(
+      tenant.id,
+      dto,
+    );
 
     const amountCents = Math.round(Number(booking.total_fare || 0) * 100);
 
@@ -204,6 +249,34 @@ export class PublicBookingsService {
         stripe_customer_id: dto.stripe_customer_id ?? null,
       })
       .eq('id', booking.id);
+
+    const { data: vehicleType } = await supabaseAdmin
+      .from('tenant_vehicle_types')
+      .select('type_name')
+      .eq('id', booking.vehicle_type_id)
+      .single();
+
+    if (booking.passenger_email) {
+      await this.emailService
+        .sendBookingConfirmation({
+          to: booking.passenger_email,
+          first_name: dto.first_name,
+          booking_number: booking.booking_number,
+          pickup_address: booking.pickup_address,
+          dropoff_address: booking.dropoff_address,
+          pickup_datetime: booking.pickup_datetime,
+          vehicle_type_name: vehicleType?.type_name ?? 'Chauffeur Vehicle',
+          total_fare: booking.total_fare,
+          is_new_account: isNewAccount,
+          temp_password: isNewAccount ? (tempPassword ?? undefined) : undefined,
+          booking_url:
+            process.env.BOOKING_URL ?? 'https://book.aschauffeured.com.au',
+        })
+        .catch((err) => {
+          // eslint-disable-next-line no-console
+          console.error('Email failed:', err.message);
+        });
+    }
 
     return {
       booking_id: booking.id,
