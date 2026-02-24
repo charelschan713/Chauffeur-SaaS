@@ -90,6 +90,7 @@ export class QuoteCalculatorService {
       holidaySurcharge,
       eventSurcharge,
       airportRule,
+      serviceTypeSurcharge,
       surgeMultiplier,
       contactDiscount,
       promo,
@@ -106,6 +107,7 @@ export class QuoteCalculatorService {
         pickup_place_id,
         dropoff_place_id,
       ),
+      this.getServiceTypeSurcharge(tenant_id, service_type),
       this.getSurgeMultiplier(tenant_id, service_type, service_city_id),
       contact_id
         ? this.getContactDiscount(contact_id, service_type, tenant_id)
@@ -137,6 +139,7 @@ export class QuoteCalculatorService {
         timeSurcharge,
         holidaySurcharge,
         eventSurcharge,
+        serviceTypeSurcharge,
         contactDiscount,
       );
 
@@ -181,6 +184,8 @@ export class QuoteCalculatorService {
               eventSurcharge.surcharge_type === 'PERCENTAGE' ? '%' : '$'
             }`
           : null,
+        airport_parking_fee > 0 ? `Airport Parking $${airport_parking_fee}` : null,
+        serviceTypeSurcharge ? `${serviceTypeSurcharge.name}` : null,
         contactDiscount > 0 ? `${contactDiscount}% client discount` : null,
         promo_discount > 0 ? `Promo: ${promo_code}` : null,
       ].filter(Boolean);
@@ -310,6 +315,7 @@ export class QuoteCalculatorService {
     timeSurcharge: any,
     holidaySurcharge: any,
     eventSurcharge: any,
+    serviceTypeSurcharge: any,
     contactDiscount: number,
   ): number {
     let fare = base_fare;
@@ -335,6 +341,13 @@ export class QuoteCalculatorService {
         eventSurcharge.surcharge_type === 'FIXED'
           ? fare + eventSurcharge.surcharge_value
           : fare * (1 + eventSurcharge.surcharge_value / 100);
+    }
+
+    if (serviceTypeSurcharge?.surcharge_value > 0) {
+      fare =
+        serviceTypeSurcharge.surcharge_type === 'FIXED'
+          ? fare + serviceTypeSurcharge.surcharge_value
+          : fare * (1 + serviceTypeSurcharge.surcharge_value / 100);
     }
 
     if (contactDiscount > 0) {
@@ -474,6 +487,19 @@ export class QuoteCalculatorService {
         h.is_recurring ? h.date?.slice(5) === monthDay : h.date === dateStr,
       ) ?? null
     );
+  }
+
+
+  private async getServiceTypeSurcharge(tenant_id: string, service_type: string) {
+    const { data } = await supabaseAdmin
+      .from('tenant_service_types')
+      .select('*')
+      .eq('tenant_id', tenant_id)
+      .eq('name', service_type)
+      .eq('is_active', true)
+      .maybeSingle();
+
+    return data ?? null;
   }
 
   private async getContactDiscount(
