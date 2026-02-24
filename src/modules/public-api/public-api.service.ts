@@ -17,7 +17,9 @@ export class PublicApiService {
     pickup_datetime?: string;
     distance_km?: string;
     duration_hours?: string;
+    hours?: string;
     duration_minutes?: string;
+    waiting_minutes?: string;
     waypoint_count?: string;
     baby_seat_infant?: string;
     baby_seat_convertible?: string;
@@ -58,7 +60,9 @@ export class PublicApiService {
       pickup_datetime: query.pickup_datetime,
       distance_km: parseFloat(query.distance_km ?? '0'),
       duration_hours: parseFloat(query.duration_hours ?? '0'),
+      hours: parseFloat(query.hours ?? query.duration_hours ?? '0'),
       duration_minutes: parseFloat(query.duration_minutes ?? '0'),
+      waiting_minutes: parseFloat(query.waiting_minutes ?? '0') || 0,
       waypoint_count: parseInt(query.waypoint_count ?? '0', 10) || 0,
       baby_seat_infant: parseInt(query.baby_seat_infant ?? '0', 10) || 0,
       baby_seat_convertible: parseInt(query.baby_seat_convertible ?? '0', 10) || 0,
@@ -80,7 +84,8 @@ export class PublicApiService {
       },
       service_type: query.service_type,
       distance_km: parseFloat(query.distance_km ?? '0'),
-      duration_hours: parseFloat(query.duration_hours ?? '0'),
+      duration_hours: parseFloat(query.duration_hours ?? query.hours ?? '0'),
+      waiting_minutes: parseFloat(query.waiting_minutes ?? '0') || 0,
       quotes,
     };
   }

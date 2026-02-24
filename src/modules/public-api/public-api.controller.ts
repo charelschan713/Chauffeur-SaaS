@@ -52,8 +52,14 @@ class QuoteQueryDto {
   @ApiProperty({ required: false, example: '2' })
   duration_hours?: string;
 
+  @ApiProperty({ required: false, example: '2' })
+  hours?: string;
+
   @ApiProperty({ required: false, example: '90' })
   duration_minutes?: string;
+
+  @ApiProperty({ required: false, example: '10' })
+  waiting_minutes?: string;
 
   @ApiProperty({ required: false, example: '2' })
   waypoint_count?: string;
@@ -159,7 +165,9 @@ export class PublicOpenController {
     @Query('pickup_datetime') pickup_datetime?: string,
     @Query('distance_km') distance_km?: string,
     @Query('duration_hours') duration_hours?: string,
+    @Query('hours') hours?: string,
     @Query('duration_minutes') duration_minutes?: string,
+    @Query('waiting_minutes') waiting_minutes?: string,
     @Query('waypoint_count') waypoint_count?: string,
     @Query('baby_seat_infant') baby_seat_infant?: string,
     @Query('baby_seat_convertible') baby_seat_convertible?: string,
@@ -180,7 +188,9 @@ export class PublicOpenController {
       pickup_datetime,
       distance_km,
       duration_hours,
+      hours,
       duration_minutes,
+      waiting_minutes,
       waypoint_count,
       baby_seat_infant,
       baby_seat_convertible,
@@ -277,7 +287,9 @@ export class PublicApiController {
     @Query('pickup_datetime') pickup_datetime?: string,
     @Query('distance_km') distance_km?: string,
     @Query('duration_hours') duration_hours?: string,
+    @Query('hours') hours?: string,
     @Query('duration_minutes') duration_minutes?: string,
+    @Query('waiting_minutes') waiting_minutes?: string,
     @Query('waypoint_count') waypoint_count?: string,
     @Query('baby_seat_infant') baby_seat_infant?: string,
     @Query('baby_seat_convertible') baby_seat_convertible?: string,
@@ -298,7 +310,9 @@ export class PublicApiController {
       pickup_datetime,
       distance_km,
       duration_hours,
+      hours,
       duration_minutes,
+      waiting_minutes,
       waypoint_count,
       baby_seat_infant,
       baby_seat_convertible,

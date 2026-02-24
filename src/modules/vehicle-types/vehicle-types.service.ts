@@ -41,6 +41,7 @@ export class VehicleTypesService {
       included_minutes?: number;
       extra_km_rate?: number;
       extra_minute_rate?: number;
+      waiting_minutes_free?: number;
       waiting_rate?: number;
       hourly_rate?: number;
       hourly_included_km?: number;
@@ -87,6 +88,7 @@ export class VehicleTypesService {
         included_minutes: type_data.included_minutes ?? 30,
         extra_km_rate: type_data.extra_km_rate ?? 0,
         extra_minute_rate: type_data.extra_minute_rate ?? 0,
+        waiting_minutes_free: type_data.waiting_minutes_free ?? 0,
         waiting_rate: type_data.waiting_rate ?? 0,
         hourly_rate: type_data.hourly_rate ?? 0,
         hourly_included_km: type_data.hourly_included_km ?? 20,
@@ -140,6 +142,7 @@ export class VehicleTypesService {
       included_minutes?: number;
       extra_km_rate?: number;
       extra_minute_rate?: number;
+      waiting_minutes_free?: number;
       waiting_rate?: number;
       hourly_rate?: number;
       hourly_included_km?: number;

@@ -11,6 +11,7 @@ export class CreateVehicleTypeDto {
   included_minutes?: number;
   extra_km_rate?: number;
   extra_minute_rate?: number;
+  waiting_minutes_free?: number;
   waiting_rate?: number;
   hourly_rate?: number;
   hourly_included_km?: number;

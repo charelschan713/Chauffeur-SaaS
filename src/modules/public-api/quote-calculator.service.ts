@@ -11,6 +11,8 @@ export class QuoteCalculatorService {
     distance_km?: number;
     duration_minutes?: number;
     duration_hours?: number;
+    hours?: number;
+    waiting_minutes?: number;
     waypoint_count?: number;
     passenger_count?: number;
     luggage_count?: number;
@@ -38,6 +40,8 @@ export class QuoteCalculatorService {
     distance_km?: number;
     duration_minutes?: number;
     duration_hours?: number;
+    hours?: number;
+    waiting_minutes?: number;
     waypoint_count?: number;
     passenger_count?: number;
     luggage_count?: number;
@@ -61,6 +65,8 @@ export class QuoteCalculatorService {
       distance_km = 0,
       duration_minutes = 0,
       duration_hours = 0,
+      hours,
+      waiting_minutes = 0,
       waypoint_count = 0,
       baby_seat_infant = 0,
       baby_seat_convertible = 0,
@@ -75,6 +81,8 @@ export class QuoteCalculatorService {
       service_city_id,
       trip_type = 'ONE_WAY',
     } = params;
+
+    const resolvedHours = hours ?? duration_hours ?? 0;
 
     const { data: vehicleTypes } = await supabaseAdmin
       .from('tenant_vehicle_types')
@@ -116,14 +124,21 @@ export class QuoteCalculatorService {
     ]);
 
     return vehicleTypes.map((vt: any) => {
-      const base_fare = this.calculateBaseFare(
-        vt,
+      const effectiveServiceType = this.resolveEffectiveServiceType(
         service_type,
+        serviceTypeSurcharge,
+      );
+
+      const pricing = this.calculatePricingDetails({
+        vt,
+        service_type: effectiveServiceType,
         distance_km,
         duration_minutes,
-        duration_hours,
+        hours: resolvedHours,
+        waiting_minutes,
         waypoint_count,
-      );
+        toll_cost,
+      });
 
       const baby_seat_fee =
         baby_seat_infant * (vt.baby_seat_infant_fee ?? 0) +
@@ -132,8 +147,10 @@ export class QuoteCalculatorService {
 
       const airport_parking_fee = airportRule ? airportRule.parking_fee ?? 0 : 0;
 
+      const baseSubtotal = pricing.subtotal + baby_seat_fee + airport_parking_fee;
+
       const fare_after_surcharges = this.applyAllSurcharges(
-        base_fare,
+        baseSubtotal,
         vt,
         surgeMultiplier,
         timeSurcharge,
@@ -145,22 +162,20 @@ export class QuoteCalculatorService {
 
       let promo_discount = 0;
       if (promo) {
-        const eligible_fare = fare_after_surcharges + baby_seat_fee;
-        if (!promo.min_fare || eligible_fare >= promo.min_fare) {
+        if (!promo.min_fare || fare_after_surcharges >= promo.min_fare) {
           promo_discount =
             promo.type === 'PERCENTAGE'
-              ? eligible_fare * (promo.value / 100)
+              ? fare_after_surcharges * (promo.value / 100)
               : promo.value;
         }
       }
 
-      const subtotal = Math.max(
-        fare_after_surcharges + baby_seat_fee + airport_parking_fee - promo_discount,
+      const subtotalAfterDiscount = Math.max(
+        fare_after_surcharges - promo_discount,
         vt.minimum_fare ?? 0,
       );
 
-      const effective_toll = vt.include_tolls !== false ? toll_cost : 0;
-      const total = Math.round((subtotal + effective_toll) * 100) / 100;
+      const total = this.round2(subtotalAfterDiscount + pricing.toll_fee);
 
       const max_baby_seats =
         vt.max_baby_seats !== null && vt.max_baby_seats !== undefined
@@ -199,43 +214,27 @@ export class QuoteCalculatorService {
         max_baby_seats,
         currency: 'AUD',
         fare_breakdown: {
-          base_fare: Math.round(base_fare * 100) / 100,
-          waypoint_fee:
-            Math.round(
-              this.calculateWaypointFee(vt, base_fare, waypoint_count) * 100,
-            ) / 100,
-          baby_seat_fee: Math.round(baby_seat_fee * 100) / 100,
-          airport_parking_fee: Math.round(airport_parking_fee * 100) / 100,
-          surge_multiplier: surgeMultiplier,
-          time_surcharge: timeSurcharge
-            ? {
-                name: timeSurcharge.name,
-                type: timeSurcharge.surcharge_type,
-                value: timeSurcharge.surcharge_value,
-              }
-            : null,
-          holiday_surcharge: holidaySurcharge
-            ? {
-                name: holidaySurcharge.name,
-                type: holidaySurcharge.surcharge_type,
-                value: holidaySurcharge.surcharge_value,
-              }
-            : null,
-          event_surcharge: eventSurcharge
-            ? {
-                name: eventSurcharge.name,
-                type: eventSurcharge.surcharge_type,
-                value: eventSurcharge.surcharge_value,
-              }
-            : null,
-          contact_discount: contactDiscount,
-          promo_discount: Math.round(promo_discount * 100) / 100,
-          subtotal: Math.round(subtotal * 100) / 100,
-          toll_cost: Math.round(effective_toll * 100) / 100,
+          base_fare: this.round2(pricing.base_fare),
+          km_charge: this.round2(pricing.km_charge),
+          time_charge: this.round2(pricing.time_charge),
+          waiting_charge: this.round2(pricing.waiting_charge),
+          waypoint_charge: this.round2(pricing.waypoint_charge),
+          toll_fee: this.round2(pricing.toll_fee),
+          subtotal: this.round2(pricing.subtotal),
+          surcharges: surcharges_applied,
+          extras: [
+            baby_seat_fee > 0 ? `Baby seats $${this.round2(baby_seat_fee)}` : null,
+            airport_parking_fee > 0
+              ? `Airport parking $${this.round2(airport_parking_fee)}`
+              : null,
+            promo_discount > 0
+              ? `Promo discount -$${this.round2(promo_discount)}`
+              : null,
+          ].filter(Boolean),
           total,
         },
-        estimated_fare: subtotal,
-        toll_cost: effective_toll,
+        estimated_fare: this.round2(subtotalAfterDiscount),
+        toll_cost: this.round2(pricing.toll_fee),
         toll_estimated: true,
         total_with_tolls: total,
         billing_method: vt.billing_method ?? 'KM',
@@ -260,38 +259,74 @@ export class QuoteCalculatorService {
     });
   }
 
-  private calculateBaseFare(
-    vt: any,
-    service_type: string,
-    distance_km: number,
-    duration_minutes: number,
-    duration_hours: number,
-    waypoint_count: number,
-  ): number {
-    let fare = 0;
+  private resolveEffectiveServiceType(service_type: string, serviceTypeSurcharge: any) {
+    if (service_type !== 'SPECIAL_EVENT') return service_type;
+
+    const base = serviceTypeSurcharge?.base_service_type;
+    if (base === 'HOURLY_CHARTER') return 'HOURLY_CHARTER';
+    return 'POINT_TO_POINT';
+  }
+
+  private calculatePricingDetails(args: {
+    vt: any;
+    service_type: string;
+    distance_km: number;
+    duration_minutes: number;
+    hours: number;
+    waiting_minutes: number;
+    waypoint_count: number;
+    toll_cost: number;
+  }) {
+    const {
+      vt,
+      service_type,
+      distance_km,
+      duration_minutes,
+      hours,
+      waiting_minutes,
+      waypoint_count,
+      toll_cost,
+    } = args;
+
+    const base_fare = vt.base_fare ?? 0;
+    let km_charge = 0;
+    let time_charge = 0;
+    let waiting_charge = 0;
+    let waypoint_charge = 0;
 
     if (service_type === 'HOURLY_CHARTER') {
-      const hours = Math.max(duration_hours, vt.min_booking_hours ?? 1);
-      fare = (vt.hourly_rate ?? vt.base_fare ?? 0) * hours;
-    } else if (vt.pricing_model === 'INCLUDED') {
-      const included_km = vt.included_km ?? 10;
-      const included_min = vt.included_minutes ?? 30;
-      const extra_km = Math.max(0, distance_km - included_km);
-      const extra_min = Math.max(0, duration_minutes - included_min);
-      fare =
-        (vt.base_fare ?? 0) +
-        extra_km * (vt.extra_km_rate ?? 0) +
-        extra_min * (vt.extra_minute_rate ?? 0);
+      const billableHours = Math.max(hours, vt.min_booking_hours ?? 1);
+      const includedKm = (vt.hourly_included_km ?? vt.included_km ?? 0) * billableHours;
+      const extraKm = Math.max(0, distance_km - includedKm);
+      const overtimeMinutes = Math.max(0, duration_minutes - billableHours * 60);
+
+      km_charge = extraKm * (vt.per_km_rate ?? 0);
+      time_charge = (vt.hourly_rate ?? 0) * billableHours;
+      waiting_charge = overtimeMinutes * (vt.extra_minute_rate ?? 0);
+      waypoint_charge = 0;
     } else {
-      if (vt.billing_method === 'KM') {
-        fare = (vt.base_fare ?? 0) + distance_km * (vt.per_km_rate ?? 0);
-      } else {
-        fare = (vt.base_fare ?? 0) + duration_minutes * (vt.per_minute_rate ?? 0);
-      }
+      // POINT_TO_POINT / AIRPORT / SPECIAL_EVENT(base P2P)
+      const freeWaiting = vt.waiting_minutes_free ?? 0;
+      const billableWaiting = Math.max(0, waiting_minutes - freeWaiting);
+
+      km_charge = distance_km * (vt.per_km_rate ?? 0);
+      time_charge = duration_minutes * (vt.per_minute_rate ?? 0);
+      waiting_charge = billableWaiting * (vt.extra_minute_rate ?? 0);
+      waypoint_charge = this.calculateWaypointFee(vt, base_fare, waypoint_count);
     }
 
-    fare += this.calculateWaypointFee(vt, fare, waypoint_count);
-    return Math.max(fare, 0);
+    const subtotal =
+      base_fare + km_charge + time_charge + waiting_charge + waypoint_charge + (toll_cost || 0);
+
+    return {
+      base_fare,
+      km_charge,
+      time_charge,
+      waiting_charge,
+      waypoint_charge,
+      toll_fee: toll_cost || 0,
+      subtotal,
+    };
   }
 
   private calculateWaypointFee(
@@ -359,6 +394,10 @@ export class QuoteCalculatorService {
     }
 
     return fare;
+  }
+
+  private round2(v: number) {
+    return Math.round((v || 0) * 100) / 100;
   }
 
   private async getEventSurcharge(
@@ -488,7 +527,6 @@ export class QuoteCalculatorService {
       ) ?? null
     );
   }
-
 
   private async getServiceTypeSurcharge(tenant_id: string, service_type: string) {
     const { data } = await supabaseAdmin
