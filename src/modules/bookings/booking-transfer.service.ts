@@ -310,10 +310,8 @@ export class BookingTransferService {
       .limit(1)
       .then((res) => ({ data: res.data?.[0] }));
 
-    return (
-      data?.vehicle_type?.requirements?.map(
-        (r: any) => r.platform_vehicle_id,
-      ) ?? []
-    );
+    const requirements = (data?.vehicle_type as any)?.requirements ?? [];
+
+    return requirements.map((r: any) => r.platform_vehicle_id) ?? [];
   }
 }
