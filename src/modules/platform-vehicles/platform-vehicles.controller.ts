@@ -14,22 +14,22 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { JwtGuard } from '../../common/guards/jwt.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
+import { ApiKeyGuard } from '../auth/guards/api-key.guard';
 import { PlatformVehiclesService } from './platform-vehicles.service';
 
 @ApiTags('Platform Vehicles')
-@ApiBearerAuth('JWT-auth')
 @Controller('platform-vehicles')
 export class PlatformVehiclesController {
   constructor(private readonly service: PlatformVehiclesService) {}
 
   @Get()
-  @UseGuards(JwtGuard)
+  @UseGuards(ApiKeyGuard)
   findAll(@Query('includeInactive') includeInactive?: string) {
     return this.service.findAll(includeInactive === 'true');
   }
 
   @Get('search')
-  @UseGuards(JwtGuard)
+  @UseGuards(ApiKeyGuard)
   search(@Query('q') q: string) {
     return this.service.search(q ?? '');
   }
