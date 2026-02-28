@@ -1,73 +1,34 @@
-import { Module, ValidationPipe } from '@nestjs/common';
-import { ScheduleModule } from '@nestjs/schedule';
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { APP_GUARD, APP_PIPE } from '@nestjs/core';
-import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
-import { AdminModule } from './modules/admin/admin.module';
-import { AuthModule } from './modules/auth/auth.module';
-import { BookingsModule } from './modules/bookings/bookings.module';
-import { ConstantsModule } from './modules/constants/constants.module';
-import { ConnectionsModule } from './modules/connections/connections.module';
-import { DriversModule } from './modules/drivers/drivers.module';
-import { NotificationsModule } from './modules/notifications/notifications.module';
-import { InvoicesModule } from './modules/invoices/invoices.module';
-import { PaymentsModule } from './modules/payments/payments.module';
-import { PublicApiModule } from './modules/public-api/public-api.module';
-import { PricingModule } from './modules/pricing/pricing.module';
-import { ApiKeysModule } from './modules/api-keys/api-keys.module';
-import { PlatformVehiclesModule } from './modules/platform-vehicles/platform-vehicles.module';
-import { TenantsModule } from './modules/tenants/tenants.module';
-import { VehicleTypesModule } from './modules/vehicle-types/vehicle-types.module';
-import { WebhooksModule } from './modules/webhooks/webhooks.module';
-import { CrmModule } from './modules/crm/crm.module';
-import { ServiceTypesModule } from './modules/service-types/service-types.module';
-import { SurchargesModule } from './modules/surcharges/surcharges.module';
-import { TenantVehiclesModule } from './modules/vehicles/tenant-vehicles.module';
-import { MapsModule } from './modules/maps/maps.module';
-import { DriverInvitationsModule } from './modules/driver-invitations/driver-invitations.module';
-import { TenantSettingsModule } from './modules/tenant-settings/tenant-settings.module';
-import { AirportsModule } from './modules/airports/airports.module';
-import { ComplianceModule } from './modules/compliance/compliance.module';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { EventEmitterModule } from '@nestjs/event-emitter';
+import { JwtModule } from '@nestjs/jwt';
+
+import { AuthModule } from './auth/auth.module';
+import { BookingModule } from './booking/booking.module';
+import { TenantContextMiddleware } from './common/middleware/tenant-context.middleware';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
-    ScheduleModule.forRoot(),
-    ThrottlerModule.forRoot([
-      {
-        ttl: 60000,
-        limit: 100,
-      },
-    ]),
+    TypeOrmModule.forRoot({
+      type: 'postgres',
+      url: process.env.DATABASE_URL,
+      autoLoadEntities: false,
+      synchronize: false,
+      extra: { max: 10, statement_timeout: 10_000 },
+    }),
+    EventEmitterModule.forRoot({ wildcard: true }),
+    JwtModule.register({}),
     AuthModule,
-    TenantsModule,
-    DriversModule,
-    BookingsModule,
-    PricingModule,
-    PaymentsModule,
-    NotificationsModule,
-    InvoicesModule,
-    ConnectionsModule,
-    AdminModule,
-    PublicApiModule,
-    ConstantsModule,
-    ApiKeysModule,
-    PlatformVehiclesModule,
-    VehicleTypesModule,
-    WebhooksModule,
-    CrmModule,
-    ServiceTypesModule,
-    SurchargesModule,
-    TenantVehiclesModule,
-    MapsModule,
-    DriverInvitationsModule,
-    TenantSettingsModule,
-    AirportsModule,
-    ComplianceModule,
-  ],
-  providers: [
-    { provide: APP_PIPE, useValue: new ValidationPipe({ whitelist: true }) },
-    { provide: APP_GUARD, useClass: ThrottlerGuard },
+    BookingModule,
   ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer
+      .apply(TenantContextMiddleware)
+      .exclude('auth/(.*)', 'webhooks/(.*)', 'health')
+      .forRoutes('*');
+  }
+}
