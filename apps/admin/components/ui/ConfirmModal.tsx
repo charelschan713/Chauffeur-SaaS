@@ -7,8 +7,9 @@ interface ConfirmModalProps {
   isOpen: boolean;
   onClose: () => void;
   onConfirm: () => void;
-  confirmLabel?: string;
+  confirmText?: string;
   confirmTone?: 'primary' | 'danger';
+  loading?: boolean;
   children?: ReactNode;
 }
 
@@ -18,8 +19,9 @@ export function ConfirmModal({
   isOpen,
   onClose,
   onConfirm,
-  confirmLabel = 'Confirm',
+  confirmText = 'Confirm',
   confirmTone = 'primary',
+  loading,
   children,
 }: ConfirmModalProps) {
   if (!isOpen) return null;
@@ -41,15 +43,17 @@ export function ConfirmModal({
           <div className="flex justify-end gap-3">
             <button
               onClick={onClose}
-              className="px-4 py-2 rounded border border-gray-300 text-gray-700 hover:bg-gray-50"
+              disabled={loading}
+              className="px-4 py-2 rounded border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-60"
             >
               Cancel
             </button>
             <button
               onClick={onConfirm}
-              className={`px-4 py-2 rounded text-white ${confirmColor}`}
+              disabled={loading}
+              className={`px-4 py-2 rounded text-white ${confirmColor} disabled:opacity-60`}
             >
-              {confirmLabel}
+              {confirmText}
             </button>
           </div>
         </div>

@@ -3,10 +3,10 @@ import { useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
-import { PageHeader } from '@/components/ui/PageHeader';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { ConfirmModal } from '@/components/ui/ConfirmModal';
 import { ErrorAlert } from '@/components/ui/ErrorAlert';
+import { DetailPage, DetailSection } from '@/components/patterns/DetailPage';
 
 const CANCELABLE_STATUSES = new Set(['DRAFT', 'PENDING', 'CONFIRMED', 'ASSIGNED']);
 
@@ -27,6 +27,10 @@ export default function BookingDetailPage() {
   });
 
   const booking = data?.booking;
+  const timeline = data?.status_history ?? [];
+  const assignments = data?.assignments ?? [];
+  const payments = data?.payments;
+  const latestAssignment = useMemo(() => assignments.at(0), [assignments]);
   const canCancel = booking && CANCELABLE_STATUSES.has(booking.operational_status);
 
   const cancelMutation = useMutation({
@@ -40,11 +44,6 @@ export default function BookingDetailPage() {
     },
   });
 
-  const timeline = data?.status_history ?? [];
-  const assignments = data?.assignments ?? [];
-  const payments = data?.payments;
-  const latestAssignment = useMemo(() => assignments.at(0), [assignments]);
-
   if (isLoading) {
     return <div className="text-gray-500">Loading...</div>;
   }
@@ -54,11 +53,17 @@ export default function BookingDetailPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <PageHeader
+    <>
+      <DetailPage
         title={`Booking ${booking.booking_reference}`}
         subtitle={`Created ${new Date(booking.created_at).toLocaleString()}`}
-        actions=
+        badges={
+          <div className="flex flex-wrap items-center gap-2">
+            <StatusBadge status={booking.operational_status} type="operational" />
+            <StatusBadge status={booking.payment_status} type="payment" />
+          </div>
+        }
+        actions={
           canCancel ? (
             <button
               onClick={() => setModalOpen(true)}
@@ -67,95 +72,89 @@ export default function BookingDetailPage() {
               Cancel Booking
             </button>
           ) : undefined
-      />
+        }
+        primary={
+          <>
+            <DetailSection title="Booking Overview">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <InfoRow label="Customer">
+                  {booking.customer_first_name} {booking.customer_last_name}
+                  {booking.customer_email && <p className="text-sm text-gray-500">{booking.customer_email}</p>}
+                  {booking.customer_phone && <p className="text-sm text-gray-500">{booking.customer_phone}</p>}
+                </InfoRow>
+                <InfoRow label="Booking Source">{booking.booking_source}</InfoRow>
+                <InfoRow label="Pickup">
+                  <p className="font-medium">{booking.pickup_address_text}</p>
+                  <p className="text-sm text-gray-500">{formatDatetime(booking.pickup_at_utc, booking.timezone)}</p>
+                </InfoRow>
+                <InfoRow label="Dropoff">
+                  <p className="font-medium">{booking.dropoff_address_text}</p>
+                </InfoRow>
+              </div>
+            </DetailSection>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 space-y-6">
-          <section className="bg-white rounded-lg shadow p-6">
-            <div className="flex flex-wrap items-center gap-3 mb-4">
-              <StatusBadge value={booking.operational_status} />
-              <StatusBadge value={booking.payment_status} />
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <InfoRow label="Customer">
-                {booking.customer_first_name} {booking.customer_last_name}
-                {booking.customer_email && <p className="text-sm text-gray-500">{booking.customer_email}</p>}
-                {booking.customer_phone && <p className="text-sm text-gray-500">{booking.customer_phone}</p>}
-              </InfoRow>
-              <InfoRow label="Booking Source">{booking.booking_source}</InfoRow>
-              <InfoRow label="Pickup">
-                <p className="font-medium">{booking.pickup_address_text}</p>
-                <p className="text-sm text-gray-500">{formatDatetime(booking.pickup_at_utc, booking.timezone)}</p>
-              </InfoRow>
-              <InfoRow label="Dropoff">
-                <p className="font-medium">{booking.dropoff_address_text}</p>
-              </InfoRow>
-            </div>
-          </section>
-
-          <section className="bg-white rounded-lg shadow p-6">
-            <h3 className="text-lg font-semibold mb-4">Assignment</h3>
-            {latestAssignment ? (
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <p className="font-medium">{latestAssignment.driver_name ?? 'Unassigned'}</p>
-                  <StatusBadge value={latestAssignment.status} />
+            <DetailSection title="Assignment">
+              {latestAssignment ? (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <p className="font-medium">{latestAssignment.driver_name ?? 'Unassigned'}</p>
+                    <StatusBadge status={latestAssignment.status} />
+                  </div>
+                  <p className="text-sm text-gray-500">
+                    Updated {new Date(latestAssignment.updated_at ?? latestAssignment.created_at).toLocaleString()}
+                  </p>
                 </div>
-                <p className="text-sm text-gray-500">
-                  Updated {new Date(latestAssignment.updated_at ?? latestAssignment.created_at).toLocaleString()}
-                </p>
-              </div>
-            ) : (
-              <p className="text-sm text-gray-500">No assignment yet.</p>
-            )}
-          </section>
+              ) : (
+                <p className="text-sm text-gray-500">No assignment yet.</p>
+              )}
+            </DetailSection>
 
-          <section className="bg-white rounded-lg shadow p-6">
-            <h3 className="text-lg font-semibold mb-4">Status History</h3>
-            <ol className="space-y-4">
-              {timeline.map((entry: any) => (
-                <li key={entry.id} className="flex items-start gap-4">
-                  <div className="flex flex-col items-center">
-                    <div className="w-3 h-3 rounded-full bg-blue-600 mt-1" />
-                    <div className="flex-1 w-px bg-gray-200" />
-                  </div>
-                  <div>
-                    <p className="font-medium">{entry.status}</p>
-                    <p className="text-sm text-gray-500">{new Date(entry.created_at).toLocaleString()}</p>
-                    {entry.reason && <p className="text-sm text-gray-600 mt-1">Reason: {entry.reason}</p>}
-                  </div>
-                </li>
-              ))}
-            </ol>
-          </section>
-        </div>
+            <DetailSection title="Status History">
+              <ol className="space-y-4">
+                {timeline.map((entry: any) => (
+                  <li key={entry.id} className="flex items-start gap-4">
+                    <div className="flex flex-col items-center">
+                      <div className="w-3 h-3 rounded-full bg-blue-600 mt-1" />
+                      <div className="flex-1 w-px bg-gray-200" />
+                    </div>
+                    <div>
+                      <p className="font-medium">{entry.status ?? entry.new_status}</p>
+                      <p className="text-sm text-gray-500">{new Date(entry.created_at).toLocaleString()}</p>
+                      {entry.actor && <p className="text-xs text-gray-500">{entry.actor}</p>}
+                      {entry.reason && <p className="text-sm text-gray-600 mt-1">Reason: {entry.reason}</p>}
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            </DetailSection>
+          </>
+        }
+        secondary={
+          <>
+            <DetailSection title="Payment Summary">
+              {payments ? (
+                <div className="space-y-2 text-sm">
+                  <SummaryRow label="Authorized">
+                    {formatMoney(payments.summary.authorized_minor, payments.summary.currency)}
+                  </SummaryRow>
+                  <SummaryRow label="Captured">
+                    {formatMoney(payments.summary.captured_minor, payments.summary.currency)}
+                  </SummaryRow>
+                  <SummaryRow label="Refunded">
+                    {formatMoney(payments.summary.refunded_minor, payments.summary.currency)}
+                  </SummaryRow>
+                </div>
+              ) : (
+                <p className="text-sm text-gray-500">No payment data.</p>
+              )}
+            </DetailSection>
 
-        <div className="space-y-6">
-          <section className="bg-white rounded-lg shadow p-6">
-            <h3 className="text-lg font-semibold mb-4">Payment Summary</h3>
-            {payments ? (
-              <div className="space-y-2 text-sm">
-                <SummaryRow label="Authorized">
-                  {formatMoney(payments.summary.authorized_minor, payments.summary.currency)}
-                </SummaryRow>
-                <SummaryRow label="Captured">
-                  {formatMoney(payments.summary.captured_minor, payments.summary.currency)}
-                </SummaryRow>
-                <SummaryRow label="Refunded">
-                  {formatMoney(payments.summary.refunded_minor, payments.summary.currency)}
-                </SummaryRow>
-              </div>
-            ) : (
-              <p className="text-sm text-gray-500">No payment data.</p>
-            )}
-          </section>
-
-          <section className="bg-white rounded-lg shadow p-6">
-            <h3 className="text-lg font-semibold mb-4">Notes</h3>
-            <p className="text-sm text-gray-500">Notes feature coming soon.</p>
-          </section>
-        </div>
-      </div>
+            <DetailSection title="Notes">
+              <p className="text-sm text-gray-500">Notes feature coming soon.</p>
+            </DetailSection>
+          </>
+        }
+      />
 
       <ConfirmModal
         title="Cancel booking"
@@ -166,7 +165,8 @@ export default function BookingDetailPage() {
           setCancelReason('');
         }}
         onConfirm={() => cancelMutation.mutate()}
-        confirmLabel={cancelMutation.isPending ? 'Cancelling...' : 'Confirm cancel'}
+        confirmText={cancelMutation.isPending ? 'Cancelling...' : 'Confirm cancel'}
+        loading={cancelMutation.isPending}
         confirmTone="danger"
       >
         <label className="text-sm font-medium text-gray-700">Reason</label>
@@ -179,7 +179,7 @@ export default function BookingDetailPage() {
           />
         </div>
       </ConfirmModal>
-    </div>
+    </>
   );
 }
 
