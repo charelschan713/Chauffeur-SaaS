@@ -23,7 +23,138 @@ const ALLOWED_TRANSITIONS: Record<string, string[]> = {
 
 @Injectable()
 export class BookingService {
+
   constructor(private readonly dataSource: DataSource) {}
+
+  async listBookings(tenantId: string, query: Record<string, any>) {
+    const page = Math.max(1, Number(query.page ?? 1));
+    const limit = Math.min(Math.max(Number(query.limit ?? 20), 1), 100);
+    const offset = (page - 1) * limit;
+
+    let where = 'WHERE b.tenant_id = $1';
+    const params: any[] = [tenantId];
+    let index = 2;
+
+    if (query.operational_status) {
+      where += ` AND b.operational_status = ANY($${index}::text[])`;
+      params.push(String(query.operational_status).split(','));
+      index++;
+    }
+
+    if (query.date_from) {
+      where += ` AND b.pickup_at_utc >= $${index}`;
+      params.push(query.date_from);
+      index++;
+    }
+
+    if (query.date_to) {
+      where += ` AND b.pickup_at_utc <= $${index}`;
+      params.push(query.date_to);
+      index++;
+    }
+
+    if (query.search) {
+      where += ` AND (b.booking_reference ILIKE $${index} OR b.customer_first_name ILIKE $${index} OR b.customer_last_name ILIKE $${index})`;
+      params.push(`%${query.search}%`);
+      index++;
+    }
+
+    const countResult = await this.dataSource.query(
+      `SELECT COUNT(*) FROM public.bookings b ${where}`,
+      params,
+    );
+    const total = Number(countResult[0]?.count ?? 0);
+
+    const data = await this.dataSource.query(
+      `SELECT 
+        b.id,
+        b.booking_reference,
+        b.booking_source,
+        b.customer_first_name,
+        b.customer_last_name,
+        b.operational_status,
+        b.payment_status,
+        b.pickup_at_utc,
+        b.timezone,
+        b.pickup_address_text,
+        b.dropoff_address_text,
+        b.total_price_minor,
+        b.currency,
+        a.driver_id,
+        a.status as assignment_status
+       FROM public.bookings b
+       LEFT JOIN public.assignments a
+         ON a.booking_id = b.id
+         AND a.status NOT IN ('CANCELLED','DECLINED','EXPIRED')
+       ${where}
+       ORDER BY b.pickup_at_utc DESC
+       LIMIT $${index} OFFSET $${index + 1}`,
+      [...params, limit, offset],
+    );
+
+    return {
+      data,
+      meta: {
+        page,
+        limit,
+        total,
+        has_next: page * limit < total,
+      },
+    };
+  }
+
+  async getBookingDetail(tenantId: string, bookingId: string) {
+    const bookings = await this.dataSource.query(
+      `SELECT * FROM public.bookings WHERE id = $1 AND tenant_id = $2`,
+      [bookingId, tenantId],
+    );
+    if (!bookings.length) throw new NotFoundException('Booking not found');
+    const booking = bookings[0];
+
+    const [history, assignments, payments] = await Promise.all([
+      this.dataSource.query(
+        `SELECT * FROM public.booking_status_history
+         WHERE booking_id = $1
+         ORDER BY created_at ASC`,
+        [bookingId],
+      ),
+      this.dataSource.query(
+        `SELECT a.*, u.full_name as driver_name
+           FROM public.assignments a
+           LEFT JOIN public.users u ON u.id = a.driver_id
+          WHERE a.booking_id = $1
+          ORDER BY a.created_at DESC`,
+        [bookingId],
+      ),
+      this.dataSource.query(
+        `SELECT * FROM public.payments
+          WHERE booking_id = $1
+          ORDER BY created_at ASC`,
+        [bookingId],
+      ),
+    ]);
+
+    const summary = payments.length
+      ? {
+          authorized_minor: payments[0].amount_authorized_minor ?? 0,
+          captured_minor: payments[0].amount_captured_minor ?? 0,
+          refunded_minor: payments[0].amount_refunded_minor ?? 0,
+          currency: payments[0].currency ?? 'AUD',
+        }
+      : null;
+
+    return {
+      booking,
+      status_history: history,
+      assignments,
+      payments: payments.length
+        ? {
+            items: payments,
+            summary,
+          }
+        : null,
+    };
+  }
 
   async createBooking(tenantId: string, dto: any) {
     const clientRequestId = dto.clientRequestId ?? uuidv4();
@@ -170,6 +301,24 @@ export class BookingService {
     });
   }
 
+  async cancelBooking(
+    tenantId: string,
+    bookingId: string,
+    triggeredBy: string,
+    reason?: string,
+  ) {
+    const rows = await this.dataSource.query(
+      `SELECT tenant_id FROM public.bookings WHERE id = $1`,
+      [bookingId],
+    );
+    if (!rows.length) throw new NotFoundException('Booking not found');
+    if (rows[0].tenant_id !== tenantId) {
+      throw new ForbiddenException('Booking does not belong to tenant');
+    }
+
+    return this.transition(bookingId, 'CANCELLED', triggeredBy, reason);
+  }
+
   private buildEventPayload(booking: any, status: string, actor: string) {
     switch (status) {
       case 'CONFIRMED':
@@ -220,3 +369,5 @@ export class BookingService {
     }
   }
 }
+
+

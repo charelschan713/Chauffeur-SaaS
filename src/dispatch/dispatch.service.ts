@@ -24,7 +24,7 @@ export class DispatchService {
     vehicleId: string,
     dispatcherId: string,
   ) {
-    return this.dataSource.transaction(async (manager) => {
+    return this.dataSource.transaction(async (manager: EntityManager) => {
       await this.ensureBookingConfirmed(manager, tenantId, bookingId);
       await this.ensureDriverAvailable(manager, tenantId, driverId);
 
@@ -56,7 +56,7 @@ export class DispatchService {
   }
 
   async driverAccept(tenantId: string, assignmentId: string, driverId: string) {
-    return this.dataSource.transaction(async (manager) => {
+    return this.dataSource.transaction(async (manager: EntityManager) => {
       const assignment = await this.getAssignmentForUpdate(manager, assignmentId, tenantId);
       if (assignment.status !== 'OFFERED') throw new BadRequestException('Assignment not offered');
       if (assignment.driver_id !== driverId) throw new ForbiddenException('Driver mismatch');
@@ -91,7 +91,7 @@ export class DispatchService {
     driverId: string,
     reason?: string,
   ) {
-    return this.dataSource.transaction(async (manager) => {
+    return this.dataSource.transaction(async (manager: EntityManager) => {
       const assignment = await this.getAssignmentForUpdate(manager, assignmentId, tenantId);
       if (assignment.status !== 'OFFERED') throw new BadRequestException('Assignment not offered');
       if (assignment.driver_id !== driverId) throw new ForbiddenException('Driver mismatch');
@@ -122,7 +122,7 @@ export class DispatchService {
   }
 
   async startTrip(tenantId: string, assignmentId: string, driverId: string) {
-    return this.dataSource.transaction(async (manager) => {
+    return this.dataSource.transaction(async (manager: EntityManager) => {
       const assignment = await this.getAssignmentForUpdate(manager, assignmentId, tenantId);
       if (assignment.status !== 'ACCEPTED') throw new BadRequestException('Assignment not accepted');
       if (assignment.driver_id !== driverId) throw new ForbiddenException('Driver mismatch');
@@ -159,7 +159,7 @@ export class DispatchService {
   }
 
   async completeTrip(tenantId: string, assignmentId: string, driverId: string) {
-    return this.dataSource.transaction(async (manager) => {
+    return this.dataSource.transaction(async (manager: EntityManager) => {
       const assignment = await this.getAssignmentForUpdate(manager, assignmentId, tenantId);
       if (assignment.status !== 'JOB_STARTED') throw new BadRequestException('Trip not started');
       if (assignment.driver_id !== driverId) throw new ForbiddenException('Driver mismatch');

@@ -15,9 +15,7 @@ interface CreatePaymentIntentDto {
 export class PaymentService {
   private readonly stripe: Stripe;
 
-  constructor(
-    private readonly dataSource: DataSource,
-  ) {
+  constructor(private readonly dataSource: DataSource) {
     this.stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
   }
 
@@ -135,16 +133,16 @@ export class PaymentService {
       ) values ($1,'payment',$2,$3,1,$4)`,
       [tenantId, paymentIntentId, eventType, payload],
     );
-
   }
-}
 
   @OnEvent(BOOKING_EVENTS.JOB_COMPLETED)
-  async onJobCompleted(payload: any) {
+  async onJobCompleted(payload: { booking_id: string } | undefined) {
+    if (!payload?.booking_id) return;
     try {
       await this.capturePayment(payload.booking_id);
-    } catch (err: unknown) {
+    } catch (err) {
       const message = err instanceof Error ? err.message : 'Unknown error';
       console.error('Capture failed:', message);
     }
   }
+}

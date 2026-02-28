@@ -4,13 +4,11 @@ import {
   ForbiddenException,
   Param,
   Post,
-  Req,
   UseGuards,
 } from '@nestjs/common';
 import { DispatchService } from './dispatch.service';
 import { JwtGuard } from '../common/guards/jwt.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
-import { Request } from 'express';
 
 class OfferAssignmentDto {
   bookingId!: string;
@@ -32,9 +30,9 @@ export class DispatchController {
     @Body() dto: OfferAssignmentDto,
     @CurrentUser('tenant_id') tenantId: string,
     @CurrentUser('sub') dispatcherId: string,
-    @Req() req: Request,
+    @CurrentUser('role') role: string | null,
   ) {
-    this.assertDispatcherRole(req);
+    this.assertRole(role, ['tenant_admin', 'tenant_staff']);
     return this.dispatch.offerAssignment(
       tenantId,
       dto.bookingId,
@@ -49,9 +47,9 @@ export class DispatchController {
     @Param('assignmentId') assignmentId: string,
     @CurrentUser('tenant_id') tenantId: string,
     @CurrentUser('sub') driverId: string,
-    @Req() req: Request,
+    @CurrentUser('role') role: string | null,
   ) {
-    this.assertDriverRole(req);
+    this.assertDriverRole(role);
     return this.dispatch.driverAccept(tenantId, assignmentId, driverId);
   }
 
@@ -61,9 +59,9 @@ export class DispatchController {
     @Body() dto: DeclineDto,
     @CurrentUser('tenant_id') tenantId: string,
     @CurrentUser('sub') driverId: string,
-    @Req() req: Request,
+    @CurrentUser('role') role: string | null,
   ) {
-    this.assertDriverRole(req);
+    this.assertDriverRole(role);
     return this.dispatch.driverDecline(tenantId, assignmentId, driverId, dto.reason);
   }
 
@@ -72,9 +70,9 @@ export class DispatchController {
     @Param('assignmentId') assignmentId: string,
     @CurrentUser('tenant_id') tenantId: string,
     @CurrentUser('sub') driverId: string,
-    @Req() req: Request,
+    @CurrentUser('role') role: string | null,
   ) {
-    this.assertDriverRole(req);
+    this.assertDriverRole(role);
     return this.dispatch.startTrip(tenantId, assignmentId, driverId);
   }
 
@@ -83,24 +81,20 @@ export class DispatchController {
     @Param('assignmentId') assignmentId: string,
     @CurrentUser('tenant_id') tenantId: string,
     @CurrentUser('sub') driverId: string,
-    @Req() req: Request,
+    @CurrentUser('role') role: string | null,
   ) {
-    this.assertDriverRole(req);
+    this.assertDriverRole(role);
     return this.dispatch.completeTrip(tenantId, assignmentId, driverId);
   }
 
-  private assertDispatcherRole(req: Request) {
-    const role = (req.user as any)?.role;
-    if (role !== 'tenant_admin' && role !== 'tenant_staff') {
-      throw new ForbiddenException('Dispatcher role required');
+  private assertRole(role: string | null, allowed: string[]) {
+    if (!role || !allowed.includes(role)) {
+      throw new ForbiddenException('Insufficient role');
     }
   }
 
-  private assertDriverRole(req: Request) {
-    const role = (req.user as any)?.role;
-    if (role !== 'driver') {
-      throw new ForbiddenException('Driver role required');
-    }
+  private assertDriverRole(role: string | null) {
+    this.assertRole(role, ['driver']);
   }
 }
 
