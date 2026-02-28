@@ -8,6 +8,7 @@ import { AuthModule } from './auth/auth.module';
 import { BookingModule } from './booking/booking.module';
 import { PaymentModule } from './payment/payment.module';
 import { DispatchModule } from './dispatch/dispatch.module';
+import { PlatformModule } from './platform/platform.module';
 import { TenantContextMiddleware } from './common/middleware/tenant-context.middleware';
 
 @Module({
@@ -26,6 +27,7 @@ import { TenantContextMiddleware } from './common/middleware/tenant-context.midd
     BookingModule,
     PaymentModule,
     DispatchModule,
+    PlatformModule,
   ],
 })
 export class AppModule implements NestModule {
