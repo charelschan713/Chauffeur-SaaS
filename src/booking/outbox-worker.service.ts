@@ -1,5 +1,5 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
-import { DataSource } from 'typeorm';
+import { DataSource, EntityManager } from 'typeorm';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 
 @Injectable()
@@ -13,9 +13,9 @@ export class OutboxWorkerService implements OnModuleInit {
 
   onModuleInit() {
     if (process.env.RUN_OUTBOX_WORKER !== 'true') return;
-    this.resetStuckEvents().catch((err) => this.logger.error(err));
+    this.resetStuckEvents().catch((err: unknown) => this.logger.error(err));
     setInterval(
-      () => this.processBatch().catch((err) => this.logger.error(err)),
+      () => this.processBatch().catch((err: unknown) => this.logger.error(err)),
       3000,
     );
   }
@@ -29,7 +29,7 @@ export class OutboxWorkerService implements OnModuleInit {
   }
 
   private async processBatch() {
-    const events = await this.dataSource.transaction(async (manager) => {
+    const events = await this.dataSource.transaction(async (manager: EntityManager) => {
       const rows = await manager.query(
         `select * from public.outbox_events
          where status = 'PENDING'
@@ -60,7 +60,7 @@ export class OutboxWorkerService implements OnModuleInit {
            where id = $1`,
           [event.id],
         );
-      } catch (err) {
+      } catch (err: unknown) {
         const retries = event.retry_count + 1;
         const newStatus = retries >= 5 ? 'FAILED' : 'PENDING';
         await this.dataSource.query(

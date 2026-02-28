@@ -1,8 +1,7 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
-import { DataSource } from 'typeorm';
+import { DataSource, EntityManager } from 'typeorm';
 import Stripe from 'stripe';
 import { PAYMENT_EVENTS } from './payment-events';
-import { EventEmitter2 } from '@nestjs/event-emitter';
 
 interface CreatePaymentIntentDto {
   amountMinor: number;
@@ -16,11 +15,8 @@ export class PaymentService {
 
   constructor(
     private readonly dataSource: DataSource,
-    private readonly events: EventEmitter2,
   ) {
-    this.stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-      apiVersion: '2024-04-10',
-    });
+    this.stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
   }
 
   async createPaymentIntent(
@@ -120,12 +116,13 @@ export class PaymentService {
   }
 
   async recordOutboxEvent(
+    manager: EntityManager,
     tenantId: string,
     paymentIntentId: string,
     eventType: string,
     payload: any,
   ) {
-    await this.dataSource.query(
+    await manager.query(
       `insert into public.outbox_events (
         tenant_id,
         aggregate_type,
@@ -137,6 +134,5 @@ export class PaymentService {
       [tenantId, paymentIntentId, eventType, payload],
     );
 
-    this.events.emit(eventType, payload);
   }
 }

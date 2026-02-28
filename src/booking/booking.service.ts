@@ -3,7 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { DataSource } from 'typeorm';
+import { DataSource, EntityManager } from 'typeorm';
 import { v4 as uuidv4 } from 'uuid';
 import { BOOKING_EVENTS } from './booking-events';
 
@@ -35,7 +35,7 @@ export class BookingService {
     );
     if (existing.length) return { bookingId: existing[0].booking_id };
 
-    return this.dataSource.transaction(async (manager) => {
+    return this.dataSource.transaction(async (manager: EntityManager) => {
       const bookingId = uuidv4();
       const bookingReference =
         'BK-' + Math.random().toString(36).substring(2, 10).toUpperCase();
@@ -104,7 +104,7 @@ export class BookingService {
     triggeredBy: string,
     reason?: string,
   ) {
-    return this.dataSource.transaction(async (manager) => {
+    return this.dataSource.transaction(async (manager: EntityManager) => {
       const rows = await manager.query(
         `select * from public.bookings
          where id = $1 for update`,
