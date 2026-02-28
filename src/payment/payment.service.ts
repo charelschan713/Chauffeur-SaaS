@@ -2,6 +2,8 @@ import { Injectable, NotFoundException, BadRequestException } from '@nestjs/comm
 import { DataSource, EntityManager } from 'typeorm';
 import Stripe from 'stripe';
 import { PAYMENT_EVENTS } from './payment-events';
+import { OnEvent } from '@nestjs/event-emitter';
+import { BOOKING_EVENTS } from '../booking/booking-events';
 
 interface CreatePaymentIntentDto {
   amountMinor: number;
@@ -136,3 +138,13 @@ export class PaymentService {
 
   }
 }
+
+  @OnEvent(BOOKING_EVENTS.JOB_COMPLETED)
+  async onJobCompleted(payload: any) {
+    try {
+      await this.capturePayment(payload.booking_id);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Unknown error';
+      console.error('Capture failed:', message);
+    }
+  }
