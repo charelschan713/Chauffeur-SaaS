@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useForm } from 'react-hook-form';
+import { useForm, Resolver } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
@@ -21,7 +21,7 @@ const formSchema = z.object({
   pickup_address_text: z.string().trim().min(5, 'Pickup address must be at least 5 characters'),
   dropoff_address_text: z.string().trim().min(5, 'Dropoff address must be at least 5 characters'),
   pickup_at_utc: z.string().min(1, 'Pickup time is required'),
-  timezone: z.string().trim().default('Australia/Sydney'),
+  timezone: z.string().trim().min(1, 'Timezone is required'),
   passenger_count: z.coerce.number().int().min(1).max(14),
   luggage_count: z.coerce.number().int().min(0).max(20).optional(),
   special_requests: z.string().max(500, 'Max 500 characters').optional(),
@@ -55,7 +55,7 @@ export default function CreateBookingPage() {
     watch,
     formState: { errors },
   } = useForm<FormValues>({
-    resolver: zodResolver(formSchema),
+    resolver: zodResolver(formSchema) as Resolver<FormValues>,
     defaultValues: {
       customer_name: '',
       customer_phone: '',

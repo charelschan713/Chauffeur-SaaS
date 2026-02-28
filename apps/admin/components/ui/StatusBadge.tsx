@@ -13,14 +13,15 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 interface StatusBadgeProps {
-  value: string;
+  status: string;
+  type?: 'operational' | 'payment';
 }
 
-export function StatusBadge({ value }: StatusBadgeProps) {
-  const color = STATUS_COLORS[value] ?? 'bg-gray-100 text-gray-800';
+export function StatusBadge({ status }: StatusBadgeProps) {
+  const color = STATUS_COLORS[status] ?? 'bg-gray-100 text-gray-800';
   return (
     <span className={`px-3 py-1 rounded-full text-xs font-semibold ${color}`}>
-      {value}
+      {status}
     </span>
   );
 }

@@ -6,7 +6,7 @@ interface WizardStep {
 }
 
 interface WizardProps {
-  steps: WizardStep[];
+  steps: ReadonlyArray<WizardStep>;
   currentStepId: string;
   children: ReactNode;
   footer?: ReactNode;
