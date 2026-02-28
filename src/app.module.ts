@@ -7,6 +7,7 @@ import { JwtModule } from '@nestjs/jwt';
 import { AuthModule } from './auth/auth.module';
 import { BookingModule } from './booking/booking.module';
 import { PaymentModule } from './payment/payment.module';
+import { DispatchModule } from './dispatch/dispatch.module';
 import { TenantContextMiddleware } from './common/middleware/tenant-context.middleware';
 
 @Module({
@@ -24,6 +25,7 @@ import { TenantContextMiddleware } from './common/middleware/tenant-context.midd
     AuthModule,
     BookingModule,
     PaymentModule,
+    DispatchModule,
   ],
 })
 export class AppModule implements NestModule {

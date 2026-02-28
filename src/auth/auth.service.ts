@@ -7,6 +7,18 @@ import { JwtService } from '@nestjs/jwt';
 import { DataSource } from 'typeorm';
 import * as crypto from 'crypto';
 
+interface UserIdentity {
+  sub: string;
+  isPlatformAdmin: boolean;
+}
+
+interface JwtPayload {
+  sub: string;
+  tenant_id: string | null;
+  isPlatformAdmin: boolean;
+  role: string | null;
+}
+
 @Injectable()
 export class AuthService {
   constructor(
@@ -33,13 +45,14 @@ export class AuthService {
     const user = rows[0];
 
     const memberships = await this.dataSource.query(
-      `select tenant_id from public.memberships
+      `select tenant_id, role from public.memberships
        where user_id = $1 and status = 'active'
        limit 1`,
       [user.id],
     );
 
     const tenantId = memberships[0]?.tenant_id ?? null;
+    const role = memberships[0]?.role ?? (user.is_platform_admin ? 'tenant_admin' : null);
 
     return this.issueTokens(
       {
@@ -47,6 +60,7 @@ export class AuthService {
         isPlatformAdmin: user.is_platform_admin,
       },
       tenantId,
+      role,
     );
   }
 
@@ -76,18 +90,22 @@ export class AuthService {
       [hash],
     );
 
-    const user = await this.dataSource.query(
+    const userRows = await this.dataSource.query(
       `select id, is_platform_admin from public.users
        where id = $1`,
       [stored.user_id],
     );
 
+    const user = userRows[0];
+    const role = await this.resolveRole(stored.user_id, stored.tenant_id, user.is_platform_admin);
+
     return this.issueTokens(
       {
         sub: stored.user_id,
-        isPlatformAdmin: user[0].is_platform_admin,
+        isPlatformAdmin: user.is_platform_admin,
       },
       stored.tenant_id,
+      role,
     );
   }
 
@@ -97,7 +115,7 @@ export class AuthService {
     currentRefreshToken: string,
   ) {
     const membership = await this.dataSource.query(
-      `select status from public.memberships
+      `select status, role from public.memberships
        where tenant_id = $1 and user_id = $2`,
       [newTenantId, userId],
     );
@@ -113,18 +131,21 @@ export class AuthService {
       [hash],
     );
 
-    const user = await this.dataSource.query(
+    const userRows = await this.dataSource.query(
       `select id, is_platform_admin from public.users
        where id = $1`,
       [userId],
     );
 
+    const user = userRows[0];
+
     return this.issueTokens(
       {
         sub: userId,
-        isPlatformAdmin: user[0].is_platform_admin,
+        isPlatformAdmin: user.is_platform_admin,
       },
       newTenantId,
+      membership[0].role ?? null,
     );
   }
 
@@ -151,13 +172,15 @@ export class AuthService {
   }
 
   private async issueTokens(
-    user: { sub: string; isPlatformAdmin: boolean },
+    user: UserIdentity,
     tenantId: string | null,
+    role: string | null,
   ) {
-    const payload = {
+    const payload: JwtPayload = {
       sub: user.sub,
       tenant_id: tenantId,
       isPlatformAdmin: user.isPlatformAdmin,
+      role,
     };
 
     const accessToken = await this.jwt.signAsync(payload, {
@@ -180,5 +203,21 @@ export class AuthService {
     );
 
     return { accessToken, refreshToken, expiresIn: 900 };
+  }
+
+  private async resolveRole(
+    userId: string,
+    tenantId: string | null,
+    isPlatformAdmin: boolean,
+  ): Promise<string | null> {
+    if (isPlatformAdmin) return 'tenant_admin';
+    if (!tenantId) return null;
+    const rows = await this.dataSource.query(
+      `select role from public.memberships
+       where user_id = $1 and tenant_id = $2 and status = 'active'
+       limit 1`,
+      [userId, tenantId],
+    );
+    return rows[0]?.role ?? null;
   }
 }
