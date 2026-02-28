@@ -19,7 +19,7 @@ import { TenantContextMiddleware } from './common/middleware/tenant-context.midd
       url: process.env.DATABASE_URL,
       autoLoadEntities: false,
       synchronize: false,
-      ssl: { rejectUnauthorized: true },
+      ssl: { rejectUnauthorized: false },
       extra: {
         max: 5,
         min: 0,
