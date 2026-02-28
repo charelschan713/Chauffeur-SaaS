@@ -19,7 +19,13 @@ import { TenantContextMiddleware } from './common/middleware/tenant-context.midd
       url: process.env.DATABASE_URL,
       autoLoadEntities: false,
       synchronize: false,
-      extra: { max: 10, statement_timeout: 10_000 },
+      ssl: { rejectUnauthorized: true },
+      extra: {
+        max: 5,
+        min: 0,
+        idleTimeoutMillis: 30000,
+        connectionTimeoutMillis: 10000,
+      },
     }),
     EventEmitterModule.forRoot({ wildcard: true }),
     CommonModule,
@@ -34,7 +40,7 @@ export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
     consumer
       .apply(TenantContextMiddleware)
-      .exclude('auth/(.*)', 'webhooks/(.*)', 'health')
+      .exclude('auth/*path', 'webhooks/*path', 'health')
       .forRoutes('*');
   }
 }
