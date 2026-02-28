@@ -2,9 +2,9 @@ import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { EventEmitterModule } from '@nestjs/event-emitter';
-import { JwtModule } from '@nestjs/jwt';
 
 import { AuthModule } from './auth/auth.module';
+import { CommonModule } from './common/common.module';
 import { BookingModule } from './booking/booking.module';
 import { PaymentModule } from './payment/payment.module';
 import { DispatchModule } from './dispatch/dispatch.module';
@@ -22,7 +22,7 @@ import { TenantContextMiddleware } from './common/middleware/tenant-context.midd
       extra: { max: 10, statement_timeout: 10_000 },
     }),
     EventEmitterModule.forRoot({ wildcard: true }),
-    JwtModule.register({}),
+    CommonModule,
     AuthModule,
     BookingModule,
     PaymentModule,
