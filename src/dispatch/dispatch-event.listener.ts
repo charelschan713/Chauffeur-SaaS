@@ -40,6 +40,8 @@ export class DispatchEventListener {
     });
   }
 
+  // TODO Phase 5: Replace direct BookingService dependency
+  // with event-driven orchestration via Orchestrator Layer
   @OnEvent('DriverAcceptedAssignment')
   async onDriverAccepted(payload: { tenant_id: string; booking_id: string; driver_id: string }) {
     try {
