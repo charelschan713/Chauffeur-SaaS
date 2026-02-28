@@ -40,8 +40,9 @@ export class StripeWebhookController {
         signature,
         process.env.STRIPE_WEBHOOK_SECRET!,
       );
-    } catch (err) {
-      throw new BadRequestException(`Invalid signature: ${err.message}`);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Unknown error';
+      throw new BadRequestException(`Invalid signature: ${message}`);
     }
 
     const dataObject: any = event.data.object;
