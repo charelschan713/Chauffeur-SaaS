@@ -4,11 +4,17 @@ import { DispatchController } from './dispatch.controller';
 import { DispatchTimeoutWorker } from './dispatch-timeout.worker';
 import { DispatchEventListener } from './dispatch-event.listener';
 import { BookingModule } from '../booking/booking.module';
+import { EligibilityResolver } from './eligibility/eligibility.resolver';
 
 @Module({
   imports: [BookingModule],
   controllers: [DispatchController],
-  providers: [DispatchService, DispatchTimeoutWorker, DispatchEventListener],
+  providers: [
+    DispatchService,
+    DispatchTimeoutWorker,
+    DispatchEventListener,
+    EligibilityResolver,
+  ],
   exports: [DispatchService],
 })
 export class DispatchModule {}

@@ -2,6 +2,7 @@ import { BadRequestException, ForbiddenException, Injectable, NotFoundException 
 import { DataSource, EntityManager } from 'typeorm';
 import { DISPATCH_EVENTS } from './dispatch-events';
 import { randomUUID } from 'crypto';
+import { EligibilityResolver } from './eligibility/eligibility.resolver';
 
 interface AssignmentRecord {
   id: string;
@@ -15,7 +16,10 @@ interface AssignmentRecord {
 export class DispatchService {
   private readonly OFFER_TIMEOUT_MINUTES = 2;
 
-  constructor(private readonly dataSource: DataSource) {}
+  constructor(
+    private readonly dataSource: DataSource,
+    private readonly eligibilityResolver: EligibilityResolver,
+  ) {}
 
   async offerAssignment(
     tenantId: string,
@@ -53,6 +57,46 @@ export class DispatchService {
 
       return assignment;
     });
+  }
+
+  async autoDispatch(tenantId: string, bookingId: string, dispatcherId: string) {
+    const bookings = await this.dataSource.query(
+      `SELECT id, service_class_id, operational_status
+       FROM public.bookings
+       WHERE id = $1 AND tenant_id = $2`,
+      [bookingId, tenantId],
+    );
+    if (!bookings.length) throw new NotFoundException('Booking not found');
+    const booking = bookings[0];
+    if (booking.operational_status !== 'CONFIRMED') {
+      throw new BadRequestException('Booking must be CONFIRMED');
+    }
+    if (!booking.service_class_id) {
+      throw new BadRequestException('Booking has no service class');
+    }
+
+    const eligible = await this.eligibilityResolver.resolve(tenantId, bookingId);
+    if (!eligible.length) {
+      throw new BadRequestException('No eligible drivers available');
+    }
+
+    const best = eligible[0];
+    const assignment = await this.offerAssignment(
+      tenantId,
+      bookingId,
+      best.driverId,
+      best.tenantVehicleId,
+      dispatcherId,
+    );
+
+    return {
+      assignmentId: assignment.id,
+      driverId: best.driverId,
+      driverName: best.fullName,
+      vehicleMake: best.vehicleMake,
+      vehicleModel: best.vehicleModel,
+      selectionReason: 'MOST_RECENTLY_AVAILABLE',
+    };
   }
 
   async driverAccept(tenantId: string, assignmentId: string, driverId: string) {
