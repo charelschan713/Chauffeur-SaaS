@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Get,
@@ -43,8 +44,9 @@ export class DriverController {
   async updateStatus(
     @CurrentUser('tenant_id') tenantId: string,
     @Param('id') driverId: string,
-    @Body() dto: UpdateDriverStatusDto,
+    @Body('availability_status') status: string,
   ) {
-    return this.drivers.updateStatus(tenantId, driverId, dto.availability_status);
+    if (!status) throw new BadRequestException('status is required');
+    return this.drivers.updateStatus(tenantId, driverId, status);
   }
 }
