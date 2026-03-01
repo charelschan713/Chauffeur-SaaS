@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { DataSource, EntityManager } from 'typeorm';
-import { v4 as uuidv4 } from 'uuid';
+import { randomUUID } from 'crypto';
 import { BOOKING_EVENTS } from './booking-events';
 
 export class ImmutableBookingError extends ForbiddenException {
@@ -157,7 +157,7 @@ export class BookingService {
   }
 
   async createBooking(tenantId: string, dto: any) {
-    const clientRequestId = dto.clientRequestId ?? uuidv4();
+    const clientRequestId = dto.clientRequestId ?? randomUUID();
 
     const existing = await this.dataSource.query(
       `select booking_id from public.idempotency_keys
@@ -167,7 +167,7 @@ export class BookingService {
     if (existing.length) return { bookingId: existing[0].booking_id };
 
     return this.dataSource.transaction(async (manager: EntityManager) => {
-      const bookingId = uuidv4();
+      const bookingId = randomUUID();
       const bookingReference =
         'BK-' + Math.random().toString(36).substring(2, 10).toUpperCase();
 
