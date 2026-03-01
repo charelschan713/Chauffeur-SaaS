@@ -6,6 +6,7 @@ import {
 import { DataSource, EntityManager } from 'typeorm';
 import { randomUUID } from 'crypto';
 import { BOOKING_EVENTS } from './booking-events';
+import { PricingResolver } from '../pricing/pricing.resolver';
 
 export class ImmutableBookingError extends ForbiddenException {
   constructor() {
@@ -24,7 +25,10 @@ const ALLOWED_TRANSITIONS: Record<string, string[]> = {
 @Injectable()
 export class BookingService {
 
-  constructor(private readonly dataSource: DataSource) {}
+  constructor(
+    private readonly dataSource: DataSource,
+    private readonly pricingResolver: PricingResolver,
+  ) {}
 
   async listBookings(tenantId: string, query: Record<string, any>) {
     const page = Math.max(1, Number(query.page ?? 1));
@@ -171,15 +175,36 @@ export class BookingService {
       const bookingReference =
         'BK-' + Math.random().toString(36).substring(2, 10).toUpperCase();
 
+      let pricingSnapshot: any = null;
+      let totalPriceMinor = 0;
+
+      if (dto.serviceClassId) {
+        const snapshot = await this.pricingResolver.resolve({
+          tenantId,
+          serviceClassId: dto.serviceClassId,
+          distanceKm: dto.distanceKm ?? 0,
+          durationMinutes: dto.durationMinutes ?? 0,
+          pickupZoneName: dto.pickupAddress,
+          dropoffZoneName: dto.dropoffAddress,
+          waypointsCount: dto.waypoints?.length ?? 0,
+          babyseatCount: dto.babyseatCount ?? 0,
+          requestedAtUtc: new Date(dto.pickupAtUtc),
+          currency: dto.currency ?? 'AUD',
+        });
+        pricingSnapshot = snapshot;
+        totalPriceMinor = snapshot.totalPriceMinor;
+      }
+
       await manager.query(
         `insert into public.bookings (
           id, tenant_id, booking_reference, booking_source,
           customer_first_name, customer_last_name, customer_email,
           pickup_address_text, dropoff_address_text,
           pickup_at_utc, timezone,
-          total_price_minor, currency, client_request_id
+          total_price_minor, currency, client_request_id,
+          service_class_id, pricing_snapshot
         ) values (
-          $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14
+          $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16
         )`,
         [
           bookingId,
@@ -193,9 +218,11 @@ export class BookingService {
           dto.dropoff.address,
           dto.pickupAtUtc,
           dto.timezone ?? 'UTC',
-          dto.totalPriceMinor ?? 0,
+          totalPriceMinor,
           dto.currency ?? 'AUD',
           clientRequestId,
+          dto.serviceClassId ?? null,
+          pricingSnapshot,
         ],
       );
 
