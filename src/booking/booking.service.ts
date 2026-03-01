@@ -279,23 +279,32 @@ export class BookingService {
         ],
       );
 
-      const eventPayload = this.buildEventPayload(
-        booking,
-        newStatus,
-        triggeredBy,
-      );
+      const STATUSES_WITH_EVENTS = new Set([
+        'CONFIRMED',
+        'COMPLETED',
+        'CANCELLED',
+        'NO_SHOW',
+      ]);
 
-      await manager.query(
-        `insert into public.outbox_events
-         (tenant_id, aggregate_type, aggregate_id,
-          event_type, event_schema_version, payload)
-         values ($1,'booking',$2,$3,1,$4)`
-      , [
-          booking.tenant_id,
-          bookingId,
-          eventPayload.eventType,
-          eventPayload.body,
-        ]);
+      if (STATUSES_WITH_EVENTS.has(newStatus)) {
+        const eventPayload = this.buildEventPayload(
+          booking,
+          newStatus,
+          triggeredBy,
+        );
+
+        await manager.query(
+          `insert into public.outbox_events
+           (tenant_id, aggregate_type, aggregate_id,
+            event_type, event_schema_version, payload)
+           values ($1,'booking',$2,$3,1,$4)`
+        , [
+            booking.tenant_id,
+            bookingId,
+            eventPayload.eventType,
+            eventPayload.body,
+          ]);
+      }
 
       return { bookingId, previous: booking.operational_status, newStatus };
     });
