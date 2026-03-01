@@ -1,7 +1,7 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { DataSource, EntityManager } from 'typeorm';
 import { DISPATCH_EVENTS } from './dispatch-events';
-import { v4 as uuidv4 } from 'uuid';
+import { randomUUID } from 'crypto';
 
 interface AssignmentRecord {
   id: string;
@@ -243,7 +243,7 @@ export class DispatchService {
     );
 
     if (!rows.length) {
-      const id = uuidv4();
+      const id = randomUUID();
       await manager.query(
         `insert into public.assignments (
            id, tenant_id, booking_id, driver_id, vehicle_id, status, offered_at
