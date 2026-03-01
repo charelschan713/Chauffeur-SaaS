@@ -26,9 +26,9 @@ export default function LoginPage() {
       const payload = JSON.parse(atob(res.data.accessToken.split('.')[1]));
 
       if (payload.isPlatformAdmin) {
-        router.push('/platform/overview');
+        router.push('/overview');
       } else {
-        router.push('/tenant/dashboard');
+        router.push('/dashboard');
       }
     } catch {
       setError('Invalid email or password');
