@@ -9,7 +9,10 @@ async function bootstrap() {
   app.use(cookieParser());
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
   app.use('/webhooks/stripe', express.raw({ type: 'application/json' }));
-  app.enableCors({ origin: process.env.CORS_ORIGINS?.split(',') ?? '*', credentials: true });
+  app.enableCors({
+    origin: process.env.ALLOWED_ORIGINS?.split(',') ?? ['http://localhost:3000'],
+    credentials: true,
+  });
   const port = Number(process.env.PORT ?? 3000);
   await app.listen(port);
 }
