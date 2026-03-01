@@ -1,26 +1,23 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import api from '@/lib/api';
 
 export default function DashboardPage() {
-  const [stats, setStats] = useState({
-    total: 0,
-    confirmed: 0,
-    completed: 0,
-    pending: 0,
+  const { data } = useQuery({
+    queryKey: ['bookings-summary'],
+    queryFn: async () => {
+      const res = await api.get('/bookings');
+      return res.data?.data ?? [];
+    },
   });
 
-  useEffect(() => {
-    api.get('/bookings').then((r) => {
-      const bookings = r.data;
-      setStats({
-        total: bookings.length,
-        confirmed: bookings.filter((b: any) => b.operational_status === 'CONFIRMED').length,
-        completed: bookings.filter((b: any) => b.operational_status === 'COMPLETED').length,
-        pending: bookings.filter((b: any) => b.operational_status === 'PENDING').length,
-      });
-    });
-  }, []);
+  const bookings = data ?? [];
+  const stats = {
+    total: bookings.length,
+    confirmed: bookings.filter((b: any) => b.operational_status === 'CONFIRMED').length,
+    completed: bookings.filter((b: any) => b.operational_status === 'COMPLETED').length,
+    pending: bookings.filter((b: any) => b.operational_status === 'PENDING').length,
+  };
 
   return (
     <div>

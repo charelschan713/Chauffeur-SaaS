@@ -20,7 +20,7 @@ export default function PlatformLayout({
     try {
       const payload = JSON.parse(atob(token.split('.')[1]));
       if (!payload.isPlatformAdmin) {
-        router.push('/tenant/dashboard');
+        router.push('/dashboard');
         return;
       }
       setReady(true);
@@ -39,13 +39,13 @@ export default function PlatformLayout({
         </div>
         <nav className="flex-1 p-4 space-y-1">
           <Link
-            href="/platform/overview"
+            href="/overview"
             className="block px-3 py-2 rounded hover:bg-gray-700"
           >
             Overview
           </Link>
           <Link
-            href="/platform/tenants"
+            href="/tenants"
             className="block px-3 py-2 rounded hover:bg-gray-700"
           >
             Tenants

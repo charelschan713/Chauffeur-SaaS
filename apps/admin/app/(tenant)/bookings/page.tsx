@@ -1,6 +1,6 @@
 'use client';
-import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useQuery } from '@tanstack/react-query';
 import api from '@/lib/api';
 
 interface Booking {
@@ -27,24 +27,24 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 export default function BookingsPage() {
-  const [bookings, setBookings] = useState<Booking[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data, isLoading } = useQuery({
+    queryKey: ['bookings'],
+    queryFn: async () => {
+      const res = await api.get('/bookings');
+      return res.data?.data ?? [];
+    },
+  });
 
-  useEffect(() => {
-    api
-      .get('/bookings')
-      .then((r) => setBookings(r.data))
-      .finally(() => setLoading(false));
-  }, []);
+  const bookings: Booking[] = data ?? [];
 
-  if (loading) return <div className="text-gray-500">Loading...</div>;
+  if (isLoading) return <div className="text-gray-500">Loading...</div>;
 
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-bold">Bookings</h2>
         <Link
-          href="/tenant/bookings/new"
+          href="/bookings/new"
           className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
         >
           New Booking
@@ -91,7 +91,7 @@ export default function BookingsPage() {
                   {b.currency} {(b.total_price_minor / 100).toFixed(2)}
                 </td>
                 <td className="px-6 py-4">
-                  <Link href={`/tenant/bookings/${b.id}`} className="text-blue-600 hover:underline text-sm">
+                  <Link href={`/bookings/${b.id}`} className="text-blue-600 hover:underline text-sm">
                     View
                   </Link>
                 </td>

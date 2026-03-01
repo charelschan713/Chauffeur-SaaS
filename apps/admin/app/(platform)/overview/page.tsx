@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import api from '@/lib/api';
 
 interface Metrics {
@@ -9,14 +9,17 @@ interface Metrics {
 }
 
 export default function OverviewPage() {
-  const [metrics, setMetrics] = useState<Metrics | null>(null);
+  const { data, isLoading } = useQuery({
+    queryKey: ['platform-metrics'],
+    queryFn: async () => {
+      const res = await api.get('/platform/metrics');
+      return res.data?.data ?? null;
+    },
+  });
 
-  useEffect(() => {
-    api.get('/platform/metrics').then((r) => setMetrics(r.data));
-  }, []);
+  const metrics = data as Metrics | null;
 
-  if (!metrics)
-    return <div className="text-gray-500">Loading...</div>;
+  if (isLoading || !metrics) return <div className="text-gray-500">Loading...</div>;
 
   return (
     <div>

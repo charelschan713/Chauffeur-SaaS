@@ -1,6 +1,6 @@
 'use client';
-import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useQuery } from '@tanstack/react-query';
 import api from '@/lib/api';
 
 interface Tenant {
@@ -12,17 +12,17 @@ interface Tenant {
 }
 
 export default function TenantsPage() {
-  const [tenants, setTenants] = useState<Tenant[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data, isLoading } = useQuery({
+    queryKey: ['platform-tenants'],
+    queryFn: async () => {
+      const res = await api.get('/platform/tenants');
+      return res.data?.data ?? [];
+    },
+  });
 
-  useEffect(() => {
-    api
-      .get('/platform/tenants')
-      .then((r) => setTenants(r.data))
-      .finally(() => setLoading(false));
-  }, []);
+  const tenants: Tenant[] = data ?? [];
 
-  if (loading) return <div className="text-gray-500">Loading...</div>;
+  if (isLoading) return <div className="text-gray-500">Loading...</div>;
 
   return (
     <div>
@@ -57,7 +57,7 @@ export default function TenantsPage() {
                 </td>
                 <td className="px-6 py-4">
                   <Link
-                    href={`/platform/tenants/${t.id}`}
+                    href={`/tenants/${t.id}`}
                     className="text-blue-600 hover:underline"
                   >
                     View
