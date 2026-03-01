@@ -21,7 +21,7 @@ export default function TenantLayout({
     try {
       const payload = JSON.parse(atob(token.split('.')[1]));
       if (payload.isPlatformAdmin) {
-        router.push('/platform/overview');
+        router.push('/overview');
         return;
       }
       setTenantName(payload.tenant_id ?? '');
@@ -41,22 +41,22 @@ export default function TenantLayout({
           <p className="text-xs text-blue-300 mt-1">{tenantName}</p>
         </div>
         <nav className="flex-1 p-4 space-y-1">
-          <Link href="/tenant/dashboard" className="block px-3 py-2 rounded hover:bg-blue-800">
+          <Link href="/dashboard" className="block px-3 py-2 rounded hover:bg-blue-800">
             Dashboard
           </Link>
-          <Link href="/tenant/bookings" className="block px-3 py-2 rounded hover:bg-blue-800">
+          <Link href="/bookings" className="block px-3 py-2 rounded hover:bg-blue-800">
             Bookings
           </Link>
-          <Link href="/tenant/drivers" className="block px-3 py-2 rounded hover:bg-blue-800">
+          <Link href="/drivers" className="block px-3 py-2 rounded hover:bg-blue-800">
             Drivers
           </Link>
-          <Link href="/tenant/dispatch" className="block px-3 py-2 rounded hover:bg-blue-800">
+          <Link href="/dispatch" className="block px-3 py-2 rounded hover:bg-blue-800">
             Dispatch
           </Link>
-          <Link href="/tenant/payments" className="block px-3 py-2 rounded hover:bg-blue-800">
+          <Link href="/bookings" className="block px-3 py-2 rounded hover:bg-blue-800">
             Payments
           </Link>
-          <Link href="/tenant/settings" className="block px-3 py-2 rounded hover:bg-blue-800">
+          <Link href="/dashboard" className="block px-3 py-2 rounded hover:bg-blue-800">
             Settings
           </Link>
         </nav>
