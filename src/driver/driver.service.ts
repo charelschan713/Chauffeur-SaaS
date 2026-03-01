@@ -27,7 +27,7 @@ export class DriverService {
         'ds.driver_id = u.id AND ds.tenant_id = m.tenant_id',
       )
       .where('m.tenant_id = :tenantId', { tenantId })
-      .andWhere('m.role = :role', { role: 'DRIVER' });
+      .andWhere('m.role = :role', { role: 'driver' });
 
     if (params.search) {
       qb.andWhere('(u.full_name ILIKE :search OR u.email ILIKE :search)', {
