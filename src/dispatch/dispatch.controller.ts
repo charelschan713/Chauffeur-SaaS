@@ -10,11 +10,6 @@ import { DispatchService } from './dispatch.service';
 import { JwtGuard } from '../common/guards/jwt.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 
-class OfferAssignmentDto {
-  bookingId!: string;
-  driverId!: string;
-  vehicleId!: string;
-}
 
 class DeclineDto {
   reason?: string;
@@ -27,7 +22,9 @@ export class DispatchController {
 
   @Post('offer')
   async offer(
-    @Body() dto: OfferAssignmentDto,
+    @Body('bookingId') bookingId: string,
+    @Body('driverId') driverId: string,
+    @Body('vehicleId') vehicleId: string,
     @CurrentUser('tenant_id') tenantId: string,
     @CurrentUser('sub') dispatcherId: string,
     @CurrentUser('role') role: string | null,
@@ -35,9 +32,9 @@ export class DispatchController {
     this.assertRole(role, ['tenant_admin', 'tenant_staff']);
     return this.dispatch.offerAssignment(
       tenantId,
-      dto.bookingId,
-      dto.driverId,
-      dto.vehicleId,
+      bookingId,
+      driverId,
+      vehicleId,
       dispatcherId,
     );
   }

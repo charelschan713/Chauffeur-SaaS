@@ -201,13 +201,11 @@ export class DispatchService {
     tenantId: string,
     bookingId: string,
   ) {
-    console.log('ensureBookingConfirmed', { tenantId, bookingId });
     const rows = await manager.query(
       `select operational_status from public.bookings
        where id = $1 and tenant_id = $2`,
       [bookingId, tenantId],
     );
-    console.log('booking rows:', rows);
     if (!rows.length) throw new NotFoundException('Booking not found');
     if (rows[0].operational_status !== 'CONFIRMED') {
       throw new BadRequestException('Booking must be CONFIRMED');
