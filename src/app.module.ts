@@ -10,6 +10,7 @@ import { PaymentModule } from './payment/payment.module';
 import { DispatchModule } from './dispatch/dispatch.module';
 import { PlatformModule } from './platform/platform.module';
 import { DriverModule } from './driver/driver.module';
+import { PricingModule } from './pricing/pricing.module';
 import { TenantContextMiddleware } from './common/middleware/tenant-context.middleware';
 
 @Module({
@@ -36,6 +37,7 @@ import { TenantContextMiddleware } from './common/middleware/tenant-context.midd
     DispatchModule,
     PlatformModule,
     DriverModule,
+    PricingModule,
   ],
 })
 export class AppModule implements NestModule {
