@@ -11,6 +11,7 @@ import { DispatchModule } from './dispatch/dispatch.module';
 import { PlatformModule } from './platform/platform.module';
 import { DriverModule } from './driver/driver.module';
 import { PricingModule } from './pricing/pricing.module';
+import { HealthController } from './health/health.controller';
 import { TenantContextMiddleware } from './common/middleware/tenant-context.middleware';
 
 @Module({
@@ -39,6 +40,7 @@ import { TenantContextMiddleware } from './common/middleware/tenant-context.midd
     DriverModule,
     PricingModule,
   ],
+  controllers: [HealthController],
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
