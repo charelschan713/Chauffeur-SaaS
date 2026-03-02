@@ -78,6 +78,19 @@ export class IntegrationResolver {
           },
           source: 'PLATFORM',
         };
+      case 'resend':
+        if (!process.env.RESEND_API_KEY) return null;
+        return {
+          provider: 'resend',
+          config: {
+            api_key: process.env.RESEND_API_KEY,
+            from_address:
+              process.env.RESEND_FROM_EMAIL ?? 'noreply@yourdomain.com',
+            from_name:
+              process.env.RESEND_FROM_NAME ?? 'Chauffeur Platform',
+          },
+          source: 'PLATFORM',
+        };
       default:
         return null;
     }

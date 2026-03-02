@@ -56,6 +56,7 @@ export class NotificationService {
     if (!booking) return;
 
     const emailIntegration =
+      (await this.integrationResolver.resolve(tenantId, 'resend')) ??
       (await this.integrationResolver.resolve(tenantId, 'sendgrid')) ??
       (await this.integrationResolver.resolve(tenantId, 'mailgun'));
     const smsIntegration = await this.integrationResolver.resolve(
@@ -95,6 +96,7 @@ export class NotificationService {
     if (!booking || !driver) return;
 
     const emailIntegration =
+      (await this.integrationResolver.resolve(tenantId, 'resend')) ??
       (await this.integrationResolver.resolve(tenantId, 'sendgrid')) ??
       (await this.integrationResolver.resolve(tenantId, 'mailgun'));
     const smsIntegration = await this.integrationResolver.resolve(
@@ -152,6 +154,7 @@ export class NotificationService {
     if (!booking) return;
 
     const emailIntegration =
+      (await this.integrationResolver.resolve(tenantId, 'resend')) ??
       (await this.integrationResolver.resolve(tenantId, 'sendgrid')) ??
       (await this.integrationResolver.resolve(tenantId, 'mailgun'));
     const smsIntegration = await this.integrationResolver.resolve(
@@ -191,6 +194,7 @@ export class NotificationService {
     if (!booking) return;
 
     const emailIntegration =
+      (await this.integrationResolver.resolve(tenantId, 'resend')) ??
       (await this.integrationResolver.resolve(tenantId, 'sendgrid')) ??
       (await this.integrationResolver.resolve(tenantId, 'mailgun'));
     const smsIntegration = await this.integrationResolver.resolve(

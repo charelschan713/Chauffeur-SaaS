@@ -17,6 +17,9 @@ export class EmailProvider {
     integration: ResolvedIntegration,
     params: SendEmailParams,
   ): Promise<boolean> {
+    if (integration.provider === 'resend') {
+      return this.sendViaResend(integration.config, params);
+    }
     if (integration.provider === 'sendgrid') {
       return this.sendViaSendGrid(integration.config, params);
     }
@@ -25,6 +28,31 @@ export class EmailProvider {
     }
     this.logger.warn(`Unknown email provider: ${integration.provider}`);
     return false;
+  }
+
+  private async sendViaResend(
+    config: Record<string, string>,
+    params: SendEmailParams,
+  ): Promise<boolean> {
+    try {
+      const res = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${config.api_key}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          from: `${params.fromName} <${params.fromAddress}>`,
+          to: [params.to],
+          subject: params.subject,
+          html: params.html,
+        }),
+      });
+      return res.ok;
+    } catch (err) {
+      this.logger.error('Resend error', err as Error);
+      return false;
+    }
   }
 
   private async sendViaSendGrid(
