@@ -5,6 +5,7 @@ import { ZoneResolver } from './resolvers/zone.resolver';
 import { ItemResolver } from './resolvers/item.resolver';
 import { MultiplierResolver } from './resolvers/multiplier.resolver';
 import { AdjustmentResolver } from './resolvers/adjustment.resolver';
+import { PricingService } from './pricing.service';
 
 @Module({
   controllers: [PricingController],
@@ -14,7 +15,8 @@ import { AdjustmentResolver } from './resolvers/adjustment.resolver';
     ItemResolver,
     MultiplierResolver,
     AdjustmentResolver,
+    PricingService,
   ],
-  exports: [PricingResolver],
+  exports: [PricingResolver, PricingService],
 })
 export class PricingModule {}
