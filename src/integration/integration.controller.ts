@@ -63,4 +63,29 @@ export class IntegrationController {
     return this.integrationService.test(req.user.tenant_id, type);
   }
 
+  @Get('debug/:type')
+  async debugIntegration(@Param('type') type: string, @Req() req: any) {
+    const rows = await this.dataSource.query(
+      `SELECT config_encrypted FROM public.tenant_integrations
+       WHERE tenant_id = $1 AND integration_type = $2`,
+      [req.user.tenant_id, type],
+    );
+    if (!rows.length) return { found: false };
+    const raw = rows[0].config_encrypted;
+    const rawStr = typeof raw === 'string' ? raw : JSON.stringify(raw);
+    try {
+      const decrypted = this.encryptionService.decrypt(rawStr);
+      const config = JSON.parse(decrypted);
+      return {
+        found: true,
+        keys: Object.keys(config),
+        account_sid_preview: config.account_sid?.substring(0, 8) ?? 'missing',
+        api_key_length: config.api_key?.length ?? 0,
+        sender: config.sender ?? 'missing',
+      };
+    } catch (err: any) {
+      return { found: true, error: err?.message ?? 'decrypt failed' };
+    }
+  }
+
 }
