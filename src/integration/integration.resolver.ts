@@ -106,6 +106,26 @@ export class IntegrationResolver {
           },
           source: 'PLATFORM',
         };
+      case 'stripe':
+        if (!process.env.STRIPE_SECRET_KEY) return null;
+        return {
+          provider: 'stripe',
+          config: {
+            secret_key: process.env.STRIPE_SECRET_KEY,
+            publishable_key: process.env.STRIPE_PUBLISHABLE_KEY ?? '',
+            webhook_secret: process.env.STRIPE_WEBHOOK_SECRET ?? '',
+          },
+          source: 'PLATFORM',
+        };
+      case 'google_maps':
+        if (!process.env.GOOGLE_MAPS_API_KEY) return null;
+        return {
+          provider: 'google_maps',
+          config: {
+            api_key: process.env.GOOGLE_MAPS_API_KEY,
+          },
+          source: 'PLATFORM',
+        };
       default:
         return null;
     }

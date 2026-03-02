@@ -26,14 +26,39 @@ const INTEGRATIONS: IntegrationConfig[] = [
   {
     type: 'smtp',
     label: 'SMTP (Email)',
-    description: 'Configure your SMTP provider (Resend, SendGrid, Mailgun, Gmail, or custom).',
+    description:
+      'Configure your SMTP provider (Resend, SendGrid, Mailgun, Gmail, or custom).',
     fields: [
-      { key: 'host', label: 'host', placeholder: 'smtp.resend.com', defaultValue: 'smtp.resend.com' },
+      {
+        key: 'host',
+        label: 'host',
+        placeholder: 'smtp.resend.com',
+        defaultValue: 'smtp.resend.com',
+      },
       { key: 'port', label: 'port', placeholder: '465', defaultValue: '465' },
-      { key: 'username', label: 'username', placeholder: 'resend', defaultValue: 'resend' },
+      {
+        key: 'username',
+        label: 'username',
+        placeholder: 'resend',
+        defaultValue: 'resend',
+      },
       { key: 'password', label: 'password', placeholder: 'API key', defaultValue: '' },
-      { key: 'from_address', label: 'from_address', placeholder: 'noreply@yourdomain.com', defaultValue: '' },
+      {
+        key: 'from_address',
+        label: 'from_address',
+        placeholder: 'noreply@yourdomain.com',
+        defaultValue: '',
+      },
       { key: 'from_name', label: 'from_name', placeholder: 'Your Brand', defaultValue: '' },
+    ],
+  },
+  {
+    type: 'resend',
+    label: 'Resend (Email API)',
+    fields: [
+      { key: 'api_key', label: 'api_key' },
+      { key: 'from_address', label: 'from_address' },
+      { key: 'from_name', label: 'from_name' },
     ],
   },
   {
@@ -48,6 +73,15 @@ const INTEGRATIONS: IntegrationConfig[] = [
   {
     type: 'stripe',
     label: 'Stripe',
+    fields: [
+      { key: 'secret_key', label: 'secret_key' },
+      { key: 'publishable_key', label: 'publishable_key' },
+      { key: 'webhook_secret', label: 'webhook_secret' },
+    ],
+  },
+  {
+    type: 'google_maps',
+    label: 'Google Maps',
     fields: [{ key: 'api_key', label: 'api_key' }],
   },
 ];

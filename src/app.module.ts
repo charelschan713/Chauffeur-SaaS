@@ -15,6 +15,7 @@ import { HealthController } from './health/health.controller';
 import { IntegrationModule } from './integration/integration.module';
 import { NotificationModule } from './notification/notification.module';
 import { VehicleModule } from './vehicle/vehicle.module';
+import { CityModule } from './city/city.module';
 import { TenantContextMiddleware } from './common/middleware/tenant-context.middleware';
 
 @Module({
