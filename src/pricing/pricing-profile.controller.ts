@@ -113,8 +113,12 @@ export class PricingProfileController {
              $5
            FROM public.tenant_service_pricing_profiles pp
            WHERE pp.id = $1
-           ON CONFLICT (pricing_profile_id, item_type)
-           DO UPDATE SET amount_minor = $3, active = $5`,
+           ON CONFLICT (service_class_id, item_type)
+           DO UPDATE SET
+             pricing_profile_id = EXCLUDED.pricing_profile_id,
+             amount_minor = EXCLUDED.amount_minor,
+             unit = EXCLUDED.unit,
+             active = EXCLUDED.active`,
           [id, item.type, Math.round(item.amount * 100), unit, item.enabled],
         );
       }
