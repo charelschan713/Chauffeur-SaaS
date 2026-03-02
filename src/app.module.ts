@@ -12,6 +12,8 @@ import { PlatformModule } from './platform/platform.module';
 import { DriverModule } from './driver/driver.module';
 import { PricingModule } from './pricing/pricing.module';
 import { HealthController } from './health/health.controller';
+import { IntegrationModule } from './integration/integration.module';
+import { NotificationModule } from './notification/notification.module';
 import { TenantContextMiddleware } from './common/middleware/tenant-context.middleware';
 
 @Module({
@@ -39,6 +41,8 @@ import { TenantContextMiddleware } from './common/middleware/tenant-context.midd
     PlatformModule,
     DriverModule,
     PricingModule,
+    IntegrationModule,
+    NotificationModule,
   ],
   controllers: [HealthController],
 })

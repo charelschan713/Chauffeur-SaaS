@@ -1,6 +1,7 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { DataSource, EntityManager } from 'typeorm';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import { NotificationService } from '../notification/notification.service';
 
 @Injectable()
 export class OutboxWorkerService implements OnModuleInit {
@@ -9,6 +10,7 @@ export class OutboxWorkerService implements OnModuleInit {
   constructor(
     private readonly dataSource: DataSource,
     private readonly events: EventEmitter2,
+    private readonly notificationService: NotificationService,
   ) {}
 
   onModuleInit() {
@@ -53,6 +55,10 @@ export class OutboxWorkerService implements OnModuleInit {
 
     for (const event of events) {
       try {
+        await this.notificationService.handleEvent(
+          event.event_type,
+          event.payload,
+        );
         this.events.emit(event.event_type, event.payload);
         await this.dataSource.query(
           `update public.outbox_events
