@@ -8,7 +8,21 @@ interface IntegrationRow {
   masked_preview: string | null;
 }
 
-const INTEGRATIONS = [
+type IntegrationField = {
+  key: string;
+  label?: string;
+  placeholder?: string;
+  defaultValue?: string;
+};
+
+type IntegrationConfig = {
+  type: string;
+  label: string;
+  description?: string;
+  fields: IntegrationField[];
+};
+
+const INTEGRATIONS: IntegrationConfig[] = [
   {
     type: 'smtp',
     label: 'SMTP (Email)',
@@ -22,8 +36,20 @@ const INTEGRATIONS = [
       { key: 'from_name', label: 'from_name', placeholder: 'Your Brand', defaultValue: '' },
     ],
   },
-  { type: 'twilio', label: 'Twilio', fields: [{ key: 'account_sid' }, { key: 'api_key' }, { key: 'sender' }] },
-  { type: 'stripe', label: 'Stripe', fields: [{ key: 'api_key' }] },
+  {
+    type: 'twilio',
+    label: 'Twilio',
+    fields: [
+      { key: 'account_sid', label: 'account_sid' },
+      { key: 'api_key', label: 'api_key' },
+      { key: 'sender', label: 'sender' },
+    ],
+  },
+  {
+    type: 'stripe',
+    label: 'Stripe',
+    fields: [{ key: 'api_key', label: 'api_key' }],
+  },
 ];
 
 export default function IntegrationsPage() {
