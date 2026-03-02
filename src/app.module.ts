@@ -46,6 +46,7 @@ import { TenantContextMiddleware } from './common/middleware/tenant-context.midd
     IntegrationModule,
     NotificationModule,
     VehicleModule,
+    CityModule,
   ],
   controllers: [HealthController],
 })
