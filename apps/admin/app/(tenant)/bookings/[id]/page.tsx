@@ -21,7 +21,7 @@ export default function BookingDetailPage() {
     queryKey: ['booking', bookingId],
     queryFn: async () => {
       const res = await api.get(`/bookings/${bookingId}`);
-      return res.data.data;
+      return res.data;
     },
     enabled: Boolean(bookingId),
   });
