@@ -195,16 +195,32 @@ export class BookingService {
         totalPriceMinor = snapshot.totalPriceMinor;
       }
 
+      const phone = dto.customer?.phone ?? '';
+      let phoneCountryCode = '';
+      let phoneNumber = '';
+      if (phone.startsWith('+')) {
+        const match = phone.match(/^(\+\d{1,3})(\d+)$/);
+        if (match) {
+          phoneCountryCode = match[1];
+          phoneNumber = match[2];
+        } else {
+          phoneNumber = phone;
+        }
+      } else {
+        phoneNumber = phone;
+      }
+
       await manager.query(
         `insert into public.bookings (
           id, tenant_id, booking_reference, booking_source,
           customer_first_name, customer_last_name, customer_email,
+          customer_phone_country_code, customer_phone_number,
           pickup_address_text, dropoff_address_text,
           pickup_at_utc, timezone,
           total_price_minor, currency, client_request_id,
           service_class_id, pricing_snapshot
         ) values (
-          $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16
+          $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18
         )`,
         [
           bookingId,
@@ -214,6 +230,8 @@ export class BookingService {
           dto.customer.firstName,
           dto.customer.lastName,
           dto.customer.email,
+          phoneCountryCode,
+          phoneNumber,
           dto.pickup.address,
           dto.dropoff.address,
           dto.pickupAtUtc,
