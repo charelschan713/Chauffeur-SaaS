@@ -41,6 +41,8 @@ export class OutboxWorkerService implements OnModuleInit {
          limit 50`,
       );
 
+      this.logger.log('OutboxWorker tick');
+
       for (const row of rows) {
         await manager.query(
           `update public.outbox_events
@@ -55,6 +57,9 @@ export class OutboxWorkerService implements OnModuleInit {
 
     for (const event of events) {
       try {
+        this.logger.log(
+          `Processing event: ${event.event_type} payload: ${JSON.stringify(event.payload)}`,
+        );
         await this.notificationService.handleEvent(
           event.event_type,
           event.payload,
