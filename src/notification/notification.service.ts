@@ -63,6 +63,10 @@ export class NotificationService {
       tenantId,
       'twilio',
     );
+    this.logger.log(
+      `SMS integration: ${JSON.stringify({ found: !!smsIntegration, provider: smsIntegration?.provider })}`,
+    );
+    this.logger.log(`Customer phone: ${booking?.customer_phone}`);
 
     if (emailIntegration && booking.customer_email) {
       const template = bookingConfirmedEmail({
