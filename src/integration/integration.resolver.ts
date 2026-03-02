@@ -91,6 +91,21 @@ export class IntegrationResolver {
           },
           source: 'PLATFORM',
         };
+      case 'smtp':
+        if (!process.env.SMTP_PASSWORD) return null;
+        return {
+          provider: 'smtp',
+          config: {
+            host: process.env.SMTP_HOST ?? 'smtp.resend.com',
+            port: process.env.SMTP_PORT ?? '465',
+            username: process.env.SMTP_USERNAME ?? 'resend',
+            password: process.env.SMTP_PASSWORD,
+            from_address:
+              process.env.SMTP_FROM_EMAIL ?? 'noreply@platform.com',
+            from_name: process.env.SMTP_FROM_NAME ?? 'Chauffeur Platform',
+          },
+          source: 'PLATFORM',
+        };
       default:
         return null;
     }

@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import * as nodemailer from 'nodemailer';
 import { ResolvedIntegration } from '../../integration/integration.resolver';
 
 export interface SendEmailParams {
@@ -22,6 +23,9 @@ export class EmailProvider {
     );
     if (integration.provider === 'resend') {
       return this.sendViaResend(integration.config, params);
+    }
+    if (integration.provider === 'smtp') {
+      return this.sendViaSmtp(integration.config, params);
     }
     if (integration.provider === 'sendgrid') {
       return this.sendViaSendGrid(integration.config, params);
@@ -89,6 +93,37 @@ export class EmailProvider {
       return res.ok;
     } catch (err) {
       this.logger.error('SendGrid error', err as Error);
+      return false;
+    }
+  }
+
+  private async sendViaSmtp(
+    config: Record<string, string>,
+    params: SendEmailParams,
+  ): Promise<boolean> {
+    try {
+      const port = Number(config.port ?? 465);
+      const transporter = nodemailer.createTransport({
+        host: config.host ?? 'smtp.resend.com',
+        port,
+        secure: port === 465,
+        auth: {
+          user: config.username ?? 'resend',
+          pass: config.password,
+        },
+      });
+
+      await transporter.sendMail({
+        from: `${params.fromName} <${params.fromAddress}>`,
+        to: params.to,
+        subject: params.subject,
+        html: params.html,
+      });
+
+      this.logger.log(`SMTP email sent to ${params.to}`);
+      return true;
+    } catch (err) {
+      this.logger.error('SMTP error', err as Error);
       return false;
     }
   }

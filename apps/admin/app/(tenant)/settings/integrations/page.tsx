@@ -9,9 +9,21 @@ interface IntegrationRow {
 }
 
 const INTEGRATIONS = [
-  { type: 'sendgrid', label: 'SendGrid', fields: ['api_key', 'from_address', 'from_name'] },
-  { type: 'twilio', label: 'Twilio', fields: ['account_sid', 'api_key', 'sender'] },
-  { type: 'stripe', label: 'Stripe', fields: ['api_key'] },
+  {
+    type: 'smtp',
+    label: 'SMTP (Email)',
+    description: 'Configure your SMTP provider (Resend, SendGrid, Mailgun, Gmail, or custom).',
+    fields: [
+      { key: 'host', label: 'host', placeholder: 'smtp.resend.com', defaultValue: 'smtp.resend.com' },
+      { key: 'port', label: 'port', placeholder: '465', defaultValue: '465' },
+      { key: 'username', label: 'username', placeholder: 'resend', defaultValue: 'resend' },
+      { key: 'password', label: 'password', placeholder: 'API key', defaultValue: '' },
+      { key: 'from_address', label: 'from_address', placeholder: 'noreply@yourdomain.com', defaultValue: '' },
+      { key: 'from_name', label: 'from_name', placeholder: 'Your Brand', defaultValue: '' },
+    ],
+  },
+  { type: 'twilio', label: 'Twilio', fields: [{ key: 'account_sid' }, { key: 'api_key' }, { key: 'sender' }] },
+  { type: 'stripe', label: 'Stripe', fields: [{ key: 'api_key' }] },
 ];
 
 export default function IntegrationsPage() {
@@ -28,7 +40,7 @@ export default function IntegrationsPage() {
 
   async function saveIntegration(type: string) {
     const config = formState[type]?.config ?? {};
-    const rawKey = config.api_key || '';
+    const rawKey = config.password || config.api_key || '';
     const maskedPreview = rawKey ? `****${rawKey.slice(-4)}` : null;
     await api.post(`/integrations/${type}`, {
       config,
@@ -44,16 +56,25 @@ export default function IntegrationsPage() {
     <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-bold text-gray-900">Integrations</h2>
-        <p className="text-sm text-gray-500 mt-1">Manage SendGrid, Twilio, and Stripe credentials.</p>
+        <p className="text-sm text-gray-500 mt-1">
+          Configure email, SMS, and payments for your tenant.
+        </p>
       </div>
 
       {INTEGRATIONS.map((integration) => {
         const current = rows.find((r) => r.type === integration.type);
+        const fields = integration.fields;
         return (
-          <div key={integration.type} className="bg-white rounded-xl border border-gray-100 shadow-sm p-6 space-y-4">
+          <div
+            key={integration.type}
+            className="bg-white rounded-xl border border-gray-100 shadow-sm p-6 space-y-4"
+          >
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-lg font-semibold text-gray-900">{integration.label}</h3>
+                {integration.description && (
+                  <p className="text-sm text-gray-500 mt-1">{integration.description}</p>
+                )}
                 <p className="text-sm text-gray-500">
                   {current?.active ? `Configured (${current.masked_preview ?? '****'})` : 'Not configured'}
                 </p>
@@ -66,11 +87,15 @@ export default function IntegrationsPage() {
               </button>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {integration.fields.map((field) => (
-                <div key={field}>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">{field}</label>
+              {fields.map((field) => (
+                <div key={field.key}>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    {field.label ?? field.key}
+                  </label>
                   <input
                     type="text"
+                    placeholder={field.placeholder}
+                    defaultValue={field.defaultValue}
                     className="w-full border rounded px-3 py-2 text-sm"
                     onChange={(e) =>
                       setFormState((prev) => ({
@@ -78,7 +103,7 @@ export default function IntegrationsPage() {
                         [integration.type]: {
                           config: {
                             ...prev[integration.type]?.config,
-                            [field]: e.target.value,
+                            [field.key]: e.target.value,
                           },
                         },
                       }))
