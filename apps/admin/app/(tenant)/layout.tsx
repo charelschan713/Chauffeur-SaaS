@@ -71,6 +71,9 @@ export default function TenantLayout({
           <Link href="/settings/cities" className="block px-3 py-2 rounded hover:bg-blue-800">
             Cities
           </Link>
+          <Link href="/settings/templates" className="block px-3 py-2 rounded hover:bg-blue-800">
+            Templates
+          </Link>
         </nav>
         <div className="p-4 border-t border-blue-800">
           <button
