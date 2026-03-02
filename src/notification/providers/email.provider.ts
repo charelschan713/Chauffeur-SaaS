@@ -17,6 +17,9 @@ export class EmailProvider {
     integration: ResolvedIntegration,
     params: SendEmailParams,
   ): Promise<boolean> {
+    this.logger.log(
+      `Sending email via ${integration.provider} to ${params.to}`,
+    );
     if (integration.provider === 'resend') {
       return this.sendViaResend(integration.config, params);
     }
@@ -48,6 +51,11 @@ export class EmailProvider {
           html: params.html,
         }),
       });
+      this.logger.log(`Resend response status: ${res.status}`);
+      if (!res.ok) {
+        const body = await res.text();
+        this.logger.error(`Resend error body: ${body}`);
+      }
       return res.ok;
     } catch (err) {
       this.logger.error('Resend error', err as Error);
@@ -73,6 +81,11 @@ export class EmailProvider {
           content: [{ type: 'text/html', value: params.html }],
         }),
       });
+      this.logger.log(`SendGrid response status: ${res.status}`);
+      if (!res.ok) {
+        const body = await res.text();
+        this.logger.error(`SendGrid error body: ${body}`);
+      }
       return res.ok;
     } catch (err) {
       this.logger.error('SendGrid error', err as Error);
