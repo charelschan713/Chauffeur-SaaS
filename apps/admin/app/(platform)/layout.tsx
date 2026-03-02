@@ -12,7 +12,7 @@ export default function PlatformLayout({
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    const token = sessionStorage.getItem('access_token');
+    const token = localStorage.getItem('accessToken');
     if (!token) {
       router.push('/login');
       return;
@@ -58,7 +58,8 @@ export default function PlatformLayout({
                 `${process.env.NEXT_PUBLIC_API_URL}/auth/logout`,
                 { method: 'POST', credentials: 'include' }
               );
-              sessionStorage.removeItem('access_token');
+              localStorage.removeItem('accessToken');
+              localStorage.removeItem('refreshToken');
               router.push('/login');
             }}
             className="w-full text-left px-3 py-2 text-gray-400 hover:text-white"

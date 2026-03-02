@@ -13,7 +13,7 @@ export default function TenantLayout({
   const [tenantName, setTenantName] = useState('');
 
   useEffect(() => {
-    const token = sessionStorage.getItem('access_token');
+    const token = localStorage.getItem('accessToken');
     if (!token) {
       router.push('/login');
       return;
@@ -73,7 +73,8 @@ export default function TenantLayout({
                 method: 'POST',
                 credentials: 'include',
               });
-              sessionStorage.removeItem('access_token');
+              localStorage.removeItem('accessToken');
+              localStorage.removeItem('refreshToken');
               router.push('/login');
             }}
             className="w-full text-left px-3 py-2 text-blue-300 hover:text-white"

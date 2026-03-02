@@ -21,7 +21,10 @@ export default function LoginPage() {
         { withCredentials: true },
       );
       setAccessToken(res.data.accessToken);
-      sessionStorage.setItem('access_token', res.data.accessToken);
+      localStorage.setItem('accessToken', res.data.accessToken);
+      if (res.data.refreshToken) {
+        localStorage.setItem('refreshToken', res.data.refreshToken);
+      }
 
       const payload = JSON.parse(atob(res.data.accessToken.split('.')[1]));
 
