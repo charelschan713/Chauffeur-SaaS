@@ -104,6 +104,7 @@ export default function PricingMatrixEditorPage() {
   }
 
   async function save() {
+    if (!profile) return;
     setSaving(true);
     await api.put(`/pricing-profiles/${profileId}/items`, {
       items: items.map((item) => ({
