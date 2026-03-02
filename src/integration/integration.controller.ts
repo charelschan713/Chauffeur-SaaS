@@ -63,47 +63,4 @@ export class IntegrationController {
     return this.integrationService.test(req.user.tenant_id, type);
   }
 
-  @Get('test-network')
-  async testNetwork() {
-    try {
-      const res = await fetch('https://api.resend.com');
-      return { status: res.status, ok: res.ok };
-    } catch (err: any) {
-      return { error: err?.message ?? 'Network test failed' };
-    }
-  }
-
-  @Get('debug/:type')
-  async debugIntegration(@Param('type') type: string, @Req() req: any) {
-    const rows = await this.dataSource.query(
-      `SELECT config_encrypted, masked_preview
-       FROM public.tenant_integrations
-       WHERE tenant_id = $1 AND integration_type = $2`,
-      [req.user.tenant_id, type],
-    );
-
-    if (!rows.length) return { found: false };
-
-    const raw = rows[0].config_encrypted;
-    const rawStr = typeof raw === 'string' ? raw : JSON.stringify(raw);
-
-    try {
-      const decrypted = this.encryptionService.decrypt(rawStr);
-      const config = JSON.parse(decrypted);
-      return {
-        found: true,
-        keys: Object.keys(config),
-        api_key_preview: config.api_key?.substring(0, 8) ?? 'missing',
-        raw_type: typeof raw,
-        raw_preview: rawStr.substring(0, 50),
-      };
-    } catch (err: any) {
-      return {
-        found: true,
-        decrypt_error: err?.message ?? 'decrypt failed',
-        raw_type: typeof raw,
-        raw_preview: rawStr.substring(0, 100),
-      };
-    }
-  }
 }
