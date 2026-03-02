@@ -57,4 +57,14 @@ export class IntegrationController {
   async testIntegration(@Param('type') type: string, @Req() req: any) {
     return this.integrationService.test(req.user.tenant_id, type);
   }
+
+  @Get('test-network')
+  async testNetwork() {
+    try {
+      const res = await fetch('https://api.resend.com');
+      return { status: res.status, ok: res.ok };
+    } catch (err: any) {
+      return { error: err?.message ?? 'Network test failed' };
+    }
+  }
 }

@@ -28,15 +28,16 @@ export class IntegrationService {
   private async testSmtp(config: Record<string, string>) {
     try {
       const nodemailer = await import('nodemailer');
-      const port = Number(config.port ?? 465);
       const transporter = nodemailer.createTransport({
         host: config.host ?? 'smtp.resend.com',
-        port,
-        secure: port === 465,
+        port: 587,
+        secure: false,
+        requireTLS: true,
         auth: {
           user: config.username ?? 'resend',
           pass: config.password,
         },
+        connectionTimeout: 10000,
       });
       await transporter.verify();
       return { success: true, message: 'SMTP connection verified' };
