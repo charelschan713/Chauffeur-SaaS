@@ -16,6 +16,7 @@ import { IntegrationModule } from './integration/integration.module';
 import { NotificationModule } from './notification/notification.module';
 import { VehicleModule } from './vehicle/vehicle.module';
 import { CityModule } from './city/city.module';
+import { MapsModule } from './maps/maps.module';
 import { TenantContextMiddleware } from './common/middleware/tenant-context.middleware';
 
 @Module({
@@ -47,6 +48,7 @@ import { TenantContextMiddleware } from './common/middleware/tenant-context.midd
     NotificationModule,
     VehicleModule,
     CityModule,
+    MapsModule,
   ],
   controllers: [HealthController],
 })
