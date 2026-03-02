@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { EncryptionService } from './encryption.service';
 
@@ -10,6 +10,8 @@ export interface ResolvedIntegration {
 
 @Injectable()
 export class IntegrationResolver {
+  private readonly logger = new Logger(IntegrationResolver.name);
+
   constructor(
     private readonly dataSource: DataSource,
     private readonly encryption: EncryptionService,
@@ -36,6 +38,8 @@ export class IntegrationResolver {
             ? rows[0].config_encrypted
             : JSON.stringify(rows[0].config_encrypted);
         const config = JSON.parse(this.encryption.decrypt(raw));
+        this.logger.log(`Resolved config keys: ${Object.keys(config).join(', ')}`);
+        this.logger.log(`api_key starts with: ${config.api_key?.substring(0, 8)}`);
         return {
           provider: rows[0].integration_type,
           config,
