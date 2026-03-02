@@ -56,6 +56,7 @@ export default function IntegrationsPage() {
   const [rows, setRows] = useState<IntegrationRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [formState, setFormState] = useState<Record<string, any>>({});
+  const [testStatus, setTestStatus] = useState<Record<string, { ok: boolean; message: string }>>({});
 
   useEffect(() => {
     api.get('/integrations').then((res) => {
@@ -72,6 +73,22 @@ export default function IntegrationsPage() {
       config,
       maskedPreview,
     });
+    try {
+      const testRes = await api.post(`/integrations/test/${type}`);
+      setTestStatus((prev) => ({
+        ...prev,
+        [type]: {
+          ok: Boolean(testRes.data?.success),
+          message: testRes.data?.message ?? 'Connection test completed',
+        },
+      }));
+    } catch (err: any) {
+      const message = err?.response?.data?.message ?? 'Connection test failed';
+      setTestStatus((prev) => ({
+        ...prev,
+        [type]: { ok: false, message },
+      }));
+    }
     const refreshed = await api.get('/integrations');
     setRows(refreshed.data ?? []);
   }
@@ -104,6 +121,19 @@ export default function IntegrationsPage() {
                 <p className="text-sm text-gray-500">
                   {current?.active ? `Configured (${current.masked_preview ?? '****'})` : 'Not configured'}
                 </p>
+                {testStatus[integration.type] && (
+                  <span
+                    className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium mt-2 ${
+                      testStatus[integration.type].ok
+                        ? 'bg-green-100 text-green-700'
+                        : 'bg-red-100 text-red-700'
+                    }`}
+                  >
+                    {testStatus[integration.type].ok
+                      ? '✅ Connection verified'
+                      : `❌ Connection failed: ${testStatus[integration.type].message}`}
+                  </span>
+                )}
               </div>
               <button
                 onClick={() => saveIntegration(integration.type)}

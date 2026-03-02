@@ -2,6 +2,7 @@ import { Body, Controller, Delete, Get, Param, Post, Req, UseGuards } from '@nes
 import { JwtGuard } from '../common/guards/jwt.guard';
 import { DataSource } from 'typeorm';
 import { EncryptionService } from './encryption.service';
+import { IntegrationService } from './integration.service';
 
 @Controller('integrations')
 @UseGuards(JwtGuard)
@@ -9,6 +10,7 @@ export class IntegrationController {
   constructor(
     private readonly dataSource: DataSource,
     private readonly encryption: EncryptionService,
+    private readonly integrationService: IntegrationService,
   ) {}
 
   @Get()
@@ -49,5 +51,10 @@ export class IntegrationController {
       [req.user.tenant_id, type],
     );
     return { success: true };
+  }
+
+  @Post('test/:type')
+  async testIntegration(@Param('type') type: string, @Req() req: any) {
+    return this.integrationService.test(req.user.tenant_id, type);
   }
 }
