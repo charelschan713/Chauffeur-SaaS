@@ -29,7 +29,7 @@ export default function BookingDetailPage() {
   const booking = data?.booking;
   const timeline = data?.status_history ?? [];
   const assignments = data?.assignments ?? [];
-  const payments = data?.payments;
+  const payments = data?.payments ?? [];
   const latestAssignment = useMemo(() => assignments.at(0), [assignments]);
   const canCancel = booking && CANCELABLE_STATUSES.has(booking.operational_status);
 
@@ -85,11 +85,49 @@ export default function BookingDetailPage() {
                 <InfoRow label="Booking Source">{booking.booking_source}</InfoRow>
                 <InfoRow label="Pickup">
                   <p className="font-medium">{booking.pickup_address_text}</p>
-                  <p className="text-sm text-gray-500">{formatDatetime(booking.pickup_at_utc, booking.timezone)}</p>
+                  <p className="text-sm text-gray-500">{formatPickupTime(booking.pickup_at_utc, booking.timezone)}</p>
                 </InfoRow>
                 <InfoRow label="Dropoff">
                   <p className="font-medium">{booking.dropoff_address_text}</p>
                 </InfoRow>
+              </div>
+            </DetailSection>
+
+            {booking.waypoints && booking.waypoints.length > 0 && (
+              <DetailSection title="Waypoints">
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="text-xs font-medium bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
+                    {booking.waypoints.length} stops
+                  </span>
+                </div>
+                <ul className="list-disc pl-5 space-y-1 text-sm text-gray-700">
+                  {booking.waypoints.map((wp: any, idx: number) => (
+                    <li key={idx}>{wp?.address ?? wp?.address_text ?? wp}</li>
+                  ))}
+                </ul>
+              </DetailSection>
+            )}
+
+            <DetailSection title="Extras">
+              <div className="flex flex-wrap gap-2">
+                {booking.passenger_count > 0 && (
+                  <span className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded-full">
+                    {booking.passenger_count} passengers
+                  </span>
+                )}
+                {booking.luggage_count > 0 && (
+                  <span className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded-full">
+                    {booking.luggage_count} luggage
+                  </span>
+                )}
+                {booking.special_requests && (
+                  <span className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded-full">
+                    {booking.special_requests}
+                  </span>
+                )}
+                {!booking.passenger_count && !booking.luggage_count && !booking.special_requests && (
+                  <span className="text-sm text-gray-500">No extras</span>
+                )}
               </div>
             </DetailSection>
 
@@ -105,7 +143,49 @@ export default function BookingDetailPage() {
                   </p>
                 </div>
               ) : (
-                <p className="text-sm text-gray-500">No assignment yet.</p>
+                <span className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded-full">Unassigned</span>
+              )}
+            </DetailSection>
+
+            <DetailSection title="Pricing Breakdown">
+              {booking.pricing_snapshot ? (
+                booking.pricing_snapshot.pricingMode === 'ZONE' ? (
+                  <div className="space-y-2 text-sm">
+                    <SummaryRow label="Zone">{booking.pricing_snapshot.zoneName ?? 'Zone'}</SummaryRow>
+                    <SummaryRow label="Total">
+                      {formatMoney(Number(booking.pricing_snapshot.totalAmountMinor ?? booking.total_price_minor ?? 0),
+                        booking.pricing_snapshot.currency ?? booking.currency ?? 'AUD')}
+                    </SummaryRow>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                            Item
+                          </th>
+                          <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
+                            Amount
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-200">
+                        {(booking.pricing_snapshot.items ?? []).map((item: any, idx: number) => (
+                          <tr key={idx}>
+                            <td className="px-4 py-2">{item.label ?? item.type ?? 'Item'}</td>
+                            <td className="px-4 py-2 text-right">
+                              {formatMoney(Number(item.amount_minor ?? item.amountMinor ?? 0),
+                                booking.pricing_snapshot.currency ?? booking.currency ?? 'AUD')}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )
+              ) : (
+                <p className="text-sm text-gray-500">No pricing calculated</p>
               )}
             </DetailSection>
 
@@ -118,10 +198,10 @@ export default function BookingDetailPage() {
                       <div className="flex-1 w-px bg-gray-200" />
                     </div>
                     <div>
-                      <p className="font-medium">{entry.status ?? entry.new_status}</p>
+                      <p className="font-medium">
+                        {entry.previous_status ? `${entry.previous_status} → ${entry.new_status}` : entry.new_status}
+                      </p>
                       <p className="text-sm text-gray-500">{new Date(entry.created_at).toLocaleString()}</p>
-                      {entry.actor && <p className="text-xs text-gray-500">{entry.actor}</p>}
-                      {entry.reason && <p className="text-sm text-gray-600 mt-1">Reason: {entry.reason}</p>}
                     </div>
                   </li>
                 ))}
@@ -131,21 +211,20 @@ export default function BookingDetailPage() {
         }
         secondary={
           <>
-            <DetailSection title="Payment Summary">
-              {payments ? (
+            <DetailSection title="Payments">
+              {payments && payments.length > 0 ? (
                 <div className="space-y-2 text-sm">
-                  <SummaryRow label="Authorized">
-                    {formatMoney(payments.summary.authorized_minor, payments.summary.currency)}
-                  </SummaryRow>
-                  <SummaryRow label="Captured">
-                    {formatMoney(payments.summary.captured_minor, payments.summary.currency)}
-                  </SummaryRow>
-                  <SummaryRow label="Refunded">
-                    {formatMoney(payments.summary.refunded_minor, payments.summary.currency)}
-                  </SummaryRow>
+                  {payments.map((payment: any, idx: number) => (
+                    <div key={idx} className="flex items-center justify-between">
+                      <span className="text-gray-600">{payment.status ?? 'Payment'}</span>
+                      <span className="font-medium">
+                        {formatMoney(Number(payment.amount_minor ?? 0), payment.currency ?? booking.currency ?? 'AUD')}
+                      </span>
+                    </div>
+                  ))}
                 </div>
               ) : (
-                <p className="text-sm text-gray-500">No payment data.</p>
+                <p className="text-sm text-gray-500">No payments yet</p>
               )}
             </DetailSection>
 
@@ -205,6 +284,16 @@ function formatMoney(amountMinor: number, currency: string) {
   return `${currency} ${(amountMinor / 100).toFixed(2)}`;
 }
 
-function formatDatetime(isoUtc: string, tz: string) {
-  return new Date(isoUtc).toLocaleString('en-AU', { timeZone: tz });
+function formatPickupTime(isoUtc: string, tz: string) {
+  const location = tz?.includes('/') ? tz.split('/')[1] : tz;
+  const formatted = new Date(isoUtc).toLocaleString('en-AU', {
+    timeZone: tz,
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+  });
+  return `${formatted} (${location})`;
 }
