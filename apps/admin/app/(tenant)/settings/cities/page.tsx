@@ -1,6 +1,6 @@
 'use client';
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { ListPage } from '@/components/patterns/ListPage';
 
@@ -27,6 +27,7 @@ interface CityRow {
 }
 
 export default function CitiesPage() {
+  const queryClient = useQueryClient();
   const { data, isLoading, refetch } = useQuery({
     queryKey: ['cities'],
     queryFn: async () => {
@@ -43,6 +44,8 @@ export default function CitiesPage() {
     if (!form.name.trim()) return;
     setSaving(true);
     await api.post('/cities', { name: form.name.trim(), timezone: form.timezone });
+    const res = await api.get('/cities');
+    queryClient.setQueryData(['cities'], res.data ?? []);
     setForm({ name: '', timezone: 'Australia/Sydney' });
     await refetch();
     setSaving(false);
