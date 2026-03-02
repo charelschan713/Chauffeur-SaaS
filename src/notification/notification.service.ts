@@ -222,33 +222,18 @@ export class NotificationService {
 
   private async getBooking(bookingId: string) {
     const rows = await this.dataSource.query(
-      `SELECT
-         id,
-         booking_reference,
-         tenant_id,
+      `SELECT 
+         id, booking_reference, tenant_id,
          customer_email,
-         customer_phone_country_code,
-         customer_phone_number,
-         customer_first_name,
-         customer_last_name,
+         CONCAT(customer_phone_country_code, customer_phone_number) as customer_phone,
+         customer_first_name, customer_last_name,
          pickup_address_text as pickup_address,
          dropoff_address_text as dropoff_address,
-         pickup_at_utc,
-         total_price_minor,
-         currency
-       FROM public.bookings
-       WHERE id = $1`,
+         pickup_at_utc, total_price_minor, currency
+       FROM public.bookings WHERE id = $1`,
       [bookingId],
     );
-    if (!rows.length) return null;
-    const booking = rows[0];
-    const phone = booking.customer_phone_number
-      ? `${booking.customer_phone_country_code ?? ''}${booking.customer_phone_number}`
-      : null;
-    return {
-      ...booking,
-      customer_phone: phone,
-    };
+    return rows[0] ?? null;
   }
 
   private async getDriver(driverId: string) {
