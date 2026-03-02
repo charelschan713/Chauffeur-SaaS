@@ -26,8 +26,13 @@ export class IntegrationController {
 
   @Post(':type')
   async upsert(@Param('type') type: string, @Body() body: any, @Req() req: any) {
-    const configEncrypted = this.encryptionService.encrypt(JSON.stringify(body.config ?? {}));
-    const maskedPreview = body.maskedPreview ?? null;
+    const { maskedPreview, ...configData } = body;
+    const configEncrypted = this.encryptionService.encrypt(
+      JSON.stringify(configData),
+    );
+    const maskedPreviewValue =
+      maskedPreview ??
+      (configData.api_key ? `****${configData.api_key.slice(-4)}` : null);
     const rows = await this.dataSource.query(
       `INSERT INTO public.tenant_integrations (tenant_id, integration_type, config_encrypted, masked_preview, active)
        VALUES ($1,$2,$3,$4,true)
@@ -37,7 +42,7 @@ export class IntegrationController {
                      active = true,
                      updated_at = now()
        RETURNING id`,
-      [req.user.tenant_id, type, configEncrypted, maskedPreview],
+      [req.user.tenant_id, type, configEncrypted, maskedPreviewValue],
     );
     return { success: true, id: rows[0]?.id };
   }
