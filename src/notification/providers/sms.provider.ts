@@ -30,11 +30,6 @@ export class SmsProvider {
         From: config.sender,
         Body: message,
       });
-      this.logger.log(`Twilio From: ${config.sender}`);
-      this.logger.log(`Twilio To: ${to}`);
-      this.logger.log(
-        `Twilio AccountSid: ${config.account_sid?.substring(0, 8)}`,
-      );
       const res = await fetch(
         `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`,
         {
