@@ -11,14 +11,28 @@ export function bookingConfirmedEmail(vars: {
   pickupTime: string;
 }): EmailTemplate {
   return {
-    subject: `Booking Confirmed — ${vars.bookingReference}`,
+    subject: 'Booking Confirmed — {{booking_reference}}',
     html: `
-      <h2>Your booking is confirmed</h2>
-      <p>Dear ${vars.customerName},</p>
-      <p>Your booking <strong>${vars.bookingReference}</strong> has been confirmed.</p>
-      <p><strong>Pickup:</strong> ${vars.pickupAddress}</p>
-      <p><strong>Dropoff:</strong> ${vars.dropoffAddress}</p>
-      <p><strong>Time:</strong> ${vars.pickupTime}</p>
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #1a1a1a;">Your booking is confirmed</h2>
+        <p>Dear {{customer_first_name}} {{customer_last_name}},</p>
+        <p>Your booking <strong>{{booking_reference}}</strong> has been confirmed.</p>
+        <table style="width:100%; border-collapse: collapse; margin: 20px 0;">
+          <tr>
+            <td style="padding: 8px; color: #666;">Pickup</td>
+            <td style="padding: 8px;"><strong>{{pickup_address}}</strong></td>
+          </tr>
+          <tr>
+            <td style="padding: 8px; color: #666;">Dropoff</td>
+            <td style="padding: 8px;"><strong>{{dropoff_address}}</strong></td>
+          </tr>
+          <tr>
+            <td style="padding: 8px; color: #666;">Date & Time</td>
+            <td style="padding: 8px;"><strong>{{pickup_time}}</strong></td>
+          </tr>
+        </table>
+        <p style="color: #666; font-size: 14px;">If you have any questions, please contact us.</p>
+      </div>
     `,
   };
 }
@@ -31,12 +45,31 @@ export function driverAcceptedEmail(vars: {
   vehicleModel: string;
 }): EmailTemplate {
   return {
-    subject: `Driver Assigned — ${vars.bookingReference}`,
+    subject: 'Your Driver is on the Way — {{booking_reference}}',
     html: `
-      <h2>Your driver is on the way</h2>
-      <p>Dear ${vars.customerName},</p>
-      <p>Your driver <strong>${vars.driverName}</strong> has accepted your booking.</p>
-      <p><strong>Vehicle:</strong> ${vars.vehicleMake} ${vars.vehicleModel}</p>
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #1a1a1a;">Your driver has been assigned</h2>
+        <p>Dear {{customer_first_name}},</p>
+        <p>Your driver <strong>{{driver_name}}</strong> has accepted your booking.</p>
+        <table style="width:100%; border-collapse: collapse; margin: 20px 0;">
+          <tr>
+            <td style="padding: 8px; color: #666;">Driver</td>
+            <td style="padding: 8px;"><strong>{{driver_name}}</strong></td>
+          </tr>
+          <tr>
+            <td style="padding: 8px; color: #666;">Vehicle</td>
+            <td style="padding: 8px;"><strong>{{vehicle_make}} {{vehicle_model}}</strong></td>
+          </tr>
+          <tr>
+            <td style="padding: 8px; color: #666;">Pickup</td>
+            <td style="padding: 8px;"><strong>{{pickup_address}}</strong></td>
+          </tr>
+          <tr>
+            <td style="padding: 8px; color: #666;">Time</td>
+            <td style="padding: 8px;"><strong>{{pickup_time}}</strong></td>
+          </tr>
+        </table>
+      </div>
     `,
   };
 }
@@ -48,12 +81,20 @@ export function jobCompletedEmail(vars: {
   currency: string;
 }): EmailTemplate {
   return {
-    subject: `Trip Completed — ${vars.bookingReference}`,
+    subject: 'Trip Completed — {{booking_reference}}',
     html: `
-      <h2>Thank you for riding with us</h2>
-      <p>Dear ${vars.customerName},</p>
-      <p>Your trip <strong>${vars.bookingReference}</strong> has been completed.</p>
-      <p><strong>Total:</strong> ${vars.currency} ${vars.totalAmount}</p>
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #1a1a1a;">Thank you for riding with us</h2>
+        <p>Dear {{customer_first_name}},</p>
+        <p>Your trip <strong>{{booking_reference}}</strong> has been completed.</p>
+        <table style="width:100%; border-collapse: collapse; margin: 20px 0;">
+          <tr>
+            <td style="padding: 8px; color: #666;">Total</td>
+            <td style="padding: 8px;"><strong>{{currency}} {{total_amount}}</strong></td>
+          </tr>
+        </table>
+        <p style="color: #666; font-size: 14px;">Thank you for choosing our service.</p>
+      </div>
     `,
   };
 }
@@ -63,11 +104,14 @@ export function bookingCancelledEmail(vars: {
   customerName: string;
 }): EmailTemplate {
   return {
-    subject: `Booking Cancelled — ${vars.bookingReference}`,
+    subject: 'Booking Cancelled — {{booking_reference}}',
     html: `
-      <h2>Your booking has been cancelled</h2>
-      <p>Dear ${vars.customerName},</p>
-      <p>Your booking <strong>${vars.bookingReference}</strong> has been cancelled.</p>
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #1a1a1a;">Your booking has been cancelled</h2>
+        <p>Dear {{customer_first_name}},</p>
+        <p>Your booking <strong>{{booking_reference}}</strong> has been cancelled.</p>
+        <p style="color: #666; font-size: 14px;">If you did not request this cancellation, please contact us.</p>
+      </div>
     `,
   };
 }
