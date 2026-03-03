@@ -40,7 +40,7 @@ export class BookingService {
     let index = 2;
 
     if (query.operational_status) {
-      where += ` AND b.operational_status = ANY($${index}::text[])`;
+      where += ` AND b.operational_status = ANY($${index}::operational_status_enum[])`;
       params.push(String(query.operational_status).split(','));
       index++;
     }
