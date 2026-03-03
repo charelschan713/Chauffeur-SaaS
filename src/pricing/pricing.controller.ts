@@ -62,6 +62,29 @@ export class PricingController {
     return this.pricingService.deactivateServiceClass(req.user.tenant_id, id);
   }
 
+
+  @Get('service-classes/:id/platform-vehicles')
+  async listServiceClassPlatformVehicles(@Param('id') id: string, @Req() req: any) {
+    return this.pricingService.listServiceClassPlatformVehicles(req.user.tenant_id, id);
+  }
+
+  @Post('service-classes/platform-vehicles')
+  async linkServiceClassPlatformVehicles(@Body() body: any, @Req() req: any) {
+    return this.pricingService.linkServiceClassPlatformVehicles(
+      req.user.tenant_id,
+      body.service_class_id,
+      body.platform_vehicle_ids ?? [],
+    );
+  }
+
+  @Delete('service-classes/:id/platform-vehicles/:pvId')
+  async unlinkServiceClassPlatformVehicle(
+    @Param('id') id: string,
+    @Param('pvId') pvId: string,
+    @Req() req: any,
+  ) {
+    return this.pricingService.unlinkServiceClassPlatformVehicle(req.user.tenant_id, id, pvId);
+  }
   @Get('items')
   async listItems(@Query('serviceClassId') serviceClassId: string, @Req() req: any) {
     return this.pricingService.listItems(req.user.tenant_id, serviceClassId);

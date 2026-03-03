@@ -106,6 +106,37 @@ export class PricingService {
     return rows[0];
   }
 
+  
+  async listServiceClassPlatformVehicles(tenantId: string, serviceClassId: string) {
+    return this.dataSource.query(
+      `SELECT pv.id, pv.make, pv.model, pv.active
+         FROM public.tenant_service_class_platform_vehicles scpv
+         JOIN public.platform_vehicles pv ON pv.id = scpv.platform_vehicle_id
+        WHERE scpv.tenant_id = $1 AND scpv.service_class_id = $2`,
+      [tenantId, serviceClassId],
+    );
+  }
+
+  async linkServiceClassPlatformVehicles(tenantId: string, serviceClassId: string, platformVehicleIds: string[]) {
+    for (const pvId of platformVehicleIds) {
+      await this.dataSource.query(
+        `INSERT INTO public.tenant_service_class_platform_vehicles (tenant_id, service_class_id, platform_vehicle_id)
+         VALUES ($1,$2,$3)
+         ON CONFLICT (service_class_id, platform_vehicle_id) DO NOTHING`,
+        [tenantId, serviceClassId, pvId],
+      );
+    }
+    return { success: true };
+  }
+
+  async unlinkServiceClassPlatformVehicle(tenantId: string, serviceClassId: string, platformVehicleId: string) {
+    await this.dataSource.query(
+      `DELETE FROM public.tenant_service_class_platform_vehicles
+       WHERE tenant_id = $1 AND service_class_id = $2 AND platform_vehicle_id = $3`,
+      [tenantId, serviceClassId, platformVehicleId],
+    );
+    return { success: true };
+  }
   async deactivateServiceClass(tenantId: string, id: string) {
     const rows = await this.dataSource.query(
       `UPDATE public.tenant_service_classes

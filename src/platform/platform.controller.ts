@@ -83,7 +83,9 @@ export class PlatformController {
   async listVehicles(@Req() req: Request) {
     this.assertPlatformAdmin(req);
     return this.dataSource.query(
-      `SELECT * FROM public.platform_vehicles ORDER BY created_at DESC`,
+      `SELECT id, make, model, active, created_at
+       FROM public.platform_vehicles
+       ORDER BY make, model ASC`,
     );
   }
 
@@ -91,20 +93,10 @@ export class PlatformController {
   async createVehicle(@Body() body: any, @Req() req: Request) {
     this.assertPlatformAdmin(req);
     const rows = await this.dataSource.query(
-      `INSERT INTO public.platform_vehicles
-        (make, model, year, plate, color, passenger_capacity, luggage_capacity, vehicle_type_name)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
-       RETURNING *`,
-      [
-        body.make,
-        body.model,
-        body.year,
-        body.plate ?? null,
-        body.color ?? null,
-        body.passengerCapacity ?? 4,
-        body.luggageCapacity ?? 2,
-        body.vehicleTypeName,
-      ],
+      `INSERT INTO public.platform_vehicles (make, model, active)
+       VALUES ($1, $2, true)
+       RETURNING id, make, model, active, created_at`,
+      [body.make, body.model],
     );
     return rows[0];
   }
@@ -116,30 +108,47 @@ export class PlatformController {
       `UPDATE public.platform_vehicles
        SET make = COALESCE($1, make),
            model = COALESCE($2, model),
-           year = COALESCE($3, year),
-           plate = COALESCE($4, plate),
-           color = COALESCE($5, color),
-           passenger_capacity = COALESCE($6, passenger_capacity),
-           luggage_capacity = COALESCE($7, luggage_capacity),
-           vehicle_type_name = COALESCE($8, vehicle_type_name)
-       WHERE id = $9
-       RETURNING *`,
-      [
-        body.make ?? null,
-        body.model ?? null,
-        body.year ?? null,
-        body.plate ?? null,
-        body.color ?? null,
-        body.passengerCapacity ?? null,
-        body.luggageCapacity ?? null,
-        body.vehicleTypeName ?? null,
-        id,
-      ],
+           active = COALESCE($3, active)
+       WHERE id = $4
+       RETURNING id, make, model, active`,
+      [body.make ?? null, body.model ?? null, body.active ?? null, id],
     );
     if (!rows.length) throw new NotFoundException('Vehicle not found');
     return rows[0];
   }
 
+
+  @Get('drivers')
+  async listDrivers(@Req() req: Request) {
+    this.assertPlatformAdmin(req);
+    return this.dataSource.query(
+      `SELECT id, tenant_id, full_name, email
+         FROM public.users
+         WHERE role = 'DRIVER'
+         ORDER BY created_at DESC`,
+    );
+  }
+
+  @Get('customers')
+  async listCustomers(@Req() req: Request) {
+    this.assertPlatformAdmin(req);
+    return this.dataSource.query(
+      `SELECT id, tenant_id, first_name, last_name, email
+         FROM public.customers
+         ORDER BY created_at DESC`,
+    );
+  }
+
+  @Get('bookings')
+  async listBookings(@Req() req: Request) {
+    this.assertPlatformAdmin(req);
+    return this.dataSource.query(
+      `SELECT id, tenant_id, booking_reference, operational_status, pickup_at_utc
+         FROM public.bookings
+         ORDER BY created_at DESC
+         LIMIT 100`,
+    );
+  }
   @Get('metrics')
   async getMetrics(@Req() req: Request) {
     this.assertPlatformAdmin(req);

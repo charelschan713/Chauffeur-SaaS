@@ -7,10 +7,11 @@ export class VehicleService {
 
   async listTenantVehicles(tenantId: string) {
     return this.dataSource.query(
-      `SELECT tv.id, tv.active, tv.created_at,
+      `SELECT tv.id, tv.active, tv.created_at, tv.updated_at,
+              tv.year, tv.colour, tv.plate,
+              tv.passenger_capacity, tv.luggage_capacity, tv.notes,
               pv.id as platform_vehicle_id,
-              pv.make, pv.model, pv.year, pv.plate, pv.color,
-              pv.passenger_capacity, pv.luggage_capacity, pv.vehicle_type_name
+              pv.make, pv.model, pv.active as platform_active
          FROM public.tenant_vehicles tv
          JOIN public.platform_vehicles pv ON pv.id = tv.platform_vehicle_id
         WHERE tv.tenant_id = $1
@@ -21,29 +22,72 @@ export class VehicleService {
 
   async listPlatformVehicles() {
     return this.dataSource.query(
-      `SELECT * FROM public.platform_vehicles ORDER BY created_at DESC`,
+      `SELECT id, make, model, active, created_at FROM public.platform_vehicles ORDER BY make, model ASC`,
     );
   }
 
-  async claimVehicle(tenantId: string, platformVehicleId: string) {
+  async claimVehicle(tenantId: string, platformVehicleId: string, body?: any) {
     const rows = await this.dataSource.query(
-      `INSERT INTO public.tenant_vehicles (tenant_id, platform_vehicle_id, active)
-       VALUES ($1,$2,true)
+      `INSERT INTO public.tenant_vehicles
+        (tenant_id, platform_vehicle_id, active, year, colour, plate, passenger_capacity, luggage_capacity, notes)
+       VALUES ($1,$2,true,$3,$4,$5,$6,$7,$8)
        ON CONFLICT (tenant_id, platform_vehicle_id)
        DO UPDATE SET active = true
        RETURNING *`,
-      [tenantId, platformVehicleId],
+      [
+        tenantId,
+        platformVehicleId,
+        body?.year ?? null,
+        body?.colour ?? null,
+        body?.plate ?? null,
+        body?.passenger_capacity ?? 4,
+        body?.luggage_capacity ?? 2,
+        body?.notes ?? null,
+      ],
     );
     return rows[0];
   }
 
+  
+  async listAssignable(tenantId: string, serviceClassId: string) {
+    if (!serviceClassId) return [];
+    return this.dataSource.query(
+      `SELECT tv.id, tv.plate, tv.year,
+              pv.make, pv.model
+         FROM public.tenant_vehicles tv
+         JOIN public.tenant_service_class_platform_vehicles scpv
+           ON scpv.platform_vehicle_id = tv.platform_vehicle_id
+          AND scpv.service_class_id = $1
+          AND scpv.tenant_id = $2
+         JOIN public.platform_vehicles pv ON pv.id = tv.platform_vehicle_id
+        WHERE tv.tenant_id = $2 AND tv.active = true`,
+      [serviceClassId, tenantId],
+    );
+  }
   async updateTenantVehicle(tenantId: string, id: string, body: any) {
     const rows = await this.dataSource.query(
       `UPDATE public.tenant_vehicles
-       SET active = COALESCE($1, active)
-       WHERE tenant_id = $2 AND id = $3
+       SET active = COALESCE($1, active),
+           year = COALESCE($2, year),
+           colour = COALESCE($3, colour),
+           plate = COALESCE($4, plate),
+           passenger_capacity = COALESCE($5, passenger_capacity),
+           luggage_capacity = COALESCE($6, luggage_capacity),
+           notes = COALESCE($7, notes),
+           updated_at = now()
+       WHERE tenant_id = $8 AND id = $9
        RETURNING *`,
-      [body.active ?? null, tenantId, id],
+      [
+        body.active ?? null,
+        body.year ?? null,
+        body.colour ?? null,
+        body.plate ?? null,
+        body.passenger_capacity ?? null,
+        body.luggage_capacity ?? null,
+        body.notes ?? null,
+        tenantId,
+        id,
+      ],
     );
     if (!rows.length) throw new NotFoundException('Vehicle not found');
     return rows[0];

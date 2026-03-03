@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Patch, Post, UseGuards, Param, Req } from '@nestjs/common';
+import { Body, Controller, Get, Patch, Post, UseGuards, Param, Req, Query } from '@nestjs/common';
 import { JwtGuard } from '../common/guards/jwt.guard';
 import { VehicleService } from './vehicle.service';
 
@@ -17,9 +17,14 @@ export class VehicleController {
     return this.vehicles.listPlatformVehicles();
   }
 
+  @Get('assignable')
+  async getAssignable(@Query('car_type_id') carTypeId: string, @Req() req: any) {
+    return this.vehicles.listAssignable(req.user.tenant_id, carTypeId);
+  }
+
   @Post()
-  async claim(@Body('platformVehicleId') platformVehicleId: string, @Req() req: any) {
-    return this.vehicles.claimVehicle(req.user.tenant_id, platformVehicleId);
+  async claim(@Body() body: any, @Req() req: any) {
+    return this.vehicles.claimVehicle(req.user.tenant_id, body.platform_vehicle_id, body);
   }
 
   @Patch(':id')
