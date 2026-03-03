@@ -56,8 +56,11 @@ export default function TenantLayout({
           <Link href="/pricing" className="block px-3 py-2 rounded hover:bg-blue-800">
             Pricing
           </Link>
-          <Link href="/pricing/matrix" className="block px-3 py-2 rounded hover:bg-blue-800">
-            Pricing Matrix
+          <Link href="/pricing/car-types" className="block px-3 py-2 rounded hover:bg-blue-800">
+            Car Types
+          </Link>
+          <Link href="/pricing/service-types" className="block px-3 py-2 rounded hover:bg-blue-800">
+            Service Types
           </Link>
           <Link href="/vehicles" className="block px-3 py-2 rounded hover:bg-blue-800">
             Vehicles
