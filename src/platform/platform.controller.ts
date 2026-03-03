@@ -123,10 +123,12 @@ export class PlatformController {
   async listDrivers(@Req() req: Request) {
     this.assertPlatformAdmin(req);
     return this.dataSource.query(
-      `SELECT id, tenant_id, full_name, email
-         FROM public.users
-         WHERE role = 'DRIVER'
-         ORDER BY created_at DESC`,
+      `SELECT d.id, d.first_name, d.last_name, d.email, d.status, d.created_at,
+              t.name as tenant_name
+         FROM public.drivers d
+         LEFT JOIN public.tenants t ON t.id = d.tenant_id
+         ORDER BY d.created_at DESC
+         LIMIT 100`,
     );
   }
 
@@ -134,9 +136,12 @@ export class PlatformController {
   async listCustomers(@Req() req: Request) {
     this.assertPlatformAdmin(req);
     return this.dataSource.query(
-      `SELECT id, tenant_id, first_name, last_name, email
-         FROM public.customers
-         ORDER BY created_at DESC`,
+      `SELECT c.id, c.first_name, c.last_name, c.email, c.tier, c.created_at,
+              t.name as tenant_name
+         FROM public.customers c
+         LEFT JOIN public.tenants t ON t.id = c.tenant_id
+         ORDER BY c.created_at DESC
+         LIMIT 100`,
     );
   }
 
@@ -144,9 +149,12 @@ export class PlatformController {
   async listBookings(@Req() req: Request) {
     this.assertPlatformAdmin(req);
     return this.dataSource.query(
-      `SELECT id, tenant_id, booking_reference, operational_status, pickup_at_utc
-         FROM public.bookings
-         ORDER BY created_at DESC
+      `SELECT b.id, b.booking_reference, b.operational_status, b.payment_status,
+              b.total_price_minor, b.currency, b.created_at,
+              t.name as tenant_name, b.customer_first_name, b.customer_last_name
+         FROM public.bookings b
+         LEFT JOIN public.tenants t ON t.id = b.tenant_id
+         ORDER BY b.created_at DESC
          LIMIT 100`,
     );
   }
