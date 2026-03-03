@@ -123,11 +123,13 @@ export class PlatformController {
   async listDrivers(@Req() req: Request) {
     this.assertPlatformAdmin(req);
     return this.dataSource.query(
-      `SELECT d.id, d.first_name, d.last_name, d.email, d.status, d.created_at,
+      `SELECT u.id, u.full_name, u.email, u.created_at, m.role, m.tenant_id,
               t.name as tenant_name
-         FROM public.drivers d
-         LEFT JOIN public.tenants t ON t.id = d.tenant_id
-         ORDER BY d.created_at DESC
+         FROM public.users u
+         JOIN public.memberships m ON m.user_id = u.id
+         JOIN public.tenants t ON t.id = m.tenant_id
+        WHERE m.role = 'driver'
+         ORDER BY u.created_at DESC
          LIMIT 100`,
     );
   }
