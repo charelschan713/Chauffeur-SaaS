@@ -9,6 +9,7 @@ export interface PricingContext {
   babyseatCount: number;
   requestedAtUtc: Date;
   currency: string;
+  customerId?: string | null;
 }
 
 export interface PricingItemBreakdown {
@@ -31,4 +32,12 @@ export interface PricingSnapshot {
   subtotalMinor: number;
   totalPriceMinor: number;
   currency: string;
+  pre_discount_fare_minor?: number;
+  discount_type?: 'NONE' | 'TIER' | 'CUSTOM_PERCENT' | 'CUSTOM_FIXED';
+  discount_value?: number;
+  discount_amount_minor?: number;
+  final_fare_minor?: number;
+  toll_parking_minor?: number;
+  grand_total_minor?: number;
+  discount_source_customer_id?: string | null;
 }

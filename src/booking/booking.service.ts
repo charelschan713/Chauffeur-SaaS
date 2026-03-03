@@ -195,6 +195,7 @@ export class BookingService {
           babyseatCount: dto.babyseatCount ?? 0,
           requestedAtUtc: new Date(dto.pickupAtUtc),
           currency: dto.currency ?? 'AUD',
+          customerId: dto.customerId ?? null,
         });
         pricingSnapshot = snapshot;
         totalPriceMinor = snapshot.totalPriceMinor;
@@ -239,9 +240,10 @@ export class BookingService {
           pickup_address_text, dropoff_address_text,
           pickup_at_utc, timezone,
           total_price_minor, currency, client_request_id,
-          service_class_id, pricing_snapshot
+          service_class_id, pricing_snapshot,
+          customer_id, passenger_id
         ) values (
-          $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23
+          $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25
         )`,
         [
           bookingId,
@@ -267,6 +269,8 @@ export class BookingService {
           clientRequestId,
           dto.serviceClassId ?? null,
           pricingSnapshot,
+          dto.customerId ?? null,
+          dto.passengerId ?? null,
         ],
       );
 
