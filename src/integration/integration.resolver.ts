@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { EncryptionService } from './encryption.service';
 
@@ -10,6 +10,8 @@ export interface ResolvedIntegration {
 
 @Injectable()
 export class IntegrationResolver {
+  private readonly logger = new Logger(IntegrationResolver.name);
+
   constructor(
     private readonly dataSource: DataSource,
     private readonly encryption: EncryptionService,
@@ -19,6 +21,7 @@ export class IntegrationResolver {
     tenantId: string,
     integrationType: string,
   ): Promise<ResolvedIntegration | null> {
+    this.logger.debug(`Resolving integration ${integrationType} for tenant ${tenantId}`);
     const rows = await this.dataSource.query(
       `SELECT config_encrypted, integration_type
        FROM public.tenant_integrations
@@ -28,6 +31,8 @@ export class IntegrationResolver {
        LIMIT 1`,
       [tenantId, integrationType],
     );
+
+    this.logger.debug(`Found rows: ${rows.length}, has config: ${rows[0]?.config_encrypted ? 'yes' : 'no'}`);
 
     if (rows.length && rows[0].config_encrypted) {
       try {
@@ -41,7 +46,8 @@ export class IntegrationResolver {
           config,
           source: 'TENANT',
         };
-      } catch {
+      } catch (err) {
+        this.logger.error(`Decryption failed for ${integrationType} tenant ${tenantId}:`, err as Error);
         // fall through to platform default
       }
     }
