@@ -16,14 +16,20 @@ export class PricingController {
     return this.pricingResolver.resolve({
       tenantId: req.user.tenant_id,
       serviceClassId: body.serviceClassId,
+      serviceTypeId: body.serviceTypeId ?? null,
+      tripType: body.trip_type ?? body.tripType ?? 'ONE_WAY',
       distanceKm: body.distanceKm ?? 0,
       durationMinutes: body.durationMinutes ?? 0,
+      returnDistanceKm: body.returnDistanceKm ?? null,
+      returnDurationMinutes: body.returnDurationMinutes ?? null,
+      bookedHours: body.bookedHours ?? null,
       pickupZoneName: body.pickupZoneName,
       dropoffZoneName: body.dropoffZoneName,
       waypointsCount: body.waypointsCount ?? 0,
       babyseatCount: body.babyseatCount ?? 0,
       requestedAtUtc: new Date(),
       currency: body.currency ?? 'AUD',
+      customerId: body.customerId ?? null,
     });
   }
 

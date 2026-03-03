@@ -10,6 +10,11 @@ export interface PricingContext {
   requestedAtUtc: Date;
   currency: string;
   customerId?: string | null;
+  serviceTypeId?: string | null;
+  tripType?: 'ONE_WAY' | 'RETURN';
+  returnDistanceKm?: number;
+  returnDurationMinutes?: number;
+  bookedHours?: number;
 }
 
 export interface PricingItemBreakdown {
@@ -40,4 +45,12 @@ export interface PricingSnapshot {
   toll_parking_minor?: number;
   grand_total_minor?: number;
   discount_source_customer_id?: string | null;
+  base_calculated_minor?: number;
+  leg1_minor?: number;
+  leg2_minor?: number;
+  combined_before_multiplier?: number;
+  multiplier_mode?: string;
+  multiplier_value?: number | null;
+  surcharge_minor?: number;
+  minimum_applied?: boolean;
 }
