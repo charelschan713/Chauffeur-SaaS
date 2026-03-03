@@ -7,7 +7,10 @@ export class PricingService {
 
   async listServiceClasses(tenantId: string) {
     return this.dataSource.query(
-      `SELECT id, name, description, display_order, surge_multiplier, currency, active, created_at
+      `SELECT id, name, description, display_order, surge_multiplier, currency, active, created_at,
+              base_fare_minor, per_km_minor, per_min_driving_minor, per_min_waiting_minor,
+              minimum_fare_minor, waypoint_minor, infant_seat_minor, toddler_seat_minor,
+              booster_seat_minor, hourly_rate_minor
        FROM public.tenant_service_classes
        WHERE tenant_id = $1
        ORDER BY display_order ASC, created_at ASC`,
@@ -18,8 +21,11 @@ export class PricingService {
   async createServiceClass(tenantId: string, body: any) {
     const rows = await this.dataSource.query(
       `INSERT INTO public.tenant_service_classes
-        (tenant_id, name, description, display_order, surge_multiplier, currency, active)
-       VALUES ($1,$2,$3,$4,$5,$6,true)
+        (tenant_id, name, description, display_order, surge_multiplier, currency, active,
+         base_fare_minor, per_km_minor, per_min_driving_minor, per_min_waiting_minor,
+         minimum_fare_minor, waypoint_minor, infant_seat_minor, toddler_seat_minor,
+         booster_seat_minor, hourly_rate_minor)
+       VALUES ($1,$2,$3,$4,$5,$6,true,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
        RETURNING *`,
       [
         tenantId,
@@ -28,6 +34,16 @@ export class PricingService {
         body.displayOrder ?? 0,
         body.surgeMultiplier ?? 1.0,
         body.currency ?? 'AUD',
+        body.base_fare_minor ?? 0,
+        body.per_km_minor ?? 0,
+        body.per_min_driving_minor ?? 0,
+        body.per_min_waiting_minor ?? 0,
+        body.minimum_fare_minor ?? 0,
+        body.waypoint_minor ?? 0,
+        body.infant_seat_minor ?? 0,
+        body.toddler_seat_minor ?? 0,
+        body.booster_seat_minor ?? 0,
+        body.hourly_rate_minor ?? 0,
       ],
     );
     return rows[0];
@@ -52,8 +68,18 @@ export class PricingService {
            surge_multiplier = COALESCE($4, surge_multiplier),
            currency = COALESCE($5, currency),
            active = COALESCE($6, active),
+           base_fare_minor = COALESCE($7, base_fare_minor),
+           per_km_minor = COALESCE($8, per_km_minor),
+           per_min_driving_minor = COALESCE($9, per_min_driving_minor),
+           per_min_waiting_minor = COALESCE($10, per_min_waiting_minor),
+           minimum_fare_minor = COALESCE($11, minimum_fare_minor),
+           waypoint_minor = COALESCE($12, waypoint_minor),
+           infant_seat_minor = COALESCE($13, infant_seat_minor),
+           toddler_seat_minor = COALESCE($14, toddler_seat_minor),
+           booster_seat_minor = COALESCE($15, booster_seat_minor),
+           hourly_rate_minor = COALESCE($16, hourly_rate_minor),
            updated_at = now()
-       WHERE tenant_id = $7 AND id = $8
+       WHERE tenant_id = $17 AND id = $18
        RETURNING *`,
       [
         body.name ?? null,
@@ -62,6 +88,16 @@ export class PricingService {
         body.surgeMultiplier ?? null,
         body.currency ?? null,
         body.active ?? null,
+        body.base_fare_minor ?? null,
+        body.per_km_minor ?? null,
+        body.per_min_driving_minor ?? null,
+        body.per_min_waiting_minor ?? null,
+        body.minimum_fare_minor ?? null,
+        body.waypoint_minor ?? null,
+        body.infant_seat_minor ?? null,
+        body.toddler_seat_minor ?? null,
+        body.booster_seat_minor ?? null,
+        body.hourly_rate_minor ?? null,
         tenantId,
         id,
       ],
