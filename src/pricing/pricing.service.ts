@@ -50,13 +50,22 @@ export class PricingService {
   }
 
   async getServiceClass(tenantId: string, id: string) {
-    const rows = await this.dataSource.query(
-      `SELECT * FROM public.tenant_service_classes
-       WHERE tenant_id = $1 AND id = $2`,
-      [tenantId, id],
-    );
-    if (!rows.length) throw new NotFoundException('Service class not found');
-    return rows[0];
+    const [serviceClass, platformVehicles] = await Promise.all([
+      this.dataSource.query(
+        `SELECT * FROM public.tenant_service_classes
+         WHERE tenant_id = $1 AND id = $2`,
+        [tenantId, id],
+      ),
+      this.dataSource.query(
+        `SELECT pv.id, pv.make, pv.model
+           FROM public.tenant_service_class_platform_vehicles scpv
+           JOIN public.platform_vehicles pv ON pv.id = scpv.platform_vehicle_id
+          WHERE scpv.service_class_id = $1 AND pv.active = true`,
+        [id],
+      ),
+    ]);
+    if (!serviceClass.length) throw new NotFoundException('Service class not found');
+    return { ...serviceClass[0], platform_vehicles: platformVehicles };
   }
 
   async updateServiceClass(tenantId: string, id: string, body: any) {
