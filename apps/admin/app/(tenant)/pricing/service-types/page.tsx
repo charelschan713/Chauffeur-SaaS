@@ -29,20 +29,33 @@ type HourlyTier = {
   surcharge_minor?: number;
 };
 
-const emptyForm = {
+type CalcType = 'POINT_TO_POINT' | 'HOURLY_CHARTER';
+
+type FormState = {
+  display_name: string;
+  calculation_type: CalcType;
+  one_way_type: 'PERCENTAGE' | 'FIXED_SURCHARGE';
+  one_way_value: string;
+  one_way_surcharge_minor: string;
+  return_type: 'PERCENTAGE' | 'FIXED_SURCHARGE';
+  return_value: string;
+  return_surcharge_minor: string;
+  minimum_hours: string;
+  km_per_hour_included: string;
+};
+
+const emptyForm: FormState = {
   display_name: '',
-  calculation_type: 'POINT_TO_POINT' as const,
-  one_way_type: 'PERCENTAGE' as const,
+  calculation_type: 'POINT_TO_POINT',
+  one_way_type: 'PERCENTAGE',
   one_way_value: '100',
   one_way_surcharge_minor: '0',
-  return_type: 'PERCENTAGE' as const,
+  return_type: 'PERCENTAGE',
   return_value: '100',
   return_surcharge_minor: '0',
   minimum_hours: '2',
   km_per_hour_included: '0',
 };
-
-type FormState = typeof emptyForm;
 
 function toMoney(minor: number) {
   return (minor / 100).toFixed(2);
