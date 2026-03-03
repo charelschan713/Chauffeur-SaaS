@@ -8,8 +8,10 @@ import { ItemResolver } from './resolvers/item.resolver';
 import { MultiplierResolver } from './resolvers/multiplier.resolver';
 import { AdjustmentResolver } from './resolvers/adjustment.resolver';
 import { PricingService } from './pricing.service';
+import { CustomerModule } from '../customer/customer.module';
 
 @Module({
+  imports: [CustomerModule],
   controllers: [PricingController, ServiceTypeController, PricingProfileController],
   providers: [
     PricingResolver,
