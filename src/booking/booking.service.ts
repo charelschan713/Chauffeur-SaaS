@@ -76,6 +76,11 @@ export class BookingService {
         b.booking_source,
         b.customer_first_name,
         b.customer_last_name,
+        b.passenger_first_name,
+        b.passenger_last_name,
+        b.passenger_phone_country_code,
+        b.passenger_phone_number,
+        b.passenger_is_customer,
         b.operational_status,
         b.payment_status,
         b.pickup_at_utc,
@@ -195,32 +200,48 @@ export class BookingService {
         totalPriceMinor = snapshot.totalPriceMinor;
       }
 
-      const phone = dto.customer?.phone ?? '';
-      let phoneCountryCode = '';
-      let phoneNumber = '';
-      if (phone.startsWith('+')) {
-        const match = phone.match(/^(\+\d{1,3})(\d+)$/);
-        if (match) {
-          phoneCountryCode = match[1];
-          phoneNumber = match[2];
-        } else {
-          phoneNumber = phone;
+      const parsePhone = (raw?: string) => {
+        const value = raw ?? '';
+        if (!value) return { countryCode: '', number: '' };
+        if (value.startsWith('+')) {
+          const match = value.match(/^(\+\d{1,3})(\d+)$/);
+          if (match) {
+            return { countryCode: match[1], number: match[2] };
+          }
+          return { countryCode: '', number: value };
         }
-      } else {
-        phoneNumber = phone;
-      }
+        return { countryCode: '', number: value };
+      };
+
+      const customerPhone = parsePhone(dto.customer?.phone);
+
+      const passengerIsCustomer = dto.passenger_is_customer ?? true;
+      const passengerFirstName = passengerIsCustomer
+        ? dto.customer.firstName
+        : dto.passenger?.firstName;
+      const passengerLastName = passengerIsCustomer
+        ? dto.customer.lastName
+        : dto.passenger?.lastName;
+      const passengerPhone = passengerIsCustomer
+        ? customerPhone
+        : parsePhone(dto.passenger?.phone);
+      const passengerPhoneCountryCode = passengerPhone.countryCode;
+      const passengerPhoneNumber = passengerPhone.number;
 
       await manager.query(
         `insert into public.bookings (
           id, tenant_id, booking_reference, booking_source,
           customer_first_name, customer_last_name, customer_email,
           customer_phone_country_code, customer_phone_number,
+          passenger_first_name, passenger_last_name,
+          passenger_phone_country_code, passenger_phone_number,
+          passenger_is_customer,
           pickup_address_text, dropoff_address_text,
           pickup_at_utc, timezone,
           total_price_minor, currency, client_request_id,
           service_class_id, pricing_snapshot
         ) values (
-          $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18
+          $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23
         )`,
         [
           bookingId,
@@ -230,8 +251,13 @@ export class BookingService {
           dto.customer.firstName,
           dto.customer.lastName,
           dto.customer.email,
-          phoneCountryCode,
-          phoneNumber,
+          customerPhone.countryCode,
+          customerPhone.number,
+          passengerFirstName,
+          passengerLastName,
+          passengerPhoneCountryCode,
+          passengerPhoneNumber,
+          passengerIsCustomer,
           dto.pickup.address,
           dto.dropoff.address,
           dto.pickupAtUtc,

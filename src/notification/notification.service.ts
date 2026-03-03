@@ -10,6 +10,7 @@ import {
   driverAcceptedEmail,
   jobCompletedEmail,
   bookingCancelledEmail,
+  driverRejectedAdminEmail,
 } from './templates/email.templates';
 import {
   bookingConfirmedSms,
@@ -17,6 +18,9 @@ import {
   driverInvitationSms,
   jobCompletedSms,
   bookingCancelledSms,
+  driverRejectedAdminSms,
+  assignmentCancelledSms,
+  driverPayUpdatedSms,
 } from './templates/sms.templates';
 
 @Injectable()
@@ -50,6 +54,15 @@ export class NotificationService {
         break;
       case 'BookingCancelled':
         await this.onBookingCancelled(tenantId, payload);
+        break;
+      case 'DriverRejectedAssignment':
+        await this.onDriverRejectedAssignment(tenantId, payload);
+        break;
+      case 'AssignmentCancelled':
+        await this.onAssignmentCancelled(tenantId, payload);
+        break;
+      case 'DriverPayUpdated':
+        await this.onDriverPayUpdated(tenantId, payload);
         break;
     }
   }
@@ -307,6 +320,106 @@ export class NotificationService {
     }
   }
 
+  private async onDriverRejectedAssignment(tenantId: string, payload: any) {
+    const booking = await this.getBooking(payload.booking_id);
+    const driver = await this.getDriver(payload.driver_id);
+    if (!booking || !driver) return;
+
+    const emailIntegration =
+      (await this.integrationResolver.resolve(tenantId, 'resend')) ??
+      (await this.integrationResolver.resolve(tenantId, 'sendgrid')) ??
+      (await this.integrationResolver.resolve(tenantId, 'mailgun'));
+    const smsIntegration = await this.integrationResolver.resolve(
+      tenantId,
+      'twilio',
+    );
+
+    const adminEmail = await this.getTenantOwnerEmail(tenantId);
+    const vars = await this.buildTemplateVars(tenantId, booking, driver);
+
+    if (emailIntegration && adminEmail) {
+      const template = driverRejectedAdminEmail({
+        bookingReference: booking.booking_reference,
+        driverName: driver.full_name,
+      });
+      const emailTemplate = await this.templateResolver.resolve(
+        tenantId,
+        'DriverRejectedAssignment',
+        'email',
+        { subject: template.subject, body: template.html, source: 'PLATFORM' },
+      );
+      const renderedSubject = renderTemplate(emailTemplate.subject, vars);
+      const renderedBody = renderTemplate(emailTemplate.body, vars);
+      await this.emailProvider.send(emailIntegration, {
+        to: adminEmail,
+        subject: renderedSubject,
+        html: renderedBody,
+        fromAddress: emailIntegration.config.from_address,
+        fromName: emailIntegration.config.from_name ?? 'Chauffeur',
+      });
+    }
+
+    if (smsIntegration && adminEmail) {
+      const msg = driverRejectedAdminSms();
+      const smsTemplate = await this.templateResolver.resolve(
+        tenantId,
+        'DriverRejectedAssignment',
+        'sms',
+        { subject: '', body: msg, source: 'PLATFORM' },
+      );
+      const rendered = renderTemplate(smsTemplate.body, vars);
+      await this.smsProvider.send(smsIntegration, adminEmail, rendered);
+    }
+  }
+
+  private async onAssignmentCancelled(tenantId: string, payload: any) {
+    const booking = await this.getBooking(payload.booking_id);
+    const driver = await this.getDriver(payload.driver_id);
+    if (!booking || !driver) return;
+
+    const smsIntegration = await this.integrationResolver.resolve(
+      tenantId,
+      'twilio',
+    );
+    const vars = await this.buildTemplateVars(tenantId, booking, driver);
+
+    if (smsIntegration && driver.phone) {
+      const msg = assignmentCancelledSms();
+      const smsTemplate = await this.templateResolver.resolve(
+        tenantId,
+        'AssignmentCancelled',
+        'sms',
+        { subject: '', body: msg, source: 'PLATFORM' },
+      );
+      const rendered = renderTemplate(smsTemplate.body, vars);
+      await this.smsProvider.send(smsIntegration, driver.phone, rendered);
+    }
+  }
+
+  private async onDriverPayUpdated(tenantId: string, payload: any) {
+    const booking = await this.getBooking(payload.booking_id);
+    const driver = await this.getDriver(payload.driver_id);
+    if (!booking || !driver) return;
+
+    const smsIntegration = await this.integrationResolver.resolve(
+      tenantId,
+      'twilio',
+    );
+    const vars = await this.buildTemplateVars(tenantId, booking, driver);
+
+    if (smsIntegration && driver.phone) {
+      const msg = driverPayUpdatedSms();
+      const smsTemplate = await this.templateResolver.resolve(
+        tenantId,
+        'DriverPayUpdated',
+        'sms',
+        { subject: '', body: msg, source: 'PLATFORM' },
+      );
+      const rendered = renderTemplate(smsTemplate.body, vars);
+      await this.smsProvider.send(smsIntegration, driver.phone, rendered);
+    }
+  }
+
   private async getBooking(bookingId: string) {
     const rows = await this.dataSource.query(
       `SELECT 
@@ -316,6 +429,10 @@ export class NotificationService {
          customer_first_name, customer_last_name,
          pickup_address_text as pickup_address,
          dropoff_address_text as dropoff_address,
+         passenger_first_name,
+         passenger_last_name,
+         passenger_phone_country_code,
+         passenger_phone_number,
          pickup_at_utc, total_price_minor, currency
        FROM public.bookings WHERE id = $1`,
       [bookingId],
@@ -331,6 +448,19 @@ export class NotificationService {
     return rows[0] ?? null;
   }
 
+  private async getTenantOwnerEmail(tenantId: string): Promise<string | null> {
+    const rows = await this.dataSource.query(
+      `SELECT u.email
+       FROM public.memberships m
+       JOIN public.users u ON u.id = m.user_id
+       WHERE m.tenant_id = $1 AND m.role = 'OWNER' AND m.status = 'active'
+       ORDER BY m.created_at ASC
+       LIMIT 1`,
+      [tenantId],
+    );
+    return rows[0]?.email ?? null;
+  }
+
   private async buildTemplateVars(
     tenantId: string,
     booking: any,
@@ -338,6 +468,8 @@ export class NotificationService {
     totalAmount?: string,
   ): Promise<TemplateVariables> {
     const pickupTime = await this.formatPickupTime(tenantId, booking.city_id, booking.pickup_at_utc);
+    const passengerName = `${booking.passenger_first_name ?? ''} ${booking.passenger_last_name ?? ''}`.trim();
+    const passengerPhone = `${booking.passenger_phone_country_code ?? ''}${booking.passenger_phone_number ?? ''}`;
     return {
       booking_reference: booking.booking_reference ?? '',
       customer_first_name: booking.customer_first_name ?? '',
@@ -350,6 +482,8 @@ export class NotificationService {
       vehicle_model: '',
       total_amount: totalAmount ?? (booking.total_price_minor ? (booking.total_price_minor / 100).toFixed(2) : ''),
       currency: booking.currency ?? 'AUD',
+      passenger_name: passengerName,
+      passenger_phone: passengerPhone,
     };
   }
 

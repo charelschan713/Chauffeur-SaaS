@@ -115,3 +115,37 @@ export function bookingCancelledEmail(vars: {
     `,
   };
 }
+
+export function driverRejectedAdminEmail(vars: {
+  bookingReference: string;
+  driverName: string;
+}): EmailTemplate {
+  return {
+    subject: 'Driver Rejected Assignment — {{booking_reference}}',
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #c0392b;">Driver Rejected Assignment</h2>
+        <p>Driver <strong>{{driver_name}}</strong> has rejected the assignment for booking <strong>{{booking_reference}}</strong>.</p>
+        <p>Please log in to the admin portal to reassign a driver.</p>
+        <table style="width:100%; border-collapse: collapse; margin: 20px 0;">
+          <tr>
+            <td style="padding: 8px; color: #666;">Booking</td>
+            <td style="padding: 8px;"><strong>{{booking_reference}}</strong></td>
+          </tr>
+          <tr>
+            <td style="padding: 8px; color: #666;">Driver</td>
+            <td style="padding: 8px;"><strong>{{driver_name}}</strong></td>
+          </tr>
+          <tr>
+            <td style="padding: 8px; color: #666;">Pickup</td>
+            <td style="padding: 8px;"><strong>{{pickup_address}}</strong></td>
+          </tr>
+          <tr>
+            <td style="padding: 8px; color: #666;">Time</td>
+            <td style="padding: 8px;"><strong>{{pickup_time}}</strong></td>
+          </tr>
+        </table>
+      </div>
+    `,
+  };
+}

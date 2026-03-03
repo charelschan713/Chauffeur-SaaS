@@ -10,6 +10,8 @@ export interface TemplateVariables {
   vehicle_model?: string;
   total_amount?: string;
   currency?: string;
+  passenger_name?: string;
+  passenger_phone?: string;
 }
 
 export function renderTemplate(template: string, vars: TemplateVariables): string {

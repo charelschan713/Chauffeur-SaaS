@@ -10,22 +10,52 @@ import api from '@/lib/api';
 import { WizardLayout } from '@/components/patterns/Wizard';
 import { ErrorAlert } from '@/components/ui/ErrorAlert';
 
-const formSchema = z.object({
-  customer_name: z.string().trim().min(2, 'Name must be at least 2 characters'),
-  customer_phone: z.string().trim().optional(),
-  customer_email: z
-    .string()
-    .trim()
-    .optional()
-    .refine((val) => !val || /.+@.+\..+/.test(val), 'Invalid email address'),
-  pickup_address_text: z.string().trim().min(5, 'Pickup address must be at least 5 characters'),
-  dropoff_address_text: z.string().trim().min(5, 'Dropoff address must be at least 5 characters'),
-  pickup_at_utc: z.string().min(1, 'Pickup time is required'),
-  timezone: z.string().trim().min(1, 'Timezone is required'),
-  passenger_count: z.coerce.number().int().min(1).max(14),
-  luggage_count: z.coerce.number().int().min(0).max(20).optional(),
-  special_requests: z.string().max(500, 'Max 500 characters').optional(),
-});
+const formSchema = z
+  .object({
+    customer_name: z.string().trim().min(2, 'Name must be at least 2 characters'),
+    customer_phone: z.string().trim().optional(),
+    customer_email: z
+      .string()
+      .trim()
+      .optional()
+      .refine((val) => !val || /.+@.+\..+/.test(val), 'Invalid email address'),
+    passenger_is_customer: z.boolean().default(true),
+    passenger_first_name: z.string().trim().optional(),
+    passenger_last_name: z.string().trim().optional(),
+    passenger_phone: z.string().trim().optional(),
+    pickup_address_text: z.string().trim().min(5, 'Pickup address must be at least 5 characters'),
+    dropoff_address_text: z.string().trim().min(5, 'Dropoff address must be at least 5 characters'),
+    pickup_at_utc: z.string().min(1, 'Pickup time is required'),
+    timezone: z.string().trim().min(1, 'Timezone is required'),
+    passenger_count: z.coerce.number().int().min(1).max(14),
+    luggage_count: z.coerce.number().int().min(0).max(20).optional(),
+    special_requests: z.string().max(500, 'Max 500 characters').optional(),
+  })
+  .superRefine((values, ctx) => {
+    if (!values.passenger_is_customer) {
+      if (!values.passenger_first_name?.trim()) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Passenger first name is required',
+          path: ['passenger_first_name'],
+        });
+      }
+      if (!values.passenger_last_name?.trim()) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Passenger last name is required',
+          path: ['passenger_last_name'],
+        });
+      }
+      if (!values.passenger_phone?.trim()) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Passenger phone is required',
+          path: ['passenger_phone'],
+        });
+      }
+    }
+  });
 
 type FormValues = z.infer<typeof formSchema>;
 
@@ -37,7 +67,15 @@ const steps = [
 ] as const;
 
 const stepFields: Record<(typeof steps)[number]['id'], (keyof FormValues)[]> = {
-  customer: ['customer_name', 'customer_phone', 'customer_email'],
+  customer: [
+    'customer_name',
+    'customer_phone',
+    'customer_email',
+    'passenger_is_customer',
+    'passenger_first_name',
+    'passenger_last_name',
+    'passenger_phone',
+  ],
   trip: ['pickup_address_text', 'dropoff_address_text', 'pickup_at_utc', 'timezone'],
   requirements: ['passenger_count', 'luggage_count', 'special_requests'],
   review: [],

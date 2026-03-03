@@ -10,6 +10,9 @@ const EVENTS = [
   { key: 'DriverInvitationSent', label: 'Driver Invitation' },
   { key: 'JobCompleted', label: 'Job Completed' },
   { key: 'BookingCancelled', label: 'Booking Cancelled' },
+  { key: 'DriverRejectedAssignment', label: 'Driver Rejected (Admin)' },
+  { key: 'AssignmentCancelled', label: 'Assignment Cancelled (Driver)' },
+  { key: 'DriverPayUpdated', label: 'Driver Pay Updated (Driver)' },
 ];
 
 const VARIABLES = [
