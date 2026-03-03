@@ -5,6 +5,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { ConfirmModal } from '@/components/ui/ConfirmModal';
+import { AssignDriverModal } from '@/components/assign-driver-modal';
+import { EditDriverPayModal } from '@/components/edit-driver-pay-modal';
 import { ErrorAlert } from '@/components/ui/ErrorAlert';
 import { DetailPage, DetailSection } from '@/components/patterns/DetailPage';
 
@@ -16,6 +18,10 @@ export default function BookingDetailPage() {
   const queryClient = useQueryClient();
   const [isModalOpen, setModalOpen] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
+  const [assignOpen, setAssignOpen] = useState(false);
+  const [assignLeg, setAssignLeg] = useState<'A' | 'B'>('A');
+  const [editPayOpen, setEditPayOpen] = useState(false);
+  const [editPayAssignmentId, setEditPayAssignmentId] = useState<string | null>(null);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['booking', bookingId],
@@ -31,6 +37,8 @@ export default function BookingDetailPage() {
   const assignments = data?.assignments ?? [];
   const payments = data?.payments ?? [];
   const latestAssignment = useMemo(() => assignments.at(0), [assignments]);
+  const legAAssignment = assignments.find((a: any) => a.leg === 'A') ?? latestAssignment;
+  const legBAssignment = assignments.find((a: any) => a.leg === 'B') ?? null;
   const canCancel = booking && CANCELABLE_STATUSES.has(booking.operational_status);
 
   const cancelMutation = useMutation({
@@ -131,21 +139,60 @@ export default function BookingDetailPage() {
               </div>
             </DetailSection>
 
-            <DetailSection title="Assignment">
-              {latestAssignment ? (
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <p className="font-medium">{latestAssignment.driver_name ?? 'Unassigned'}</p>
-                    <StatusBadge status={latestAssignment.status} />
-                  </div>
-                  <p className="text-sm text-gray-500">
-                    Updated {new Date(latestAssignment.updated_at ?? latestAssignment.created_at).toLocaleString()}
-                  </p>
-                </div>
-              ) : (
-                <span className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded-full">Unassigned</span>
-              )}
-            </DetailSection>
+            
+<DetailSection title="Assignment">
+  {booking.is_return_trip ? (
+    <div className="space-y-4">
+      <AssignmentCard
+        title="Leg A — Outbound"
+        assignment={legAAssignment}
+        from={booking.pickup_address_text}
+        to={booking.dropoff_address_text}
+        time={formatPickupTime(booking.pickup_at_utc, booking.timezone)}
+        onAssign={() => {
+          setAssignLeg('A');
+          setAssignOpen(true);
+        }}
+        onEditPay={(id) => {
+          setEditPayAssignmentId(id);
+          setEditPayOpen(true);
+        }}
+      />
+      <AssignmentCard
+        title="Leg B — Return"
+        assignment={legBAssignment}
+        from={booking.dropoff_address_text}
+        to={booking.return_pickup_address_text || booking.pickup_address_text}
+        time={booking.return_pickup_at_utc ? formatPickupTime(booking.return_pickup_at_utc, booking.timezone) : 'Return time not set'}
+        onAssign={() => {
+          setAssignLeg('B');
+          setAssignOpen(true);
+        }}
+        onEditPay={(id) => {
+          setEditPayAssignmentId(id);
+          setEditPayOpen(true);
+        }}
+      />
+    </div>
+  ) : (
+    <AssignmentCard
+      title="Assignment"
+      assignment={latestAssignment}
+      from={booking.pickup_address_text}
+      to={booking.dropoff_address_text}
+      time={formatPickupTime(booking.pickup_at_utc, booking.timezone)}
+      onAssign={() => {
+        setAssignLeg('A');
+        setAssignOpen(true);
+      }}
+      onEditPay={(id) => {
+        setEditPayAssignmentId(id);
+        setEditPayOpen(true);
+      }}
+    />
+  )}
+</DetailSection>
+
 
             <DetailSection title="Pricing Breakdown">
               {booking.pricing_snapshot ? (
@@ -296,4 +343,49 @@ function formatPickupTime(isoUtc: string, tz: string) {
     hour12: true,
   });
   return `${formatted} (${location})`;
+}
+
+
+function AssignmentCard({
+  title,
+  assignment,
+  from,
+  to,
+  time,
+  onAssign,
+  onEditPay,
+}: {
+  title: string;
+  assignment: any;
+  from: string;
+  to: string;
+  time: string;
+  onAssign: () => void;
+  onEditPay: (id: string) => void;
+}) {
+  return (
+    <div className="border rounded p-4 space-y-2">
+      <div className="flex items-center justify-between">
+        <h4 className="font-medium">{title}</h4>
+        {assignment ? (
+          <StatusBadge status={assignment.status} />
+        ) : (
+          <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-full">Unassigned</span>
+        )}
+      </div>
+      <div className="text-sm text-gray-600">
+        <div><strong>From:</strong> {from}</div>
+        <div><strong>To:</strong> {to}</div>
+        <div><strong>Time:</strong> {time}</div>
+      </div>
+      <div className="flex gap-2">
+        {!assignment && (
+          <button onClick={onAssign} className="text-blue-600 hover:underline text-sm">Assign Driver</button>
+        )}
+        {assignment && (
+          <button onClick={() => onEditPay(assignment.id)} className="text-blue-600 hover:underline text-sm">Edit Pay</button>
+        )}
+      </div>
+    </div>
+  );
 }

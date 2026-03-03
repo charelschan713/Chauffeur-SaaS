@@ -128,7 +128,7 @@ export class BookingService {
         [bookingId],
       ),
       this.dataSource.query(
-        `SELECT a.*, u.full_name as driver_name
+        `SELECT a.*, u.full_name as driver_name, a.leg
            FROM public.assignments a
            LEFT JOIN public.users u ON u.id = a.driver_id
           WHERE a.booking_id = $1
@@ -239,11 +239,12 @@ export class BookingService {
           passenger_is_customer,
           pickup_address_text, dropoff_address_text,
           pickup_at_utc, timezone,
+          is_return_trip, return_pickup_at_utc, return_pickup_address_text, return_pickup_lat, return_pickup_lng, return_pickup_place_id,
           total_price_minor, currency, client_request_id,
           service_class_id, pricing_snapshot,
           customer_id, passenger_id
         ) values (
-          $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25
+          $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31
         )`,
         [
           bookingId,
@@ -264,6 +265,12 @@ export class BookingService {
           dto.dropoff.address,
           dto.pickupAtUtc,
           dto.timezone ?? 'UTC',
+          dto.is_return_trip ?? false,
+          dto.return_pickup_at_utc ?? null,
+          dto.return_pickup_address_text ?? null,
+          dto.return_pickup_lat ?? null,
+          dto.return_pickup_lng ?? null,
+          dto.return_pickup_place_id ?? null,
           totalPriceMinor,
           dto.currency ?? 'AUD',
           clientRequestId,

@@ -26,6 +26,9 @@ const formSchema = z
     pickup_address_text: z.string().trim().min(5, 'Pickup address must be at least 5 characters'),
     dropoff_address_text: z.string().trim().min(5, 'Dropoff address must be at least 5 characters'),
     pickup_at_utc: z.string().min(1, 'Pickup time is required'),
+    is_return_trip: z.boolean().default(false),
+    return_pickup_at_utc: z.string().optional(),
+    return_pickup_address_text: z.string().optional(),
     timezone: z.string().trim().min(1, 'Timezone is required'),
     passenger_count: z.coerce.number().int().min(1).max(14),
     luggage_count: z.coerce.number().int().min(0).max(20).optional(),
@@ -76,7 +79,7 @@ const stepFields: Record<(typeof steps)[number]['id'], (keyof FormValues)[]> = {
     'passenger_last_name',
     'passenger_phone',
   ],
-  trip: ['pickup_address_text', 'dropoff_address_text', 'pickup_at_utc', 'timezone'],
+  trip: ['pickup_address_text', 'dropoff_address_text', 'pickup_at_utc', 'is_return_trip', 'return_pickup_at_utc', 'return_pickup_address_text', 'timezone'],
   requirements: ['passenger_count', 'luggage_count', 'special_requests'],
   review: [],
 };
@@ -101,6 +104,9 @@ export default function CreateBookingPage() {
       pickup_address_text: '',
       dropoff_address_text: '',
       pickup_at_utc: '',
+      is_return_trip: false,
+      return_pickup_at_utc: '',
+      return_pickup_address_text: '',
       timezone: 'Australia/Sydney',
       passenger_count: 1,
       luggage_count: 0,
@@ -123,6 +129,9 @@ export default function CreateBookingPage() {
         dropoff: { address: values.dropoff_address_text.trim() },
         pickupAtUtc: new Date(values.pickup_at_utc).toISOString(),
         timezone: values.timezone || 'Australia/Sydney',
+        is_return_trip: values.is_return_trip,
+        return_pickup_at_utc: values.return_pickup_at_utc ? new Date(values.return_pickup_at_utc).toISOString() : undefined,
+        return_pickup_address_text: values.return_pickup_address_text?.trim() || undefined,
         passengerCount: values.passenger_count,
         luggageCount: values.luggage_count ?? 0,
         specialRequests: values.special_requests?.trim() || undefined,
@@ -245,6 +254,34 @@ export default function CreateBookingPage() {
                 className="w-full border rounded px-3 py-2 text-sm"
               />
             </Field>
+            
+            <label className="text-sm font-medium text-gray-700 space-y-1">
+              <span>Return Trip?</span>
+              <input
+                type="checkbox"
+                {...register('is_return_trip')}
+                className="h-4 w-4"
+              />
+            </label>
+            {values.is_return_trip && (
+              <>
+                <Field label="Return Pickup Address (optional)" error={errors.return_pickup_address_text?.message}>
+                  <input
+                    {...register('return_pickup_address_text')}
+                    placeholder="Use dropoff address if blank"
+                    className="w-full border rounded px-3 py-2 text-sm"
+                  />
+                </Field>
+                <Field label="Return Pickup Time" error={errors.return_pickup_at_utc?.message}>
+                  <input
+                    type="datetime-local"
+                    {...register('return_pickup_at_utc')}
+                    className="w-full border rounded px-3 py-2 text-sm"
+                  />
+                </Field>
+              </>
+            )}
+
             <Field label="Timezone" error={errors.timezone?.message}>
               <input
                 {...register('timezone')}
@@ -297,6 +334,11 @@ export default function CreateBookingPage() {
               {values.pickup_address_text} — {values.pickup_at_utc || 'No time set'} ({values.timezone})
             </ReviewRow>
             <ReviewRow label="Dropoff">{values.dropoff_address_text}</ReviewRow>
+            {values.is_return_trip && (
+              <ReviewRow label="Return Pickup">
+                {values.return_pickup_address_text || values.dropoff_address_text} — {values.return_pickup_at_utc || 'No time set'}
+              </ReviewRow>
+            )}
             <ReviewRow label="Passengers">{values.passenger_count}</ReviewRow>
             <ReviewRow label="Luggage">{values.luggage_count ?? 0}</ReviewRow>
             <ReviewRow label="Special Requests">{values.special_requests || '—'}</ReviewRow>
