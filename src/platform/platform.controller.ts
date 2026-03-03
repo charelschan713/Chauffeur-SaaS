@@ -85,6 +85,7 @@ export class PlatformController {
     return this.dataSource.query(
       `SELECT id, make, model, active, created_at
        FROM public.platform_vehicles
+       WHERE active = true
        ORDER BY make, model ASC`,
     );
   }
