@@ -6,6 +6,7 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import { DataSource } from 'typeorm';
 import * as crypto from 'crypto';
+import * as bcrypt from 'bcrypt';
 
 interface UserIdentity {
   sub: string;
@@ -35,7 +36,7 @@ export class AuthService {
 
   async login(email: string, password: string) {
     const rows = await this.dataSource.query(
-      `select id, is_platform_admin from public.users
+      `select id, is_platform_admin, password_hash from public.users
        where email = $1`,
       [email],
     );
@@ -43,6 +44,11 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
 
     const user = rows[0];
+    if (!user.password_hash)
+      throw new UnauthorizedException('Invalid credentials');
+
+    const ok = await bcrypt.compare(password, user.password_hash);
+    if (!ok) throw new UnauthorizedException('Invalid credentials');
 
     const memberships = await this.dataSource.query(
       `select tenant_id, role from public.memberships
@@ -64,6 +70,19 @@ export class AuthService {
     );
   }
 
+
+  async register(email: string, password: string, fullName?: string) {
+    const hash = await bcrypt.hash(password, 10);
+    const rows = await this.dataSource.query(
+      `insert into public.users (email, full_name, password_hash, is_platform_admin)
+       values ($1, $2, $3, false)
+       on conflict (email) do update
+         set password_hash = excluded.password_hash
+       returning id, email`,
+      [email, fullName ?? null, hash],
+    );
+    return rows[0];
+  }
   async refresh(refreshToken: string) {
     const hash = this.hashToken(refreshToken);
 
