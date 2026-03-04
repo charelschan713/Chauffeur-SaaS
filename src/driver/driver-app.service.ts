@@ -60,20 +60,20 @@ export class DriverAppService {
          b.pickup_at_utc,
          b.pickup_address_text,
          b.dropoff_address_text,
-         b.service_type_id,
-         st.name            AS service_type_name,
+         b.service_class_id,
+         sc.name            AS service_type_name,
          b.total_price_minor,
          b.currency,
          b.passenger_count,
          b.luggage_count,
-         b.notes,
-         b.flight_number,
+         b.special_requests AS notes,
+         NULL AS flight_number,
          b.is_return_trip,
          b.return_pickup_at_utc,
          b.waypoints
        FROM assignments a
        JOIN bookings b ON b.id = a.booking_id
-       LEFT JOIN service_types st ON st.id = b.service_type_id
+       LEFT JOIN tenant_service_classes sc ON sc.id = b.service_class_id
        WHERE a.driver_id = $1
          AND a.tenant_id = $2
          AND a.driver_execution_status NOT IN ('job_done','cancelled')
@@ -137,7 +137,7 @@ export class DriverAppService {
       `SELECT ${this.assignmentSelect}
        FROM assignments a
        JOIN bookings b ON b.id = a.booking_id
-       LEFT JOIN service_types st ON st.id = b.service_type_id
+       LEFT JOIN tenant_service_classes sc ON sc.id = b.service_class_id
        WHERE a.driver_id = $1 AND a.tenant_id = $2 AND ${statusFilter}
        ORDER BY b.pickup_at_utc DESC
        LIMIT 100`,
@@ -154,7 +154,7 @@ export class DriverAppService {
       `SELECT ${this.assignmentSelect}
        FROM assignments a
        JOIN bookings b ON b.id = a.booking_id
-       LEFT JOIN service_types st ON st.id = b.service_type_id
+       LEFT JOIN tenant_service_classes sc ON sc.id = b.service_class_id
        WHERE a.id = $1 AND a.driver_id = $2 AND a.tenant_id = $3
        LIMIT 1`,
       [assignmentId, me.driver_id, me.tenant_id],
@@ -260,15 +260,15 @@ export class DriverAppService {
     b.pickup_at_utc,
     b.pickup_address_text,
     b.dropoff_address_text,
-    b.service_type_id,
-    st.name            AS service_type_name,
+    b.service_class_id,
+    sc.name            AS service_type_name,
     b.total_price_minor,
     b.currency,
     b.passenger_count,
     b.luggage_count,
-    b.notes,
-    b.admin_note,
-    b.flight_number,
+    b.special_requests AS notes,
+    NULL AS admin_note,
+    NULL AS flight_number,
     b.is_return_trip,
     b.return_pickup_at_utc,
     b.return_pickup_address_text,
