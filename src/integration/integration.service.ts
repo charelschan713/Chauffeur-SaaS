@@ -1,9 +1,32 @@
 import { Injectable } from '@nestjs/common';
+import { DataSource } from 'typeorm';
 import { IntegrationResolver } from './integration.resolver';
 
 @Injectable()
 export class IntegrationService {
-  constructor(private readonly resolver: IntegrationResolver) {}
+  constructor(
+    private readonly resolver: IntegrationResolver,
+    private readonly dataSource: DataSource,
+  ) {}
+
+  async syncStripeCurrency(tenantId: string, secretKey: string): Promise<string | null> {
+    try {
+      const Stripe = require('stripe');
+      const stripe = new Stripe(secretKey, { apiVersion: '2023-10-16' });
+      const account = await stripe.accounts.retrieve();
+      const currency = account.default_currency?.toUpperCase() ?? null;
+      if (currency) {
+        await this.dataSource.query(
+          `UPDATE public.tenants SET currency = $1 WHERE id = $2`,
+          [currency, tenantId],
+        );
+      }
+      return currency;
+    } catch {
+      // Silent fail — does not affect integration save
+      return null;
+    }
+  }
 
   async test(
     tenantId: string,

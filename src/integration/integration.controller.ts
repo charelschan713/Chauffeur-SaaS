@@ -1,8 +1,9 @@
-import { Body, Controller, Delete, Get, Param, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, NotFoundException, Param, Post, Req, UseGuards } from '@nestjs/common';
 import { JwtGuard } from '../common/guards/jwt.guard';
 import { DataSource } from 'typeorm';
 import { EncryptionService } from './encryption.service';
 import { IntegrationService } from './integration.service';
+import { IntegrationResolver } from './integration.resolver';
 
 @Controller('integrations')
 @UseGuards(JwtGuard)
@@ -11,6 +12,7 @@ export class IntegrationController {
     private readonly dataSource: DataSource,
     private readonly encryptionService: EncryptionService,
     private readonly integrationService: IntegrationService,
+    private readonly integrationResolver: IntegrationResolver,
   ) {}
 
   @Get()
@@ -44,6 +46,15 @@ export class IntegrationController {
        RETURNING id`,
       [req.user.tenant_id, type, configEncrypted, maskedPreviewValue],
     );
+
+    // Auto-sync currency from Stripe after save
+    if (type === 'stripe' && configData.secret_key) {
+      await this.integrationService.syncStripeCurrency(
+        req.user.tenant_id,
+        configData.secret_key,
+      );
+    }
+
     return { success: true, id: rows[0]?.id };
   }
 
@@ -60,7 +71,31 @@ export class IntegrationController {
 
   @Post('test/:type')
   async testIntegration(@Param('type') type: string, @Req() req: any) {
-    return this.integrationService.test(req.user.tenant_id, type);
+    const result = await this.integrationService.test(req.user.tenant_id, type);
+
+    // Also sync currency on successful Stripe test
+    if (type === 'stripe' && result.success) {
+      const integration = await this.integrationResolver.resolve(req.user.tenant_id, 'stripe');
+      if (integration?.config?.secret_key) {
+        await this.integrationService.syncStripeCurrency(
+          req.user.tenant_id,
+          integration.config.secret_key,
+        );
+      }
+    }
+
+    return result;
+  }
+
+  @Post('stripe/sync-currency')
+  async syncStripeCurrency(@Req() req: any) {
+    const integration = await this.integrationResolver.resolve(req.user.tenant_id, 'stripe');
+    if (!integration) throw new NotFoundException('Stripe not configured');
+    const currency = await this.integrationService.syncStripeCurrency(
+      req.user.tenant_id,
+      integration.config.secret_key,
+    );
+    return { currency };
   }
 
   @Get('debug/:type')

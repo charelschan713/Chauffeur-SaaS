@@ -65,14 +65,25 @@ export default function GeneralSettingsPage() {
     <div className="space-y-6 max-w-2xl">
       <h1 className="text-xl font-semibold">General Settings</h1>
 
-      {/* Currency — read-only, only super admin can change */}
+      {/* Currency — read-only, synced from Stripe */}
       <div className="bg-white border rounded p-6 space-y-2">
         <h2 className="text-lg font-medium">Currency</h2>
-        <div className="flex items-center gap-3">
-          <span className="text-sm font-semibold text-gray-900 bg-gray-100 px-3 py-1.5 rounded">
-            {currency}
-          </span>
-        </div>
+        {currency && currency !== '—' ? (
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-semibold text-gray-900 bg-gray-100 px-3 py-1.5 rounded">
+              {currency}
+            </span>
+            <span className="text-xs text-gray-400">(Synced from Stripe)</span>
+          </div>
+        ) : (
+          <p className="text-sm text-gray-500">
+            Configure{' '}
+            <a href="/settings/integrations" className="text-blue-600 underline hover:text-blue-700">
+              Stripe integration
+            </a>{' '}
+            to sync currency automatically.
+          </p>
+        )}
         <p className="text-xs text-gray-400">
           To change currency, please contact platform support.
         </p>
