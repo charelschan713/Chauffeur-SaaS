@@ -4,9 +4,10 @@ import { DriverController } from './driver.controller';
 import { DriverService } from './driver.service';
 import { DriverAppController } from './driver-app.controller';
 import { DriverAppService } from './driver-app.service';
+import { NetworkModule } from '../network/network.module';
 
 @Module({
-  imports: [JwtModule.register({})],
+  imports: [JwtModule.register({}), NetworkModule],
   controllers: [DriverController, DriverAppController],
   providers: [DriverService, DriverAppService],
 })

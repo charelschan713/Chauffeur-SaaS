@@ -10,6 +10,7 @@ import { PaymentModule } from './payment/payment.module';
 import { DispatchModule } from './dispatch/dispatch.module';
 import { PlatformModule } from './platform/platform.module';
 import { DriverModule } from './driver/driver.module';
+import { NetworkModule } from './network/network.module';
 import { PricingModule } from './pricing/pricing.module';
 import { HealthController } from './health/health.controller';
 import { IntegrationModule } from './integration/integration.module';
@@ -46,6 +47,7 @@ import { TenantContextMiddleware } from './common/middleware/tenant-context.midd
     DispatchModule,
     PlatformModule,
     DriverModule,
+    NetworkModule,
     PricingModule,
     IntegrationModule,
     NotificationModule,

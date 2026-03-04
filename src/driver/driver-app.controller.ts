@@ -11,6 +11,7 @@ import {
 import { JwtGuard } from '../common/guards/jwt.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { DriverAppService } from './driver-app.service';
+import { NetworkService } from '../network/network.service';
 
 /**
  * Driver App REST API
@@ -20,7 +21,10 @@ import { DriverAppService } from './driver-app.service';
 @UseGuards(JwtGuard)
 @Controller('driver-app')
 export class DriverAppController {
-  constructor(private readonly service: DriverAppService) {}
+  constructor(
+    private readonly service: DriverAppService,
+    private readonly network: NetworkService,
+  ) {}
 
   /** Driver profile (who am I) */
   @Get('me')
@@ -94,6 +98,23 @@ export class DriverAppController {
     @Body('reason') reason?: string,
   ) {
     return this.service.selfUnbind(userId, reason);
+  }
+
+  // ─── External Order Approval ──────────────────────────────────────────────
+
+  /** Get driver's external approval status */
+  @Get('external-approval')
+  async externalApprovalStatus(@CurrentUser('sub') userId: string) {
+    return this.network.getExternalApprovalStatus(userId);
+  }
+
+  /** Apply to receive external orders (needs platform review) */
+  @Post('external-approval/apply')
+  async applyExternalApproval(
+    @CurrentUser('sub') userId: string,
+    @Body('reason') reason?: string,
+  ) {
+    return this.network.applyExternalApproval(userId, reason);
   }
 
   /** Save APNs / FCM push token */
