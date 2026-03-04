@@ -11,6 +11,8 @@ import { Input } from '@/components/ui/Input';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { ErrorAlert } from '@/components/ui/ErrorAlert';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { ConfirmModal } from '@/components/ui/ConfirmModal';
+import { Toast } from '@/components/ui/Toast';
 
 interface VehicleRow {
   id: string;
@@ -18,6 +20,8 @@ interface VehicleRow {
   model: string;
   active: boolean;
 }
+
+type ToastState = { message: string; tone: 'success' | 'error' };
 
 export default function AdminVehiclesPage() {
   const { data, isLoading, error, refetch } = useQuery({
@@ -30,41 +34,67 @@ export default function AdminVehiclesPage() {
 
   const vehicles = (Array.isArray(data) ? data : []) as VehicleRow[];
 
+  // Form state
   const [form, setForm] = useState({ make: '', model: '' });
   const [editingId, setEditingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  // Deactivate confirm
+  const [deactivateTarget, setDeactivateTarget] = useState<VehicleRow | null>(null);
+  const [deactivating, setDeactivating] = useState(false);
+
+  // Toast
+  const [toast, setToast] = useState<ToastState | null>(null);
 
   const editing = useMemo(() => vehicles.find((v) => v.id === editingId) ?? null, [vehicles, editingId]);
 
   function startEdit(row: VehicleRow) {
     setEditingId(row.id);
     setForm({ make: row.make, model: row.model });
+    setSaveError(null);
   }
 
   function cancelEdit() {
     setEditingId(null);
     setForm({ make: '', model: '' });
+    setSaveError(null);
   }
 
   async function handleSave() {
     setSaving(true);
+    setSaveError(null);
     try {
       if (editingId) {
         await api.patch(`/platform/vehicles/${editingId}`, { make: form.make, model: form.model });
+        setToast({ message: `${form.make} ${form.model} updated`, tone: 'success' });
         cancelEdit();
       } else {
         await api.post('/platform/vehicles', form);
+        setToast({ message: `${form.make} ${form.model} added`, tone: 'success' });
         setForm({ make: '', model: '' });
       }
       await refetch();
+    } catch {
+      setSaveError(editingId ? 'Failed to update vehicle.' : 'Failed to add vehicle.');
     } finally {
       setSaving(false);
     }
   }
 
-  async function deactivate(id: string) {
-    await api.patch(`/platform/vehicles/${id}`, { active: false });
-    await refetch();
+  async function confirmDeactivate() {
+    if (!deactivateTarget) return;
+    setDeactivating(true);
+    try {
+      await api.patch(`/platform/vehicles/${deactivateTarget.id}`, { active: false });
+      await refetch();
+      setToast({ message: `${deactivateTarget.make} ${deactivateTarget.model} deactivated`, tone: 'success' });
+    } catch {
+      setToast({ message: 'Failed to deactivate vehicle', tone: 'error' });
+    } finally {
+      setDeactivating(false);
+      setDeactivateTarget(null);
+    }
   }
 
   return (
@@ -73,17 +103,18 @@ export default function AdminVehiclesPage() {
 
       {error && <ErrorAlert message="Unable to load vehicles" onRetry={refetch} />}
 
+      {/* Add / Edit form */}
       <Card title={editingId ? `Editing: ${editing?.make} ${editing?.model}` : 'Add Vehicle'}>
         <div className="flex flex-col sm:flex-row gap-3">
           <Input
             value={form.make}
             onChange={(e) => setForm((p) => ({ ...p, make: e.target.value }))}
-            placeholder="Make"
+            placeholder="Make (e.g. Mercedes-Benz)"
           />
           <Input
             value={form.model}
             onChange={(e) => setForm((p) => ({ ...p, model: e.target.value }))}
-            placeholder="Model"
+            placeholder="Model (e.g. S-Class)"
           />
           <div className="flex gap-2 shrink-0">
             <Button onClick={handleSave} disabled={saving || !form.make || !form.model}>
@@ -94,8 +125,10 @@ export default function AdminVehiclesPage() {
             )}
           </div>
         </div>
+        {saveError && <div className="mt-3"><ErrorAlert message={saveError} /></div>}
       </Card>
 
+      {/* Vehicle list */}
       <Card title={`Vehicles (${vehicles.length})`}>
         {isLoading ? (
           <div className="flex items-center justify-center h-40"><LoadingSpinner /></div>
@@ -113,16 +146,24 @@ export default function AdminVehiclesPage() {
               </thead>
               <tbody className="divide-y divide-neutral-100">
                 {vehicles.map((row) => (
-                  <tr key={row.id} className="hover:bg-neutral-50">
+                  <tr key={row.id} className={`hover:bg-neutral-50 ${!row.active ? 'opacity-50' : ''}`}>
                     <td className="py-3 pr-4 font-medium text-gray-900">{row.make}</td>
                     <td className="py-3 pr-4 text-gray-600">{row.model}</td>
                     <td className="py-3 pr-4">
-                      <Badge variant={row.active ? 'success' : 'neutral'}>{row.active ? 'Active' : 'Inactive'}</Badge>
+                      <Badge variant={row.active ? 'success' : 'neutral'}>
+                        {row.active ? 'Active' : 'Inactive'}
+                      </Badge>
                     </td>
                     <td className="py-3 text-right space-x-2">
-                      <Button variant="ghost" onClick={() => startEdit(row)}>Edit</Button>
+                      <Button variant="ghost" onClick={() => startEdit(row)}>
+                        Edit
+                      </Button>
                       {row.active && (
-                        <Button variant="ghost" onClick={() => deactivate(row.id)} className="text-red-600 hover:text-red-700">
+                        <Button
+                          variant="ghost"
+                          onClick={() => setDeactivateTarget(row)}
+                          className="text-red-600 hover:text-red-700"
+                        >
                           Deactivate
                         </Button>
                       )}
@@ -134,6 +175,22 @@ export default function AdminVehiclesPage() {
           </div>
         )}
       </Card>
+
+      {/* Deactivate confirm */}
+      <ConfirmModal
+        title="Deactivate vehicle?"
+        description={`${deactivateTarget?.make} ${deactivateTarget?.model} will be hidden from all tenant assignments.`}
+        isOpen={!!deactivateTarget}
+        onClose={() => setDeactivateTarget(null)}
+        onConfirm={confirmDeactivate}
+        confirmText={deactivating ? 'Deactivating…' : 'Yes, deactivate'}
+        confirmTone="danger"
+        loading={deactivating}
+      />
+
+      {toast && (
+        <Toast message={toast.message} tone={toast.tone} onClose={() => setToast(null)} />
+      )}
     </div>
   );
 }
