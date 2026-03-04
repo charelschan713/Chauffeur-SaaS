@@ -3,6 +3,12 @@ import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { ListPage } from '@/components/patterns/ListPage';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
+import { Table } from '@/components/ui/Table';
+import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { ErrorAlert } from '@/components/ui/ErrorAlert';
 
 interface ServiceClassRow {
   id: string;
@@ -62,7 +68,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 }
 
 export default function CarTypesPage() {
-  const { data = [], isLoading, refetch } = useQuery({
+  const { data = [], isLoading, error, refetch } = useQuery({
     queryKey: ['service-classes'],
     queryFn: async () => {
       const res = await api.get('/pricing/car-types');
@@ -140,130 +146,113 @@ export default function CarTypesPage() {
     });
   }
 
+  if (error) return <ErrorAlert message="Unable to load car types" onRetry={refetch} />;
+
   return (
     <ListPage
       title="Car Types"
       subtitle="Configure car types and base pricing"
       actions={
-        <button
+        <Button
           onClick={() => {
             setEditingId(null);
             setForm(emptyForm);
           }}
-          className="px-4 py-2 rounded bg-blue-600 text-white text-sm"
         >
           New Car Type
-        </button>
+        </Button>
       }
       filters={
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Field label="Name">
-            <input
+            <Input
               value={form.name}
               onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
-              className="w-full border rounded px-3 py-2 text-sm"
             />
           </Field>
           <Field label="Description">
-            <input
+            <Input
               value={form.description}
               onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))}
-              className="w-full border rounded px-3 py-2 text-sm"
             />
           </Field>
           <Field label="Display Order">
-            <input
+            <Input
               type="number"
               value={form.display_order}
               onChange={(e) =>
                 setForm((prev) => ({ ...prev, display_order: Number(e.target.value) }))
               }
-              className="w-full border rounded px-3 py-2 text-sm"
             />
           </Field>
           <div className="flex items-end gap-2">
-            <button
-              onClick={editingId ? handleUpdate : handleCreate}
-              className="px-4 py-2 rounded bg-blue-600 text-white text-sm"
-            >
+            <Button onClick={editingId ? handleUpdate : handleCreate}>
               {editingId ? 'Update' : 'Create'}
-            </button>
+            </Button>
             {editingId && (
-              <button
+              <Button
+                variant="secondary"
                 onClick={() => {
                   setEditingId(null);
                   setForm(emptyForm);
                 }}
-                className="px-3 py-2 rounded border text-sm"
               >
                 Cancel
-              </button>
+              </Button>
             )}
           </div>
         </div>
       }
       table={
         isLoading ? (
-          <div className="p-6 text-sm text-gray-500">Loading...</div>
+          <div className="flex items-center justify-center h-32"><LoadingSpinner /></div>
+        ) : items.length === 0 ? (
+          <EmptyState title="No car types yet" description="Create your first car type to get started." />
         ) : (
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50">
-              <tr>
-                {['Name', 'Base Fare', 'Per Km', 'Per Min', 'Minimum', 'Active', ''].map((h) => (
-                  <th
-                    key={h}
-                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase"
+          <Table headers={['Name', 'Base Fare', 'Per Km', 'Per Min', 'Minimum', 'Active', '']}>
+            {items.map((item) => (
+              <tr key={item.id} className="hover:bg-gray-50">
+                <td className="px-6 py-4 font-medium text-gray-900">{item.name}</td>
+                <td className="px-6 py-4 text-sm">{toMoney(item.base_fare_minor)}</td>
+                <td className="px-6 py-4 text-sm">{toMoney(item.per_km_minor)}</td>
+                <td className="px-6 py-4 text-sm">{toMoney(item.per_min_driving_minor)}</td>
+                <td className="px-6 py-4 text-sm">{toMoney(item.minimum_fare_minor)}</td>
+                <td className="px-6 py-4 text-sm">
+                  <span className={`px-2 py-1 rounded text-xs ${item.active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-700'}`}>
+                    {item.active ? 'Active' : 'Inactive'}
+                  </span>
+                </td>
+                <td className="px-6 py-4 text-sm text-right space-x-2">
+                  <button
+                    className="text-blue-600 hover:underline"
+                    onClick={() => {
+                      setEditingId(item.id);
+                      setForm({
+                        name: item.name,
+                        description: item.description ?? '',
+                        display_order: item.display_order ?? 0,
+                        base_fare_minor: toMoney(item.base_fare_minor),
+                        per_km_minor: toMoney(item.per_km_minor),
+                        per_min_driving_minor: toMoney(item.per_min_driving_minor),
+                        per_min_waiting_minor: toMoney(item.per_min_waiting_minor),
+                        minimum_fare_minor: toMoney(item.minimum_fare_minor),
+                        waypoint_minor: toMoney(item.waypoint_minor),
+                        infant_seat_minor: toMoney(item.infant_seat_minor),
+                        toddler_seat_minor: toMoney(item.toddler_seat_minor),
+                        booster_seat_minor: toMoney(item.booster_seat_minor),
+                        hourly_rate_minor: toMoney(item.hourly_rate_minor),
+                      });
+                    }}
                   >
-                    {h}
-                  </th>
-                ))}
+                    Edit
+                  </button>
+                  <button className="text-red-600 hover:underline" onClick={() => handleDeactivate(item.id)}>
+                    Deactivate
+                  </button>
+                </td>
               </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200">
-              {items.map((item) => (
-                <tr key={item.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 font-medium text-gray-900">{item.name}</td>
-                  <td className="px-6 py-4 text-sm">{toMoney(item.base_fare_minor)}</td>
-                  <td className="px-6 py-4 text-sm">{toMoney(item.per_km_minor)}</td>
-                  <td className="px-6 py-4 text-sm">{toMoney(item.per_min_driving_minor)}</td>
-                  <td className="px-6 py-4 text-sm">{toMoney(item.minimum_fare_minor)}</td>
-                  <td className="px-6 py-4 text-sm">
-                    <span className={`px-2 py-1 rounded text-xs ${item.active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-700'}`}>
-                      {item.active ? 'Active' : 'Inactive'}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-sm text-right space-x-2">
-                    <button
-                      className="text-blue-600 hover:underline"
-                      onClick={() => {
-                        setEditingId(item.id);
-                        setForm({
-                          name: item.name,
-                          description: item.description ?? '',
-                          display_order: item.display_order ?? 0,
-                          base_fare_minor: toMoney(item.base_fare_minor),
-                          per_km_minor: toMoney(item.per_km_minor),
-                          per_min_driving_minor: toMoney(item.per_min_driving_minor),
-                          per_min_waiting_minor: toMoney(item.per_min_waiting_minor),
-                          minimum_fare_minor: toMoney(item.minimum_fare_minor),
-                          waypoint_minor: toMoney(item.waypoint_minor),
-                          infant_seat_minor: toMoney(item.infant_seat_minor),
-                          toddler_seat_minor: toMoney(item.toddler_seat_minor),
-                          booster_seat_minor: toMoney(item.booster_seat_minor),
-                          hourly_rate_minor: toMoney(item.hourly_rate_minor),
-                        });
-                      }}
-                    >
-                      Edit
-                    </button>
-                    <button className="text-red-600 hover:underline" onClick={() => handleDeactivate(item.id)}>
-                      Deactivate
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+            ))}
+          </Table>
         )
       }
       footer={
@@ -289,9 +278,7 @@ export default function CarTypesPage() {
               ))}
             </div>
             <div className="mt-3">
-              <button onClick={handleSavePlatformVehicles} className="px-4 py-2 rounded bg-blue-600 text-white text-sm">
-                Save Platform Vehicles
-              </button>
+              <Button onClick={handleSavePlatformVehicles}>Save Platform Vehicles</Button>
             </div>
           </div>
         )

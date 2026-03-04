@@ -4,6 +4,13 @@ import React, { Fragment, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { PageHeader } from '@/components/admin/PageHeader';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
+import { Select } from '@/components/ui/Select';
+import { Table } from '@/components/ui/Table';
+import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { ErrorAlert } from '@/components/ui/ErrorAlert';
 
 const TIER_COLORS: Record<string, string> = {
   STANDARD: 'bg-green-100 text-green-800',
@@ -28,7 +35,7 @@ export default function CustomersPage() {
   const [editingPassenger, setEditingPassenger] = useState<any | null>(null);
   const [activeCustomerId, setActiveCustomerId] = useState<string | null>(null);
 
-  const { data: customers = [], isLoading } = useQuery({
+  const { data: customers = [], isLoading, error, refetch } = useQuery({
     queryKey: ['customers', search],
     queryFn: async () => {
       const res = await api.get('/customers', { params: { search: search || undefined } });
@@ -181,96 +188,89 @@ export default function CustomersPage() {
     await queryClient.invalidateQueries({ queryKey: ['customer-detail', expandedId] });
   }
 
+  if (error) return <ErrorAlert message="Unable to load customers" onRetry={refetch} />;
+
   return (
     <div className="space-y-6">
       <PageHeader
         title="Customers"
         description="Manage customer profiles and passengers"
         actions={
-          <button onClick={openCreateCustomer} className="px-4 py-2 rounded bg-blue-600 text-white text-sm">Add Customer</button>
+          <Button onClick={openCreateCustomer}>Add Customer</Button>
         }
       />
 
       <div className="flex items-center gap-3">
-        <input
+        <Input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search name, email, phone"
-          className="border rounded px-3 py-2 text-sm w-full max-w-md"
+          className="max-w-md"
         />
       </div>
 
       {isLoading ? (
-        <div className="text-gray-500">Loading...</div>
+        <div className="flex items-center justify-center h-32"><LoadingSpinner /></div>
+      ) : customers.length === 0 ? (
+        <EmptyState title="No customers yet" description="Create your first customer to get started." />
       ) : (
-        <div className="bg-white border rounded">
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50">
-              <tr>
-                {['Name', 'Email', 'Phone', 'Tier', 'Created', ''].map((h) => (
-                  <th key={h} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{h}</th>
-                ))}
+        <Table headers={['Name', 'Email', 'Phone', 'Tier', 'Created', '']}>
+          {customers.map((c: any) => (
+            <Fragment key={c.id}>
+              <tr className="hover:bg-gray-50">
+                <td className="px-4 py-3 font-medium">{c.first_name} {c.last_name}</td>
+                <td className="px-4 py-3">{c.email ?? '—'}</td>
+                <td className="px-4 py-3">{c.phone_country_code ?? ''} {c.phone_number ?? ''}</td>
+                <td className="px-4 py-3">
+                  <span className={`px-2 py-1 rounded text-xs ${TIER_COLORS[c.tier ?? 'STANDARD'] ?? 'bg-gray-100 text-gray-700'}`}>
+                    {c.tier ?? 'STANDARD'}
+                  </span>
+                </td>
+                <td className="px-4 py-3 text-gray-500">{c.created_at ? new Date(c.created_at).toLocaleDateString() : '—'}</td>
+                <td className="px-4 py-3 text-right space-x-2">
+                  <button className="text-blue-600 hover:underline" onClick={() => openEditCustomer(c)}>Edit</button>
+                  <button className="text-gray-600 hover:underline" onClick={() => setExpandedId(expandedId === c.id ? null : c.id)}>Passengers</button>
+                </td>
               </tr>
-            </thead>
-            <tbody className="divide-y">
-              {customers.map((c: any) => (
-                <Fragment key={c.id}>
-                  <tr className="hover:bg-gray-50">
-                    <td className="px-4 py-3 font-medium">{c.first_name} {c.last_name}</td>
-                    <td className="px-4 py-3">{c.email ?? '—'}</td>
-                    <td className="px-4 py-3">{c.phone_country_code ?? ''} {c.phone_number ?? ''}</td>
-                    <td className="px-4 py-3">
-                      <span className={`px-2 py-1 rounded text-xs ${TIER_COLORS[c.tier ?? 'STANDARD'] ?? 'bg-gray-100 text-gray-700'}`}>
-                        {c.tier ?? 'STANDARD'}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-gray-500">{c.created_at ? new Date(c.created_at).toLocaleDateString() : '—'}</td>
-                    <td className="px-4 py-3 text-right space-x-2">
-                      <button className="text-blue-600 hover:underline" onClick={() => openEditCustomer(c)}>Edit</button>
-                      <button className="text-gray-600 hover:underline" onClick={() => setExpandedId(expandedId === c.id ? null : c.id)}>Passengers</button>
-                    </td>
-                  </tr>
-                  {expandedId === c.id && (
-                    <tr>
-                      <td colSpan={6} className="bg-gray-50">
-                        <div className="p-4 space-y-3">
-                          <div className="flex items-center justify-between">
-                            <h3 className="font-medium">Passengers</h3>
-                            <button className="px-3 py-1.5 rounded border text-sm" onClick={() => openCreatePassenger(c.id)}>Add Passenger</button>
-                          </div>
-                          {passengers.length === 0 ? (
-                            <p className="text-sm text-gray-500">No passengers found.</p>
-                          ) : (
-                            <div className="space-y-2">
-                              {passengers.map((p: any) => (
-                                <div key={p.id} className="flex items-center justify-between bg-white border rounded p-3">
-                                  <div>
-                                    <div className="font-medium">{p.first_name} {p.last_name}</div>
-                                    <div className="text-xs text-gray-500">{p.phone_country_code ?? ''} {p.phone_number ?? ''}</div>
-                                    <div className="text-xs text-gray-500">
-                                      🌡 {p.preferences?.temperature_c ?? 22}°C · 🎵 {p.preferences?.music ?? 'OFF'} · 💬 {p.preferences?.conversation ?? 'QUIET'} · 💺 {p.preferences?.seat ?? 'REAR'}
-                                    </div>
-                                    {p.preferences?.special_notes && (
-                                      <div className="text-xs text-gray-500">📝 {p.preferences.special_notes}</div>
-                                    )}
-                                  </div>
-                                  <div className="space-x-2">
-                                    <button className="text-blue-600 hover:underline text-sm" onClick={() => openEditPassenger(c.id, p)}>Edit</button>
-                                    <button className="text-red-600 hover:underline text-sm" onClick={() => deletePassenger(p.id)}>Delete</button>
-                                  </div>
+              {expandedId === c.id && (
+                <tr>
+                  <td colSpan={6} className="bg-gray-50">
+                    <div className="p-4 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <h3 className="font-medium">Passengers</h3>
+                        <Button variant="secondary" onClick={() => openCreatePassenger(c.id)}>Add Passenger</Button>
+                      </div>
+                      {passengers.length === 0 ? (
+                        <p className="text-sm text-gray-500">No passengers found.</p>
+                      ) : (
+                        <div className="space-y-2">
+                          {passengers.map((p: any) => (
+                            <div key={p.id} className="flex items-center justify-between bg-white border rounded p-3">
+                              <div>
+                                <div className="font-medium">{p.first_name} {p.last_name}</div>
+                                <div className="text-xs text-gray-500">{p.phone_country_code ?? ''} {p.phone_number ?? ''}</div>
+                                <div className="text-xs text-gray-500">
+                                  🌡 {p.preferences?.temperature_c ?? 22}°C · 🎵 {p.preferences?.music ?? 'OFF'} · 💬 {p.preferences?.conversation ?? 'QUIET'} · 💺 {p.preferences?.seat ?? 'REAR'}
                                 </div>
-                              ))}
+                                {p.preferences?.special_notes && (
+                                  <div className="text-xs text-gray-500">📝 {p.preferences.special_notes}</div>
+                                )}
+                              </div>
+                              <div className="space-x-2">
+                                <button className="text-blue-600 hover:underline text-sm" onClick={() => openEditPassenger(c.id, p)}>Edit</button>
+                                <button className="text-red-600 hover:underline text-sm" onClick={() => deletePassenger(p.id)}>Delete</button>
+                              </div>
                             </div>
-                          )}
+                          ))}
                         </div>
-                      </td>
-                    </tr>
-                  )}
-                </Fragment>
-              ))}
-            </tbody>
-          </table>
-        </div>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              )}
+            </Fragment>
+          ))}
+        </Table>
       )}
 
       {customerModalOpen && (
@@ -278,30 +278,30 @@ export default function CustomersPage() {
           <div className="bg-white rounded-lg shadow-xl w-full max-w-lg p-6 space-y-4">
             <h3 className="text-lg font-semibold">{editingCustomer ? 'Edit Customer' : 'Create Customer'}</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <input className="border rounded px-3 py-2 text-sm" placeholder="First Name" value={customerForm.first_name} onChange={(e) => setCustomerForm((p) => ({ ...p, first_name: e.target.value }))} />
-              <input className="border rounded px-3 py-2 text-sm" placeholder="Last Name" value={customerForm.last_name} onChange={(e) => setCustomerForm((p) => ({ ...p, last_name: e.target.value }))} />
-              <input className="border rounded px-3 py-2 text-sm" placeholder="Email" value={customerForm.email} onChange={(e) => setCustomerForm((p) => ({ ...p, email: e.target.value }))} />
-              <input className="border rounded px-3 py-2 text-sm" placeholder="Phone Country Code" value={customerForm.phone_country_code} onChange={(e) => setCustomerForm((p) => ({ ...p, phone_country_code: e.target.value }))} />
-              <input className="border rounded px-3 py-2 text-sm" placeholder="Phone Number" value={customerForm.phone_number} onChange={(e) => setCustomerForm((p) => ({ ...p, phone_number: e.target.value }))} />
-              <select className="border rounded px-3 py-2 text-sm" value={customerForm.tier} onChange={(e) => setCustomerForm((p) => ({ ...p, tier: e.target.value }))}>
+              <Input placeholder="First Name" value={customerForm.first_name} onChange={(e) => setCustomerForm((p) => ({ ...p, first_name: e.target.value }))} />
+              <Input placeholder="Last Name" value={customerForm.last_name} onChange={(e) => setCustomerForm((p) => ({ ...p, last_name: e.target.value }))} />
+              <Input placeholder="Email" value={customerForm.email} onChange={(e) => setCustomerForm((p) => ({ ...p, email: e.target.value }))} />
+              <Input placeholder="Phone Country Code" value={customerForm.phone_country_code} onChange={(e) => setCustomerForm((p) => ({ ...p, phone_country_code: e.target.value }))} />
+              <Input placeholder="Phone Number" value={customerForm.phone_number} onChange={(e) => setCustomerForm((p) => ({ ...p, phone_number: e.target.value }))} />
+              <Select value={customerForm.tier} onChange={(e) => setCustomerForm((p) => ({ ...p, tier: e.target.value }))}>
                 {['STANDARD','SILVER','GOLD','PLATINUM','VIP','CUSTOM'].map((t) => (
                   <option key={t} value={t}>{t}</option>
                 ))}
-              </select>
+              </Select>
               {customerForm.tier === 'CUSTOM' && (
                 <>
-                  <select className="border rounded px-3 py-2 text-sm" value={customerForm.custom_discount_type} onChange={(e) => setCustomerForm((p) => ({ ...p, custom_discount_type: e.target.value }))}>
+                  <Select value={customerForm.custom_discount_type} onChange={(e) => setCustomerForm((p) => ({ ...p, custom_discount_type: e.target.value }))}>
                     <option value="">Discount Type</option>
                     <option value="CUSTOM_PERCENT">CUSTOM_PERCENT</option>
                     <option value="CUSTOM_FIXED">CUSTOM_FIXED</option>
-                  </select>
-                  <input className="border rounded px-3 py-2 text-sm" placeholder="Discount Value" value={customerForm.custom_discount_value} onChange={(e) => setCustomerForm((p) => ({ ...p, custom_discount_value: e.target.value }))} />
+                  </Select>
+                  <Input placeholder="Discount Value" value={customerForm.custom_discount_value} onChange={(e) => setCustomerForm((p) => ({ ...p, custom_discount_value: e.target.value }))} />
                 </>
               )}
             </div>
             <div className="flex justify-end gap-2">
-              <button onClick={() => setCustomerModalOpen(false)} className="px-4 py-2 rounded border text-sm">Cancel</button>
-              <button onClick={saveCustomer} className="px-4 py-2 rounded bg-blue-600 text-white text-sm">Save</button>
+              <Button variant="secondary" onClick={() => setCustomerModalOpen(false)}>Cancel</Button>
+              <Button onClick={saveCustomer}>Save</Button>
             </div>
           </div>
         </div>
@@ -312,37 +312,37 @@ export default function CustomersPage() {
           <div className="bg-white rounded-lg shadow-xl w-full max-w-lg p-6 space-y-4">
             <h3 className="text-lg font-semibold">{editingPassenger ? 'Edit Passenger' : 'Create Passenger'}</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <input className="border rounded px-3 py-2 text-sm" placeholder="First Name" value={passengerForm.first_name} onChange={(e) => setPassengerForm((p) => ({ ...p, first_name: e.target.value }))} />
-              <input className="border rounded px-3 py-2 text-sm" placeholder="Last Name" value={passengerForm.last_name} onChange={(e) => setPassengerForm((p) => ({ ...p, last_name: e.target.value }))} />
-              <input className="border rounded px-3 py-2 text-sm" placeholder="Phone Country Code" value={passengerForm.phone_country_code} onChange={(e) => setPassengerForm((p) => ({ ...p, phone_country_code: e.target.value }))} />
-              <input className="border rounded px-3 py-2 text-sm" placeholder="Phone Number" value={passengerForm.phone_number} onChange={(e) => setPassengerForm((p) => ({ ...p, phone_number: e.target.value }))} />
+              <Input placeholder="First Name" value={passengerForm.first_name} onChange={(e) => setPassengerForm((p) => ({ ...p, first_name: e.target.value }))} />
+              <Input placeholder="Last Name" value={passengerForm.last_name} onChange={(e) => setPassengerForm((p) => ({ ...p, last_name: e.target.value }))} />
+              <Input placeholder="Phone Country Code" value={passengerForm.phone_country_code} onChange={(e) => setPassengerForm((p) => ({ ...p, phone_country_code: e.target.value }))} />
+              <Input placeholder="Phone Number" value={passengerForm.phone_number} onChange={(e) => setPassengerForm((p) => ({ ...p, phone_number: e.target.value }))} />
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <label className="text-sm">Temperature
-                <input type="number" min={16} max={26} className="border rounded px-3 py-2 text-sm w-full" value={passengerForm.temperature_c} onChange={(e) => setPassengerForm((p) => ({ ...p, temperature_c: Number(e.target.value) }))} />
+                <Input type="number" min={16} max={26} value={passengerForm.temperature_c} onChange={(e) => setPassengerForm((p) => ({ ...p, temperature_c: Number(e.target.value) }))} />
               </label>
               <label className="text-sm">Music
-                <select className="border rounded px-3 py-2 text-sm w-full" value={passengerForm.music} onChange={(e) => setPassengerForm((p) => ({ ...p, music: e.target.value }))}>
+                <Select value={passengerForm.music} onChange={(e) => setPassengerForm((p) => ({ ...p, music: e.target.value }))}>
                   {MUSIC_OPTIONS.map((m) => <option key={m} value={m}>{m}</option>)}
-                </select>
+                </Select>
               </label>
               <label className="text-sm">Conversation
-                <select className="border rounded px-3 py-2 text-sm w-full" value={passengerForm.conversation} onChange={(e) => setPassengerForm((p) => ({ ...p, conversation: e.target.value }))}>
+                <Select value={passengerForm.conversation} onChange={(e) => setPassengerForm((p) => ({ ...p, conversation: e.target.value }))}>
                   {CONVERSATION_OPTIONS.map((m) => <option key={m} value={m}>{m}</option>)}
-                </select>
+                </Select>
               </label>
               <label className="text-sm">Seat
-                <select className="border rounded px-3 py-2 text-sm w-full" value={passengerForm.seat} onChange={(e) => setPassengerForm((p) => ({ ...p, seat: e.target.value }))}>
+                <Select value={passengerForm.seat} onChange={(e) => setPassengerForm((p) => ({ ...p, seat: e.target.value }))}>
                   {SEAT_OPTIONS.map((m) => <option key={m} value={m}>{m}</option>)}
-                </select>
+                </Select>
               </label>
               <label className="text-sm md:col-span-2">Special Notes
                 <textarea className="border rounded px-3 py-2 text-sm w-full" rows={3} value={passengerForm.special_notes} onChange={(e) => setPassengerForm((p) => ({ ...p, special_notes: e.target.value }))} />
               </label>
             </div>
             <div className="flex justify-end gap-2">
-              <button onClick={() => setPassengerModalOpen(false)} className="px-4 py-2 rounded border text-sm">Cancel</button>
-              <button onClick={savePassenger} className="px-4 py-2 rounded bg-blue-600 text-white text-sm">Save</button>
+              <Button variant="secondary" onClick={() => setPassengerModalOpen(false)}>Cancel</Button>
+              <Button onClick={savePassenger}>Save</Button>
             </div>
           </div>
         </div>

@@ -4,6 +4,10 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { ConsoleLayout } from '@/components/patterns/Console';
 import { ErrorAlert } from '@/components/ui/ErrorAlert';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
+import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import { EmptyState } from '@/components/ui/EmptyState';
 
 function parseJwt(token: string | null) {
   if (!token) return null;
@@ -83,15 +87,15 @@ export default function DispatchConsolePage() {
               {settings?.auto_assign_enabled ? 'ON' : 'OFF'}
             </span>
             {isOwner && (
-              <button
+              <Button
+                variant="secondary"
                 onClick={() => {
                   setPendingAutoAssign(!settings?.auto_assign_enabled);
                   setShowConfirm(true);
                 }}
-                className="px-3 py-1 rounded border text-sm"
               >
                 Toggle
-              </button>
+              </Button>
             )}
           </div>
         </div>
@@ -100,29 +104,24 @@ export default function DispatchConsolePage() {
             <p className="text-sm font-medium">
               Type <strong>CONFIRM</strong> to {pendingAutoAssign ? 'enable' : 'disable'} Auto Assign
             </p>
-            <input
+            <Input
               value={confirmText}
               onChange={(e) => setConfirmText(e.target.value)}
               placeholder="CONFIRM"
-              className="border rounded px-3 py-2 text-sm w-full"
             />
             <div className="flex gap-2">
-              <button
+              <Button
                 disabled={confirmText !== 'CONFIRM'}
                 onClick={() => toggleMutation.mutate()}
-                className="px-4 py-2 rounded bg-blue-600 text-white text-sm disabled:opacity-50"
               >
                 Confirm
-              </button>
-              <button
-                onClick={() => {
-                  setShowConfirm(false);
-                  setConfirmText('');
-                }}
-                className="px-4 py-2 rounded border text-sm"
-              >
+              </Button>
+              <Button variant="secondary" onClick={() => {
+                setShowConfirm(false);
+                setConfirmText('');
+              }}>
                 Cancel
-              </button>
+              </Button>
             </div>
           </div>
         )}
@@ -132,20 +131,19 @@ export default function DispatchConsolePage() {
         header={
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-semibold text-gray-900">Dispatch Console</h2>
-            <button
+            <Button
               onClick={() => mutation.mutate()}
               disabled={!hasBookings || mutation.isPending}
-              className="px-4 py-2 rounded bg-blue-600 text-white text-sm disabled:opacity-60"
             >
               {mutation.isPending ? 'Dispatching...' : 'Offer Booking'}
-            </button>
+            </Button>
           </div>
         }
         queue={
           error ? (
             <ErrorAlert message="Unable to load dispatch data" />
           ) : isLoading ? (
-            <p className="text-sm text-gray-500">Loading dispatch queue...</p>
+            <div className="flex items-center justify-center h-24"><LoadingSpinner /></div>
           ) : hasBookings ? (
             <div className="space-y-3">
               {bookings.map((b: any) => (
@@ -156,7 +154,7 @@ export default function DispatchConsolePage() {
               ))}
             </div>
           ) : (
-            <p className="text-sm text-gray-500 text-center">No confirmed bookings awaiting dispatch.</p>
+            <EmptyState title="No confirmed bookings" description="Dispatch queue is empty." />
           )
         }
         workspace={

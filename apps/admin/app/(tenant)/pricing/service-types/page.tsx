@@ -4,6 +4,13 @@ import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { ListPage } from '@/components/patterns/ListPage';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
+import { Select } from '@/components/ui/Select';
+import { Table } from '@/components/ui/Table';
+import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { ErrorAlert } from '@/components/ui/ErrorAlert';
 
 interface ServiceTypeRow {
   id: string;
@@ -71,7 +78,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 }
 
 export default function ServiceTypesPage() {
-  const { data = [], isLoading, refetch } = useQuery({
+  const { data = [], isLoading, error, refetch } = useQuery({
     queryKey: ['service-types'],
     queryFn: async () => {
       const res = await api.get('/service-types');
@@ -148,156 +155,139 @@ export default function ServiceTypesPage() {
     await refetch();
   }
 
+  if (error) return <ErrorAlert message="Unable to load service types" onRetry={refetch} />;
+
   return (
     <ListPage
       title="Service Types"
       subtitle="Configure service types and multipliers"
       actions={
-        <button
+        <Button
           onClick={() => {
             setEditingId(null);
             setForm(emptyForm);
           }}
-          className="px-4 py-2 rounded bg-blue-600 text-white text-sm"
         >
           New Service Type
-        </button>
+        </Button>
       }
       filters={
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Field label="Display Name">
-            <input
+            <Input
               value={form.display_name}
               onChange={(e) => setForm((prev) => ({ ...prev, display_name: e.target.value }))}
-              className="w-full border rounded px-3 py-2 text-sm"
             />
           </Field>
           <Field label="Calculation Type">
-            <select
+            <Select
               value={form.calculation_type}
               onChange={(e) => setForm((prev) => ({ ...prev, calculation_type: e.target.value as CalcType }))}
-              className="w-full border rounded px-3 py-2 text-sm"
             >
               <option value="POINT_TO_POINT">Point to Point</option>
               <option value="HOURLY_CHARTER">Hourly Charter</option>
-            </select>
+            </Select>
           </Field>
           <Field label="One Way Type">
-            <select
+            <Select
               value={form.one_way_type}
               onChange={(e) => setForm((prev) => ({ ...prev, one_way_type: e.target.value as any }))}
-              className="w-full border rounded px-3 py-2 text-sm"
             >
               <option value="PERCENTAGE">Percentage</option>
               <option value="FIXED_SURCHARGE">Fixed Surcharge</option>
-            </select>
+            </Select>
           </Field>
           <Field label="One Way Value">
-            <input
+            <Input
               type="number"
               value={form.one_way_value}
               onChange={(e) => setForm((prev) => ({ ...prev, one_way_value: e.target.value }))}
-              className="w-full border rounded px-3 py-2 text-sm"
             />
           </Field>
           <Field label="Return Type">
-            <select
+            <Select
               value={form.return_type}
               onChange={(e) => setForm((prev) => ({ ...prev, return_type: e.target.value as any }))}
-              className="w-full border rounded px-3 py-2 text-sm"
             >
               <option value="PERCENTAGE">Percentage</option>
               <option value="FIXED_SURCHARGE">Fixed Surcharge</option>
-            </select>
+            </Select>
           </Field>
           <Field label="Return Value">
-            <input
+            <Input
               type="number"
               value={form.return_value}
               onChange={(e) => setForm((prev) => ({ ...prev, return_value: e.target.value }))}
-              className="w-full border rounded px-3 py-2 text-sm"
             />
           </Field>
           <Field label="Minimum Hours">
-            <input
+            <Input
               type="number"
               value={form.minimum_hours}
               onChange={(e) => setForm((prev) => ({ ...prev, minimum_hours: e.target.value }))}
-              className="w-full border rounded px-3 py-2 text-sm"
             />
           </Field>
           <Field label="KM per Hour Included">
-            <input
+            <Input
               type="number"
               value={form.km_per_hour_included}
               onChange={(e) => setForm((prev) => ({ ...prev, km_per_hour_included: e.target.value }))}
-              className="w-full border rounded px-3 py-2 text-sm"
             />
           </Field>
           <div className="flex items-end gap-2">
-            <button
-              onClick={editingId ? handleUpdate : handleCreate}
-              className="px-4 py-2 rounded bg-blue-600 text-white text-sm"
-            >
+            <Button onClick={editingId ? handleUpdate : handleCreate}>
               {editingId ? 'Update' : 'Create'}
-            </button>
+            </Button>
             {editingId && (
-              <button
+              <Button
+                variant="secondary"
                 onClick={() => {
                   setEditingId(null);
                   setForm(emptyForm);
                 }}
-                className="px-3 py-2 rounded border text-sm"
               >
                 Cancel
-              </button>
+              </Button>
             )}
           </div>
         </div>
       }
       table={
         isLoading ? (
-          <div className="p-6 text-sm text-gray-500">Loading...</div>
+          <div className="flex items-center justify-center h-32"><LoadingSpinner /></div>
+        ) : items.length === 0 ? (
+          <EmptyState title="No service types yet" description="Create your first service type to get started." />
         ) : (
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50">
-              <tr>
-                {['Name', 'Calculation', 'One Way', 'Return', 'Min Hours', 'Active', ''].map((h) => (
-                  <th key={h} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{h}</th>
-                ))}
+          <Table headers={['Name', 'Calculation', 'One Way', 'Return', 'Min Hours', 'Active', '']}>
+            {items.map((row) => (
+              <tr key={row.id} className="hover:bg-gray-50">
+                <td className="px-6 py-4 font-medium text-gray-900">{row.display_name}</td>
+                <td className="px-6 py-4 text-sm">{row.calculation_type}</td>
+                <td className="px-6 py-4 text-sm">{row.one_way_type} {row.one_way_value}</td>
+                <td className="px-6 py-4 text-sm">{row.return_type} {row.return_value}</td>
+                <td className="px-6 py-4 text-sm">{row.minimum_hours}</td>
+                <td className="px-6 py-4 text-sm">
+                  <span className={`px-2 py-1 rounded text-xs ${row.active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-700'}`}>
+                    {row.active ? 'Active' : 'Inactive'}
+                  </span>
+                </td>
+                <td className="px-6 py-4 text-sm text-right space-x-2">
+                  <button
+                    className="text-blue-600 hover:underline"
+                    onClick={() => {
+                      setEditingId(row.id);
+                      loadForm(row);
+                    }}
+                  >
+                    Edit
+                  </button>
+                  <button className="text-red-600 hover:underline" onClick={() => handleDeactivate(row.id)}>
+                    Deactivate
+                  </button>
+                </td>
               </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200">
-              {items.map((row) => (
-                <tr key={row.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 font-medium text-gray-900">{row.display_name}</td>
-                  <td className="px-6 py-4 text-sm">{row.calculation_type}</td>
-                  <td className="px-6 py-4 text-sm">{row.one_way_type} {row.one_way_value}</td>
-                  <td className="px-6 py-4 text-sm">{row.return_type} {row.return_value}</td>
-                  <td className="px-6 py-4 text-sm">{row.minimum_hours}</td>
-                  <td className="px-6 py-4 text-sm">
-                    <span className={`px-2 py-1 rounded text-xs ${row.active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-700'}`}>
-                      {row.active ? 'Active' : 'Inactive'}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-sm text-right space-x-2">
-                    <button
-                      className="text-blue-600 hover:underline"
-                      onClick={() => {
-                        setEditingId(row.id);
-                        loadForm(row);
-                      }}
-                    >
-                      Edit
-                    </button>
-                    <button className="text-red-600 hover:underline" onClick={() => handleDeactivate(row.id)}>
-                      Deactivate
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+            ))}
+          </Table>
         )
       }
     />

@@ -1,7 +1,7 @@
 'use client';
 import Link from 'next/link';
-import { useMemo, useState } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useEffect, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
 import { PageHeader } from '@/components/admin/PageHeader';
@@ -11,7 +11,10 @@ import { Table } from '@/components/ui/Table';
 import { ErrorAlert } from '@/components/ui/ErrorAlert';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { Select } from '@/components/ui/Select';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import { getBookingStatusBadge } from '@/lib/ui/statusBadge';
 
 interface Booking {
   id: string;
@@ -27,19 +30,6 @@ interface Booking {
   total_price_minor: number;
   currency: string;
 }
-
-const OP_BADGE: Record<string, 'neutral' | 'info' | 'warning' | 'success' | 'danger'> = {
-  DRAFT: 'neutral',
-  PENDING: 'neutral',
-  CONFIRMED: 'info',
-  ASSIGNED: 'info',
-  IN_PROGRESS: 'warning',
-  ON_THE_WAY: 'warning',
-  ARRIVED: 'warning',
-  COMPLETED: 'success',
-  CANCELLED: 'danger',
-  NO_SHOW: 'danger',
-};
 
 const PAY_BADGE: Record<string, 'neutral' | 'warning' | 'success' | 'danger'> = {
   UNPAID: 'warning',
@@ -62,14 +52,13 @@ function shortAddress(value?: string | null) {
 
 export default function BookingsPage() {
   const router = useRouter();
-  const queryClient = useQueryClient();
   const [statusFilter, setStatusFilter] = useState('');
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [page, setPage] = useState(1);
   const limit = 20;
 
-  useMemo(() => {
+  useEffect(() => {
     const handle = setTimeout(() => setDebouncedSearch(search), 300);
     return () => clearTimeout(handle);
   }, [search]);
@@ -126,40 +115,31 @@ export default function BookingsPage() {
         }
         right={
           <div className="flex flex-wrap items-center gap-2">
-            <select
+            <Select
               value={statusFilter}
               onChange={(e) => {
                 setStatusFilter(e.target.value);
                 setPage(1);
               }}
-              className="border rounded px-3 py-2 text-sm"
             >
               <option value="">All Status</option>
-              {Object.keys(OP_BADGE).map((status) => (
+              {['DRAFT','PENDING','CONFIRMED','ASSIGNED','IN_PROGRESS','JOB_STARTED','COMPLETED','JOB_COMPLETED','CANCELLED','NO_SHOW'].map((status) => (
                 <option key={status} value={status}>
                   {status}
                 </option>
               ))}
-            </select>
-            <input
-              type="date"
-              disabled
-              title="Coming soon"
-              className="border rounded px-3 py-2 text-sm text-gray-400"
-            />
-            <input
-              type="date"
-              disabled
-              title="Coming soon"
-              className="border rounded px-3 py-2 text-sm text-gray-400"
-            />
+            </Select>
+            <Input type="date" disabled title="Coming soon" className="text-gray-400" />
+            <Input type="date" disabled title="Coming soon" className="text-gray-400" />
             <Button variant="secondary" onClick={handleReset}>Reset</Button>
           </div>
         }
       />
 
       {isLoading ? (
-        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6 text-sm text-gray-500">Loading...</div>
+        <div className="flex items-center justify-center h-32">
+          <LoadingSpinner />
+        </div>
       ) : bookings.length === 0 ? (
         <EmptyState
           title="No bookings yet"
@@ -189,7 +169,7 @@ export default function BookingsPage() {
                 </td>
                 <td className="px-6 py-4 text-sm text-gray-700">{formatTime(booking.pickup_at_utc)}</td>
                 <td className="px-6 py-4 text-sm">
-                  <Badge variant={OP_BADGE[booking.operational_status] ?? 'neutral'}>
+                  <Badge variant={getBookingStatusBadge(booking.operational_status)}>
                     {booking.operational_status}
                   </Badge>
                 </td>

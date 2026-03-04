@@ -4,10 +4,17 @@ import { useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ListPage } from '@/components/patterns/ListPage';
 import api from '@/lib/api';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
+import { Select } from '@/components/ui/Select';
+import { Table } from '@/components/ui/Table';
+import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { ErrorAlert } from '@/components/ui/ErrorAlert';
 
 export default function VehiclesPage() {
   const queryClient = useQueryClient();
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['tenant-vehicles'],
     queryFn: async () => {
       const res = await api.get('/vehicles');
@@ -69,29 +76,29 @@ export default function VehiclesPage() {
     await queryClient.invalidateQueries({ queryKey: ['tenant-vehicles'] });
   }
 
+  if (error) return <ErrorAlert message="Unable to load vehicles" onRetry={refetch} />;
+
   return (
     <ListPage
       title="Fleet Vehicles"
       subtitle="Manage your tenant fleet"
       actions={
-        <Link
-          href="/vehicles/new"
-          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-        >
-          Add Vehicle
+        <Link href="/vehicles/new">
+          <Button>Add Vehicle</Button>
         </Link>
       }
       table={
         isLoading ? (
-          <div className="p-6 text-sm text-gray-500">Loading...</div>
+          <div className="flex items-center justify-center h-32"><LoadingSpinner /></div>
+        ) : vehicles.length === 0 ? (
+          <EmptyState title="No vehicles yet" description="Add your first vehicle to get started." />
         ) : (
           <div>
             {editingId && (
               <div className="bg-white border rounded p-4 mb-4 space-y-3">
                 <h3 className="text-sm font-semibold">Edit Vehicle</h3>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                  <select
-                    className="border rounded px-3 py-2 text-sm"
+                  <Select
                     value={form.platform_vehicle_id}
                     onChange={(e) => setForm((p) => ({ ...p, platform_vehicle_id: e.target.value }))}
                   >
@@ -99,71 +106,48 @@ export default function VehiclesPage() {
                     {(platformVehicles as any[]).map((pv) => (
                       <option key={pv.id} value={pv.id}>{pv.make} {pv.model}</option>
                     ))}
-                  </select>
-                  <input className="border rounded px-3 py-2 text-sm" placeholder="Year" value={form.year} onChange={(e) => setForm((p) => ({ ...p, year: e.target.value }))} />
-                  <input className="border rounded px-3 py-2 text-sm" placeholder="Colour" value={form.colour} onChange={(e) => setForm((p) => ({ ...p, colour: e.target.value }))} />
-                  <input className="border rounded px-3 py-2 text-sm" placeholder="Plate" value={form.plate} onChange={(e) => setForm((p) => ({ ...p, plate: e.target.value }))} />
-                  <input className="border rounded px-3 py-2 text-sm" placeholder="Passenger Capacity" value={form.passenger_capacity} onChange={(e) => setForm((p) => ({ ...p, passenger_capacity: Number(e.target.value) }))} />
-                  <input className="border rounded px-3 py-2 text-sm" placeholder="Luggage Capacity" value={form.luggage_capacity} onChange={(e) => setForm((p) => ({ ...p, luggage_capacity: Number(e.target.value) }))} />
-                  <input className="border rounded px-3 py-2 text-sm" placeholder="Notes" value={form.notes} onChange={(e) => setForm((p) => ({ ...p, notes: e.target.value }))} />
+                  </Select>
+                  <Input placeholder="Year" value={form.year} onChange={(e) => setForm((p) => ({ ...p, year: e.target.value }))} />
+                  <Input placeholder="Colour" value={form.colour} onChange={(e) => setForm((p) => ({ ...p, colour: e.target.value }))} />
+                  <Input placeholder="Plate" value={form.plate} onChange={(e) => setForm((p) => ({ ...p, plate: e.target.value }))} />
+                  <Input placeholder="Passenger Capacity" value={form.passenger_capacity} onChange={(e) => setForm((p) => ({ ...p, passenger_capacity: Number(e.target.value) }))} />
+                  <Input placeholder="Luggage Capacity" value={form.luggage_capacity} onChange={(e) => setForm((p) => ({ ...p, luggage_capacity: Number(e.target.value) }))} />
+                  <Input placeholder="Notes" value={form.notes} onChange={(e) => setForm((p) => ({ ...p, notes: e.target.value }))} />
                 </div>
                 <div className="flex gap-2">
-                  <button onClick={handleUpdate} className="px-4 py-2 rounded bg-blue-600 text-white text-sm">Save</button>
-                  <button onClick={() => setEditingId(null)} className="px-4 py-2 rounded border text-sm">Cancel</button>
+                  <Button onClick={handleUpdate}>Save</Button>
+                  <Button variant="secondary" onClick={() => setEditingId(null)}>Cancel</Button>
                 </div>
               </div>
             )}
-            <table className="w-full">
-              <thead className="bg-gray-50">
-                <tr>
-                  {['Vehicle', 'Year', 'Colour', 'Plate', 'Capacity', 'Status', ''].map((h) => (
-                    <th
-                      key={h}
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase"
-                    >
-                      {h}
-                    </th>
-                  ))}
+            <Table headers={['Vehicle', 'Year', 'Colour', 'Plate', 'Capacity', 'Status', '']}>
+              {vehicles.map((v: any) => (
+                <tr key={v.id} className="hover:bg-gray-50">
+                  <td className="px-6 py-4">
+                    <div className="font-medium text-gray-900">{v.make} {v.model}</div>
+                  </td>
+                  <td className="px-6 py-4 text-sm">{v.year ?? '—'}</td>
+                  <td className="px-6 py-4 text-sm">{v.colour ?? '—'}</td>
+                  <td className="px-6 py-4 text-sm">{v.plate ?? '—'}</td>
+                  <td className="px-6 py-4 text-sm">
+                    {v.passenger_capacity} pax / {v.luggage_capacity} bags
+                  </td>
+                  <td className="px-6 py-4 text-sm">
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                      v.active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-700'
+                    }`}>
+                      {v.active ? 'Active' : 'Inactive'}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 text-sm text-right space-x-2">
+                    <button className="text-blue-600 hover:underline" onClick={() => { setEditingId(v.id); loadForm(v); }}>Edit</button>
+                    {v.active && (
+                      <button className="text-red-600 hover:underline" onClick={() => deactivate(v.id)}>Deactivate</button>
+                    )}
+                  </td>
                 </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {vehicles.map((v: any) => (
-                  <tr key={v.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4">
-                      <div className="font-medium text-gray-900">{v.make} {v.model}</div>
-                    </td>
-                    <td className="px-6 py-4 text-sm">{v.year ?? '—'}</td>
-                    <td className="px-6 py-4 text-sm">{v.colour ?? '—'}</td>
-                    <td className="px-6 py-4 text-sm">{v.plate ?? '—'}</td>
-                    <td className="px-6 py-4 text-sm">
-                      {v.passenger_capacity} pax / {v.luggage_capacity} bags
-                    </td>
-                    <td className="px-6 py-4 text-sm">
-                      <span
-                        className={`px-2 py-1 rounded-full text-xs font-medium ${
-                          v.active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-700'
-                        }`}
-                      >
-                        {v.active ? 'Active' : 'Inactive'}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-right space-x-2">
-                      <button className="text-blue-600 hover:underline" onClick={() => { setEditingId(v.id); loadForm(v); }}>Edit</button>
-                      {v.active && (
-                        <button className="text-red-600 hover:underline" onClick={() => deactivate(v.id)}>Deactivate</button>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-                {vehicles.length === 0 && (
-                  <tr>
-                    <td colSpan={7} className="text-center py-10 text-gray-500">
-                      No vehicles yet
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+              ))}
+            </Table>
           </div>
         )
       }
