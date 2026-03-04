@@ -21,9 +21,16 @@ const STATUS_COLORS: Record<string, string> = {
   PENDING: 'bg-yellow-100 text-yellow-800',
   CONFIRMED: 'bg-blue-100 text-blue-800',
   ASSIGNED: 'bg-purple-100 text-purple-800',
-  IN_PROGRESS: 'bg-orange-100 text-orange-800',
+  OFFERED: 'bg-purple-100 text-purple-800',
+  ACCEPTED: 'bg-indigo-100 text-indigo-800',
+  DECLINED: 'bg-red-100 text-red-800',
+  CANCELLED: 'bg-gray-100 text-gray-700',
+  EXPIRED: 'bg-gray-100 text-gray-700',
+  JOB_STARTED: 'bg-orange-100 text-orange-800',
+  JOB_COMPLETED: 'bg-green-100 text-green-800',
   COMPLETED: 'bg-green-100 text-green-800',
-  CANCELLED: 'bg-red-100 text-red-800',
+  REJECTED: 'bg-red-100 text-red-800',
+  IN_PROGRESS: 'bg-orange-100 text-orange-800',
   NO_SHOW: 'bg-red-100 text-red-800',
 };
 
@@ -77,6 +84,8 @@ export default function BookingsPage() {
           <option value="CONFIRMED">CONFIRMED</option>
           <option value="COMPLETED">COMPLETED</option>
           <option value="CANCELLED">CANCELLED</option>
+          <option value="JOB_STARTED">JOB_STARTED</option>
+          <option value="JOB_COMPLETED">JOB_COMPLETED</option>
         </select>
         <input
           value={search}

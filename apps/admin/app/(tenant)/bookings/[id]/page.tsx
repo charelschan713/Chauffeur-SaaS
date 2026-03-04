@@ -459,7 +459,7 @@ function AssignmentCard({
             Assign Driver
           </button>
         )}
-        {assignment && assignment.status !== 'IN_PROGRESS' && (
+        {assignment && assignment.status !== 'JOB_STARTED' && (
           <button
             onClick={() => onEditPay(assignment.id)}
             className="px-3 py-1.5 border text-sm rounded hover:bg-gray-50"

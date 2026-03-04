@@ -101,7 +101,7 @@ export class AssignmentService {
   async reject(tenantId: string, assignmentId: string, driverId: string) {
     const rows = await this.dataSource.query(
       `UPDATE public.assignments
-       SET status = 'REJECTED', rejected_at = now()
+       SET status = 'DECLINED', rejected_at = now()
        WHERE id = $1 AND tenant_id = $2 AND driver_id = $3 AND status = 'PENDING'
        RETURNING booking_id`,
       [assignmentId, tenantId, driverId],
@@ -127,7 +127,7 @@ export class AssignmentService {
     );
     if (!rows.length) throw new NotFoundException('Assignment not found');
     const assignment = rows[0];
-    if (assignment.status === 'IN_PROGRESS') {
+    if (assignment.status === 'JOB_STARTED') {
       throw new BadRequestException('Cannot modify driver pay while job is in progress');
     }
 
