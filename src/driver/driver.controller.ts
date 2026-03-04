@@ -41,7 +41,6 @@ export class DriverController {
     });
   }
 
-
   @Post()
   async createDriver(
     @CurrentUser('tenant_id') tenantId: string,

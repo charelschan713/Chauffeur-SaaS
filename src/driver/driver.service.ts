@@ -47,7 +47,6 @@ export class DriverService {
     return { data: rows };
   }
 
-
   async createDriver(tenantId: string, body: any) {
     const email = body.email?.trim();
     const firstName = body.first_name?.trim() ?? '';
@@ -127,6 +126,7 @@ export class DriverService {
       return { success: true };
     });
   }
+
   async updateStatus(tenantId: string, driverId: string, status: string) {
     return this.dataSource.transaction(async (manager) => {
       const existing = await manager.query(

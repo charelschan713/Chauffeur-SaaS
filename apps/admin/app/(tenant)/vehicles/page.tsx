@@ -58,7 +58,6 @@ export default function VehiclesPage() {
     await queryClient.invalidateQueries({ queryKey: ['tenant-vehicles'] });
   }
 
-
   return (
     <ListPage
       title="Fleet Vehicles"
@@ -71,85 +70,80 @@ export default function VehiclesPage() {
           Claim Vehicle
         </Link>
       }
-
-      {editingId && (
-        <div className="bg-white border rounded p-4 mb-4 space-y-3">
-          <h3 className="text-sm font-semibold">Edit Vehicle</h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <input className="border rounded px-3 py-2 text-sm" placeholder="Year" value={form.year} onChange={(e) => setForm((p) => ({ ...p, year: e.target.value }))} />
-            <input className="border rounded px-3 py-2 text-sm" placeholder="Colour" value={form.colour} onChange={(e) => setForm((p) => ({ ...p, colour: e.target.value }))} />
-            <input className="border rounded px-3 py-2 text-sm" placeholder="Plate" value={form.plate} onChange={(e) => setForm((p) => ({ ...p, plate: e.target.value }))} />
-            <input className="border rounded px-3 py-2 text-sm" placeholder="Passenger Capacity" value={form.passenger_capacity} onChange={(e) => setForm((p) => ({ ...p, passenger_capacity: Number(e.target.value) }))} />
-            <input className="border rounded px-3 py-2 text-sm" placeholder="Luggage Capacity" value={form.luggage_capacity} onChange={(e) => setForm((p) => ({ ...p, luggage_capacity: Number(e.target.value) }))} />
-            <input className="border rounded px-3 py-2 text-sm" placeholder="Notes" value={form.notes} onChange={(e) => setForm((p) => ({ ...p, notes: e.target.value }))} />
-          </div>
-          <div className="flex gap-2">
-            <button onClick={handleUpdate} className="px-4 py-2 rounded bg-blue-600 text-white text-sm">Save</button>
-            <button onClick={() => setEditingId(null)} className="px-4 py-2 rounded border text-sm">Cancel</button>
-          </div>
-        </div>
-      )}
       table={
         isLoading ? (
           <div className="p-6 text-sm text-gray-500">Loading...</div>
         ) : (
-          <table className="w-full">
-            <thead className="bg-gray-50">
-              <tr>
-                {['Vehicle', 'Year', 'Colour', 'Plate', 'Capacity', 'Status', ''].map((h) => (
-                  <th
-                    key={h}
-                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase"
-                  >
-                    {h}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200">
-              {vehicles.map((v: any) => (
-                <tr key={v.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4">
-                    <div className="font-medium text-gray-900">{v.make} {v.model}</div>
-                  </td>
-                  <td className="px-6 py-4 text-sm">{v.year ?? '—'}</td>
-                  <td className="px-6 py-4 text-sm">{v.colour ?? '—'}</td>
-                  <td className="px-6 py-4 text-sm">{v.plate ?? '—'}</td>
-                  <td className="px-6 py-4 text-sm">
-                    {v.passenger_capacity} pax / {v.luggage_capacity} bags
-                  </td>
-                  <td className="px-6 py-4 text-sm">
-                    <span
-                      className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        v.active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-700'
-                      }`}
-                    >
-                      {v.active ? 'Active' : 'Inactive'}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-sm text-right space-x-2">
-                    <button className="text-blue-600 hover:underline" onClick={() => { setEditingId(v.id); loadForm(v); }}>Edit</button>
-                    {v.active && (
-                      <button className="text-red-600 hover:underline" onClick={() => deactivate(v.id)}>Deactivate</button>
-                    )}
-                  </td>
-                </tr>
-              ))}
-              {vehicles.length === 0 && (
+          <div>
+            {editingId && (
+              <div className="bg-white border rounded p-4 mb-4 space-y-3">
+                <h3 className="text-sm font-semibold">Edit Vehicle</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <input className="border rounded px-3 py-2 text-sm" placeholder="Year" value={form.year} onChange={(e) => setForm((p) => ({ ...p, year: e.target.value }))} />
+                  <input className="border rounded px-3 py-2 text-sm" placeholder="Colour" value={form.colour} onChange={(e) => setForm((p) => ({ ...p, colour: e.target.value }))} />
+                  <input className="border rounded px-3 py-2 text-sm" placeholder="Plate" value={form.plate} onChange={(e) => setForm((p) => ({ ...p, plate: e.target.value }))} />
+                  <input className="border rounded px-3 py-2 text-sm" placeholder="Passenger Capacity" value={form.passenger_capacity} onChange={(e) => setForm((p) => ({ ...p, passenger_capacity: Number(e.target.value) }))} />
+                  <input className="border rounded px-3 py-2 text-sm" placeholder="Luggage Capacity" value={form.luggage_capacity} onChange={(e) => setForm((p) => ({ ...p, luggage_capacity: Number(e.target.value) }))} />
+                  <input className="border rounded px-3 py-2 text-sm" placeholder="Notes" value={form.notes} onChange={(e) => setForm((p) => ({ ...p, notes: e.target.value }))} />
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={handleUpdate} className="px-4 py-2 rounded bg-blue-600 text-white text-sm">Save</button>
+                  <button onClick={() => setEditingId(null)} className="px-4 py-2 rounded border text-sm">Cancel</button>
+                </div>
+              </div>
+            )}
+            <table className="w-full">
+              <thead className="bg-gray-50">
                 <tr>
-                  <td colSpan={4} className="text-center py-10 text-gray-500">
-                    No vehicles yet
-                  </td>
-                  <td className="px-6 py-4 text-sm text-right space-x-2">
-                    <button className="text-blue-600 hover:underline" onClick={() => { setEditingId(v.id); loadForm(v); }}>Edit</button>
-                    {v.active && (
-                      <button className="text-red-600 hover:underline" onClick={() => deactivate(v.id)}>Deactivate</button>
-                    )}
-                  </td>
+                  {['Vehicle', 'Year', 'Colour', 'Plate', 'Capacity', 'Status', ''].map((h) => (
+                    <th
+                      key={h}
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase"
+                    >
+                      {h}
+                    </th>
+                  ))}
                 </tr>
-              )}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {vehicles.map((v: any) => (
+                  <tr key={v.id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4">
+                      <div className="font-medium text-gray-900">{v.make} {v.model}</div>
+                    </td>
+                    <td className="px-6 py-4 text-sm">{v.year ?? '—'}</td>
+                    <td className="px-6 py-4 text-sm">{v.colour ?? '—'}</td>
+                    <td className="px-6 py-4 text-sm">{v.plate ?? '—'}</td>
+                    <td className="px-6 py-4 text-sm">
+                      {v.passenger_capacity} pax / {v.luggage_capacity} bags
+                    </td>
+                    <td className="px-6 py-4 text-sm">
+                      <span
+                        className={`px-2 py-1 rounded-full text-xs font-medium ${
+                          v.active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-700'
+                        }`}
+                      >
+                        {v.active ? 'Active' : 'Inactive'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-sm text-right space-x-2">
+                      <button className="text-blue-600 hover:underline" onClick={() => { setEditingId(v.id); loadForm(v); }}>Edit</button>
+                      {v.active && (
+                        <button className="text-red-600 hover:underline" onClick={() => deactivate(v.id)}>Deactivate</button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+                {vehicles.length === 0 && (
+                  <tr>
+                    <td colSpan={7} className="text-center py-10 text-gray-500">
+                      No vehicles yet
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
         )
       }
     />

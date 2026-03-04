@@ -21,7 +21,7 @@ export default function ClaimVehiclePage() {
   });
 
   useEffect(() => {
-    api.get('/vehicles/platform-vehicles').then((res) => setVehicles(res.data ?? []));
+    api.get('/platform/vehicles/public').then((res) => setVehicles(res.data ?? []));
   }, []);
 
   const steps = [

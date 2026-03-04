@@ -31,8 +31,9 @@ export default function BookingsPage() {
   const queryClient = useQueryClient();
   const [statusFilter, setStatusFilter] = useState('');
   const [search, setSearch] = useState('');
+
   const { data, isLoading } = useQuery({
-    queryKey: ['bookings'],
+    queryKey: ['bookings', { statusFilter, search }],
     queryFn: async () => {
       const res = await api.get('/bookings', {
         params: {
@@ -45,7 +46,8 @@ export default function BookingsPage() {
   });
 
   const bookings: Booking[] = data ?? [];
-  const cancelMutation = async (id: string) => {
+
+  const cancelBooking = async (id: string) => {
     await api.patch(`/bookings/${id}/cancel`);
     await queryClient.invalidateQueries({ queryKey: ['bookings'] });
   };
@@ -63,7 +65,6 @@ export default function BookingsPage() {
           New Booking
         </Link>
       </div>
-
 
       <div className="flex flex-col md:flex-row md:items-center gap-3 mb-4">
         <select
@@ -84,6 +85,7 @@ export default function BookingsPage() {
           className="border rounded px-3 py-2 text-sm"
         />
       </div>
+
       <div className="bg-white rounded-lg shadow overflow-hidden">
         <table className="w-full">
           <thead className="bg-gray-50">
@@ -125,16 +127,18 @@ export default function BookingsPage() {
                 </td>
                 <td className="px-6 py-4">
                   <div className="flex gap-2">
-                  <Link href={`/bookings/${b.id}`} className="text-blue-600 hover:underline text-sm">View</Link>
-                  {b.operational_status === 'CONFIRMED' && (
-                    <button
-                      onClick={() => cancelMutation(b.id)}
-                      className="text-red-600 hover:underline text-sm"
-                    >
-                      Cancel
-                    </button>
-                  )}
-                </div>
+                    <Link href={`/bookings/${b.id}`} className="text-blue-600 hover:underline text-sm">
+                      View
+                    </Link>
+                    {b.operational_status === 'CONFIRMED' && (
+                      <button
+                        onClick={() => cancelBooking(b.id)}
+                        className="text-red-600 hover:underline text-sm"
+                      >
+                        Cancel
+                      </button>
+                    )}
+                  </div>
                 </td>
               </tr>
             ))}
