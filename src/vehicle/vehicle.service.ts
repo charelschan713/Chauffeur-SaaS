@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 
 @Injectable()
@@ -64,6 +64,27 @@ export class VehicleService {
       [serviceClassId, tenantId],
     );
   }
+  async deactivateTenantVehicle(tenantId: string, id: string) {
+    // Guard: no in-progress assignments
+    const check = await this.dataSource.query(
+      `SELECT COUNT(*) FROM public.assignments a
+         JOIN public.bookings b ON b.id = a.booking_id
+        WHERE a.vehicle_id = $1 AND b.tenant_id = $2
+          AND a.status IN ('PENDING','ACCEPTED','JOB_STARTED')`,
+      [id, tenantId],
+    );
+    if (Number(check[0]?.count ?? 0) > 0) {
+      throw new BadRequestException('Vehicle has active assignments and cannot be deactivated');
+    }
+    const rows = await this.dataSource.query(
+      `UPDATE public.tenant_vehicles SET active = false, updated_at = now()
+       WHERE id = $1 AND tenant_id = $2 RETURNING id`,
+      [id, tenantId],
+    );
+    if (!rows.length) throw new NotFoundException('Vehicle not found');
+    return { success: true };
+  }
+
   async updateTenantVehicle(tenantId: string, id: string, body: any) {
     const rows = await this.dataSource.query(
       `UPDATE public.tenant_vehicles

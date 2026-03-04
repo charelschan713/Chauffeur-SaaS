@@ -80,14 +80,24 @@ export default function VehiclesPage() {
     if (!deactivateTarget) return;
     setDeactivating(true);
     try {
-      await api.patch(`/vehicles/${deactivateTarget.id}`, { active: false });
+      await api.delete(`/vehicles/${deactivateTarget.id}`);
       await queryClient.invalidateQueries({ queryKey: ['tenant-vehicles'] });
       setToast({ message: `${deactivateTarget.label} deactivated`, tone: 'success' });
-    } catch {
-      setToast({ message: 'Failed to deactivate vehicle', tone: 'error' });
+    } catch (err: any) {
+      setToast({ message: err?.response?.data?.message ?? 'Failed to deactivate vehicle', tone: 'error' });
     } finally {
       setDeactivating(false);
       setDeactivateTarget(null);
+    }
+  }
+
+  async function reactivateVehicle(id: string, label: string) {
+    try {
+      await api.patch(`/vehicles/${id}`, { active: true });
+      await queryClient.invalidateQueries({ queryKey: ['tenant-vehicles'] });
+      setToast({ message: `${label} reactivated`, tone: 'success' });
+    } catch {
+      setToast({ message: 'Failed to reactivate vehicle', tone: 'error' });
     }
   }
 
@@ -157,12 +167,19 @@ export default function VehiclesPage() {
                   </td>
                   <td className="px-6 py-4 text-sm text-right space-x-2">
                     <button className="text-blue-600 hover:underline" onClick={() => { setEditingId(v.id); loadForm(v); }}>Edit</button>
-                    {v.active && (
+                    {v.active ? (
                       <button
                         className="text-red-600 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-1 rounded text-sm"
                         onClick={() => setDeactivateTarget({ id: v.id, label: `${v.make} ${v.model}` })}
                       >
                         Deactivate
+                      </button>
+                    ) : (
+                      <button
+                        className="text-blue-600 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1 rounded text-sm"
+                        onClick={() => reactivateVehicle(v.id, `${v.make} ${v.model}`)}
+                      >
+                        Reactivate
                       </button>
                     )}
                   </td>

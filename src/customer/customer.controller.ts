@@ -1,6 +1,8 @@
 import {
+  BadRequestException,
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Patch,
@@ -23,7 +25,7 @@ export class CustomerController {
     const limit = Math.min(Math.max(Number(query.limit ?? 20), 1), 100);
     const offset = (page - 1) * limit;
 
-    let where = 'WHERE c.tenant_id = $1';
+    let where = 'WHERE c.tenant_id = $1 AND c.deleted_at IS NULL';
     const params: any[] = [req.user.tenant_id];
     let idx = 2;
 
@@ -89,7 +91,7 @@ export class CustomerController {
   @Get(':id')
   async get(@Req() req: any, @Param('id') id: string) {
     const rows = await this.dataSource.query(
-      `SELECT * FROM public.customers WHERE id = $1 AND tenant_id = $2`,
+      `SELECT * FROM public.customers WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL`,
       [id, req.user.tenant_id],
     );
     const customer = rows[0] ?? null;
@@ -133,6 +135,25 @@ export class CustomerController {
         body.custom_discount_value ?? null,
         body.active ?? null,
       ],
+    );
+    return { success: true };
+  }
+
+  @Delete(':id')
+  async delete(@Req() req: any, @Param('id') id: string) {
+    const rows = await this.dataSource.query(
+      `SELECT COUNT(*) FROM public.bookings
+       WHERE customer_id = $1 AND tenant_id = $2
+         AND operational_status NOT IN ('CANCELLED','COMPLETED','JOB_COMPLETED')`,
+      [id, req.user.tenant_id],
+    );
+    const activeBookings = Number(rows[0]?.count ?? 0);
+    if (activeBookings > 0) {
+      throw new BadRequestException('Customer has active bookings and cannot be deleted');
+    }
+    await this.dataSource.query(
+      `UPDATE public.customers SET deleted_at = NOW() WHERE id = $1 AND tenant_id = $2`,
+      [id, req.user.tenant_id],
     );
     return { success: true };
   }

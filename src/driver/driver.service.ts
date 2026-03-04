@@ -18,6 +18,7 @@ export class DriverService {
       .addSelect('u.full_name', 'full_name')
       .addSelect('u.email', 'email')
       .addSelect('u.phone', 'phone')
+      .addSelect('m.status', 'membership_status')
       .addSelect('coalesce(ds.status, \'OFFLINE\')', 'availability_status')
       .addSelect('ds.updated_at', 'last_seen_at')
       .from('memberships', 'm')
@@ -125,6 +126,19 @@ export class DriverService {
 
       return { success: true };
     });
+  }
+
+  async setMembershipStatus(tenantId: string, driverId: string, status: 'inactive' | 'suspended') {
+    const existing = await this.dataSource.query(
+      `SELECT id FROM public.memberships WHERE tenant_id = $1 AND user_id = $2 AND role = 'driver'`,
+      [tenantId, driverId],
+    );
+    if (!existing.length) throw new NotFoundException('Driver not found');
+    await this.dataSource.query(
+      `UPDATE public.memberships SET status = $1 WHERE tenant_id = $2 AND user_id = $3`,
+      [status, tenantId, driverId],
+    );
+    return { success: true };
   }
 
   async updateStatus(tenantId: string, driverId: string, status: string) {

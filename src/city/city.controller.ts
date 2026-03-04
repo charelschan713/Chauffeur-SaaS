@@ -1,5 +1,7 @@
 import {
+  BadRequestException,
   Controller,
+  Delete,
   Get,
   Post,
   Patch,
@@ -37,6 +39,25 @@ export class CityController {
       [req.user.tenant_id, body.name, body.timezone],
     );
     return rows[0];
+  }
+
+  @Delete(':id')
+  async delete(@Param('id') id: string, @Req() req: any) {
+    // Guard: no active bookings referencing this city
+    const check = await this.dataSource.query(
+      `SELECT COUNT(*) FROM public.bookings
+       WHERE city_id = $1 AND tenant_id = $2
+         AND operational_status NOT IN ('CANCELLED','COMPLETED','JOB_COMPLETED')`,
+      [id, req.user.tenant_id],
+    );
+    if (Number(check[0]?.count ?? 0) > 0) {
+      throw new BadRequestException('City has active bookings and cannot be deactivated');
+    }
+    await this.dataSource.query(
+      `UPDATE public.tenant_service_cities SET active = false WHERE id = $1 AND tenant_id = $2`,
+      [id, req.user.tenant_id],
+    );
+    return { success: true };
   }
 
   @Patch(':id')

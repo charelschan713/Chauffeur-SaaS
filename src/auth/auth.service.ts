@@ -51,14 +51,24 @@ export class AuthService {
     if (!ok) throw new UnauthorizedException('Invalid credentials');
 
     const memberships = await this.dataSource.query(
-      `select tenant_id, role from public.memberships
-       where user_id = $1 and status = 'active'
+      `select m.tenant_id, m.role, t.status as tenant_status
+       from public.memberships m
+       left join public.tenants t on t.id = m.tenant_id
+       where m.user_id = $1 and m.status = 'active'
        limit 1`,
       [user.id],
     );
 
     const tenantId = memberships[0]?.tenant_id ?? null;
     const role = memberships[0]?.role ?? (user.is_platform_admin ? 'tenant_admin' : null);
+
+    // Block login for archived/suspended tenants (non-platform admins)
+    if (tenantId && !user.is_platform_admin) {
+      const tenantStatus = memberships[0]?.tenant_status;
+      if (tenantStatus === 'archived' || tenantStatus === 'suspended') {
+        throw new UnauthorizedException('Account suspended');
+      }
+    }
 
     return this.issueTokens(
       {

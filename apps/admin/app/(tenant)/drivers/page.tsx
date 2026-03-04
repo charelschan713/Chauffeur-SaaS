@@ -7,9 +7,20 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { Table } from '@/components/ui/Table';
+import { Badge } from '@/components/ui/Badge';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ErrorAlert } from '@/components/ui/ErrorAlert';
+import { ConfirmModal } from '@/components/ui/ConfirmModal';
+import { Toast } from '@/components/ui/Toast';
+
+type MembershipStatus = 'active' | 'inactive' | 'suspended';
+
+const membershipBadge = (status: MembershipStatus): 'success' | 'neutral' | 'danger' => {
+  if (status === 'active') return 'success';
+  if (status === 'suspended') return 'danger';
+  return 'neutral';
+};
 
 export default function DriversPage() {
   const { data, isLoading, error, refetch } = useQuery({
@@ -21,44 +32,59 @@ export default function DriversPage() {
     },
   });
 
-  const [form, setForm] = useState({
-    id: '',
-    full_name: '',
-    email: '',
-    phone: '',
-    status: 'ACTIVE',
-  });
+  const [form, setForm] = useState({ id: '', full_name: '', email: '', phone: '' });
+  const [statusAction, setStatusAction] = useState<{ id: string; name: string; action: 'deactivate' | 'suspend' | 'reactivate' } | null>(null);
+  const [statusSaving, setStatusSaving] = useState(false);
+  const [toast, setToast] = useState<{ message: string; tone: 'success' | 'error' } | null>(null);
 
   async function handleCreate() {
-    await api.post('/drivers', {
-      full_name: form.full_name,
-      email: form.email,
-      phone: form.phone,
-    });
-    setForm({ id: '', full_name: '', email: '', phone: '', status: 'ACTIVE' });
-    await refetch();
+    try {
+      await api.post('/drivers', { full_name: form.full_name, email: form.email, phone: form.phone });
+      setForm({ id: '', full_name: '', email: '', phone: '' });
+      await refetch();
+      setToast({ message: 'Driver created', tone: 'success' });
+    } catch (err: any) {
+      setToast({ message: err?.response?.data?.message ?? 'Failed to create driver', tone: 'error' });
+    }
   }
 
   async function handleUpdate() {
     if (!form.id) return;
-    await api.patch(`/drivers/${form.id}`, {
-      full_name: form.full_name,
-      email: form.email,
-      phone: form.phone,
-      status: form.status,
-    });
-    setForm({ id: '', full_name: '', email: '', phone: '', status: 'ACTIVE' });
-    await refetch();
+    try {
+      await api.patch(`/drivers/${form.id}`, { full_name: form.full_name, email: form.email, phone: form.phone });
+      setForm({ id: '', full_name: '', email: '', phone: '' });
+      await refetch();
+      setToast({ message: 'Driver updated', tone: 'success' });
+    } catch (err: any) {
+      setToast({ message: err?.response?.data?.message ?? 'Failed to update driver', tone: 'error' });
+    }
+  }
+
+  async function applyStatusAction() {
+    if (!statusAction) return;
+    setStatusSaving(true);
+    try {
+      await api.patch(`/drivers/${statusAction.id}/${statusAction.action}`);
+      await refetch();
+      const labels = { deactivate: 'deactivated', suspend: 'suspended', reactivate: 'reactivated' };
+      setToast({ message: `${statusAction.name} ${labels[statusAction.action]}`, tone: 'success' });
+    } catch (err: any) {
+      setToast({ message: err?.response?.data?.message ?? 'Failed to update status', tone: 'error' });
+    } finally {
+      setStatusSaving(false);
+      setStatusAction(null);
+    }
   }
 
   if (error) return <ErrorAlert message="Unable to load drivers" onRetry={refetch} />;
 
   return (
+    <>
     <ListPage
       title="Drivers"
       subtitle="Manage drivers and availability"
       actions={
-        <Button onClick={() => setForm({ id: '', full_name: '', email: '', phone: '', status: 'ACTIVE' })}>
+        <Button onClick={() => setForm({ id: '', full_name: '', email: '', phone: '' })}>
           Add Driver
         </Button>
       }
@@ -75,51 +101,98 @@ export default function DriversPage() {
                 <Input placeholder="Full Name" value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} />
                 <Input placeholder="Email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
                 <Input placeholder="Phone" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
-                <Select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
-                  <option value="ACTIVE">ACTIVE</option>
-                  <option value="INACTIVE">INACTIVE</option>
-                </Select>
               </div>
               <div className="flex gap-2 mt-3">
                 {form.id ? (
-                  <Button onClick={handleUpdate}>Update Driver</Button>
+                  <>
+                    <Button onClick={handleUpdate}>Update Driver</Button>
+                    <Button variant="secondary" onClick={() => setForm({ id: '', full_name: '', email: '', phone: '' })}>Cancel</Button>
+                  </>
                 ) : (
                   <Button onClick={handleCreate}>Create Driver</Button>
                 )}
               </div>
             </div>
 
-            <Table headers={['Name', 'Email', 'Phone', 'Status', '']}>
-              {(data ?? []).map((d: any) => (
-                <tr key={d.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 font-medium text-gray-900">{d.full_name}</td>
-                  <td className="px-6 py-4 text-sm text-gray-700">{d.email}</td>
-                  <td className="px-6 py-4 text-sm text-gray-700">{d.phone ?? '—'}</td>
-                  <td className="px-6 py-4 text-sm">
-                    <span className={`px-2 py-1 rounded text-xs ${d.status === 'ACTIVE' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-700'}`}>
-                      {d.status}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-sm text-right">
-                    <button
-                      className="text-blue-600 hover:underline"
-                      onClick={() => setForm({
-                        id: d.id,
-                        full_name: d.full_name,
-                        email: d.email,
-                        phone: d.phone ?? '',
-                        status: d.status ?? 'ACTIVE',
-                      })}
-                    >
-                      Edit
-                    </button>
-                  </td>
-                </tr>
-              ))}
+            <Table headers={['Name', 'Email', 'Phone', 'Availability', 'Status', '']}>
+              {(data ?? []).map((d: any) => {
+                const ms: MembershipStatus = d.membership_status ?? 'active';
+                const isActive = ms === 'active';
+                return (
+                  <tr key={d.driver_id} className={`hover:bg-gray-50 ${!isActive ? 'opacity-60' : ''}`}>
+                    <td className="px-6 py-4 font-medium text-gray-900">{d.full_name}</td>
+                    <td className="px-6 py-4 text-sm text-gray-700">{d.email}</td>
+                    <td className="px-6 py-4 text-sm text-gray-700">{d.phone ?? '—'}</td>
+                    <td className="px-6 py-4 text-sm">
+                      <Badge variant={d.availability_status === 'AVAILABLE' ? 'success' : 'neutral'}>
+                        {d.availability_status ?? 'OFFLINE'}
+                      </Badge>
+                    </td>
+                    <td className="px-6 py-4 text-sm">
+                      <Badge variant={membershipBadge(ms)}>{ms.toUpperCase()}</Badge>
+                    </td>
+                    <td className="px-6 py-4 text-sm text-right space-x-2">
+                      <Button
+                        variant="ghost"
+                        onClick={() => setForm({ id: d.driver_id, full_name: d.full_name, email: d.email, phone: d.phone ?? '' })}
+                      >
+                        Edit
+                      </Button>
+                      {isActive && (
+                        <>
+                          <Button
+                            variant="ghost"
+                            className="text-yellow-700 hover:text-yellow-800"
+                            onClick={() => setStatusAction({ id: d.driver_id, name: d.full_name, action: 'deactivate' })}
+                          >
+                            Deactivate
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            className="text-red-600 hover:text-red-700"
+                            onClick={() => setStatusAction({ id: d.driver_id, name: d.full_name, action: 'suspend' })}
+                          >
+                            Suspend
+                          </Button>
+                        </>
+                      )}
+                      {!isActive && (
+                        <Button
+                          variant="ghost"
+                          className="text-blue-600 hover:text-blue-700"
+                          onClick={() => setStatusAction({ id: d.driver_id, name: d.full_name, action: 'reactivate' })}
+                        >
+                          Reactivate
+                        </Button>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
             </Table>
           </div>
         )
       }
     />
+
+    <ConfirmModal
+      title={`${statusAction?.action === 'suspend' ? 'Suspend' : statusAction?.action === 'reactivate' ? 'Reactivate' : 'Deactivate'} driver?`}
+      description={
+        statusAction?.action === 'suspend'
+          ? `${statusAction?.name} will be suspended and blocked from the platform.`
+          : statusAction?.action === 'reactivate'
+          ? `${statusAction?.name} will be reactivated and can log in again.`
+          : `${statusAction?.name} will be deactivated and cannot log in.`
+      }
+      isOpen={!!statusAction}
+      onClose={() => setStatusAction(null)}
+      onConfirm={applyStatusAction}
+      confirmText={statusSaving ? 'Saving…' : 'Confirm'}
+      confirmTone={statusAction?.action === 'reactivate' ? 'primary' : 'danger'}
+      loading={statusSaving}
+    />
+
+    {toast && <Toast message={toast.message} tone={toast.tone} onClose={() => setToast(null)} />}
+    </>
   );
 }

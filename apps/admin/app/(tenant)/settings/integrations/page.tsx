@@ -1,6 +1,8 @@
 'use client';
 import { useEffect, useState } from 'react';
 import api from '@/lib/api';
+import { ConfirmModal } from '@/components/ui/ConfirmModal';
+import { Toast } from '@/components/ui/Toast';
 
 interface IntegrationRow {
   type: string;
@@ -91,6 +93,9 @@ export default function IntegrationsPage() {
   const [loading, setLoading] = useState(true);
   const [formState, setFormState] = useState<Record<string, any>>({});
   const [testStatus, setTestStatus] = useState<Record<string, { ok: boolean; message: string }>>({});
+  const [removeTarget, setRemoveTarget] = useState<string | null>(null);
+  const [removing, setRemoving] = useState(false);
+  const [toast, setToast] = useState<{ message: string; tone: 'success' | 'error' } | null>(null);
 
   useEffect(() => {
     api.get('/integrations').then((res) => {
@@ -125,6 +130,22 @@ export default function IntegrationsPage() {
     }
     const refreshed = await api.get('/integrations');
     setRows(refreshed.data ?? []);
+  }
+
+  async function removeIntegration() {
+    if (!removeTarget) return;
+    setRemoving(true);
+    try {
+      await api.delete(`/integrations/${removeTarget}`);
+      const refreshed = await api.get('/integrations');
+      setRows(refreshed.data ?? []);
+      setToast({ message: `${removeTarget} integration removed`, tone: 'success' });
+    } catch {
+      setToast({ message: 'Failed to remove integration', tone: 'error' });
+    } finally {
+      setRemoving(false);
+      setRemoveTarget(null);
+    }
   }
 
   if (loading) return <div className="text-gray-500">Loading...</div>;
@@ -169,12 +190,22 @@ export default function IntegrationsPage() {
                   </span>
                 )}
               </div>
-              <button
-                onClick={() => saveIntegration(integration.type)}
-                className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-              >
-                Save
-              </button>
+              <div className="flex gap-2">
+                {current?.active && (
+                  <button
+                    onClick={() => setRemoveTarget(integration.type)}
+                    className="px-4 py-2 rounded border border-red-300 text-red-600 hover:bg-red-50 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-1"
+                  >
+                    Remove
+                  </button>
+                )}
+                <button
+                  onClick={() => saveIntegration(integration.type)}
+                  className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2"
+                >
+                  Save
+                </button>
+              </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {fields.map((field) => (
@@ -205,6 +236,19 @@ export default function IntegrationsPage() {
           </div>
         );
       })}
+
+      <ConfirmModal
+        title={`Remove ${removeTarget} integration?`}
+        description="This will remove your custom configuration. Platform defaults will be used."
+        isOpen={!!removeTarget}
+        onClose={() => setRemoveTarget(null)}
+        onConfirm={removeIntegration}
+        confirmText={removing ? 'Removing…' : 'Yes, remove'}
+        confirmTone="danger"
+        loading={removing}
+      />
+
+      {toast && <Toast message={toast.message} tone={toast.tone} onClose={() => setToast(null)} />}
     </div>
   );
 }

@@ -58,6 +58,30 @@ export class DriverController {
     return this.drivers.updateDriver(tenantId, driverId, body);
   }
 
+  @Patch(':id/deactivate')
+  async deactivate(
+    @CurrentUser('tenant_id') tenantId: string,
+    @Param('id') driverId: string,
+  ) {
+    return this.drivers.setMembershipStatus(tenantId, driverId, 'inactive');
+  }
+
+  @Patch(':id/suspend')
+  async suspend(
+    @CurrentUser('tenant_id') tenantId: string,
+    @Param('id') driverId: string,
+  ) {
+    return this.drivers.setMembershipStatus(tenantId, driverId, 'suspended');
+  }
+
+  @Patch(':id/reactivate')
+  async reactivate(
+    @CurrentUser('tenant_id') tenantId: string,
+    @Param('id') driverId: string,
+  ) {
+    return this.drivers.setMembershipStatus(tenantId, driverId, 'active' as any);
+  }
+
   @Patch(':id/status')
   async updateStatus(
     @CurrentUser('tenant_id') tenantId: string,

@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Patch, Post, UseGuards, Param, Req, Query } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Patch, Post, UseGuards, Param, Req, Query } from '@nestjs/common';
 import { JwtGuard } from '../common/guards/jwt.guard';
 import { VehicleService } from './vehicle.service';
 
@@ -30,5 +30,10 @@ export class VehicleController {
   @Patch(':id')
   async update(@Param('id') id: string, @Body() body: any, @Req() req: any) {
     return this.vehicles.updateTenantVehicle(req.user.tenant_id, id, body);
+  }
+
+  @Delete(':id')
+  async deactivate(@Param('id') id: string, @Req() req: any) {
+    return this.vehicles.deactivateTenantVehicle(req.user.tenant_id, id);
   }
 }

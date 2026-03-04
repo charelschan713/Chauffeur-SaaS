@@ -39,6 +39,9 @@ export default function CustomersPage() {
   const [deletePassengerId, setDeletePassengerId] = useState<string | null>(null);
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
   const [deleting, setDeleting] = useState(false);
+  const [deleteCustomerId, setDeleteCustomerId] = useState<string | null>(null);
+  const [deleteCustomerConfirmText, setDeleteCustomerConfirmText] = useState('');
+  const [deletingCustomer, setDeletingCustomer] = useState(false);
   const [toast, setToast] = useState<{ message: string; tone: 'success' | 'error' } | null>(null);
 
   const { data: customers = [], isLoading, error, refetch } = useQuery({
@@ -189,6 +192,23 @@ export default function CustomersPage() {
     await queryClient.invalidateQueries({ queryKey: ['customer-detail', activeCustomerId] });
   }
 
+  async function confirmDeleteCustomer() {
+    if (!deleteCustomerId) return;
+    setDeletingCustomer(true);
+    try {
+      await api.delete(`/customers/${deleteCustomerId}`);
+      await queryClient.invalidateQueries({ queryKey: ['customers'] });
+      setToast({ message: 'Customer deleted', tone: 'success' });
+    } catch (err: any) {
+      const msg = err?.response?.data?.message ?? 'Failed to delete customer';
+      setToast({ message: msg, tone: 'error' });
+    } finally {
+      setDeletingCustomer(false);
+      setDeleteCustomerId(null);
+      setDeleteCustomerConfirmText('');
+    }
+  }
+
   async function confirmDeletePassenger() {
     if (!deletePassengerId) return;
     setDeleting(true);
@@ -247,6 +267,13 @@ export default function CustomersPage() {
                 <td className="px-4 py-3 text-right space-x-2">
                   <Button variant="ghost" onClick={() => openEditCustomer(c)}>Edit</Button>
                   <Button variant="ghost" onClick={() => setExpandedId(expandedId === c.id ? null : c.id)}>Passengers</Button>
+                  <Button
+                    variant="ghost"
+                    className="text-red-600 hover:text-red-700"
+                    onClick={() => { setDeleteCustomerId(c.id); setDeleteCustomerConfirmText(''); }}
+                  >
+                    Delete
+                  </Button>
                 </td>
               </tr>
               {expandedId === c.id && (
@@ -329,6 +356,24 @@ export default function CustomersPage() {
           </div>
         </div>
       )}
+
+      <ConfirmModal
+        title="Delete customer?"
+        description="This will soft-delete the customer. Active bookings will prevent deletion. Type DELETE to confirm."
+        isOpen={!!deleteCustomerId}
+        onClose={() => { setDeleteCustomerId(null); setDeleteCustomerConfirmText(''); }}
+        onConfirm={confirmDeleteCustomer}
+        confirmText={deletingCustomer ? 'Deleting…' : 'Delete'}
+        confirmTone="danger"
+        loading={deletingCustomer || deleteCustomerConfirmText !== 'DELETE'}
+      >
+        <input
+          value={deleteCustomerConfirmText}
+          onChange={(e) => setDeleteCustomerConfirmText(e.target.value)}
+          placeholder="Type DELETE to confirm"
+          className="w-full rounded border border-gray-200 px-3 py-2 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2"
+        />
+      </ConfirmModal>
 
       <ConfirmModal
         title="Delete passenger?"
