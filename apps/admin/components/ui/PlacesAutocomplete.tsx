@@ -63,6 +63,10 @@ export function PlacesAutocomplete({
           `/maps/autocomplete?input=${encodeURIComponent(query.trim())}&sessiontoken=${sessionToken}`,
         );
         const preds: Prediction[] = res.data?.predictions ?? [];
+        if (res.data?.error) {
+          // Surface API config error visually
+          console.warn('[PlacesAutocomplete]', res.data.error);
+        }
         setPredictions(preds);
         setOpen(preds.length > 0);
         setActiveIdx(-1);

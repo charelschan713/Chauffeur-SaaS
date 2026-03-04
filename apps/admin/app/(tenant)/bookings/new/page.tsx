@@ -408,7 +408,9 @@ export default function CreateBookingPage() {
 
   const summaries = {
     service: selectedCity?.name && selectedServiceType?.display_name ? `${selectedCity.name} · ${selectedServiceType.display_name}` : 'Select city and service type',
-    datetime: values.pickup_at_utc ? `${new Date(values.pickup_at_utc).toLocaleDateString()} ${new Date(values.pickup_at_utc).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} · ${values.timezone}` : 'Select pickup time',
+    datetime: values.pickup_at_utc
+      ? `${new Date(values.pickup_at_utc).toLocaleDateString()} ${new Date(values.pickup_at_utc).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}${values.timezone ? ' · ' + values.timezone : ''}`
+      : 'Select pickup time',
     route: values.pickup_address_text && values.dropoff_address_text
       ? waypoints.length > 0
         ? `${values.pickup_address_text} → ${waypoints.length} stops → ${values.dropoff_address_text}`
@@ -604,7 +606,12 @@ export default function CreateBookingPage() {
                 <label className="text-sm font-medium text-gray-700">Service City</label>
                 <Select
                   value={values.city_id}
-                  onChange={(e) => setValue('city_id', e.target.value, { shouldValidate: true })}
+                  onChange={(e) => {
+                    setValue('city_id', e.target.value, { shouldValidate: true });
+                    // Auto-set timezone from city
+                    const city = cities.find((c: any) => c.id === e.target.value);
+                    if (city?.timezone) setValue('timezone', city.timezone);
+                  }}
                 >
                   <option value="">Select a city</option>
                   {cities.map((c: any) => (
@@ -645,13 +652,8 @@ export default function CreateBookingPage() {
                 onChange={(v) => setValue('pickup_at_utc', v, { shouldValidate: true })}
                 error={errors.pickup_at_utc?.message}
               />
-              <Field label="Timezone" error={errors.timezone?.message}>
-                <Select {...register('timezone')}>
-                  {TIMEZONES.map((tz) => (
-                    <option key={tz} value={tz}>{tz}</option>
-                  ))}
-                </Select>
-              </Field>
+              {/* Timezone auto-set from city — hidden from UI */}
+              <input type="hidden" {...register('timezone')} />
               <Field label="Flight Number">
                 <Input
                   {...register('flight_number')}

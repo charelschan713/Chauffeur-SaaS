@@ -45,6 +45,11 @@ export class MapsController {
     );
     const data = await res.json();
 
+    if (data.status === 'REQUEST_DENIED') {
+      // Places API not enabled on this key — log and return empty
+      console.error('[Maps] Places Autocomplete REQUEST_DENIED. Enable "Places API" in Google Cloud Console for this API key. Error:', data.error_message);
+      return { predictions: [], error: 'Places API not enabled on Google API key' };
+    }
     if (data.status !== 'OK' && data.status !== 'ZERO_RESULTS') {
       return { predictions: [] };
     }
