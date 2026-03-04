@@ -324,23 +324,10 @@ function BookingDetailInner() {
         bookingId={booking?.id ?? ''}
         leg={assignLeg}
         carTypeId={booking?.service_class_id ?? null}
-        fromAddress={
-          assignLeg === 'B'
-            ? (booking?.dropoff_address_text ?? '')
-            : (booking?.pickup_address_text ?? '')
-        }
-        toAddress={
-          assignLeg === 'B'
-            ? (booking?.return_pickup_address_text ?? booking?.pickup_address_text ?? '')
-            : (booking?.dropoff_address_text ?? '')
-        }
-        timeLabel={
-          assignLeg === 'B'
-            ? (booking?.return_pickup_at_utc
-                ? formatPickupTime(booking.return_pickup_at_utc, booking.timezone)
-                : 'Return time not set')
-            : formatPickupTime(booking?.pickup_at_utc, booking?.timezone)
-        }
+        fareMinor={booking?.pricing_snapshot?.final_fare_minor ?? booking?.pricing_snapshot?.base_fare_minor ?? booking?.total_price_minor ?? 0}
+        tollParkingMinor={booking?.pricing_snapshot?.toll_parking_minor ?? 0}
+        totalPriceMinor={booking?.total_price_minor ?? 0}
+        currency={booking?.currency ?? 'AUD'}
         onAssigned={() => {
           setAssignOpen(false);
           refetch();

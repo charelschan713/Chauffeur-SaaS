@@ -18,10 +18,12 @@ export class AssignmentService {
       vehicle_id: string;
       driver_pay_type: string;
       driver_pay_value: number;
+      toll_parking_minor?: number;
       leg?: 'A' | 'B';
     },
   ) {
     const leg = dto.leg ?? 'A';
+    const tollParkingMinor = dto.toll_parking_minor ?? 0;
     const bookings = await this.dataSource.query(
       `SELECT total_price_minor, pricing_snapshot
        FROM public.bookings
@@ -33,13 +35,17 @@ export class AssignmentService {
     const snapshotTotal = booking.pricing_snapshot?.grand_total_minor ?? null;
     const customerTotal = Number(snapshotTotal ?? booking.total_price_minor ?? 0);
 
+    // Driver base pay (excluding toll)
+    const fareOnly = customerTotal - tollParkingMinor;
     let driverPayMinor = 0;
     if (dto.driver_pay_type === 'FIXED') {
       driverPayMinor = Math.round(dto.driver_pay_value * 100);
     } else {
-      driverPayMinor = Math.round(customerTotal * (dto.driver_pay_value / 100));
+      driverPayMinor = Math.round(fareOnly * (dto.driver_pay_value / 100));
     }
-    const platformFeeMinor = customerTotal - driverPayMinor;
+    // Driver total = base pay + toll passthrough
+    const driverTotalMinor = driverPayMinor + tollParkingMinor;
+    const platformFeeMinor = customerTotal - driverTotalMinor;
 
     await this.dataSource.query(
       `UPDATE public.assignments
@@ -53,8 +59,8 @@ export class AssignmentService {
       `INSERT INTO public.assignments
         (tenant_id, booking_id, driver_id, vehicle_id, status,
          assignment_method, assigned_by, driver_pay_type, driver_pay_value,
-         driver_pay_minor, platform_fee_minor, offered_at, leg)
-       VALUES ($1,$2,$3,$4,'PENDING','MANUAL',$5,$6,$7,$8,$9,now(),$10)
+         driver_pay_minor, platform_fee_minor, toll_parking_minor, offered_at, leg)
+       VALUES ($1,$2,$3,$4,'PENDING','MANUAL',$5,$6,$7,$8,$9,$10,now(),$11)
        RETURNING id`,
       [
         tenantId,
@@ -64,8 +70,9 @@ export class AssignmentService {
         assignedBy,
         dto.driver_pay_type,
         dto.driver_pay_value,
-        driverPayMinor,
+        driverTotalMinor,
         platformFeeMinor,
+        tollParkingMinor,
         leg,
       ],
     );
