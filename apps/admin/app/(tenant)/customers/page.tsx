@@ -3,6 +3,7 @@
 import React, { Fragment, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
+import { PageHeader } from '@/components/admin/PageHeader';
 
 const TIER_COLORS: Record<string, string> = {
   STANDARD: 'bg-green-100 text-green-800',
@@ -181,11 +182,14 @@ export default function CustomersPage() {
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold">Customers</h1>
-        <button onClick={openCreateCustomer} className="px-4 py-2 rounded bg-blue-600 text-white text-sm">Add Customer</button>
-      </div>
+    <div className="space-y-6">
+      <PageHeader
+        title="Customers"
+        description="Manage customer profiles and passengers"
+        actions={
+          <button onClick={openCreateCustomer} className="px-4 py-2 rounded bg-blue-600 text-white text-sm">Add Customer</button>
+        }
+      />
 
       <div className="flex items-center gap-3">
         <input

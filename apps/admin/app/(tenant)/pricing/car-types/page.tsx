@@ -1,118 +1,89 @@
 'use client';
-
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { ListPage } from '@/components/patterns/ListPage';
 
-interface CarTypeRow {
+interface ServiceClassRow {
   id: string;
   name: string;
   description: string | null;
   display_order: number;
+  base_fare_minor: number | null;
+  per_km_minor: number | null;
+  per_min_driving_minor: number | null;
+  per_min_waiting_minor: number | null;
+  minimum_fare_minor: number | null;
+  waypoint_minor: number | null;
+  infant_seat_minor: number | null;
+  toddler_seat_minor: number | null;
+  booster_seat_minor: number | null;
+  hourly_rate_minor: number | null;
   active: boolean;
-  base_fare_minor: number;
-  per_km_minor: number;
-  per_min_driving_minor: number;
-  per_min_waiting_minor: number;
-  minimum_fare_minor: number;
-  waypoint_minor: number;
-  infant_seat_minor: number;
-  toddler_seat_minor: number;
-  booster_seat_minor: number;
-  hourly_rate_minor: number;
+}
+
+interface PlatformVehicle {
+  id: string;
+  make: string;
+  model: string;
 }
 
 const emptyForm = {
   name: '',
   description: '',
   display_order: 0,
-  base_fare_minor: '',
-  per_km_minor: '',
-  per_min_driving_minor: '',
-  per_min_waiting_minor: '',
-  minimum_fare_minor: '',
-  waypoint_minor: '',
-  infant_seat_minor: '',
-  toddler_seat_minor: '',
-  booster_seat_minor: '',
-  hourly_rate_minor: '',
+  base_fare_minor: '0',
+  per_km_minor: '0',
+  per_min_driving_minor: '0',
+  per_min_waiting_minor: '0',
+  minimum_fare_minor: '0',
+  waypoint_minor: '0',
+  infant_seat_minor: '0',
+  toddler_seat_minor: '0',
+  booster_seat_minor: '0',
+  hourly_rate_minor: '0',
 };
 
-type FormState = typeof emptyForm;
-
 function toMinor(value: string) {
-  const parsed = Number(value);
-  if (Number.isNaN(parsed)) return 0;
-  return Math.round(parsed * 100);
+  return Math.round(Number(value) * 100);
 }
 
-function toDisplay(minor: number) {
-  return (minor / 100).toFixed(2);
+function toMoney(minor: number | null) {
+  return ((minor ?? 0) / 100).toFixed(2);
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <label className="block text-xs font-medium text-gray-600 mb-1">{label}</label>
+      {children}
+    </div>
+  );
 }
 
 export default function CarTypesPage() {
   const { data = [], isLoading, refetch } = useQuery({
-    queryKey: ['car-types'],
+    queryKey: ['service-classes'],
     queryFn: async () => {
-      const res = await api.get('/pricing/service-classes');
+      const res = await api.get('/pricing/car-types');
       return res.data ?? [];
     },
   });
-
 
   const { data: platformVehicles = [] } = useQuery({
     queryKey: ['platform-vehicles'],
     queryFn: async () => {
-      const res = await api.get('/platform/vehicles/public');
+      const res = await api.get('/platform/vehicles');
       return res.data ?? [];
     },
   });
 
-  const [form, setForm] = useState<FormState>(emptyForm);
+  const [form, setForm] = useState(emptyForm);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [selectedPlatformIds, setSelectedPlatformIds] = useState<string[]>([]);
 
-  const { data: carTypeDetail } = useQuery({
-    queryKey: ['car-type-detail', editingId],
-    queryFn: async () => {
-      if (!editingId) return null;
-      const res = await api.get(`/pricing/service-classes/${editingId}`);
-      return res.data;
-    },
-    enabled: !!editingId,
-  });
-
-  const carTypes = data as CarTypeRow[];
-
-  const editing = useMemo(() => {
-    if (!editingId) return null;
-    return carTypes.find((row) => row.id === editingId) ?? null;
-  }, [editingId, carTypes]);
-
-
-  useEffect(() => {
-    const linked = carTypeDetail?.platform_vehicles ?? [];
-    setSelectedPlatformIds(linked.map((v: any) => v.id));
-  }, [carTypeDetail]);
-
-  function loadForm(row: CarTypeRow) {
-    setForm({
-      name: row.name,
-      description: row.description ?? '',
-      display_order: row.display_order ?? 0,
-      base_fare_minor: toDisplay(row.base_fare_minor ?? 0),
-      per_km_minor: toDisplay(row.per_km_minor ?? 0),
-      per_min_driving_minor: toDisplay(row.per_min_driving_minor ?? 0),
-      per_min_waiting_minor: toDisplay(row.per_min_waiting_minor ?? 0),
-      minimum_fare_minor: toDisplay(row.minimum_fare_minor ?? 0),
-      waypoint_minor: toDisplay(row.waypoint_minor ?? 0),
-      infant_seat_minor: toDisplay(row.infant_seat_minor ?? 0),
-      toddler_seat_minor: toDisplay(row.toddler_seat_minor ?? 0),
-      booster_seat_minor: toDisplay(row.booster_seat_minor ?? 0),
-      hourly_rate_minor: toDisplay(row.hourly_rate_minor ?? 0),
-    });
-  }
+  const items = data as ServiceClassRow[];
+  const editing = useMemo(() => items.find((i) => i.id === editingId) ?? null, [items, editingId]);
 
   async function handleCreate() {
     await api.post('/pricing/service-classes', {
@@ -161,7 +132,6 @@ export default function CarTypesPage() {
     await refetch();
   }
 
-
   async function handleSavePlatformVehicles() {
     if (!editingId) return;
     await api.post('/pricing/service-classes/platform-vehicles', {
@@ -173,6 +143,18 @@ export default function CarTypesPage() {
   return (
     <ListPage
       title="Car Types"
+      subtitle="Configure car types and base pricing"
+      actions={
+        <button
+          onClick={() => {
+            setEditingId(null);
+            setForm(emptyForm);
+          }}
+          className="px-4 py-2 rounded bg-blue-600 text-white text-sm"
+        >
+          New Car Type
+        </button>
+      }
       filters={
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Field label="Name">
@@ -218,47 +200,6 @@ export default function CarTypesPage() {
               </button>
             )}
           </div>
-          <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-4">
-            <MoneyField label="Base Fare ($)" value={form.base_fare_minor} onChange={(v) => setForm((p) => ({ ...p, base_fare_minor: v }))} />
-            <MoneyField label="Per KM ($)" value={form.per_km_minor} onChange={(v) => setForm((p) => ({ ...p, per_km_minor: v }))} />
-            <MoneyField label="Per Min Driving ($)" value={form.per_min_driving_minor} onChange={(v) => setForm((p) => ({ ...p, per_min_driving_minor: v }))} />
-            <MoneyField label="Per Min Waiting ($)" value={form.per_min_waiting_minor} onChange={(v) => setForm((p) => ({ ...p, per_min_waiting_minor: v }))} />
-            <MoneyField label="Minimum Fare ($)" value={form.minimum_fare_minor} onChange={(v) => setForm((p) => ({ ...p, minimum_fare_minor: v }))} />
-            <MoneyField label="Waypoint Fee ($)" value={form.waypoint_minor} onChange={(v) => setForm((p) => ({ ...p, waypoint_minor: v }))} />
-            <MoneyField label="Infant Seat ($)" value={form.infant_seat_minor} onChange={(v) => setForm((p) => ({ ...p, infant_seat_minor: v }))} />
-            <MoneyField label="Toddler Seat ($)" value={form.toddler_seat_minor} onChange={(v) => setForm((p) => ({ ...p, toddler_seat_minor: v }))} />
-            <MoneyField label="Booster Seat ($)" value={form.booster_seat_minor} onChange={(v) => setForm((p) => ({ ...p, booster_seat_minor: v }))} />
-            <MoneyField label="Hourly Rate ($)" value={form.hourly_rate_minor} onChange={(v) => setForm((p) => ({ ...p, hourly_rate_minor: v }))} />
-          </div>
-
-          <div className="md:col-span-2 space-y-2">
-            <p className="text-sm font-medium text-gray-700">Linked Platform Vehicles</p>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-              {(platformVehicles as any[]).map((v) => (
-                <label key={v.id} className="flex items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={selectedPlatformIds.includes(v.id)}
-                    onChange={(e) => {
-                      setSelectedPlatformIds((prev) =>
-                        e.target.checked
-                          ? [...prev, v.id]
-                          : prev.filter((id) => id !== v.id),
-                      );
-                    }}
-                  />
-                  <span>{v.make} {v.model}</span>
-                </label>
-              ))}
-            </div>
-            <button
-              onClick={handleSavePlatformVehicles}
-              disabled={!editingId}
-              className="px-4 py-2 rounded bg-blue-600 text-white text-sm disabled:opacity-50"
-            >
-              Save Linked Vehicles
-            </button>
-          </div>
         </div>
       }
       table={
@@ -268,39 +209,54 @@ export default function CarTypesPage() {
           <table className="w-full text-sm">
             <thead className="bg-gray-50">
               <tr>
-                {['Name', 'Base Fare', 'Per KM', 'Hourly Rate', 'Status', ''].map((h) => (
-                  <th key={h} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                {['Name', 'Base Fare', 'Per Km', 'Per Min', 'Minimum', 'Active', ''].map((h) => (
+                  <th
+                    key={h}
+                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase"
+                  >
                     {h}
                   </th>
                 ))}
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {carTypes.map((row) => (
-                <tr key={row.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-3 font-medium text-gray-900">{row.name}</td>
-                  <td className="px-4 py-3">${toDisplay(row.base_fare_minor ?? 0)}</td>
-                  <td className="px-4 py-3">${toDisplay(row.per_km_minor ?? 0)}</td>
-                  <td className="px-4 py-3">${toDisplay(row.hourly_rate_minor ?? 0)}</td>
-                  <td className="px-4 py-3">
-                    <span className={`px-2 py-1 rounded-full text-xs ${row.active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
-                      {row.active ? 'Active' : 'Inactive'}
+              {items.map((item) => (
+                <tr key={item.id} className="hover:bg-gray-50">
+                  <td className="px-6 py-4 font-medium text-gray-900">{item.name}</td>
+                  <td className="px-6 py-4 text-sm">{toMoney(item.base_fare_minor)}</td>
+                  <td className="px-6 py-4 text-sm">{toMoney(item.per_km_minor)}</td>
+                  <td className="px-6 py-4 text-sm">{toMoney(item.per_min_driving_minor)}</td>
+                  <td className="px-6 py-4 text-sm">{toMoney(item.minimum_fare_minor)}</td>
+                  <td className="px-6 py-4 text-sm">
+                    <span className={`px-2 py-1 rounded text-xs ${item.active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-700'}`}>
+                      {item.active ? 'Active' : 'Inactive'}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-right space-x-2">
+                  <td className="px-6 py-4 text-sm text-right space-x-2">
                     <button
-                      onClick={() => {
-                        setEditingId(row.id);
-                        loadForm(row);
-                      }}
                       className="text-blue-600 hover:underline"
+                      onClick={() => {
+                        setEditingId(item.id);
+                        setForm({
+                          name: item.name,
+                          description: item.description ?? '',
+                          display_order: item.display_order ?? 0,
+                          base_fare_minor: toMoney(item.base_fare_minor),
+                          per_km_minor: toMoney(item.per_km_minor),
+                          per_min_driving_minor: toMoney(item.per_min_driving_minor),
+                          per_min_waiting_minor: toMoney(item.per_min_waiting_minor),
+                          minimum_fare_minor: toMoney(item.minimum_fare_minor),
+                          waypoint_minor: toMoney(item.waypoint_minor),
+                          infant_seat_minor: toMoney(item.infant_seat_minor),
+                          toddler_seat_minor: toMoney(item.toddler_seat_minor),
+                          booster_seat_minor: toMoney(item.booster_seat_minor),
+                          hourly_rate_minor: toMoney(item.hourly_rate_minor),
+                        });
+                      }}
                     >
                       Edit
                     </button>
-                    <button
-                      onClick={() => handleDeactivate(row.id)}
-                      className="text-red-600 hover:underline"
-                    >
+                    <button className="text-red-600 hover:underline" onClick={() => handleDeactivate(item.id)}>
                       Deactivate
                     </button>
                   </td>
@@ -310,35 +266,36 @@ export default function CarTypesPage() {
           </table>
         )
       }
+      footer={
+        editing && (
+          <div className="bg-white border rounded p-4">
+            <h3 className="text-sm font-semibold mb-2">Platform Vehicles</h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+              {(platformVehicles as PlatformVehicle[]).map((pv) => (
+                <label key={pv.id} className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={selectedPlatformIds.includes(pv.id)}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setSelectedPlatformIds((prev) => [...prev, pv.id]);
+                      } else {
+                        setSelectedPlatformIds((prev) => prev.filter((id) => id !== pv.id));
+                      }
+                    }}
+                  />
+                  {pv.make} {pv.model}
+                </label>
+              ))}
+            </div>
+            <div className="mt-3">
+              <button onClick={handleSavePlatformVehicles} className="px-4 py-2 rounded bg-blue-600 text-white text-sm">
+                Save Platform Vehicles
+              </button>
+            </div>
+          </div>
+        )
+      }
     />
-  );
-}
-
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <label className="text-sm font-medium text-gray-700 space-y-1">
-      <span>{label}</span>
-      {children}
-    </label>
-  );
-}
-
-function MoneyField({
-  label,
-  value,
-  onChange,
-}: {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-}) {
-  return (
-    <Field label={label}>
-      <input
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="w-full border rounded px-3 py-2 text-sm"
-      />
-    </Field>
   );
 }
