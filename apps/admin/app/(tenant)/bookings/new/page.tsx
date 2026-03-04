@@ -10,6 +10,7 @@ import api from '@/lib/api';
 import { ErrorAlert } from '@/components/ui/ErrorAlert';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { DateTimePicker } from '@/components/ui/DateTimePicker';
 import { Select } from '@/components/ui/Select';
 import { PhoneSplitField } from '@/components/ui/PhoneSplitField';
 import { PlacesAutocomplete } from '@/components/ui/PlacesAutocomplete';
@@ -638,9 +639,12 @@ export default function CreateBookingPage() {
 
           <AccordionCard title="Date & Time" summary={summaries.datetime} open={activeSection === 'datetime'}>
             <div className="space-y-4">
-              <Field label="Pickup Date & Time" error={errors.pickup_at_utc?.message}>
-                <Input type="datetime-local" {...register('pickup_at_utc')} />
-              </Field>
+              <DateTimePicker
+                label="Pickup Date & Time"
+                value={values.pickup_at_utc}
+                onChange={(v) => setValue('pickup_at_utc', v, { shouldValidate: true })}
+                error={errors.pickup_at_utc?.message}
+              />
               <Field label="Timezone" error={errors.timezone?.message}>
                 <Select {...register('timezone')}>
                   {TIMEZONES.map((tz) => (
@@ -659,13 +663,13 @@ export default function CreateBookingPage() {
                 <input type="checkbox" {...register('is_return_trip')} className="h-4 w-4" />
               </label>
               {values.is_return_trip && (
-                <Field label="Return Date & Time" error={errors.return_pickup_at_utc?.message}>
-                  <Input
-                    type="datetime-local"
-                    min={values.pickup_at_utc || undefined}
-                    {...register('return_pickup_at_utc')}
-                  />
-                </Field>
+                <DateTimePicker
+                  label="Return Date & Time"
+                  value={values.return_pickup_at_utc ?? ''}
+                  onChange={(v) => setValue('return_pickup_at_utc', v, { shouldValidate: true })}
+                  error={errors.return_pickup_at_utc?.message}
+                  minDate={values.pickup_at_utc || undefined}
+                />
               )}
             </div>
             <div className="mt-4 flex justify-between">
