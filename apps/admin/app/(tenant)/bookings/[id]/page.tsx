@@ -23,7 +23,7 @@ export default function BookingDetailPage() {
   const [editPayOpen, setEditPayOpen] = useState(false);
   const [editPayAssignmentId, setEditPayAssignmentId] = useState<string | null>(null);
 
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['booking', bookingId],
     queryFn: async () => {
       const res = await api.get(`/bookings/${bookingId}`);
@@ -304,24 +304,33 @@ export default function BookingDetailPage() {
         </div>
       </ConfirmModal>
 
-
       {/* Assign Driver Modal */}
       <AssignDriverModal
         isOpen={assignOpen}
         onClose={() => setAssignOpen(false)}
-        bookingId={booking?.id}
+        bookingId={booking?.id ?? ''}
         leg={assignLeg}
         carTypeId={booking?.service_class_id ?? null}
-        fromAddress={booking?.pickup_address_text ?? ''}
-        toAddress={booking?.is_return_trip && assignLeg === 'B'
-          ? (booking?.return_pickup_address_text || booking?.pickup_address_text || '')
-          : (booking?.dropoff_address_text ?? '')}
-        timeLabel={assignLeg === 'B' && booking?.return_pickup_at_utc
-          ? formatPickupTime(booking.return_pickup_at_utc, booking.timezone)
-          : formatPickupTime(booking.pickup_at_utc, booking.timezone)}
+        fromAddress={
+          assignLeg === 'B'
+            ? (booking?.dropoff_address_text ?? '')
+            : (booking?.pickup_address_text ?? '')
+        }
+        toAddress={
+          assignLeg === 'B'
+            ? (booking?.return_pickup_address_text ?? booking?.pickup_address_text ?? '')
+            : (booking?.dropoff_address_text ?? '')
+        }
+        timeLabel={
+          assignLeg === 'B'
+            ? (booking?.return_pickup_at_utc
+                ? formatPickupTime(booking.return_pickup_at_utc, booking.timezone)
+                : 'Return time not set')
+            : formatPickupTime(booking?.pickup_at_utc, booking?.timezone)
+        }
         onAssigned={() => {
           setAssignOpen(false);
-          queryClient.invalidateQueries({ queryKey: ['booking', bookingId] });
+          refetch();
         }}
       />
 
@@ -336,7 +345,7 @@ export default function BookingDetailPage() {
         onUpdated={() => {
           setEditPayOpen(false);
           setEditPayAssignmentId(null);
-          queryClient.invalidateQueries({ queryKey: ['booking', bookingId] });
+          refetch();
         }}
       />
     </>
