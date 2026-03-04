@@ -90,6 +90,7 @@ export default function CarTypesPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const formRef = useRef<HTMLDivElement>(null);
   const [deactivateId, setDeactivateId] = useState<string | null>(null);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; tone: 'success' | 'error' } | null>(null);
   const [selectedPlatformIds, setSelectedPlatformIds] = useState<string[]>([]);
 
@@ -149,6 +150,19 @@ export default function CarTypesPage() {
       setToast({ message: 'Failed to deactivate car type', tone: 'error' });
     } finally {
       setDeactivateId(null);
+    }
+  }
+
+  async function handleDelete() {
+    if (!deleteId) return;
+    try {
+      await api.delete(`/pricing/car-types/${deleteId}/hard`);
+      setToast({ message: 'Car type deleted', tone: 'success' });
+      await refetch();
+    } catch (err: any) {
+      setToast({ message: err?.response?.data?.message ?? 'Failed to delete car type', tone: 'error' });
+    } finally {
+      setDeleteId(null);
     }
   }
 
@@ -269,8 +283,11 @@ export default function CarTypesPage() {
                   >
                     Edit
                   </button>
-                  <button className="text-red-600 hover:underline" onClick={() => setDeactivateId(item.id)}>
+                  <button className="text-orange-600 hover:underline" onClick={() => setDeactivateId(item.id)}>
                     Deactivate
+                  </button>
+                  <button className="text-red-700 hover:underline font-medium" onClick={() => setDeleteId(item.id)}>
+                    Delete
                   </button>
                 </td>
               </tr>
@@ -316,6 +333,16 @@ export default function CarTypesPage() {
       confirmTone="danger"
       onConfirm={() => { void handleDeactivate(); }}
       onClose={() => setDeactivateId(null)}
+    />
+
+    <ConfirmModal
+      isOpen={!!deleteId}
+      title="Delete Car Type"
+      description={`Permanently delete "${items.find(i => i.id === deleteId)?.name ?? 'this car type'}"? This cannot be undone. Car types with active bookings cannot be deleted.`}
+      confirmText="Delete"
+      confirmTone="danger"
+      onConfirm={() => { void handleDelete(); }}
+      onClose={() => setDeleteId(null)}
     />
 
     {toast && (

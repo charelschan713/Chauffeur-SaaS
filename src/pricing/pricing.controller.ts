@@ -58,6 +58,11 @@ export class PricingController {
     return this.pricingService.deactivateServiceClass(req.user.tenant_id, id);
   }
 
+  @Delete('car-types/:id/hard')
+  async hardDeleteCarType(@Param('id') id: string, @Req() req: any) {
+    return this.pricingService.hardDeleteServiceClass(req.user.tenant_id, id);
+  }
+
   @Get('service-classes')
   async listServiceClasses(@Req() req: any) {
     return this.pricingService.listServiceClasses(req.user.tenant_id);

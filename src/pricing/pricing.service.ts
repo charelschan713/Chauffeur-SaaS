@@ -158,6 +158,36 @@ export class PricingService {
     return { success: true };
   }
 
+  async hardDeleteServiceClass(tenantId: string, id: string) {
+    // Check for active/upcoming bookings referencing this car type
+    const conflicts = await this.dataSource.query(
+      `SELECT COUNT(*) FROM public.bookings
+       WHERE tenant_id = $1 AND service_class_id = $2
+         AND operational_status NOT IN ('COMPLETED','CANCELLED')`,
+      [tenantId, id],
+    );
+    if (Number(conflicts[0]?.count) > 0) {
+      throw new Error('Cannot delete: car type has active bookings. Deactivate instead.');
+    }
+    await this.dataSource.query(
+      `DELETE FROM public.tenant_service_class_platform_vehicles
+       WHERE tenant_id = $1 AND service_class_id = $2`,
+      [tenantId, id],
+    );
+    await this.dataSource.query(
+      `DELETE FROM public.service_class_pricing_items
+       WHERE tenant_id = $1 AND service_class_id = $2`,
+      [tenantId, id],
+    );
+    const rows = await this.dataSource.query(
+      `DELETE FROM public.tenant_service_classes
+       WHERE tenant_id = $1 AND id = $2 RETURNING id`,
+      [tenantId, id],
+    );
+    if (!rows.length) throw new NotFoundException('Service class not found');
+    return { success: true };
+  }
+
   async listItems(tenantId: string, serviceClassId: string) {
     return this.dataSource.query(
       `SELECT id, service_class_id, item_type, amount_minor, unit, active, created_at
