@@ -1,4 +1,5 @@
 import { ReactNode } from 'react';
+import { PageHeader } from '@/components/admin/PageHeader';
 
 interface ListPageProps {
   title: string;
@@ -11,14 +12,8 @@ interface ListPageProps {
 
 export function ListPage({ title, subtitle, actions, filters, table, footer }: ListPageProps) {
   return (
-    <div className="space-y-4">
-      <header className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900">{title}</h2>
-          {subtitle && <p className="text-sm text-gray-500 mt-1">{subtitle}</p>}
-        </div>
-        {actions && <div className="flex items-center gap-3">{actions}</div>}
-      </header>
+    <div className="space-y-6">
+      <PageHeader title={title} description={subtitle} actions={actions} />
 
       {filters && <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">{filters}</div>}
 

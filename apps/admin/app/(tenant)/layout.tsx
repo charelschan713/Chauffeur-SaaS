@@ -1,11 +1,13 @@
 'use client';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
+import { AdminTopbar } from '@/components/admin/AdminTopbar';
 
 const NAV_SECTIONS = [
   {
     title: 'Operations',
     items: [
+      { href: '/dashboard', label: 'Dashboard' },
       { href: '/bookings', label: 'Bookings' },
       { href: '/dispatch', label: 'Dispatch' },
       { href: '/customers', label: 'Customers' },
@@ -29,9 +31,9 @@ const NAV_SECTIONS = [
     title: 'Settings',
     items: [
       { href: '/settings/general', label: 'General' },
-      { href: '/settings/integrations', label: 'Integrations' },
-      { href: '/settings/templates', label: 'Templates' },
       { href: '/settings/cities', label: 'Cities' },
+      { href: '/settings/templates', label: 'Templates' },
+      { href: '/settings/integrations', label: 'Integrations' },
     ],
   },
 ];
@@ -44,15 +46,25 @@ export default function TenantLayout({
   const router = useRouter();
   const pathname = usePathname();
 
+  async function handleLogout() {
+    await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/logout`, {
+      method: 'POST',
+      credentials: 'include',
+    });
+    localStorage.removeItem('accessToken');
+    localStorage.removeItem('refreshToken');
+    router.push('/login');
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="flex">
-        <aside className="w-64 bg-gray-900 text-white min-h-screen flex flex-col">
-          <div className="px-6 py-4 text-lg font-semibold">Chauffeur Admin</div>
-          <nav className="flex-1 px-4 space-y-5">
+        <aside className="w-64 bg-gray-900 text-gray-300 min-h-screen flex flex-col px-3 py-4">
+          <div className="px-3 py-2 text-lg font-semibold text-white">Chauffeur Admin</div>
+          <nav className="flex-1 space-y-5">
             {NAV_SECTIONS.map((section) => (
-              <div key={section.title} className="space-y-2">
-                <div className="px-2 text-xs text-gray-400 tracking-wider uppercase">
+              <div key={section.title}>
+                <div className="mt-4 mb-2 px-3 text-xs text-gray-400 tracking-wider uppercase">
                   {section.title}
                 </div>
                 <div className="space-y-1">
@@ -62,10 +74,10 @@ export default function TenantLayout({
                       <Link
                         key={item.href}
                         href={item.href}
-                        className={`block px-3 py-2 rounded-md text-sm transition ${
+                        className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm transition ${
                           isActive
-                            ? 'bg-gray-800 text-white border-l-2 border-blue-500'
-                            : 'text-gray-300 hover:bg-gray-800 hover:text-white'
+                            ? 'bg-gray-800 text-white border-l-2 border-blue-500 pl-[calc(0.75rem-2px)]'
+                            : 'hover:bg-gray-800 hover:text-white'
                         }`}
                       >
                         {item.label}
@@ -76,24 +88,19 @@ export default function TenantLayout({
               </div>
             ))}
           </nav>
-          <div className="p-4 border-t border-gray-800">
+          <div className="mt-auto">
             <button
-              onClick={async () => {
-                await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/logout`, {
-                  method: 'POST',
-                  credentials: 'include',
-                });
-                localStorage.removeItem('accessToken');
-                localStorage.removeItem('refreshToken');
-                router.push('/login');
-              }}
-              className="w-full px-3 py-2 text-sm rounded-md bg-gray-800 text-gray-200 hover:bg-gray-700"
+              onClick={handleLogout}
+              className="w-full px-3 py-2 rounded-md text-sm text-gray-300 hover:bg-gray-800 hover:text-white"
             >
               Sign out
             </button>
           </div>
         </aside>
-        <main className="flex-1 p-8">{children}</main>
+        <main className="flex-1">
+          <AdminTopbar tenantName="Tenant" onLogout={handleLogout} />
+          <div className="p-6">{children}</div>
+        </main>
       </div>
     </div>
   );
