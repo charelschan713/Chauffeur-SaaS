@@ -171,13 +171,17 @@ function DispatchBoardInner() {
         </Button>
       </div>
 
-      {offerState[selectedBookingId ?? ''] === 'OFFERED' && returnParam && (
-        <div className="bg-green-50 text-green-700 border border-green-200 rounded px-4 py-2 text-sm flex items-center justify-between">
-          <span>Offer sent</span>
-          <Button variant="secondary" onClick={() => router.push(returnParam)}>
-            Return to booking
-          </Button>
-        </div>
+      {offerState[selectedBookingId ?? ''] === 'OFFERED' && returnParam && selectedBooking && (
+        <Card>
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-green-700 font-medium">
+              Offer sent for {selectedBooking.booking_reference}
+            </span>
+            <Button variant="secondary" onClick={() => router.push(`${returnParam}?assigned=1`)}>
+              Return to booking
+            </Button>
+          </div>
+        </Card>
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

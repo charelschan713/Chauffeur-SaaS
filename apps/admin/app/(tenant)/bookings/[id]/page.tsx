@@ -1,6 +1,6 @@
 'use client';
-import { useMemo, useState, useEffect } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useMemo, useState, useEffect, Suspense } from 'react';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { ConfirmModal } from '@/components/ui/ConfirmModal';
@@ -15,6 +15,7 @@ import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { BookingStatusTimeline } from '@/components/admin/BookingStatusTimeline';
 import Link from 'next/link';
 import { getBookingStatusBadge } from '@/lib/ui/statusBadge';
+import { Toast } from '@/components/ui/Toast';
 
 const CANCELABLE_STATUSES = new Set(['DRAFT', 'PENDING', 'CONFIRMED', 'ASSIGNED']);
 
@@ -27,17 +28,19 @@ const PAY_BADGE: Record<string, 'neutral' | 'warning' | 'success' | 'danger'> = 
   FAILED: 'danger',
 };
 
-export default function BookingDetailPage() {
+function BookingDetailInner() {
   const params = useParams<{ id: string }>();
   const bookingId = params.id;
   const router = useRouter();
   const queryClient = useQueryClient();
+  const searchParams = useSearchParams();
   const [isModalOpen, setModalOpen] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
   const [assignOpen, setAssignOpen] = useState(false);
   const [assignLeg, setAssignLeg] = useState<'A' | 'B'>('A');
   const [editPayOpen, setEditPayOpen] = useState(false);
   const [editPayAssignmentId, setEditPayAssignmentId] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ message: string; tone: 'success' | 'error' } | null>(null);
 
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['booking', bookingId],
@@ -53,6 +56,13 @@ export default function BookingDetailPage() {
       queryClient.invalidateQueries({ queryKey: ['booking', bookingId] });
     }
   }, [bookingId, queryClient]);
+
+  // Show "Driver assigned" toast when returning from dispatch with ?assigned=1
+  useEffect(() => {
+    if (searchParams?.get('assigned') === '1') {
+      setToast({ message: 'Driver assigned', tone: 'success' });
+    }
+  }, [searchParams]);
 
   const booking = data?.booking;
   const assignments = data?.assignments ?? [];
@@ -293,7 +303,19 @@ export default function BookingDetailPage() {
           refetch();
         }}
       />
+
+      {toast && (
+        <Toast message={toast.message} tone={toast.tone} onClose={() => setToast(null)} />
+      )}
     </div>
+  );
+}
+
+export default function BookingDetailPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center h-64"><LoadingSpinner /></div>}>
+      <BookingDetailInner />
+    </Suspense>
   );
 }
 
