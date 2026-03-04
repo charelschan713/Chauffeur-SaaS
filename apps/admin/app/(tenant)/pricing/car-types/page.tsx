@@ -9,6 +9,8 @@ import { Table } from '@/components/ui/Table';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ErrorAlert } from '@/components/ui/ErrorAlert';
+import { ConfirmModal } from '@/components/ui/ConfirmModal';
+import { Toast } from '@/components/ui/Toast';
 
 interface ServiceClassRow {
   id: string;
@@ -87,6 +89,8 @@ export default function CarTypesPage() {
   const [form, setForm] = useState(emptyForm);
   const [editingId, setEditingId] = useState<string | null>(null);
   const formRef = useRef<HTMLDivElement>(null);
+  const [deactivateId, setDeactivateId] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ message: string; tone: 'success' | 'error' } | null>(null);
   const [selectedPlatformIds, setSelectedPlatformIds] = useState<string[]>([]);
 
   // Filter out blank/ghost rows (name is empty or null)
@@ -135,9 +139,17 @@ export default function CarTypesPage() {
     await refetch();
   }
 
-  async function handleDeactivate(id: string) {
-    await api.delete(`/pricing/service-classes/${id}`);
-    await refetch();
+  async function handleDeactivate() {
+    if (!deactivateId) return;
+    try {
+      await api.delete(`/pricing/car-types/${deactivateId}`);
+      setToast({ message: 'Car type deactivated', tone: 'success' });
+      await refetch();
+    } catch {
+      setToast({ message: 'Failed to deactivate car type', tone: 'error' });
+    } finally {
+      setDeactivateId(null);
+    }
   }
 
   async function handleSavePlatformVehicles() {
@@ -151,6 +163,7 @@ export default function CarTypesPage() {
   if (error) return <ErrorAlert message="Unable to load car types" onRetry={refetch} />;
 
   return (
+    <>
     <ListPage
       title="Car Types"
       subtitle="Configure car types and base pricing"
@@ -256,7 +269,7 @@ export default function CarTypesPage() {
                   >
                     Edit
                   </button>
-                  <button className="text-red-600 hover:underline" onClick={() => handleDeactivate(item.id)}>
+                  <button className="text-red-600 hover:underline" onClick={() => setDeactivateId(item.id)}>
                     Deactivate
                   </button>
                 </td>
@@ -294,5 +307,24 @@ export default function CarTypesPage() {
         )
       }
     />
+
+    <ConfirmModal
+      isOpen={!!deactivateId}
+      title="Deactivate Car Type"
+      description={`Deactivate "${items.find(i => i.id === deactivateId)?.name ?? 'this car type'}"? It will be hidden from bookings and vehicle selection.`}
+      confirmText="Deactivate"
+      confirmTone="danger"
+      onConfirm={() => { void handleDeactivate(); }}
+      onClose={() => setDeactivateId(null)}
+    />
+
+    {toast && (
+      <Toast
+        message={toast.message}
+        tone={toast.tone}
+        onClose={() => setToast(null)}
+      />
+    )}
+    </>
   );
 }

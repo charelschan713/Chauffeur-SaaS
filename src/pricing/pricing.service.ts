@@ -12,7 +12,7 @@ export class PricingService {
               minimum_fare_minor, waypoint_minor, infant_seat_minor, toddler_seat_minor,
               booster_seat_minor, hourly_rate_minor
        FROM public.tenant_service_classes
-       WHERE tenant_id = $1
+       WHERE tenant_id = $1 AND active = true
        ORDER BY display_order ASC, created_at ASC`,
       [tenantId],
     );
