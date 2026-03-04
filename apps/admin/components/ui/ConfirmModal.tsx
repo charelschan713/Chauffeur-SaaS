@@ -44,14 +44,14 @@ export function ConfirmModal({
             <button
               onClick={onClose}
               disabled={loading}
-              className="px-4 py-2 rounded border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-60"
+              className="px-4 py-2 rounded border border-gray-300 text-gray-700 hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2 disabled:opacity-60"
             >
               Cancel
             </button>
             <button
               onClick={onConfirm}
               disabled={loading}
-              className={`px-4 py-2 rounded text-white ${confirmColor} disabled:opacity-60`}
+              className={`px-4 py-2 rounded text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-blue-600 ${confirmColor} disabled:opacity-60`}
             >
               {confirmText}
             </button>

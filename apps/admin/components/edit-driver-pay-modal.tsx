@@ -1,6 +1,9 @@
 'use client';
 import { useState } from 'react';
 import api from '@/lib/api';
+import { Button } from '@/components/ui/Button';
+
+const FOCUS = 'focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2';
 
 export function EditDriverPayModal({
   isOpen,
@@ -41,7 +44,7 @@ export function EditDriverPayModal({
           <select
             value={payType}
             onChange={(e) => setPayType(e.target.value as 'FIXED' | 'PERCENTAGE')}
-            className="w-full border rounded px-3 py-2 text-sm"
+            className={`w-full border rounded px-3 py-2 text-sm ${FOCUS}`}
           >
             <option value="PERCENTAGE">Percentage</option>
             <option value="FIXED">Fixed</option>
@@ -49,20 +52,14 @@ export function EditDriverPayModal({
           <input
             value={payValue}
             onChange={(e) => setPayValue(e.target.value)}
-            className="w-full border rounded px-3 py-2 text-sm"
+            className={`w-full border rounded px-3 py-2 text-sm ${FOCUS}`}
             placeholder={payType === 'FIXED' ? 'Amount' : 'Percent'}
           />
           <div className="flex justify-end gap-2">
-            <button onClick={onClose} className="px-4 py-2 rounded border text-sm">
-              Cancel
-            </button>
-            <button
-              onClick={handleSave}
-              disabled={saving}
-              className="px-4 py-2 rounded bg-blue-600 text-white text-sm disabled:opacity-60"
-            >
-              {saving ? 'Saving...' : 'Save'}
-            </button>
+            <Button variant="secondary" onClick={onClose}>Cancel</Button>
+            <Button onClick={handleSave} disabled={saving}>
+              {saving ? 'Saving…' : 'Save'}
+            </Button>
           </div>
         </div>
       </div>

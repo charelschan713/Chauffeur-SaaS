@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useMemo, useState } from 'react';
 import api from '@/lib/api';
+import { Button } from '@/components/ui/Button';
 
 interface AssignDriverModalProps {
   isOpen: boolean;
@@ -27,6 +28,8 @@ interface VehicleRow {
   year?: string;
   registration_number?: string;
 }
+
+const FOCUS = 'focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2';
 
 export function AssignDriverModal({
   isOpen,
@@ -110,8 +113,8 @@ export function AssignDriverModal({
                   <button
                     key={v.id}
                     onClick={() => setSelectedVehicle(v.id)}
-                    className={`w-full text-left px-3 py-2 border rounded ${
-                      selectedVehicle === v.id ? 'border-blue-600 bg-blue-50' : ''
+                    className={`w-full text-left px-3 py-2 border rounded ${FOCUS} ${
+                      selectedVehicle === v.id ? 'border-blue-600 bg-blue-50' : 'hover:bg-gray-50'
                     }`}
                   >
                     {v.make} {v.model} {v.registration_number ? `(${v.registration_number})` : ''}
@@ -129,8 +132,8 @@ export function AssignDriverModal({
                   <button
                     key={d.id}
                     onClick={() => setSelectedDriver(d.id)}
-                    className={`w-full text-left px-3 py-2 border rounded ${
-                      selectedDriver === d.id ? 'border-blue-600 bg-blue-50' : ''
+                    className={`w-full text-left px-3 py-2 border rounded ${FOCUS} ${
+                      selectedDriver === d.id ? 'border-blue-600 bg-blue-50' : 'hover:bg-gray-50'
                     }`}
                   >
                     {d.full_name} {d.status ? `— ${d.status}` : ''}
@@ -147,7 +150,7 @@ export function AssignDriverModal({
                 <select
                   value={payType}
                   onChange={(e) => setPayType(e.target.value as 'FIXED' | 'PERCENTAGE')}
-                  className="border rounded px-3 py-2 text-sm"
+                  className={`w-full border rounded px-3 py-2 text-sm ${FOCUS}`}
                 >
                   <option value="PERCENTAGE">Percentage</option>
                   <option value="FIXED">Fixed</option>
@@ -155,7 +158,7 @@ export function AssignDriverModal({
                 <input
                   value={payValue}
                   onChange={(e) => setPayValue(e.target.value)}
-                  className="border rounded px-3 py-2 text-sm"
+                  className={`w-full border rounded px-3 py-2 text-sm ${FOCUS}`}
                   placeholder={payType === 'FIXED' ? 'Amount' : 'Percent'}
                 />
               </div>
@@ -163,37 +166,23 @@ export function AssignDriverModal({
           )}
 
           <div className="flex justify-between">
-            <button
-              onClick={onClose}
-              className="px-4 py-2 rounded border text-sm"
-            >
+            <Button variant="secondary" onClick={onClose}>
               Cancel
-            </button>
+            </Button>
             <div className="flex gap-2">
               {step > 1 && (
-                <button
-                  onClick={() => setStep((s) => s - 1)}
-                  className="px-4 py-2 rounded border text-sm"
-                >
+                <Button variant="secondary" onClick={() => setStep((s) => s - 1)}>
                   Back
-                </button>
+                </Button>
               )}
               {step < 3 ? (
-                <button
-                  onClick={() => setStep((s) => s + 1)}
-                  disabled={!canNext}
-                  className="px-4 py-2 rounded bg-blue-600 text-white text-sm disabled:opacity-60"
-                >
+                <Button onClick={() => setStep((s) => s + 1)} disabled={!canNext}>
                   Next
-                </button>
+                </Button>
               ) : (
-                <button
-                  onClick={handleAssign}
-                  disabled={saving || !selectedDriver || !selectedVehicle}
-                  className="px-4 py-2 rounded bg-blue-600 text-white text-sm disabled:opacity-60"
-                >
-                  {saving ? 'Assigning...' : 'Assign'}
-                </button>
+                <Button onClick={handleAssign} disabled={saving || !selectedDriver || !selectedVehicle}>
+                  {saving ? 'Assigning…' : 'Assign'}
+                </Button>
               )}
             </div>
           </div>
