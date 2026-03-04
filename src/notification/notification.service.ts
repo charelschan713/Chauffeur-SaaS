@@ -50,6 +50,12 @@ export class NotificationService {
       case 'DriverInvitationSent':
         await this.onDriverInvitation(tenantId, payload);
         break;
+      case 'DriverInviteSms':
+        await this.onDriverInviteSms(payload);
+        break;
+      case 'DriverInviteEmail':
+        await this.onDriverInviteEmail(tenantId, payload);
+        break;
       case 'JobCompleted':
         await this.onJobCompleted(tenantId, payload);
         break;
@@ -519,5 +525,36 @@ export class NotificationService {
       [id],
     );
     return rows[0];
+  }
+
+  /** SMS invite to driver */
+  private async onDriverInviteSms(payload: any) {
+    const smsIntegration = await this.integrationResolver.resolve(
+      payload.tenant_id, 'twilio',
+    );
+    if (!smsIntegration) return;
+    const body = `Hi ${payload.name}, ${payload.company_name} has invited you to join as a driver. Complete your registration here: ${payload.onboard_url}`;
+    await this.smsProvider.send(smsIntegration, payload.phone, body);
+  }
+
+  /** Email invite to driver */
+  private async onDriverInviteEmail(tenantId: string, payload: any) {
+    const emailIntegration =
+      (await this.integrationResolver.resolve(tenantId, 'resend')) ??
+      (await this.integrationResolver.resolve(tenantId, 'sendgrid')) ??
+      (await this.integrationResolver.resolve(tenantId, 'mailgun'));
+    if (!emailIntegration) return;
+    const html = `
+      <h2>You're invited to join ${payload.company_name}</h2>
+      <p>Hi ${payload.name},</p>
+      <p>${payload.company_name} has invited you to register as a ${payload.invite_type === 'EXTERNAL' ? 'partner' : ''} driver on their platform.</p>
+      <p><a href="${payload.onboard_url}" style="background:#2563eb;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;display:inline-block;font-weight:600;">Complete Registration →</a></p>
+      <p style="color:#6b7280;font-size:12px">This link expires in 7 days.</p>
+    `;
+    await this.emailProvider.send(emailIntegration, {
+      to: payload.to_email,
+      subject: `${payload.company_name} — Driver Registration Invite`,
+      html,
+    });
   }
 }

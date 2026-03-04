@@ -15,6 +15,7 @@ import { Toast } from '@/components/ui/Toast';
 import { PhoneSplitField, formatPhone } from '@/components/ui/PhoneSplitField';
 import { getVerificationBadge } from '@/lib/badges/getVerificationBadge';
 import { formatStatus } from '@/lib/ui/formatStatus';
+import { InviteDriverModal } from '@/components/invite-driver-modal';
 
 type MembershipStatus = 'active' | 'inactive' | 'suspended';
 
@@ -39,6 +40,8 @@ export default function DriversPage() {
   const [statusSaving, setStatusSaving] = useState(false);
   const [formSaving, setFormSaving] = useState(false);
   const [toast, setToast] = useState<{ message: string; tone: 'success' | 'error' } | null>(null);
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const [inviteLink, setInviteLink] = useState<string | null>(null);
 
   async function handleCreate() {
     setFormSaving(true);
@@ -93,9 +96,14 @@ export default function DriversPage() {
       title="Drivers"
       subtitle="Manage drivers and availability"
       actions={
-        <Button onClick={() => setForm({ id: '', full_name: '', email: '', phone_country_code: '+61', phone_number: '' })}>
-          Add Driver
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="secondary" onClick={() => setInviteOpen(true)}>
+            ✉️ Invite Driver
+          </Button>
+          <Button onClick={() => setForm({ id: '', full_name: '', email: '', phone_country_code: '+61', phone_number: '' })}>
+            Add Driver
+          </Button>
+        </div>
       }
       table={
         isLoading ? (
@@ -216,6 +224,39 @@ export default function DriversPage() {
     />
 
     {toast && <Toast message={toast.message} tone={toast.tone} onClose={() => setToast(null)} />}
+
+    <InviteDriverModal
+      isOpen={inviteOpen}
+      onClose={() => setInviteOpen(false)}
+      onInvited={(result) => {
+        setInviteLink(result.onboard_url);
+        setToast({ message: 'Invitation sent successfully', tone: 'success' });
+      }}
+    />
+
+    {/* Show onboard link after invite (copy-able fallback) */}
+    {inviteLink && (
+      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-white border border-green-200 rounded-xl shadow-xl px-6 py-4 max-w-lg w-full mx-4">
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex-1 min-w-0">
+            <div className="text-sm font-semibold text-green-700 mb-1">✅ Invitation Sent</div>
+            <div className="text-xs text-gray-500 mb-2">Share this link if SMS/email not configured:</div>
+            <div className="text-xs font-mono bg-gray-100 rounded px-3 py-2 truncate">{inviteLink}</div>
+          </div>
+          <div className="flex flex-col gap-1 shrink-0">
+            <button
+              onClick={() => { navigator.clipboard.writeText(inviteLink); }}
+              className="text-xs bg-blue-50 text-blue-700 px-3 py-1.5 rounded hover:bg-blue-100 font-medium"
+            >
+              Copy
+            </button>
+            <button onClick={() => setInviteLink(null)} className="text-xs text-gray-400 hover:text-gray-600 px-3 py-1.5">
+              Dismiss
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
     </>
   );
 }
