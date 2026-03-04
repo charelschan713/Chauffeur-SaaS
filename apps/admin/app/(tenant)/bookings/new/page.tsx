@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm, Resolver } from 'react-hook-form';
 import { z } from 'zod';
@@ -8,6 +8,10 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { ErrorAlert } from '@/components/ui/ErrorAlert';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
+import { Select } from '@/components/ui/Select';
+import { useBookingWizardStore } from '@/lib/ui/useBookingWizardStore';
 
 const formSchema = z
   .object({
@@ -88,11 +92,15 @@ const TIMEZONES = [
   'UTC',
 ];
 
+const SECTIONS = ['service', 'datetime', 'route', 'requirements', 'car', 'extras'] as const;
+
 export default function CreateBookingPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
+  const { state: wizardState, update: updateWizard } = useBookingWizardStore();
   const [quote, setQuote] = useState<QuoteState>({ status: 'idle' });
-  const [waypoints, setWaypoints] = useState<string[]>([]);
+  const [waypoints, setWaypoints] = useState<string[]>(wizardState.waypoints ?? []);
+  const [activeSection, setActiveSection] = useState(wizardState.activeSection ?? 'service');
 
   const { data: carTypes = [] } = useQuery({
     queryKey: ['car-types'],
@@ -122,6 +130,7 @@ export default function CreateBookingPage() {
     register,
     handleSubmit,
     watch,
+    trigger,
     formState: { errors },
     setValue,
   } = useForm<FormValues>({
@@ -148,9 +157,21 @@ export default function CreateBookingPage() {
       infant_seats: 0,
       toddler_seats: 0,
       booster_seats: 0,
+      ...(wizardState.values ?? {}),
     },
     mode: 'onBlur',
   });
+
+  useEffect(() => {
+    updateWizard({ activeSection, waypoints });
+  }, [activeSection, waypoints, updateWizard]);
+
+  useEffect(() => {
+    const subscription = watch((vals) => {
+      updateWizard({ values: vals as Record<string, any> });
+    });
+    return () => subscription.unsubscribe();
+  }, [watch, updateWizard]);
 
   const mutation = useMutation({
     mutationFn: async (values: FormValues) => {
@@ -269,6 +290,56 @@ export default function CreateBookingPage() {
     values.service_type_id && values.city_id && values.pickup_address_text && values.dropoff_address_text && values.pickup_at_utc,
   );
 
+  const summaries = {
+    service: selectedCity?.name && selectedServiceType?.display_name ? `${selectedCity.name} · ${selectedServiceType.display_name}` : 'Select city and service type',
+    datetime: values.pickup_at_utc ? `${new Date(values.pickup_at_utc).toLocaleDateString()} ${new Date(values.pickup_at_utc).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} · ${values.timezone}` : 'Select pickup time',
+    route: values.pickup_address_text && values.dropoff_address_text
+      ? waypoints.length > 0
+        ? `${values.pickup_address_text} → ${waypoints.length} stops → ${values.dropoff_address_text}`
+        : `${values.pickup_address_text} → ${values.dropoff_address_text}`
+      : 'Enter route',
+    requirements: `${values.passenger_count} pax · ${values.luggage_count ?? 0} bags`,
+    car: selectedCarType ? `${selectedCarType.name} · $${toDisplay(quote.status === 'success' ? (quote.estimates[selectedCarType.id] ?? 0) : 0)}` : 'Select a car type',
+    extras: `Infant ${values.infant_seats} · Toddler ${values.toddler_seats} · Booster ${values.booster_seats}`,
+  } as const;
+
+  async function goNext(current: typeof SECTIONS[number]) {
+    const idx = SECTIONS.indexOf(current);
+    const next = SECTIONS[idx + 1];
+    if (!next) return;
+
+    const valid = await validateSection(current);
+    if (!valid) return;
+
+    setActiveSection(next);
+  }
+
+  function goBack(current: typeof SECTIONS[number]) {
+    const idx = SECTIONS.indexOf(current);
+    const prev = SECTIONS[idx - 1];
+    if (!prev) return;
+    setActiveSection(prev);
+  }
+
+  async function validateSection(section: typeof SECTIONS[number]) {
+    if (section === 'service') {
+      return trigger(['city_id', 'service_type_id']);
+    }
+    if (section === 'datetime') {
+      return trigger(['pickup_at_utc', 'timezone']);
+    }
+    if (section === 'route') {
+      return trigger(['pickup_address_text', 'dropoff_address_text']);
+    }
+    if (section === 'requirements') {
+      return trigger(['passenger_count', 'luggage_count']);
+    }
+    if (section === 'car') {
+      return trigger(['service_class_id']);
+    }
+    return true;
+  }
+
   return (
     <div className="space-y-4">
       {mutation.isError && <ErrorAlert message="Failed to create booking. Please try again." />}
@@ -281,24 +352,21 @@ export default function CreateBookingPage() {
 
             <div className="space-y-3">
               <Field label="Customer Name" error={errors.customer_name?.message}>
-                <input
+                <Input
                   {...register('customer_name')}
                   placeholder="e.g. Jane Doe"
-                  className="w-full border rounded px-3 py-2 text-sm"
                 />
               </Field>
               <Field label="Phone" error={errors.customer_phone?.message}>
-                <input
+                <Input
                   {...register('customer_phone')}
                   placeholder="Optional"
-                  className="w-full border rounded px-3 py-2 text-sm"
                 />
               </Field>
               <Field label="Email" error={errors.customer_email?.message}>
-                <input
+                <Input
                   {...register('customer_email')}
                   placeholder="Optional"
-                  className="w-full border rounded px-3 py-2 text-sm"
                 />
               </Field>
             </div>
@@ -311,21 +379,18 @@ export default function CreateBookingPage() {
               {!values.passenger_is_customer && (
                 <div className="space-y-3">
                   <Field label="Passenger First Name" error={errors.passenger_first_name?.message}>
-                    <input
+                    <Input
                       {...register('passenger_first_name')}
-                      className="w-full border rounded px-3 py-2 text-sm"
                     />
                   </Field>
                   <Field label="Passenger Last Name" error={errors.passenger_last_name?.message}>
-                    <input
+                    <Input
                       {...register('passenger_last_name')}
-                      className="w-full border rounded px-3 py-2 text-sm"
                     />
                   </Field>
                   <Field label="Passenger Phone" error={errors.passenger_phone?.message}>
-                    <input
+                    <Input
                       {...register('passenger_phone')}
-                      className="w-full border rounded px-3 py-2 text-sm"
                     />
                   </Field>
                 </div>
@@ -336,20 +401,19 @@ export default function CreateBookingPage() {
 
         {/* Right Column */}
         <div className="lg:col-span-2 space-y-4">
-          <AccordionCard title="Service" summary={selectedCity?.name && selectedServiceType?.display_name ? `${selectedCity.name} · ${selectedServiceType.display_name}` : 'Select city and service type'}>
+          <AccordionCard title="Service" summary={summaries.service} open={activeSection === 'service'}>
             <div className="space-y-4">
               <div>
                 <label className="text-sm font-medium text-gray-700">Service City</label>
-                <select
+                <Select
                   value={values.city_id}
                   onChange={(e) => setValue('city_id', e.target.value, { shouldValidate: true })}
-                  className="w-full border rounded px-3 py-2 text-sm"
                 >
                   <option value="">Select a city</option>
                   {cities.map((c: any) => (
                     <option key={c.id} value={c.id}>{c.name}</option>
                   ))}
-                </select>
+                </Select>
                 {errors.city_id && <p className="text-xs text-red-600 mt-1">{errors.city_id.message}</p>}
               </div>
 
@@ -371,25 +435,27 @@ export default function CreateBookingPage() {
                 {errors.service_type_id && <p className="text-xs text-red-600 mt-2">{errors.service_type_id.message}</p>}
               </div>
             </div>
+            <div className="mt-4 flex justify-end">
+              <Button onClick={() => goNext('service')}>Next</Button>
+            </div>
           </AccordionCard>
 
-          <AccordionCard title="Date & Time" summary={values.pickup_at_utc ? `${new Date(values.pickup_at_utc).toLocaleDateString()} ${new Date(values.pickup_at_utc).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} · ${values.timezone}` : 'Select pickup time'}>
+          <AccordionCard title="Date & Time" summary={summaries.datetime} open={activeSection === 'datetime'}>
             <div className="space-y-4">
               <Field label="Pickup Date & Time" error={errors.pickup_at_utc?.message}>
-                <input type="datetime-local" {...register('pickup_at_utc')} className="w-full border rounded px-3 py-2 text-sm" />
+                <Input type="datetime-local" {...register('pickup_at_utc')} />
               </Field>
               <Field label="Timezone" error={errors.timezone?.message}>
-                <select {...register('timezone')} className="w-full border rounded px-3 py-2 text-sm">
+                <Select {...register('timezone')}>
                   {TIMEZONES.map((tz) => (
                     <option key={tz} value={tz}>{tz}</option>
                   ))}
-                </select>
+                </Select>
               </Field>
               <Field label="Flight Number">
-                <input
+                <Input
                   {...register('flight_number')}
                   placeholder="e.g. QF401"
-                  className="w-full border rounded px-3 py-2 text-sm"
                 />
               </Field>
               <label className="text-sm font-medium text-gray-700 space-y-1">
@@ -398,28 +464,22 @@ export default function CreateBookingPage() {
               </label>
               {values.is_return_trip && (
                 <Field label="Return Date & Time" error={errors.return_pickup_at_utc?.message}>
-                  <input type="datetime-local" {...register('return_pickup_at_utc')} className="w-full border rounded px-3 py-2 text-sm" />
+                  <Input type="datetime-local" {...register('return_pickup_at_utc')} />
                 </Field>
               )}
             </div>
+            <div className="mt-4 flex justify-between">
+              <Button variant="secondary" onClick={() => goBack('datetime')}>Back</Button>
+              <Button onClick={() => goNext('datetime')}>Next</Button>
+            </div>
           </AccordionCard>
 
-          <AccordionCard
-            title="Route"
-            summary={
-              values.pickup_address_text && values.dropoff_address_text
-                ? waypoints.length > 0
-                  ? `${values.pickup_address_text} → ${waypoints.length} stops → ${values.dropoff_address_text}`
-                  : `${values.pickup_address_text} → ${values.dropoff_address_text}`
-                : 'Enter route'
-            }
-          >
+          <AccordionCard title="Route" summary={summaries.route} open={activeSection === 'route'}>
             <div className="space-y-4">
               <Field label="Pickup Address" error={errors.pickup_address_text?.message}>
-                <input
+                <Input
                   {...register('pickup_address_text')}
                   placeholder="123 George St, Sydney"
-                  className="w-full border rounded px-3 py-2 text-sm"
                 />
               </Field>
 
@@ -441,7 +501,7 @@ export default function CreateBookingPage() {
                 {waypoints.map((wp, idx) => (
                   <div key={idx} className="space-y-2">
                     <div className="flex items-center gap-2">
-                      <input
+                      <Input
                         value={wp}
                         onChange={(e) => {
                           const next = [...waypoints];
@@ -449,7 +509,6 @@ export default function CreateBookingPage() {
                           setWaypoints(next);
                         }}
                         placeholder={`Stop ${idx + 1} address`}
-                        className="w-full border rounded px-3 py-2 text-sm"
                       />
                       <button
                         type="button"
@@ -465,25 +524,25 @@ export default function CreateBookingPage() {
               </div>
 
               <Field label="Dropoff Address" error={errors.dropoff_address_text?.message}>
-                <input
+                <Input
                   {...register('dropoff_address_text')}
                   placeholder="Airport or destination"
-                  className="w-full border rounded px-3 py-2 text-sm"
                 />
               </Field>
             </div>
+            <div className="mt-4 flex justify-between">
+              <Button variant="secondary" onClick={() => goBack('route')}>Back</Button>
+              <Button onClick={() => goNext('route')}>Next</Button>
+            </div>
           </AccordionCard>
 
-          <AccordionCard
-            title="Requirements"
-            summary={`${values.passenger_count} pax · ${values.luggage_count ?? 0} bags`}
-          >
+          <AccordionCard title="Requirements" summary={summaries.requirements} open={activeSection === 'requirements'}>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <Field label="Passenger Count" error={errors.passenger_count?.message}>
-                <input type="number" min={1} max={14} {...register('passenger_count', { valueAsNumber: true })} className="w-full border rounded px-3 py-2 text-sm" />
+                <Input type="number" min={1} max={14} {...register('passenger_count', { valueAsNumber: true })} />
               </Field>
               <Field label="Luggage Count" error={errors.luggage_count?.message}>
-                <input type="number" min={0} max={20} {...register('luggage_count', { valueAsNumber: true })} className="w-full border rounded px-3 py-2 text-sm" />
+                <Input type="number" min={0} max={20} {...register('luggage_count', { valueAsNumber: true })} />
               </Field>
               <div className="md:col-span-2">
                 <Field label="Special Requests" error={errors.special_requests?.message}>
@@ -496,17 +555,19 @@ export default function CreateBookingPage() {
                 </Field>
               </div>
             </div>
+            <div className="mt-4 flex justify-between">
+              <Button variant="secondary" onClick={() => goBack('requirements')}>Back</Button>
+              <Button onClick={() => goNext('requirements')}>Next</Button>
+            </div>
           </AccordionCard>
 
           <div className="flex items-center gap-3">
-            <button
-              type="button"
+            <Button
               onClick={handleGetQuote}
               disabled={!canQuote}
-              className="px-4 py-2 rounded bg-blue-600 text-white text-sm disabled:opacity-50"
             >
               {quote.status === 'loading' ? 'Calculating...' : 'Get Quote'}
-            </button>
+            </Button>
             {quote.status === 'success' && (
               <span className="text-sm text-green-700">{quote.distanceKm.toFixed(1)} km · {quote.durationMinutes} min</span>
             )}
@@ -519,7 +580,7 @@ export default function CreateBookingPage() {
           )}
 
           {quote.status === 'success' && (
-            <AccordionCard title="Select Car Type" summary={selectedCarType ? `${selectedCarType.name} · $${toDisplay(quote.estimates[selectedCarType.id] ?? 0)}` : 'Select a car type'}>
+            <AccordionCard title="Select Car Type" summary={summaries.car} open={activeSection === 'car'}>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {carTypes.map((c: any) => {
                   const price = quote.estimates[c.id] ?? 0;
@@ -540,36 +601,33 @@ export default function CreateBookingPage() {
                 })}
               </div>
               {errors.service_class_id && <p className="text-xs text-red-600 mt-2">{errors.service_class_id.message}</p>}
-            </AccordionCard>
-          )}
-
-          {quote.status === 'success' && selectedCarType && (
-            <AccordionCard title="Extra Options" summary={
-              `Infant ${values.infant_seats} · Toddler ${values.toddler_seats} · Booster ${values.booster_seats}`
-            }>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                <Field label={`Infant Seat ($${toDisplay(selectedCarType.infant_seat_minor ?? 0)})`}>
-                  <input type="number" min={0} max={3} {...register('infant_seats', { valueAsNumber: true })} className="w-full border rounded px-3 py-2 text-sm" />
-                </Field>
-                <Field label={`Toddler Seat ($${toDisplay(selectedCarType.toddler_seat_minor ?? 0)})`}>
-                  <input type="number" min={0} max={3} {...register('toddler_seats', { valueAsNumber: true })} className="w-full border rounded px-3 py-2 text-sm" />
-                </Field>
-                <Field label={`Booster Seat ($${toDisplay(selectedCarType.booster_seat_minor ?? 0)})`}>
-                  <input type="number" min={0} max={3} {...register('booster_seats', { valueAsNumber: true })} className="w-full border rounded px-3 py-2 text-sm" />
-                </Field>
+              <div className="mt-4 flex justify-between">
+                <Button variant="secondary" onClick={() => goBack('car')}>Back</Button>
+                <Button onClick={() => goNext('car')}>Next</Button>
               </div>
             </AccordionCard>
           )}
 
-          {quote.status === 'success' && selectedCarType && selectedServiceType && (
-            <button
-              type="button"
-              onClick={onSubmit}
-              disabled={mutation.isPending}
-              className="px-4 py-2 rounded bg-green-600 text-white text-sm"
-            >
-              {mutation.isPending ? 'Creating...' : 'Create Booking'}
-            </button>
+          {quote.status === 'success' && selectedCarType && (
+            <AccordionCard title="Extra Options" summary={summaries.extras} open={activeSection === 'extras'}>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <Field label={`Infant Seat ($${toDisplay(selectedCarType.infant_seat_minor ?? 0)})`}>
+                  <Input type="number" min={0} max={3} {...register('infant_seats', { valueAsNumber: true })} />
+                </Field>
+                <Field label={`Toddler Seat ($${toDisplay(selectedCarType.toddler_seat_minor ?? 0)})`}>
+                  <Input type="number" min={0} max={3} {...register('toddler_seats', { valueAsNumber: true })} />
+                </Field>
+                <Field label={`Booster Seat ($${toDisplay(selectedCarType.booster_seat_minor ?? 0)})`}>
+                  <Input type="number" min={0} max={3} {...register('booster_seats', { valueAsNumber: true })} />
+                </Field>
+              </div>
+              <div className="mt-4 flex justify-between">
+                <Button variant="secondary" onClick={() => goBack('extras')}>Back</Button>
+                <Button onClick={onSubmit} disabled={mutation.isPending}>
+                  {mutation.isPending ? 'Creating...' : 'Create Booking'}
+                </Button>
+              </div>
+            </AccordionCard>
           )}
         </div>
       </div>
@@ -587,14 +645,16 @@ function Field({ label, error, children }: { label: string; error?: string; chil
   );
 }
 
-function AccordionCard({ title, summary, children }: { title: string; summary: string; children: React.ReactNode }) {
+function AccordionCard({ title, summary, open, children }: { title: string; summary: string; open: boolean; children: React.ReactNode }) {
   return (
-    <div className="bg-white border rounded p-5">
+    <div className="bg-white border rounded p-5 transition-all duration-200">
       <div className="flex items-center justify-between mb-3">
         <h3 className="font-semibold">{title}</h3>
         <span className="text-xs text-gray-500">{summary}</span>
       </div>
-      {children}
+      <div className={`transition-all duration-200 ${open ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0 overflow-hidden'}`}>
+        {children}
+      </div>
     </div>
   );
 }
