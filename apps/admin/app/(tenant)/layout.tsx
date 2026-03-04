@@ -33,7 +33,7 @@ export default function TenantLayout({
               Vehicles
             </Link>
             <Link href="/bookings" className="block px-3 py-2 rounded hover:bg-blue-800">
-              Payments
+              Bookings
             </Link>
             <Link href="/customers" className="block px-3 py-2 rounded hover:bg-blue-800">
               Customers
