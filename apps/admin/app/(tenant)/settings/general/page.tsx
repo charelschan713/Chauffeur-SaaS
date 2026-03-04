@@ -17,7 +17,7 @@ export default function GeneralSettingsPage() {
   const qc = useQueryClient();
   const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
   const user = parseJwt(token);
-  const isOwner = user?.role === 'OWNER' || user?.role === 'owner';
+  const isOwner = ['OWNER', 'owner', 'tenant_admin', 'TENANT_ADMIN'].includes(user?.role ?? '');
 
   const { data: settings } = useQuery({
     queryKey: ['tenant-settings'],

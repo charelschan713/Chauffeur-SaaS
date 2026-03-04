@@ -10,7 +10,7 @@ export class PricingService {
       `SELECT id, name, description, display_order, surge_multiplier, currency, active, created_at,
               base_fare_minor, per_km_minor, per_min_driving_minor, per_min_waiting_minor,
               minimum_fare_minor, waypoint_minor, infant_seat_minor, toddler_seat_minor,
-              booster_seat_minor, hourly_rate_minor
+              booster_seat_minor, hourly_rate_minor, toll_enabled
        FROM public.tenant_service_classes
        WHERE tenant_id = $1 AND active = true
        ORDER BY display_order ASC, created_at ASC`,
@@ -24,8 +24,8 @@ export class PricingService {
         (tenant_id, name, description, display_order, surge_multiplier, currency, active,
          base_fare_minor, per_km_minor, per_min_driving_minor, per_min_waiting_minor,
          minimum_fare_minor, waypoint_minor, infant_seat_minor, toddler_seat_minor,
-         booster_seat_minor, hourly_rate_minor)
-       VALUES ($1,$2,$3,$4,$5,$6,true,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
+         booster_seat_minor, hourly_rate_minor, toll_enabled)
+       VALUES ($1,$2,$3,$4,$5,$6,true,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
        RETURNING *`,
       [
         tenantId,
@@ -44,6 +44,7 @@ export class PricingService {
         body.toddler_seat_minor ?? 0,
         body.booster_seat_minor ?? 0,
         body.hourly_rate_minor ?? 0,
+        body.toll_enabled ?? false,
       ],
     );
     return rows[0];
@@ -87,8 +88,9 @@ export class PricingService {
            toddler_seat_minor = COALESCE($14, toddler_seat_minor),
            booster_seat_minor = COALESCE($15, booster_seat_minor),
            hourly_rate_minor = COALESCE($16, hourly_rate_minor),
+           toll_enabled = COALESCE($17, toll_enabled),
            updated_at = now()
-       WHERE tenant_id = $17 AND id = $18
+       WHERE tenant_id = $18 AND id = $19
        RETURNING *`,
       [
         body.name ?? null,
@@ -107,6 +109,7 @@ export class PricingService {
         body.toddler_seat_minor ?? null,
         body.booster_seat_minor ?? null,
         body.hourly_rate_minor ?? null,
+        body.toll_enabled ?? null,
         tenantId,
         id,
       ],
