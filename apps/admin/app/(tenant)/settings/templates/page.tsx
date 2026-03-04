@@ -50,6 +50,8 @@ export default function TemplatesPage() {
   const [templatesState, setTemplatesState] = useState<Record<string, TemplateState>>({});
   const [previewState, setPreviewState] = useState<Record<string, PreviewState>>({});
   const [savingKey, setSavingKey] = useState<string | null>(null);
+  const [defaults, setDefaults] = useState<Record<string, any>>({});
+  const [sources, setSources] = useState<Record<string, 'TENANT' | 'PLATFORM'>>({});
 
   const { data: templates = [], isLoading, refetch } = useQuery({
     queryKey: ['notification-templates'],
@@ -58,6 +60,13 @@ export default function TemplatesPage() {
       return res.data ?? [];
     },
   });
+
+  useEffect(() => {
+    (async () => {
+      const res = await api.get('/notification-templates/defaults');
+      setDefaults(res.data ?? {});
+    })();
+  }, []);
 
   useEffect(() => {
     if (!templates?.length) return;
@@ -90,6 +99,10 @@ export default function TemplatesPage() {
     }));
   }
 
+  function getDefault(eventType: string, channel: 'email' | 'sms') {
+    return defaults?.[eventType]?.[channel] ?? null;
+  }
+
   async function loadTemplate(eventType: string, channel: 'email' | 'sms') {
     const res = await api.get(`/notification-templates/${eventType}/${channel}`);
     const data = res.data ?? {};
@@ -107,6 +120,7 @@ export default function TemplatesPage() {
       body: state.body,
     });
     await refetch();
+    setSources((prev) => ({ ...prev, [key]: 'TENANT' }));
     setSavingKey(null);
   }
 
@@ -131,14 +145,44 @@ export default function TemplatesPage() {
     }
   }
 
+  function handleUseDefault(eventType: string, channel: 'email' | 'sms') {
+    const def = getDefault(eventType, channel);
+    if (!def) return;
+    updateState(eventType, channel, {
+      subject: def.subject ?? '',
+      body: def.body ?? '',
+    });
+    const key = keyFor(eventType, channel);
+    setSources((prev) => ({ ...prev, [key]: 'PLATFORM' }));
+  }
+
   async function handleReset(eventType: string, channel: 'email' | 'sms') {
     const key = keyFor(eventType, channel);
     setSavingKey(key);
     await api.delete(`/notification-templates/${eventType}/${channel}`);
     await loadTemplate(eventType, channel);
     setPreviewState((prev) => ({ ...prev, [key]: {} }));
+    setSources((prev) => ({ ...prev, [key]: 'PLATFORM' }));
     setSavingKey(null);
   }
+
+  useEffect(() => {
+    setSources((prev) => {
+      const next = { ...prev };
+      EVENTS.forEach((event) => {
+        ['email', 'sms'].forEach((channel) => {
+          const key = keyFor(event.key, channel as 'email' | 'sms');
+          const hasTenant = (templates as TemplateRow[]).some(
+            (t) => t.event_type === event.key && t.channel === channel,
+          );
+          if (!next[key]) {
+            next[key] = hasTenant ? 'TENANT' : 'PLATFORM';
+          }
+        });
+      });
+      return next;
+    });
+  }, [templates]);
 
   const variableTokens = useMemo(() => VARIABLES.map((v) => `{{${v}}}`), []);
 
@@ -151,10 +195,21 @@ export default function TemplatesPage() {
           {isLoading && <div className="text-sm text-gray-500">Loading...</div>}
           {EVENTS.map((event) => (
             <div key={event.key} className="bg-white border rounded p-4 space-y-4">
-              <div className="text-sm font-semibold text-gray-800">{event.label}</div>
+              <div className="flex items-center justify-between">
+                <div className="text-sm font-semibold text-gray-800">{event.label}</div>
+              </div>
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 <div className="border rounded p-4 space-y-3">
-                  <div className="text-sm font-medium text-gray-700">Email</div>
+                  <div className="flex items-center gap-2">
+                    <div className="text-sm font-medium text-gray-700">Email</div>
+                    <span className={`text-[10px] px-2 py-1 rounded ${
+                      sources[keyFor(event.key, 'email')] === 'TENANT'
+                        ? 'bg-green-100 text-green-700'
+                        : 'bg-gray-100 text-gray-600'
+                    }`}>
+                      {sources[keyFor(event.key, 'email')] === 'TENANT' ? 'Custom' : 'Platform Default'}
+                    </span>
+                  </div>
                   <div>
                     <label className="block text-xs font-medium text-gray-600 mb-1">Subject</label>
                     <input
@@ -190,6 +245,12 @@ export default function TemplatesPage() {
                       Save
                     </button>
                     <button
+                      onClick={() => handleUseDefault(event.key, 'email')}
+                      className="px-3 py-2 text-xs rounded bg-gray-100 hover:bg-gray-200"
+                    >
+                      Use Default
+                    </button>
+                    <button
                       onClick={() => handleReset(event.key, 'email')}
                       disabled={savingKey === keyFor(event.key, 'email')}
                       className="px-3 py-2 text-xs rounded bg-red-600 text-white disabled:opacity-60"
@@ -212,7 +273,16 @@ export default function TemplatesPage() {
                 </div>
 
                 <div className="border rounded p-4 space-y-3">
-                  <div className="text-sm font-medium text-gray-700">SMS</div>
+                  <div className="flex items-center gap-2">
+                    <div className="text-sm font-medium text-gray-700">SMS</div>
+                    <span className={`text-[10px] px-2 py-1 rounded ${
+                      sources[keyFor(event.key, 'sms')] === 'TENANT'
+                        ? 'bg-green-100 text-green-700'
+                        : 'bg-gray-100 text-gray-600'
+                    }`}>
+                      {sources[keyFor(event.key, 'sms')] === 'TENANT' ? 'Custom' : 'Platform Default'}
+                    </span>
+                  </div>
                   <div>
                     <label className="block text-xs font-medium text-gray-600 mb-1">Body</label>
                     <textarea
@@ -237,6 +307,12 @@ export default function TemplatesPage() {
                       className="px-3 py-2 text-xs rounded bg-blue-600 text-white disabled:opacity-60"
                     >
                       Save
+                    </button>
+                    <button
+                      onClick={() => handleUseDefault(event.key, 'sms')}
+                      className="px-3 py-2 text-xs rounded bg-gray-100 hover:bg-gray-200"
+                    >
+                      Use Default
                     </button>
                     <button
                       onClick={() => handleReset(event.key, 'sms')}

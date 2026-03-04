@@ -2,6 +2,7 @@ export interface TemplateVariables {
   booking_reference?: string;
   customer_first_name?: string;
   customer_last_name?: string;
+  customer_name?: string;
   pickup_address?: string;
   dropoff_address?: string;
   pickup_time?: string;
@@ -9,6 +10,7 @@ export interface TemplateVariables {
   vehicle_make?: string;
   vehicle_model?: string;
   total_amount?: string;
+  total_price?: string;
   currency?: string;
   passenger_name?: string;
   passenger_phone?: string;

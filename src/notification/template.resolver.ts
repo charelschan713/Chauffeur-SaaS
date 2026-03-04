@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { DataSource } from 'typeorm';
+import { PLATFORM_DEFAULT_TEMPLATES } from './templates/default-templates';
 
 export interface ResolvedTemplate {
   subject: string;
@@ -15,7 +16,6 @@ export class TemplateResolver {
     tenantId: string,
     eventType: string,
     channel: 'email' | 'sms',
-    platformDefault: ResolvedTemplate,
   ): Promise<ResolvedTemplate> {
     const rows = await this.dataSource.query(
       `SELECT subject, body FROM public.tenant_notification_templates
@@ -26,12 +26,21 @@ export class TemplateResolver {
 
     if (rows.length && rows[0].body) {
       return {
-        subject: rows[0].subject ?? platformDefault.subject,
+        subject: rows[0].subject ?? PLATFORM_DEFAULT_TEMPLATES[eventType]?.[channel]?.subject ?? '',
         body: rows[0].body,
         source: 'TENANT',
       };
     }
 
-    return { ...platformDefault, source: 'PLATFORM' };
+    const platformTemplate = PLATFORM_DEFAULT_TEMPLATES[eventType]?.[channel];
+    if (platformTemplate) {
+      return {
+        subject: platformTemplate.subject ?? '',
+        body: platformTemplate.body,
+        source: 'PLATFORM',
+      };
+    }
+
+    return { subject: '', body: '', source: 'PLATFORM' };
   }
 }

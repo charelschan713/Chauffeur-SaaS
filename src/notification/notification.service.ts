@@ -79,58 +79,62 @@ export class NotificationService {
       tenantId,
       'twilio',
     );
-    this.logger.log(
-      `SMS integration: ${JSON.stringify({ found: !!smsIntegration, provider: smsIntegration?.provider })}`,
-    );
-    this.logger.log(`Customer phone: ${booking?.customer_phone}`);
 
-    const vars = await this.buildTemplateVars(tenantId, booking);
+    const templateVars = this.buildTemplateVariables(booking);
 
-    if (emailIntegration && booking.customer_email) {
-      const platformEmailTemplate = bookingConfirmedEmail({
+    if (emailIntegration) {
+      const platformTemplate = bookingConfirmedEmail({
         bookingReference: booking.booking_reference,
-        customerName: `${booking.customer_first_name} ${booking.customer_last_name}`,
-        pickupAddress: booking.pickup_address,
-        dropoffAddress: booking.dropoff_address,
-        pickupTime: booking.pickup_at_utc,
+        customerName: booking.customer_first_name,
+        pickupAddress: booking.pickup_address_text,
+        dropoffAddress: booking.dropoff_address_text,
+        pickupTime: booking.pickup_time_local,
       });
+
       const emailTemplate = await this.templateResolver.resolve(
         tenantId,
         'BookingConfirmed',
         'email',
-        { subject: platformEmailTemplate.subject, body: platformEmailTemplate.html, source: 'PLATFORM' },
       );
-      const renderedSubject = renderTemplate(emailTemplate.subject, vars);
-      const renderedBody = renderTemplate(emailTemplate.body, vars);
+
+      const subject = renderTemplate(
+        emailTemplate.subject || platformTemplate.subject,
+        templateVars,
+      );
+      const body = renderTemplate(emailTemplate.body || platformTemplate.html, templateVars);
+
       await this.emailProvider.send(emailIntegration, {
         to: booking.customer_email,
-        subject: renderedSubject,
-        html: renderedBody,
+        subject,
+        html: body,
         fromAddress: emailIntegration.config.from_address,
-        fromName: emailIntegration.config.from_name ?? 'Chauffeur',
+        fromName: emailIntegration.config.from_name,
       });
     }
 
-    if (smsIntegration && booking.customer_phone) {
-      const platformSms = bookingConfirmedSms({
+    if (smsIntegration) {
+      const platformBody = bookingConfirmedSms({
         bookingReference: booking.booking_reference,
-        pickupTime: booking.pickup_at_utc,
+        pickupTime: booking.pickup_time_local,
       });
+
       const smsTemplate = await this.templateResolver.resolve(
         tenantId,
         'BookingConfirmed',
         'sms',
-        { subject: '', body: platformSms, source: 'PLATFORM' },
       );
-      const rendered = renderTemplate(smsTemplate.body, vars);
-      await this.smsProvider.send(smsIntegration, booking.customer_phone, rendered);
+
+      const body = renderTemplate(smsTemplate.body || platformBody, templateVars);
+
+      await this.smsProvider.send(smsIntegration, booking.customer_phone, body);
     }
   }
 
   private async onDriverAccepted(tenantId: string, payload: any) {
     const booking = await this.getBooking(payload.booking_id);
+    if (!booking) return;
     const driver = await this.getDriver(payload.driver_id);
-    if (!booking || !driver) return;
+    if (!driver) return;
 
     const emailIntegration =
       (await this.integrationResolver.resolve(tenantId, 'resend')) ??
@@ -141,74 +145,85 @@ export class NotificationService {
       'twilio',
     );
 
-    const vars = await this.buildTemplateVars(tenantId, booking, driver);
+    const templateVars = this.buildTemplateVariables(booking, driver);
 
-    if (emailIntegration && booking.customer_email) {
-      const template = driverAcceptedEmail({
+    if (emailIntegration) {
+      const platformTemplate = driverAcceptedEmail({
         bookingReference: booking.booking_reference,
-        customerName: `${booking.customer_first_name} ${booking.customer_last_name}`,
+        customerName: booking.customer_first_name,
         driverName: driver.full_name,
-        vehicleMake: '',
-        vehicleModel: '',
+        vehicleMake: booking.vehicle_make,
+        vehicleModel: booking.vehicle_model,
       });
+
       const emailTemplate = await this.templateResolver.resolve(
         tenantId,
         'DriverAcceptedAssignment',
         'email',
-        { subject: template.subject, body: template.html, source: 'PLATFORM' },
       );
-      const renderedSubject = renderTemplate(emailTemplate.subject, vars);
-      const renderedBody = renderTemplate(emailTemplate.body, vars);
+
+      const subject = renderTemplate(
+        emailTemplate.subject || platformTemplate.subject,
+        templateVars,
+      );
+      const body = renderTemplate(emailTemplate.body || platformTemplate.html, templateVars);
+
       await this.emailProvider.send(emailIntegration, {
         to: booking.customer_email,
-        subject: renderedSubject,
-        html: renderedBody,
+        subject,
+        html: body,
         fromAddress: emailIntegration.config.from_address,
-        fromName: emailIntegration.config.from_name ?? 'Chauffeur',
+        fromName: emailIntegration.config.from_name,
       });
     }
 
-    if (smsIntegration && booking.customer_phone) {
-      const msg = driverAcceptedSms({
+    if (smsIntegration) {
+      const platformBody = driverAcceptedSms({
         bookingReference: booking.booking_reference,
         driverName: driver.full_name,
       });
+
       const smsTemplate = await this.templateResolver.resolve(
         tenantId,
         'DriverAcceptedAssignment',
         'sms',
-        { subject: '', body: msg, source: 'PLATFORM' },
       );
-      const rendered = renderTemplate(smsTemplate.body, vars);
-      await this.smsProvider.send(smsIntegration, booking.customer_phone, rendered);
+
+      const body = renderTemplate(smsTemplate.body || platformBody, templateVars);
+
+      await this.smsProvider.send(smsIntegration, booking.customer_phone, body);
     }
   }
 
   private async onDriverInvitation(tenantId: string, payload: any) {
     const booking = await this.getBooking(payload.booking_id);
+    if (!booking) return;
     const driver = await this.getDriver(payload.driver_id);
-    if (!booking || !driver) return;
+    if (!driver) return;
 
     const smsIntegration = await this.integrationResolver.resolve(
       tenantId,
       'twilio',
     );
-    const vars = await this.buildTemplateVars(tenantId, booking, driver);
-    if (smsIntegration && driver.phone) {
-      const msg = driverInvitationSms({
-        bookingReference: booking.booking_reference,
-        pickupAddress: booking.pickup_address,
-        pickupTime: booking.pickup_at_utc,
-      });
-      const smsTemplate = await this.templateResolver.resolve(
-        tenantId,
-        'DriverInvitationSent',
-        'sms',
-        { subject: '', body: msg, source: 'PLATFORM' },
-      );
-      const rendered = renderTemplate(smsTemplate.body, vars);
-      await this.smsProvider.send(smsIntegration, driver.phone, rendered);
-    }
+    if (!smsIntegration) return;
+
+    const templateVars = this.buildTemplateVariables(booking, driver);
+
+    const platformBody = driverInvitationSms({
+      bookingReference: booking.booking_reference,
+      pickupAddress: booking.pickup_address_text,
+      pickupTime: booking.pickup_time_local,
+    });
+
+    const smsTemplate = await this.templateResolver.resolve(
+      tenantId,
+      'DriverInvitationSent',
+      'sms',
+    );
+
+    const body = renderTemplate(smsTemplate.body || platformBody, templateVars);
+
+    await this.smsProvider.send(smsIntegration, driver.phone, body);
   }
 
   private async onJobCompleted(tenantId: string, payload: any) {
@@ -223,48 +238,52 @@ export class NotificationService {
       tenantId,
       'twilio',
     );
-    const totalAmount = booking.total_price_minor
-      ? (booking.total_price_minor / 100).toFixed(2)
-      : '0.00';
 
-    const vars = await this.buildTemplateVars(tenantId, booking, undefined, totalAmount);
+    const templateVars = this.buildTemplateVariables(booking);
 
-    if (emailIntegration && booking.customer_email) {
-      const template = jobCompletedEmail({
+    if (emailIntegration) {
+      const platformTemplate = jobCompletedEmail({
         bookingReference: booking.booking_reference,
-        customerName: `${booking.customer_first_name} ${booking.customer_last_name}`,
-        totalAmount,
-        currency: booking.currency ?? 'AUD',
+        customerName: booking.customer_first_name,
+        totalAmount: booking.total_amount,
+        currency: booking.currency,
       });
+
       const emailTemplate = await this.templateResolver.resolve(
         tenantId,
         'JobCompleted',
         'email',
-        { subject: template.subject, body: template.html, source: 'PLATFORM' },
       );
-      const renderedSubject = renderTemplate(emailTemplate.subject, vars);
-      const renderedBody = renderTemplate(emailTemplate.body, vars);
+
+      const subject = renderTemplate(
+        emailTemplate.subject || platformTemplate.subject,
+        templateVars,
+      );
+      const body = renderTemplate(emailTemplate.body || platformTemplate.html, templateVars);
+
       await this.emailProvider.send(emailIntegration, {
         to: booking.customer_email,
-        subject: renderedSubject,
-        html: renderedBody,
+        subject,
+        html: body,
         fromAddress: emailIntegration.config.from_address,
-        fromName: emailIntegration.config.from_name ?? 'Chauffeur',
+        fromName: emailIntegration.config.from_name,
       });
     }
 
-    if (smsIntegration && booking.customer_phone) {
-      const msg = jobCompletedSms({
+    if (smsIntegration) {
+      const platformBody = jobCompletedSms({
         bookingReference: booking.booking_reference,
       });
+
       const smsTemplate = await this.templateResolver.resolve(
         tenantId,
         'JobCompleted',
         'sms',
-        { subject: '', body: msg, source: 'PLATFORM' },
       );
-      const rendered = renderTemplate(smsTemplate.body, vars);
-      await this.smsProvider.send(smsIntegration, booking.customer_phone, rendered);
+
+      const body = renderTemplate(smsTemplate.body || platformBody, templateVars);
+
+      await this.smsProvider.send(smsIntegration, booking.customer_phone, body);
     }
   }
 
@@ -281,49 +300,57 @@ export class NotificationService {
       'twilio',
     );
 
-    const vars = await this.buildTemplateVars(tenantId, booking);
+    const templateVars = this.buildTemplateVariables(booking);
 
-    if (emailIntegration && booking.customer_email) {
-      const template = bookingCancelledEmail({
+    if (emailIntegration) {
+      const platformTemplate = bookingCancelledEmail({
         bookingReference: booking.booking_reference,
-        customerName: `${booking.customer_first_name} ${booking.customer_last_name}`,
+        customerName: booking.customer_first_name,
       });
+
       const emailTemplate = await this.templateResolver.resolve(
         tenantId,
         'BookingCancelled',
         'email',
-        { subject: template.subject, body: template.html, source: 'PLATFORM' },
       );
-      const renderedSubject = renderTemplate(emailTemplate.subject, vars);
-      const renderedBody = renderTemplate(emailTemplate.body, vars);
+
+      const subject = renderTemplate(
+        emailTemplate.subject || platformTemplate.subject,
+        templateVars,
+      );
+      const body = renderTemplate(emailTemplate.body || platformTemplate.html, templateVars);
+
       await this.emailProvider.send(emailIntegration, {
         to: booking.customer_email,
-        subject: renderedSubject,
-        html: renderedBody,
+        subject,
+        html: body,
         fromAddress: emailIntegration.config.from_address,
-        fromName: emailIntegration.config.from_name ?? 'Chauffeur',
+        fromName: emailIntegration.config.from_name,
       });
     }
 
-    if (smsIntegration && booking.customer_phone) {
-      const msg = bookingCancelledSms({
+    if (smsIntegration) {
+      const platformBody = bookingCancelledSms({
         bookingReference: booking.booking_reference,
       });
+
       const smsTemplate = await this.templateResolver.resolve(
         tenantId,
         'BookingCancelled',
         'sms',
-        { subject: '', body: msg, source: 'PLATFORM' },
       );
-      const rendered = renderTemplate(smsTemplate.body, vars);
-      await this.smsProvider.send(smsIntegration, booking.customer_phone, rendered);
+
+      const body = renderTemplate(smsTemplate.body || platformBody, templateVars);
+
+      await this.smsProvider.send(smsIntegration, booking.customer_phone, body);
     }
   }
 
   private async onDriverRejectedAssignment(tenantId: string, payload: any) {
     const booking = await this.getBooking(payload.booking_id);
+    if (!booking) return;
     const driver = await this.getDriver(payload.driver_id);
-    if (!booking || !driver) return;
+    if (!driver) return;
 
     const emailIntegration =
       (await this.integrationResolver.resolve(tenantId, 'resend')) ??
@@ -334,183 +361,152 @@ export class NotificationService {
       'twilio',
     );
 
-    const adminEmail = await this.getTenantOwnerEmail(tenantId);
-    const vars = await this.buildTemplateVars(tenantId, booking, driver);
+    const templateVars = this.buildTemplateVariables(booking, driver);
 
-    if (emailIntegration && adminEmail) {
-      const template = driverRejectedAdminEmail({
+    if (emailIntegration) {
+      const platformTemplate = driverRejectedAdminEmail({
         bookingReference: booking.booking_reference,
         driverName: driver.full_name,
       });
+
       const emailTemplate = await this.templateResolver.resolve(
         tenantId,
         'DriverRejectedAssignment',
         'email',
-        { subject: template.subject, body: template.html, source: 'PLATFORM' },
       );
-      const renderedSubject = renderTemplate(emailTemplate.subject, vars);
-      const renderedBody = renderTemplate(emailTemplate.body, vars);
+
+      const subject = renderTemplate(
+        emailTemplate.subject || platformTemplate.subject,
+        templateVars,
+      );
+      const body = renderTemplate(emailTemplate.body || platformTemplate.html, templateVars);
+
       await this.emailProvider.send(emailIntegration, {
-        to: adminEmail,
-        subject: renderedSubject,
-        html: renderedBody,
+        to: booking.customer_email,
+        subject,
+        html: body,
         fromAddress: emailIntegration.config.from_address,
-        fromName: emailIntegration.config.from_name ?? 'Chauffeur',
+        fromName: emailIntegration.config.from_name,
       });
     }
 
-    if (smsIntegration && adminEmail) {
-      const msg = driverRejectedAdminSms();
+    if (smsIntegration) {
+      const platformBody = driverRejectedAdminSms();
+
       const smsTemplate = await this.templateResolver.resolve(
         tenantId,
         'DriverRejectedAssignment',
         'sms',
-        { subject: '', body: msg, source: 'PLATFORM' },
       );
-      const rendered = renderTemplate(smsTemplate.body, vars);
-      await this.smsProvider.send(smsIntegration, adminEmail, rendered);
+
+      const body = renderTemplate(smsTemplate.body || platformBody, templateVars);
+
+      await this.smsProvider.send(smsIntegration, booking.customer_phone, body);
     }
   }
 
   private async onAssignmentCancelled(tenantId: string, payload: any) {
     const booking = await this.getBooking(payload.booking_id);
-    const driver = await this.getDriver(payload.driver_id);
-    if (!booking || !driver) return;
+    if (!booking) return;
 
     const smsIntegration = await this.integrationResolver.resolve(
       tenantId,
       'twilio',
     );
-    const vars = await this.buildTemplateVars(tenantId, booking, driver);
+    if (!smsIntegration) return;
 
-    if (smsIntegration && driver.phone) {
-      const msg = assignmentCancelledSms();
-      const smsTemplate = await this.templateResolver.resolve(
-        tenantId,
-        'AssignmentCancelled',
-        'sms',
-        { subject: '', body: msg, source: 'PLATFORM' },
-      );
-      const rendered = renderTemplate(smsTemplate.body, vars);
-      await this.smsProvider.send(smsIntegration, driver.phone, rendered);
-    }
+    const templateVars = this.buildTemplateVariables(booking);
+
+    const platformBody = assignmentCancelledSms();
+
+    const smsTemplate = await this.templateResolver.resolve(
+      tenantId,
+      'AssignmentCancelled',
+      'sms',
+    );
+
+    const body = renderTemplate(smsTemplate.body || platformBody, templateVars);
+
+    await this.smsProvider.send(smsIntegration, booking.customer_phone, body);
   }
 
   private async onDriverPayUpdated(tenantId: string, payload: any) {
     const booking = await this.getBooking(payload.booking_id);
-    const driver = await this.getDriver(payload.driver_id);
-    if (!booking || !driver) return;
+    if (!booking) return;
 
     const smsIntegration = await this.integrationResolver.resolve(
       tenantId,
       'twilio',
     );
-    const vars = await this.buildTemplateVars(tenantId, booking, driver);
+    if (!smsIntegration) return;
 
-    if (smsIntegration && driver.phone) {
-      const msg = driverPayUpdatedSms();
-      const smsTemplate = await this.templateResolver.resolve(
-        tenantId,
-        'DriverPayUpdated',
-        'sms',
-        { subject: '', body: msg, source: 'PLATFORM' },
-      );
-      const rendered = renderTemplate(smsTemplate.body, vars);
-      await this.smsProvider.send(smsIntegration, driver.phone, rendered);
-    }
-  }
+    const templateVars = this.buildTemplateVariables(booking);
 
-  private async getBooking(bookingId: string) {
-    const rows = await this.dataSource.query(
-      `SELECT 
-         id, booking_reference, tenant_id, city_id,
-         customer_email,
-         CONCAT(customer_phone_country_code, customer_phone_number) as customer_phone,
-         customer_first_name, customer_last_name,
-         pickup_address_text as pickup_address,
-         dropoff_address_text as dropoff_address,
-         passenger_first_name,
-         passenger_last_name,
-         passenger_phone_country_code,
-         passenger_phone_number,
-         pickup_at_utc, total_price_minor, currency
-       FROM public.bookings WHERE id = $1`,
-      [bookingId],
+    const platformBody = driverPayUpdatedSms();
+
+    const smsTemplate = await this.templateResolver.resolve(
+      tenantId,
+      'DriverPayUpdated',
+      'sms',
     );
-    return rows[0] ?? null;
+
+    const body = renderTemplate(smsTemplate.body || platformBody, templateVars);
+
+    await this.smsProvider.send(smsIntegration, booking.customer_phone, body);
   }
 
-  private async getDriver(driverId: string) {
-    const rows = await this.dataSource.query(
-      `SELECT id, full_name, email, phone FROM public.users WHERE id = $1`,
-      [driverId],
-    );
-    return rows[0] ?? null;
-  }
-
-  private async getTenantOwnerEmail(tenantId: string): Promise<string | null> {
-    const rows = await this.dataSource.query(
-      `SELECT u.email
-       FROM public.memberships m
-       JOIN public.users u ON u.id = m.user_id
-       WHERE m.tenant_id = $1 AND m.role = 'OWNER' AND m.status = 'active'
-       ORDER BY m.created_at ASC
-       LIMIT 1`,
-      [tenantId],
-    );
-    return rows[0]?.email ?? null;
-  }
-
-  private async buildTemplateVars(
-    tenantId: string,
-    booking: any,
-    driver?: any,
-    totalAmount?: string,
-  ): Promise<TemplateVariables> {
-    const pickupTime = await this.formatPickupTime(tenantId, booking.city_id, booking.pickup_at_utc);
-    const passengerName = `${booking.passenger_first_name ?? ''} ${booking.passenger_last_name ?? ''}`.trim();
-    const passengerPhone = `${booking.passenger_phone_country_code ?? ''}${booking.passenger_phone_number ?? ''}`;
+  private buildTemplateVariables(booking: any, driver?: any): TemplateVariables {
     return {
-      booking_reference: booking.booking_reference ?? '',
-      customer_first_name: booking.customer_first_name ?? '',
-      customer_last_name: booking.customer_last_name ?? '',
-      pickup_address: booking.pickup_address ?? '',
-      dropoff_address: booking.dropoff_address ?? '',
-      pickup_time: pickupTime,
-      driver_name: driver?.full_name ?? '',
-      vehicle_make: '',
-      vehicle_model: '',
-      total_amount: totalAmount ?? (booking.total_price_minor ? (booking.total_price_minor / 100).toFixed(2) : ''),
-      currency: booking.currency ?? 'AUD',
-      passenger_name: passengerName,
-      passenger_phone: passengerPhone,
+      booking_reference: booking.booking_reference,
+      customer_first_name: booking.customer_first_name,
+      customer_last_name: booking.customer_last_name,
+      customer_name: `${booking.customer_first_name ?? ''} ${booking.customer_last_name ?? ''}`.trim(),
+      pickup_address: booking.pickup_address_text,
+      dropoff_address: booking.dropoff_address_text,
+      pickup_time: booking.pickup_time_local,
+      driver_name: driver?.full_name,
+      vehicle_make: booking.vehicle_make,
+      vehicle_model: booking.vehicle_model,
+      total_amount: booking.total_amount,
+      total_price: booking.total_amount,
+      currency: booking.currency,
+      passenger_name: booking.passenger_name,
+      passenger_phone: booking.passenger_phone,
     };
   }
 
-  private async formatPickupTime(tenantId: string, cityId: string | null, pickupAtUtc: string) {
-    const tz = await this.getCityTimezone(tenantId, cityId);
-    const date = new Date(pickupAtUtc);
-    if (!tz) {
-      return date.toISOString().replace('T', ' ').slice(0, 16) + ' UTC';
-    }
-    const formatted = new Intl.DateTimeFormat('en-AU', {
-      timeZone: tz,
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: true,
-    }).format(date);
-    return `${formatted} (${tz})`;
+  private async getBooking(id: string) {
+    const rows = await this.dataSource.query(
+      `SELECT
+          b.id,
+          b.booking_reference,
+          b.pickup_address_text,
+          b.dropoff_address_text,
+          b.pickup_time_local,
+          b.customer_first_name,
+          b.customer_last_name,
+          b.customer_email,
+          b.customer_phone,
+          b.currency,
+          b.total_amount,
+          b.passenger_name,
+          b.passenger_phone,
+          v.make as vehicle_make,
+          v.model as vehicle_model
+       FROM public.bookings b
+       LEFT JOIN public.vehicles v ON v.id = b.vehicle_id
+       WHERE b.id = $1
+       LIMIT 1`,
+      [id],
+    );
+    return rows[0];
   }
 
-  private async getCityTimezone(tenantId: string, cityId?: string | null): Promise<string | null> {
-    if (!cityId) return null;
+  private async getDriver(id: string) {
     const rows = await this.dataSource.query(
-      `SELECT timezone FROM public.tenant_service_cities WHERE tenant_id = $1 AND id = $2 LIMIT 1`,
-      [tenantId, cityId],
+      `SELECT id, full_name, phone FROM public.users WHERE id = $1 LIMIT 1`,
+      [id],
     );
-    return rows[0]?.timezone ?? null;
+    return rows[0];
   }
 }
