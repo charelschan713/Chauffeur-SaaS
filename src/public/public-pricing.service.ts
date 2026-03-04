@@ -37,12 +37,22 @@ export class PublicPricingService {
 
     // Load all active car types for this tenant
     const carTypes = await this.db.query(
-      `SELECT tsc.id, tsc.name, tsc.toll_enabled
+      `SELECT tsc.id, tsc.name
        FROM public.tenant_service_classes tsc
        WHERE tsc.tenant_id = $1 AND tsc.active = true
        ORDER BY tsc.display_order ASC NULLS LAST, tsc.name ASC`,
       [tenant.id],
     );
+
+    // Fetch toll_enabled from service TYPE
+    let tollEnabled = false;
+    if (dto.service_type_id) {
+      const [st] = await this.db.query(
+        `SELECT toll_enabled FROM public.tenant_service_types WHERE id = $1 AND tenant_id = $2 LIMIT 1`,
+        [dto.service_type_id, tenant.id],
+      );
+      tollEnabled = st?.toll_enabled ?? false;
+    }
 
     const quotedAt = new Date();
     const expiresAt = new Date(quotedAt.getTime() + 30 * 60 * 1000);
@@ -63,7 +73,7 @@ export class PublicPricingService {
           requestedAtUtc: new Date(dto.pickup_at_utc),
           currency: tenant.currency,
           customerId: null,
-          tollEnabled: ct.toll_enabled ?? false,
+          tollEnabled,
           pickupAddress: dto.pickup_address,
           dropoffAddress: dto.dropoff_address,
         };

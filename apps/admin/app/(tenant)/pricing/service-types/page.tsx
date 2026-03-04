@@ -27,6 +27,7 @@ interface ServiceTypeRow {
   km_per_hour_included: number;
   hourly_tiers: HourlyTier[];
   active: boolean;
+  toll_enabled: boolean;
 }
 
 type HourlyTier = {
@@ -50,6 +51,7 @@ type FormState = {
   return_surcharge_minor: string;
   minimum_hours: string;
   km_per_hour_included: string;
+  toll_enabled: boolean;
 };
 
 const emptyForm: FormState = {
@@ -63,6 +65,7 @@ const emptyForm: FormState = {
   return_surcharge_minor: '0',
   minimum_hours: '2',
   km_per_hour_included: '0',
+  toll_enabled: false,
 };
 
 function toMoney(minor: number) {
@@ -107,6 +110,7 @@ export default function ServiceTypesPage() {
       return_surcharge_minor: toMoney(row.return_surcharge_minor ?? 0),
       minimum_hours: String(row.minimum_hours ?? 2),
       km_per_hour_included: String(row.km_per_hour_included ?? 0),
+      toll_enabled: row.toll_enabled ?? false,
     });
     setTiers(row.hourly_tiers ?? []);
   }
@@ -123,6 +127,7 @@ export default function ServiceTypesPage() {
       return_surcharge_minor: Math.round(Number(form.return_surcharge_minor) * 100),
       minimum_hours: Number(form.minimum_hours),
       km_per_hour_included: Number(form.km_per_hour_included),
+      toll_enabled: form.toll_enabled,
       hourly_tiers: tiers,
     });
     setForm(emptyForm);
@@ -143,6 +148,7 @@ export default function ServiceTypesPage() {
       return_surcharge_minor: Math.round(Number(form.return_surcharge_minor) * 100),
       minimum_hours: Number(form.minimum_hours),
       km_per_hour_included: Number(form.km_per_hour_included),
+      toll_enabled: form.toll_enabled,
       hourly_tiers: tiers,
     });
     setEditingId(null);
@@ -258,6 +264,22 @@ export default function ServiceTypesPage() {
               />
             </Field>
           </>)}
+          {/* Toll enabled toggle */}
+          <div className="flex items-center gap-3 py-1">
+            <button
+              type="button"
+              role="switch"
+              aria-checked={form.toll_enabled}
+              onClick={() => setForm((prev) => ({ ...prev, toll_enabled: !prev.toll_enabled }))}
+              className={`relative w-11 h-6 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 ${form.toll_enabled ? 'bg-blue-600' : 'bg-gray-200'}`}
+            >
+              <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${form.toll_enabled ? 'translate-x-5' : ''}`} />
+            </button>
+            <span className="text-sm font-medium text-gray-700">
+              {form.toll_enabled ? '🛣️ Charge Toll / Parking' : 'No Toll Charging'}
+            </span>
+          </div>
+
           <div className="flex items-end gap-2">
             <Button onClick={editingId ? handleUpdate : handleCreate}>
               {editingId ? 'Update' : 'Create'}
@@ -282,7 +304,7 @@ export default function ServiceTypesPage() {
         ) : items.length === 0 ? (
           <EmptyState title="No service types yet" description="Create your first service type to get started." />
         ) : (
-          <Table headers={['Name', 'Calculation', 'One Way', 'Return', 'Min Hours', 'Active', '']}>
+          <Table headers={['Name', 'Calculation', 'One Way', 'Return', 'Min Hours', 'Toll', 'Active', '']}>
             {items.map((row) => (
               <tr key={row.id} className="hover:bg-gray-50">
                 <td className="px-6 py-4 font-medium text-gray-900">{row.display_name}</td>
@@ -290,6 +312,13 @@ export default function ServiceTypesPage() {
                 <td className="px-6 py-4 text-sm">{row.one_way_type} {row.one_way_value}</td>
                 <td className="px-6 py-4 text-sm">{row.return_type} {row.return_value}</td>
                 <td className="px-6 py-4 text-sm">{row.minimum_hours}</td>
+                <td className="px-6 py-4 text-sm">
+                  {row.toll_enabled && (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700">
+                      🛣️ Toll ✓
+                    </span>
+                  )}
+                </td>
                 <td className="px-6 py-4 text-sm">
                   <span className={`px-2 py-1 rounded text-xs ${row.active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-700'}`}>
                     {row.active ? 'Active' : 'Inactive'}

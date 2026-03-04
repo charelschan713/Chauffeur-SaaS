@@ -167,15 +167,15 @@ export class BookingService {
     const pickupAtUtc = dto.pickup_at_utc;
     const pickupTimezone = dto.timezone || 'Australia/Sydney';
 
-    // Fetch toll_enabled flag from service class
+    // Fetch toll_enabled flag from service TYPE (not car type)
     let tollEnabled = false;
-    if (dto.service_class_id) {
-      const scRows = await this.dataSource.query(
-        `SELECT toll_enabled FROM public.tenant_service_classes
+    if (dto.service_type_id) {
+      const stRows = await this.dataSource.query(
+        `SELECT toll_enabled FROM public.tenant_service_types
          WHERE id = $1 AND tenant_id = $2 LIMIT 1`,
-        [dto.service_class_id, tenantId],
+        [dto.service_type_id, tenantId],
       );
-      tollEnabled = scRows[0]?.toll_enabled ?? false;
+      tollEnabled = stRows[0]?.toll_enabled ?? false;
     }
 
     const pricingContext: any = {

@@ -28,7 +28,6 @@ interface ServiceClassRow {
   toddler_seat_minor: number | null;
   booster_seat_minor: number | null;
   hourly_rate_minor: number | null;
-  toll_enabled: boolean;
   active: boolean;
 }
 
@@ -52,7 +51,6 @@ const emptyForm = {
   toddler_seat_minor: '0',
   booster_seat_minor: '0',
   hourly_rate_minor: '0',
-  toll_enabled: false,
 };
 
 function toMinor(value: string) {
@@ -116,7 +114,6 @@ export default function CarTypesPage() {
         minimum_fare_minor: toMinor(form.minimum_fare_minor),
         booster_seat_minor: toMinor(form.booster_seat_minor),
         hourly_rate_minor: toMinor(form.hourly_rate_minor),
-        toll_enabled: form.toll_enabled,
       });
       setForm(emptyForm);
       await refetch();
@@ -141,7 +138,6 @@ export default function CarTypesPage() {
         booster_seat_minor: toMinor(form.booster_seat_minor),
         hourly_rate_minor: toMinor(form.hourly_rate_minor),
         waypoint_minor: toMinor(form.waypoint_minor),
-        toll_enabled: form.toll_enabled,
       });
       setEditingId(null);
       setForm(emptyForm);
@@ -223,26 +219,6 @@ export default function CarTypesPage() {
             />
           </Field>
 
-          {/* Toll Toggle */}
-          <div className="md:col-span-2">
-            <label className="flex items-center gap-3 cursor-pointer select-none">
-              <div
-                onClick={() => setForm((prev) => ({ ...prev, toll_enabled: !prev.toll_enabled }))}
-                className={`relative w-11 h-6 rounded-full transition-colors ${form.toll_enabled ? 'bg-blue-600' : 'bg-gray-200'}`}
-              >
-                <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${form.toll_enabled ? 'translate-x-5' : ''}`} />
-              </div>
-              <div>
-                <span className="text-sm font-medium text-gray-700">Toll / Parking</span>
-                <p className="text-xs text-gray-400">
-                  {form.toll_enabled
-                    ? 'Toll cost calculated from route via Google Maps and added to fare'
-                    : 'No toll charged for this car type'}
-                </p>
-              </div>
-            </label>
-          </div>
-
           <div className="flex items-end gap-2">
             <Button onClick={editingId ? handleUpdate : handleCreate} disabled={formSaving}>
               {formSaving ? <><InlineSpinner />{editingId ? 'Updating...' : 'Creating...'}</> : (editingId ? 'Update' : 'Create')}
@@ -277,11 +253,6 @@ export default function CarTypesPage() {
                 <td className="px-6 py-4 text-sm">{toMoney(item.per_min_driving_minor)}</td>
                 <td className="px-6 py-4 text-sm">{toMoney(item.minimum_fare_minor)}</td>
                 <td className="px-6 py-4 text-sm">
-                  {item.toll_enabled && (
-                    <span className="px-2 py-1 rounded text-xs bg-blue-100 text-blue-700 mr-1">
-                      Toll ✓
-                    </span>
-                  )}
                   <span className={`px-2 py-1 rounded text-xs ${item.active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-700'}`}>
                     {item.active ? 'Active' : 'Inactive'}
                   </span>
@@ -306,8 +277,7 @@ export default function CarTypesPage() {
                         toddler_seat_minor: toMoney(item.toddler_seat_minor),
                         booster_seat_minor: toMoney(item.booster_seat_minor),
                         hourly_rate_minor: toMoney(item.hourly_rate_minor),
-                        toll_enabled: item.toll_enabled ?? false,
-                      });
+                                      });
                     }}
                   >
                     Edit
