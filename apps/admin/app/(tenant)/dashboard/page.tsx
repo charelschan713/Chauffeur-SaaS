@@ -28,8 +28,8 @@ export default function DashboardPage() {
     },
   });
 
-  const bookings = bookingsData ?? [];
-  const drivers = driversData ?? [];
+  const bookings = Array.isArray(bookingsData) ? bookingsData : (bookingsData?.data ?? []);
+  const drivers = Array.isArray(driversData) ? driversData : (driversData?.data ?? []);
 
   const today = new Date().toDateString();
   const todayBookings = bookings.filter((b: any) =>
