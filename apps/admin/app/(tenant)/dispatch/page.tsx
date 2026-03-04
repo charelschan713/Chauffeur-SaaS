@@ -74,7 +74,7 @@ export default function DispatchBoardPage() {
     queryKey: ['dispatch-bookings'],
     queryFn: async () => {
       const res = await api.get('/bookings', { params: { operational_status: 'CONFIRMED' } });
-      return res.data?.data ?? [];
+      return res.data ?? [];
     },
   });
 
@@ -86,8 +86,12 @@ export default function DispatchBoardPage() {
     },
   });
 
-  const bookings: Booking[] = bookingsData ?? [];
-  const drivers: Driver[] = driversData ?? [];
+  const bookings: Booking[] = Array.isArray(bookingsData)
+    ? bookingsData
+    : (bookingsData?.data ?? []);
+  const drivers: Driver[] = Array.isArray(driversData)
+    ? driversData
+    : (driversData?.data ?? []);
 
   useEffect(() => {
     if (!bookingParam || bookings.length === 0) return;
