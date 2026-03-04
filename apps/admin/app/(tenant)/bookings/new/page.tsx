@@ -13,7 +13,7 @@ import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { PhoneSplitField } from '@/components/ui/PhoneSplitField';
 import { PlacesAutocomplete } from '@/components/ui/PlacesAutocomplete';
-import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import { LoadingSpinner, InlineSpinner } from '@/components/ui/LoadingSpinner';
 import { Badge } from '@/components/ui/Badge';
 import { useBookingWizardStore } from '@/lib/ui/useBookingWizardStore';
 
@@ -432,6 +432,53 @@ export default function CreateBookingPage() {
         <div className="lg:col-span-1 space-y-4">
           <div className="bg-white border rounded p-5 sticky top-6">
             <h2 className="font-semibold mb-4">Customer & Passenger</h2>
+
+            {/* Customer search / select */}
+            <div className="space-y-2 mb-4">
+              <label className="text-xs font-medium text-gray-500 uppercase tracking-wide block">
+                {searchLabel}
+              </label>
+
+              {/* Search input */}
+              <div className="relative">
+                <Input
+                  value={customerSearch}
+                  onChange={(e) => setCustomerSearch(e.target.value)}
+                  placeholder="Search by name, email or phone…"
+                />
+                {searchLoading && (
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                    <InlineSpinner />
+                  </div>
+                )}
+              </div>
+
+              {/* Results list */}
+              {customerResults.length > 0 && (
+                <div className="border rounded-lg divide-y max-h-48 overflow-y-auto bg-white shadow-sm">
+                  {customerResults.map((c: any) => (
+                    <button
+                      key={c.id}
+                      type="button"
+                      onClick={() => selectCustomer(c)}
+                      className="w-full text-left px-3 py-2.5 hover:bg-blue-50 transition-colors"
+                    >
+                      <div className="text-sm font-medium text-gray-900">
+                        {c.first_name} {c.last_name}
+                      </div>
+                      <div className="text-xs text-gray-400">
+                        {[c.email, c.phone_number ? `${c.phone_country_code ?? ''} ${c.phone_number}` : null]
+                          .filter(Boolean).join(' · ')}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {customerSearch.trim() && !searchLoading && customerResults.length === 0 && (
+                <p className="text-xs text-gray-400 px-1">No customers found. Fill in details below to create a new one.</p>
+              )}
+            </div>
 
             <div className="space-y-3">
               <Field label="Customer Name" error={errors.customer_name?.message}>
