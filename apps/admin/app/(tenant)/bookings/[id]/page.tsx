@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { ConfirmModal } from '@/components/ui/ConfirmModal';
 import { AssignDriverModal } from '@/components/assign-driver-modal';
+import { AssignPartnerModal } from '@/components/assign-partner-modal';
 import { EditDriverPayModal } from '@/components/edit-driver-pay-modal';
 import { ErrorAlert } from '@/components/ui/ErrorAlert';
 import { PageHeader } from '@/components/admin/PageHeader';
@@ -57,7 +58,11 @@ function BookingDetailInner() {
   const [cancelReason, setCancelReason] = useState('');
   const [cancelError, setCancelError] = useState<string | null>(null);
   const [assignOpen, setAssignOpen] = useState(false);
+  const [assignPartnerOpen, setAssignPartnerOpen] = useState(false);
+  const [showAssignMenu, setShowAssignMenu] = useState(false);
   const [assignLeg, setAssignLeg] = useState<'A' | 'B'>('A');
+  const [partnerActionId, setPartnerActionId] = useState<string | null>(null);
+  const [partnerActionLoading, setPartnerActionLoading] = useState(false);
   const [editPayOpen, setEditPayOpen] = useState(false);
   const [editPayAssignmentId, setEditPayAssignmentId] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; tone: 'success' | 'error' } | null>(null);
@@ -206,24 +211,105 @@ function BookingDetailInner() {
           <Card title="Assignment">
             {latestAssignment ? (
               <div className="space-y-2 text-sm text-gray-700">
-                <div><span className="text-gray-500">Driver:</span> {latestAssignment.driver_name ?? '—'}</div>
-                <div>
-                  <span className="text-gray-500">Vehicle:</span>{' '}
-                  {[latestAssignment.vehicle_make, latestAssignment.vehicle_model, latestAssignment.vehicle_plate]
-                    .filter(Boolean).join(' ') || '—'}
-                </div>
-                <div><span className="text-gray-500">Phone:</span> {latestAssignment.driver_phone ?? '—'}</div>
-                <div>
-                  <span className="text-gray-500">Status:</span>{' '}
-                  <Badge variant={getBookingStatusBadge(latestAssignment.status ?? '')}>
-                    {latestAssignment.status ?? '—'}
-                  </Badge>
-                </div>
-                {canAssign && (
-                  <div className="mt-3">
-                    <Link href={dispatchHref}>
-                      <Button variant="secondary" className="w-full">Reassign</Button>
-                    </Link>
+                {/* Partner assignment */}
+                {latestAssignment.assignment_type === 'PARTNER' ? (
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      {latestAssignment.status === 'PENDING' && (
+                        <Badge variant="warning">⏳ Awaiting Partner</Badge>
+                      )}
+                      {latestAssignment.status === 'ACCEPTED' && (
+                        <Badge variant="info">🤝 Partner Assigned</Badge>
+                      )}
+                      {latestAssignment.status === 'DECLINED' && (
+                        <Badge variant="danger">❌ Partner Declined</Badge>
+                      )}
+                    </div>
+                    <div>
+                      <span className="text-gray-500">Partner:</span>{' '}
+                      <span className="font-medium">{latestAssignment.partner_tenant_id ?? '—'}</span>
+                    </div>
+                    {latestAssignment.partner_pay_minor != null && (
+                      <div>
+                        <span className="text-gray-500">Partner Pay:</span>{' '}
+                        {booking?.currency} {((latestAssignment.partner_pay_minor) / 100).toFixed(2)}
+                      </div>
+                    )}
+                    {canAssign && latestAssignment.status === 'PENDING' && (
+                      <Button
+                        variant="danger"
+                        className="w-full mt-2"
+                        onClick={async () => {
+                          setPartnerActionLoading(true);
+                          try {
+                            await api.post(`/assignments/${latestAssignment.id}/cancel-transfer`);
+                            refetch();
+                          } finally {
+                            setPartnerActionLoading(false);
+                          }
+                        }}
+                        disabled={partnerActionLoading}
+                      >
+                        {partnerActionLoading ? 'Cancelling...' : 'Cancel Transfer'}
+                      </Button>
+                    )}
+                    {canAssign && latestAssignment.status === 'DECLINED' && (
+                      <div className="flex gap-2 mt-2">
+                        <Link href={dispatchHref} className="flex-1">
+                          <Button variant="secondary" className="w-full">Assign Driver</Button>
+                        </Link>
+                        <Button
+                          className="flex-1"
+                          onClick={() => { setAssignLeg('A'); setAssignPartnerOpen(true); }}
+                        >
+                          Assign to Partner
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  /* Internal driver assignment */
+                  <div className="space-y-2">
+                    <div>
+                      <span className="text-gray-500">Driver:</span>{' '}
+                      {latestAssignment.driver_name ?? '—'}
+                      {getVerificationBadge({
+                        source_type: latestAssignment.driver_source_type,
+                        approval_status: latestAssignment.driver_approval_status,
+                        platform_verified: latestAssignment.driver_platform_verified,
+                      }).show && <Badge variant="success" className="ml-2 text-xs">✓ Verified</Badge>}
+                    </div>
+                    <div>
+                      <span className="text-gray-500">Vehicle:</span>{' '}
+                      {[latestAssignment.vehicle_make, latestAssignment.vehicle_model, latestAssignment.vehicle_plate]
+                        .filter(Boolean).join(' ') || '—'}
+                      {getVerificationBadge({
+                        source_type: latestAssignment.vehicle_source_type,
+                        approval_status: latestAssignment.vehicle_approval_status,
+                        platform_verified: latestAssignment.vehicle_platform_verified,
+                      }).show && <Badge variant="success" className="ml-2 text-xs">✓ Verified</Badge>}
+                    </div>
+                    <div><span className="text-gray-500">Phone:</span> {latestAssignment.driver_phone ?? '—'}</div>
+                    <div>
+                      <span className="text-gray-500">Status:</span>{' '}
+                      <Badge variant={getBookingStatusBadge(latestAssignment.status ?? '')}>
+                        {latestAssignment.status ?? '—'}
+                      </Badge>
+                    </div>
+                    {canAssign && (
+                      <div className="mt-3 flex gap-2">
+                        <Link href={dispatchHref} className="flex-1">
+                          <Button variant="secondary" className="w-full">Reassign Driver</Button>
+                        </Link>
+                        <Button
+                          variant="ghost"
+                          className="flex-1 border border-purple-200 text-purple-700 hover:bg-purple-50"
+                          onClick={() => { setAssignLeg('A'); setAssignPartnerOpen(true); }}
+                        >
+                          Assign to Partner
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -231,9 +317,18 @@ function BookingDetailInner() {
               <div className="space-y-3">
                 <div className="text-sm text-gray-500">No driver assigned</div>
                 {canAssign && (
-                  <Link href={dispatchHref}>
-                    <Button className="w-full">Assign Driver</Button>
-                  </Link>
+                  <div className="flex flex-col gap-2">
+                    <Link href={dispatchHref}>
+                      <Button className="w-full">Assign Internal Driver</Button>
+                    </Link>
+                    <Button
+                      variant="ghost"
+                      className="w-full border border-purple-200 text-purple-700 hover:bg-purple-50"
+                      onClick={() => { setAssignLeg('A'); setAssignPartnerOpen(true); }}
+                    >
+                      Assign to Partner
+                    </Button>
+                  </div>
                 )}
               </div>
             )}
@@ -321,6 +416,23 @@ function BookingDetailInner() {
           />
         </div>
       </ConfirmModal>
+
+      {/* Assign to Partner modal */}
+      <AssignPartnerModal
+        isOpen={assignPartnerOpen}
+        onClose={() => setAssignPartnerOpen(false)}
+        bookingId={booking?.id ?? ''}
+        leg={assignLeg}
+        fareMinor={booking?.pricing_snapshot?.final_fare_minor ?? booking?.pricing_snapshot?.base_fare_minor ?? booking?.total_price_minor ?? 0}
+        tollParkingMinor={booking?.pricing_snapshot?.toll_parking_minor ?? 0}
+        totalPriceMinor={booking?.total_price_minor ?? 0}
+        currency={booking?.currency ?? 'AUD'}
+        onAssigned={() => {
+          setAssignPartnerOpen(false);
+          refetch();
+          setToast({ message: 'Transfer sent to partner', tone: 'success' });
+        }}
+      />
 
       {/* Assign driver modal (legacy — kept for backward compat) */}
       <AssignDriverModal
