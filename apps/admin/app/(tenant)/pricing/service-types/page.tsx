@@ -81,7 +81,7 @@ export default function ServiceTypesPage() {
   function loadForm(row: ServiceTypeRow) {
     setForm({
       display_name: row.display_name,
-      calculation_type: row.calculation_type,
+      calculation_type: row.calculation_type as CalcType,
       one_way_type: row.one_way_type,
       one_way_value: String(row.one_way_value ?? 100),
       one_way_surcharge_minor: toMoney(row.one_way_surcharge_minor ?? 0),
