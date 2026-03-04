@@ -222,15 +222,7 @@ export default function CarTypesPage() {
               onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))}
             />
           </Field>
-          <Field label="Display Order">
-            <Input
-              type="number"
-              value={form.display_order}
-              onChange={(e) =>
-                setForm((prev) => ({ ...prev, display_order: Number(e.target.value) }))
-              }
-            />
-          </Field>
+
           {/* Toll Toggle */}
           <div className="md:col-span-2">
             <label className="flex items-center gap-3 cursor-pointer select-none">

@@ -189,52 +189,75 @@ export default function ServiceTypesPage() {
               <option value="HOURLY_CHARTER">Hourly Charter</option>
             </Select>
           </Field>
-          <Field label="One Way Type">
-            <Select
-              value={form.one_way_type}
-              onChange={(e) => setForm((prev) => ({ ...prev, one_way_type: e.target.value as any }))}
-            >
-              <option value="PERCENTAGE">Percentage</option>
-              <option value="FIXED_SURCHARGE">Fixed Surcharge</option>
-            </Select>
-          </Field>
-          <Field label="One Way Value">
-            <Input
-              type="number"
-              value={form.one_way_value}
-              onChange={(e) => setForm((prev) => ({ ...prev, one_way_value: e.target.value }))}
-            />
-          </Field>
-          <Field label="Return Type">
-            <Select
-              value={form.return_type}
-              onChange={(e) => setForm((prev) => ({ ...prev, return_type: e.target.value as any }))}
-            >
-              <option value="PERCENTAGE">Percentage</option>
-              <option value="FIXED_SURCHARGE">Fixed Surcharge</option>
-            </Select>
-          </Field>
-          <Field label="Return Value">
-            <Input
-              type="number"
-              value={form.return_value}
-              onChange={(e) => setForm((prev) => ({ ...prev, return_value: e.target.value }))}
-            />
-          </Field>
-          <Field label="Minimum Hours">
-            <Input
-              type="number"
-              value={form.minimum_hours}
-              onChange={(e) => setForm((prev) => ({ ...prev, minimum_hours: e.target.value }))}
-            />
-          </Field>
-          <Field label="KM per Hour Included">
-            <Input
-              type="number"
-              value={form.km_per_hour_included}
-              onChange={(e) => setForm((prev) => ({ ...prev, km_per_hour_included: e.target.value }))}
-            />
-          </Field>
+          {/* Point to Point: one-way + return pricing */}
+          {form.calculation_type === 'POINT_TO_POINT' && (<>
+            <Field label="One Way Type">
+              <Select
+                value={form.one_way_type}
+                onChange={(e) => setForm((prev) => ({ ...prev, one_way_type: e.target.value as any }))}
+              >
+                <option value="PERCENTAGE">Percentage</option>
+                <option value="FIXED_SURCHARGE">Fixed Surcharge</option>
+              </Select>
+            </Field>
+            <Field label="One Way Value">
+              <Input
+                type="number"
+                value={form.one_way_value}
+                onChange={(e) => setForm((prev) => ({ ...prev, one_way_value: e.target.value }))}
+              />
+            </Field>
+            <Field label="Return Type">
+              <Select
+                value={form.return_type}
+                onChange={(e) => setForm((prev) => ({ ...prev, return_type: e.target.value as any }))}
+              >
+                <option value="PERCENTAGE">Percentage</option>
+                <option value="FIXED_SURCHARGE">Fixed Surcharge</option>
+              </Select>
+            </Field>
+            <Field label="Return Value">
+              <Input
+                type="number"
+                value={form.return_value}
+                onChange={(e) => setForm((prev) => ({ ...prev, return_value: e.target.value }))}
+              />
+            </Field>
+          </>)}
+
+          {/* Hourly Charter: min hours + km included + percentage */}
+          {form.calculation_type === 'HOURLY_CHARTER' && (<>
+            <Field label="Minimum Hours">
+              <Input
+                type="number"
+                value={form.minimum_hours}
+                onChange={(e) => setForm((prev) => ({ ...prev, minimum_hours: e.target.value }))}
+              />
+            </Field>
+            <Field label="KM per Hour Included">
+              <Input
+                type="number"
+                value={form.km_per_hour_included}
+                onChange={(e) => setForm((prev) => ({ ...prev, km_per_hour_included: e.target.value }))}
+              />
+            </Field>
+            <Field label="Hourly Rate Type">
+              <Select
+                value={form.one_way_type}
+                onChange={(e) => setForm((prev) => ({ ...prev, one_way_type: e.target.value as any }))}
+              >
+                <option value="PERCENTAGE">Percentage</option>
+                <option value="FIXED_SURCHARGE">Fixed Amount</option>
+              </Select>
+            </Field>
+            <Field label="Hourly Rate Value">
+              <Input
+                type="number"
+                value={form.one_way_value}
+                onChange={(e) => setForm((prev) => ({ ...prev, one_way_value: e.target.value }))}
+              />
+            </Field>
+          </>)}
           <div className="flex items-end gap-2">
             <Button onClick={editingId ? handleUpdate : handleCreate}>
               {editingId ? 'Update' : 'Create'}
