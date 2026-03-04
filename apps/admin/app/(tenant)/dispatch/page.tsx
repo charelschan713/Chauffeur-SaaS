@@ -50,11 +50,12 @@ export default function DispatchConsolePage() {
     queryKey: ['dispatch-bookings'],
     queryFn: async () => {
       const res = await api.get('/dispatch/queue');
-      return res.data ?? [];
+      const payload = res.data;
+      return Array.isArray(payload) ? payload : payload?.data ?? [];
     },
   });
 
-  const bookings = data ?? [];
+  const bookings = Array.isArray(data) ? data : [];
 
   const mutation = useMutation({
     mutationFn: async () => {

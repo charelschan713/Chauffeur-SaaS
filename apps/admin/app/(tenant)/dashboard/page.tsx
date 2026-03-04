@@ -134,7 +134,7 @@ export default function DashboardPage() {
               Dispatch Board
             </Link>
             <Link
-              href="/drivers/new"
+              href="/drivers"
               className="block px-4 py-2 rounded-md border text-sm text-center hover:bg-gray-50"
             >
               Add Driver

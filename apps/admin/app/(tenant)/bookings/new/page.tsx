@@ -13,6 +13,8 @@ const formSchema = z
   .object({
     service_class_id: z.string().min(1, 'Car type is required'),
     service_type_id: z.string().min(1, 'Service type is required'),
+    city_id: z.string().min(1, 'City is required'),
+    flight_number: z.string().optional(),
     customer_name: z.string().trim().min(2, 'Name must be at least 2 characters'),
     customer_phone: z.string().trim().optional(),
     customer_email: z
@@ -26,6 +28,7 @@ const formSchema = z
     passenger_phone: z.string().trim().optional(),
     pickup_address_text: z.string().trim().min(5, 'Pickup address must be at least 5 characters'),
     dropoff_address_text: z.string().trim().min(5, 'Dropoff address must be at least 5 characters'),
+    waypoints: z.array(z.string()).default([]),
     pickup_at_utc: z.string().min(1, 'Pickup time is required'),
     is_return_trip: z.boolean().default(false),
     return_pickup_at_utc: z.string().optional(),
@@ -34,6 +37,9 @@ const formSchema = z
     passenger_count: z.coerce.number().int().min(1).max(14),
     luggage_count: z.coerce.number().int().min(0).max(20).optional(),
     special_requests: z.string().max(500, 'Max 500 characters').optional(),
+    infant_seats: z.coerce.number().int().min(0).max(3).default(0),
+    toddler_seats: z.coerce.number().int().min(0).max(3).default(0),
+    booster_seats: z.coerce.number().int().min(0).max(3).default(0),
   })
   .superRefine((values, ctx) => {
     if (!values.passenger_is_customer) {
@@ -67,21 +73,31 @@ type QuoteState =
   | { status: 'idle' }
   | { status: 'loading' }
   | { status: 'error'; message: string }
-  | { status: 'success'; distanceKm: number; durationMinutes: number };
+  | { status: 'success'; distanceKm: number; durationMinutes: number; estimates: Record<string, number> };
 
 function toDisplay(minor: number) {
   return (minor / 100).toFixed(2);
 }
 
+const TIMEZONES = [
+  'Australia/Sydney',
+  'Australia/Melbourne',
+  'Australia/Brisbane',
+  'Australia/Perth',
+  'Australia/Adelaide',
+  'UTC',
+];
+
 export default function CreateBookingPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const [quote, setQuote] = useState<QuoteState>({ status: 'idle' });
+  const [waypoints, setWaypoints] = useState<string[]>([]);
 
   const { data: carTypes = [] } = useQuery({
     queryKey: ['car-types'],
     queryFn: async () => {
-      const res = await api.get('/pricing/car-types');
+      const res = await api.get('/pricing/service-classes');
       return res.data ?? [];
     },
   });
@@ -90,6 +106,14 @@ export default function CreateBookingPage() {
     queryKey: ['service-types'],
     queryFn: async () => {
       const res = await api.get('/service-types');
+      return res.data ?? [];
+    },
+  });
+
+  const { data: cities = [] } = useQuery({
+    queryKey: ['cities'],
+    queryFn: async () => {
+      const res = await api.get('/cities');
       return res.data ?? [];
     },
   });
@@ -105,11 +129,14 @@ export default function CreateBookingPage() {
     defaultValues: {
       service_class_id: '',
       service_type_id: '',
+      city_id: '',
+      flight_number: '',
       customer_name: '',
       customer_phone: '',
       customer_email: '',
       pickup_address_text: '',
       dropoff_address_text: '',
+      waypoints: [],
       pickup_at_utc: '',
       is_return_trip: false,
       return_pickup_at_utc: '',
@@ -118,6 +145,9 @@ export default function CreateBookingPage() {
       passenger_count: 1,
       luggage_count: 0,
       special_requests: '',
+      infant_seats: 0,
+      toddler_seats: 0,
+      booster_seats: 0,
     },
     mode: 'onBlur',
   });
@@ -147,6 +177,12 @@ export default function CreateBookingPage() {
         bookingSource: 'ADMIN' as const,
         service_class_id: values.service_class_id,
         service_type_id: values.service_type_id,
+        city_id: values.city_id,
+        flight_number: values.flight_number?.trim() || undefined,
+        waypoints: waypoints.map((w) => ({ address: w })),
+        infant_seats: values.infant_seats,
+        toddler_seats: values.toddler_seats,
+        booster_seats: values.booster_seats,
       };
       const response = await api.post('/bookings', payload);
       return response.data;
@@ -171,46 +207,67 @@ export default function CreateBookingPage() {
     () => serviceTypes.find((s: any) => s.id === values.service_type_id),
     [serviceTypes, values.service_type_id],
   );
+  const selectedCity = useMemo(
+    () => cities.find((c: any) => c.id === values.city_id),
+    [cities, values.city_id],
+  );
 
   async function handleGetQuote() {
-    if (!values.pickup_address_text || !values.dropoff_address_text) {
-      setQuote({
-        status: 'error',
-        message: 'Pickup and dropoff are required for route calculation.',
-      });
+    if (!values.service_type_id || !values.city_id || !values.pickup_address_text || !values.dropoff_address_text || !values.pickup_at_utc) {
+      setQuote({ status: 'error', message: 'Please complete Service, Date & Time, and Route before quoting.' });
       return;
     }
     setQuote({ status: 'loading' });
     try {
-      const res = await api.get('/maps/route', {
+      const routeRes = await api.get('/maps/route', {
         params: {
           origin: values.pickup_address_text,
           destination: values.dropoff_address_text,
         },
       });
-      if (!res.data || !res.data.distanceKm) {
+      if (!routeRes.data || !routeRes.data.distanceKm) {
         setQuote({
           status: 'error',
-          message:
-            'Route calculation unavailable. Please contact your administrator to configure Google Maps integration.',
+          message: 'Route calculation unavailable. Please contact your administrator to configure Google Maps integration.',
         });
         return;
       }
+
+      const classesRes = await api.get('/pricing/service-classes');
+      const classes = classesRes.data ?? [];
+
+      const estimates: Record<string, number> = {};
+      for (const c of classes) {
+        const estimateRes = await api.post('/pricing/estimate', {
+          service_class_id: c.id,
+          service_type_id: values.service_type_id,
+          distance_km: routeRes.data.distanceKm,
+          duration_minutes: routeRes.data.durationMinutes,
+          passenger_count: values.passenger_count,
+          luggage_count: values.luggage_count ?? 0,
+        });
+        estimates[c.id] = estimateRes.data?.grand_total_minor ?? estimateRes.data?.total_minor ?? 0;
+      }
+
       setQuote({
         status: 'success',
-        distanceKm: res.data.distanceKm,
-        durationMinutes: res.data.durationMinutes,
+        distanceKm: routeRes.data.distanceKm,
+        durationMinutes: routeRes.data.durationMinutes,
+        estimates,
       });
     } catch {
       setQuote({
         status: 'error',
-        message:
-          'Route calculation unavailable. Please contact your administrator to configure Google Maps integration.',
+        message: 'Route calculation unavailable. Please contact your administrator to configure Google Maps integration.',
       });
     }
   }
 
   const onSubmit = handleSubmit((vals) => mutation.mutate(vals));
+
+  const canQuote = Boolean(
+    values.service_type_id && values.city_id && values.pickup_address_text && values.dropoff_address_text && values.pickup_at_utc,
+  );
 
   return (
     <div className="space-y-4">
@@ -279,89 +336,174 @@ export default function CreateBookingPage() {
 
         {/* Right Column */}
         <div className="lg:col-span-2 space-y-4">
-          <div className="bg-white border rounded p-5">
-            <h2 className="font-semibold mb-4">Service Type</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {serviceTypes.map((s: any) => (
-                <button
-                  key={s.id}
-                  type="button"
-                  onClick={() => setValue('service_type_id', s.id, { shouldValidate: true })}
-                  className={`border rounded p-3 text-left ${values.service_type_id === s.id ? 'border-blue-600 bg-blue-50' : 'border-gray-200'}`}
+          <AccordionCard title="Service" summary={selectedCity?.name && selectedServiceType?.display_name ? `${selectedCity.name} · ${selectedServiceType.display_name}` : 'Select city and service type'}>
+            <div className="space-y-4">
+              <div>
+                <label className="text-sm font-medium text-gray-700">Service City</label>
+                <select
+                  value={values.city_id}
+                  onChange={(e) => setValue('city_id', e.target.value, { shouldValidate: true })}
+                  className="w-full border rounded px-3 py-2 text-sm"
                 >
-                  <div className="font-medium">{s.display_name ?? s.name}</div>
-                  <div className="text-xs text-gray-500">{s.calculation_type ?? s.calc_type ?? 'PTP'}</div>
-                </button>
-              ))}
+                  <option value="">Select a city</option>
+                  {cities.map((c: any) => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+                {errors.city_id && <p className="text-xs text-red-600 mt-1">{errors.city_id.message}</p>}
+              </div>
+
+              <div>
+                <label className="text-sm font-medium text-gray-700">Service Type</label>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-2">
+                  {serviceTypes.map((s: any) => (
+                    <button
+                      key={s.id}
+                      type="button"
+                      onClick={() => setValue('service_type_id', s.id, { shouldValidate: true })}
+                      className={`border rounded p-3 text-left ${values.service_type_id === s.id ? 'border-blue-600 bg-blue-50' : 'border-gray-200'}`}
+                    >
+                      <div className="font-medium">{s.display_name ?? s.name}</div>
+                      <div className="text-xs text-gray-500">{s.calculation_type ?? s.calc_type ?? 'PTP'}</div>
+                    </button>
+                  ))}
+                </div>
+                {errors.service_type_id && <p className="text-xs text-red-600 mt-2">{errors.service_type_id.message}</p>}
+              </div>
             </div>
-            {errors.service_type_id && <p className="text-xs text-red-600 mt-2">{errors.service_type_id.message}</p>}
-          </div>
+          </AccordionCard>
 
-          <div className="bg-white border rounded p-5 space-y-4">
-            <h2 className="font-semibold">Trip Details</h2>
-            <Field label="Pickup Address" error={errors.pickup_address_text?.message}>
-              <input
-                {...register('pickup_address_text')}
-                placeholder="123 George St, Sydney"
-                className="w-full border rounded px-3 py-2 text-sm"
-              />
-            </Field>
-            <Field label="Dropoff Address" error={errors.dropoff_address_text?.message}>
-              <input
-                {...register('dropoff_address_text')}
-                placeholder="Airport or destination"
-                className="w-full border rounded px-3 py-2 text-sm"
-              />
-            </Field>
-            <Field label="Pickup Time" error={errors.pickup_at_utc?.message}>
-              <input type="datetime-local" {...register('pickup_at_utc')} className="w-full border rounded px-3 py-2 text-sm" />
-            </Field>
-
-            <label className="text-sm font-medium text-gray-700 space-y-1">
-              <span>Return Trip?</span>
-              <input type="checkbox" {...register('is_return_trip')} className="h-4 w-4" />
-            </label>
-            {values.is_return_trip && (
-              <>
-                <Field label="Return Pickup Address (optional)" error={errors.return_pickup_address_text?.message}>
-                  <input
-                    {...register('return_pickup_address_text')}
-                    placeholder="Use dropoff address if blank"
-                    className="w-full border rounded px-3 py-2 text-sm"
-                  />
-                </Field>
-                <Field label="Return Pickup Time" error={errors.return_pickup_at_utc?.message}>
+          <AccordionCard title="Date & Time" summary={values.pickup_at_utc ? `${new Date(values.pickup_at_utc).toLocaleDateString()} ${new Date(values.pickup_at_utc).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} · ${values.timezone}` : 'Select pickup time'}>
+            <div className="space-y-4">
+              <Field label="Pickup Date & Time" error={errors.pickup_at_utc?.message}>
+                <input type="datetime-local" {...register('pickup_at_utc')} className="w-full border rounded px-3 py-2 text-sm" />
+              </Field>
+              <Field label="Timezone" error={errors.timezone?.message}>
+                <select {...register('timezone')} className="w-full border rounded px-3 py-2 text-sm">
+                  {TIMEZONES.map((tz) => (
+                    <option key={tz} value={tz}>{tz}</option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="Flight Number">
+                <input
+                  {...register('flight_number')}
+                  placeholder="e.g. QF401"
+                  className="w-full border rounded px-3 py-2 text-sm"
+                />
+              </Field>
+              <label className="text-sm font-medium text-gray-700 space-y-1">
+                <span>Is Return Trip?</span>
+                <input type="checkbox" {...register('is_return_trip')} className="h-4 w-4" />
+              </label>
+              {values.is_return_trip && (
+                <Field label="Return Date & Time" error={errors.return_pickup_at_utc?.message}>
                   <input type="datetime-local" {...register('return_pickup_at_utc')} className="w-full border rounded px-3 py-2 text-sm" />
                 </Field>
-              </>
-            )}
+              )}
+            </div>
+          </AccordionCard>
 
-            <Field label="Timezone" error={errors.timezone?.message}>
-              <input {...register('timezone')} className="w-full border rounded px-3 py-2 text-sm" />
-            </Field>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <Field label="Passengers" error={errors.passenger_count?.message}>
-                <input type="number" min={1} max={14} {...register('passenger_count', { valueAsNumber: true })} className="w-full border rounded px-3 py-2 text-sm" />
+          <AccordionCard
+            title="Route"
+            summary={
+              values.pickup_address_text && values.dropoff_address_text
+                ? waypoints.length > 0
+                  ? `${values.pickup_address_text} → ${waypoints.length} stops → ${values.dropoff_address_text}`
+                  : `${values.pickup_address_text} → ${values.dropoff_address_text}`
+                : 'Enter route'
+            }
+          >
+            <div className="space-y-4">
+              <Field label="Pickup Address" error={errors.pickup_address_text?.message}>
+                <input
+                  {...register('pickup_address_text')}
+                  placeholder="123 George St, Sydney"
+                  className="w-full border rounded px-3 py-2 text-sm"
+                />
               </Field>
-              <Field label="Luggage" error={errors.luggage_count?.message}>
-                <input type="number" min={0} max={20} {...register('luggage_count', { valueAsNumber: true })} className="w-full border rounded px-3 py-2 text-sm" />
+
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-sm font-medium text-gray-700">Waypoints</label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (waypoints.length < 5) {
+                        setWaypoints((prev) => [...prev, '']);
+                      }
+                    }}
+                    className="text-sm text-blue-600"
+                  >
+                    + Add Stop
+                  </button>
+                </div>
+                {waypoints.map((wp, idx) => (
+                  <div key={idx} className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <input
+                        value={wp}
+                        onChange={(e) => {
+                          const next = [...waypoints];
+                          next[idx] = e.target.value;
+                          setWaypoints(next);
+                        }}
+                        placeholder={`Stop ${idx + 1} address`}
+                        className="w-full border rounded px-3 py-2 text-sm"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setWaypoints((prev) => prev.filter((_, i) => i !== idx))}
+                        className="text-gray-500"
+                      >
+                        ×
+                      </button>
+                    </div>
+                    {idx < waypoints.length - 1 && <div className="text-center text-gray-400">↓</div>}
+                  </div>
+                ))}
+              </div>
+
+              <Field label="Dropoff Address" error={errors.dropoff_address_text?.message}>
+                <input
+                  {...register('dropoff_address_text')}
+                  placeholder="Airport or destination"
+                  className="w-full border rounded px-3 py-2 text-sm"
+                />
               </Field>
             </div>
-            <Field label="Special Requests" error={errors.special_requests?.message}>
-              <textarea
-                {...register('special_requests')}
-                rows={4}
-                className="w-full border rounded px-3 py-2 text-sm"
-                placeholder="Optional notes for the driver"
-              />
-            </Field>
-          </div>
+          </AccordionCard>
+
+          <AccordionCard
+            title="Requirements"
+            summary={`${values.passenger_count} pax · ${values.luggage_count ?? 0} bags`}
+          >
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <Field label="Passenger Count" error={errors.passenger_count?.message}>
+                <input type="number" min={1} max={14} {...register('passenger_count', { valueAsNumber: true })} className="w-full border rounded px-3 py-2 text-sm" />
+              </Field>
+              <Field label="Luggage Count" error={errors.luggage_count?.message}>
+                <input type="number" min={0} max={20} {...register('luggage_count', { valueAsNumber: true })} className="w-full border rounded px-3 py-2 text-sm" />
+              </Field>
+              <div className="md:col-span-2">
+                <Field label="Special Requests" error={errors.special_requests?.message}>
+                  <textarea
+                    {...register('special_requests')}
+                    rows={4}
+                    className="w-full border rounded px-3 py-2 text-sm"
+                    placeholder="Optional notes for the driver"
+                  />
+                </Field>
+              </div>
+            </div>
+          </AccordionCard>
 
           <div className="flex items-center gap-3">
             <button
               type="button"
               onClick={handleGetQuote}
-              className="px-4 py-2 rounded bg-blue-600 text-white text-sm"
+              disabled={!canQuote}
+              className="px-4 py-2 rounded bg-blue-600 text-white text-sm disabled:opacity-50"
             >
               {quote.status === 'loading' ? 'Calculating...' : 'Get Quote'}
             </button>
@@ -377,23 +519,46 @@ export default function CreateBookingPage() {
           )}
 
           {quote.status === 'success' && (
-            <div className="bg-white border rounded p-5">
-              <h2 className="font-semibold mb-4">Car Type</h2>
+            <AccordionCard title="Select Car Type" summary={selectedCarType ? `${selectedCarType.name} · $${toDisplay(quote.estimates[selectedCarType.id] ?? 0)}` : 'Select a car type'}>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {carTypes.map((c: any) => (
-                  <button
-                    key={c.id}
-                    type="button"
-                    onClick={() => setValue('service_class_id', c.id, { shouldValidate: true })}
-                    className={`border rounded p-3 text-left ${values.service_class_id === c.id ? 'border-blue-600 bg-blue-50' : 'border-gray-200'}`}
-                  >
-                    <div className="font-medium">{c.name}</div>
-                    <div className="text-xs text-gray-500">Base ${toDisplay(c.base_fare_minor ?? 0)} · Hourly ${toDisplay(c.hourly_rate_minor ?? 0)}</div>
-                  </button>
-                ))}
+                {carTypes.map((c: any) => {
+                  const price = quote.estimates[c.id] ?? 0;
+                  const insufficient = (c.passenger_capacity ?? 0) < values.passenger_count || (c.luggage_capacity ?? 0) < (values.luggage_count ?? 0);
+                  return (
+                    <button
+                      key={c.id}
+                      type="button"
+                      disabled={insufficient}
+                      onClick={() => setValue('service_class_id', c.id, { shouldValidate: true })}
+                      className={`border rounded p-3 text-left ${values.service_class_id === c.id ? 'border-blue-600 bg-blue-50' : 'border-gray-200'} ${insufficient ? 'opacity-50' : ''}`}
+                    >
+                      <div className="font-medium">{c.name}</div>
+                      <div className="text-sm text-gray-700">${toDisplay(price)}</div>
+                      <div className="text-xs text-gray-500">🧍 {c.passenger_capacity ?? 0} · 🧳 {c.luggage_capacity ?? 0}</div>
+                    </button>
+                  );
+                })}
               </div>
               {errors.service_class_id && <p className="text-xs text-red-600 mt-2">{errors.service_class_id.message}</p>}
-            </div>
+            </AccordionCard>
+          )}
+
+          {quote.status === 'success' && selectedCarType && (
+            <AccordionCard title="Extra Options" summary={
+              `Infant ${values.infant_seats} · Toddler ${values.toddler_seats} · Booster ${values.booster_seats}`
+            }>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <Field label={`Infant Seat ($${toDisplay(selectedCarType.infant_seat_minor ?? 0)})`}>
+                  <input type="number" min={0} max={3} {...register('infant_seats', { valueAsNumber: true })} className="w-full border rounded px-3 py-2 text-sm" />
+                </Field>
+                <Field label={`Toddler Seat ($${toDisplay(selectedCarType.toddler_seat_minor ?? 0)})`}>
+                  <input type="number" min={0} max={3} {...register('toddler_seats', { valueAsNumber: true })} className="w-full border rounded px-3 py-2 text-sm" />
+                </Field>
+                <Field label={`Booster Seat ($${toDisplay(selectedCarType.booster_seat_minor ?? 0)})`}>
+                  <input type="number" min={0} max={3} {...register('booster_seats', { valueAsNumber: true })} className="w-full border rounded px-3 py-2 text-sm" />
+                </Field>
+              </div>
+            </AccordionCard>
           )}
 
           {quote.status === 'success' && selectedCarType && selectedServiceType && (
@@ -419,5 +584,17 @@ function Field({ label, error, children }: { label: string; error?: string; chil
       {children}
       {error && <p className="text-xs text-red-600">{error}</p>}
     </label>
+  );
+}
+
+function AccordionCard({ title, summary, children }: { title: string; summary: string; children: React.ReactNode }) {
+  return (
+    <div className="bg-white border rounded p-5">
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="font-semibold">{title}</h3>
+        <span className="text-xs text-gray-500">{summary}</span>
+      </div>
+      {children}
+    </div>
   );
 }
