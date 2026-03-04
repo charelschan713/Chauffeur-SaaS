@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm, Resolver } from 'react-hook-form';
 import { z } from 'zod';
@@ -64,16 +64,21 @@ const formSchema = z
 
 type FormValues = z.infer<typeof formSchema>;
 
+type QuoteState =
+  | { status: 'idle' }
+  | { status: 'loading' }
+  | { status: 'error'; message: string }
+  | { status: 'success'; distanceKm: number; durationMinutes: number };
+
 const steps = [
-  { id: 'service', label: 'Service' },
   { id: 'customer', label: 'Customer Details' },
   { id: 'trip', label: 'Trip Details' },
+  { id: 'service', label: 'Service' },
   { id: 'requirements', label: 'Requirements' },
   { id: 'review', label: 'Review & Submit' },
 ] as const;
 
 const stepFields: Record<(typeof steps)[number]['id'], (keyof FormValues)[]> = {
-  service: ['service_class_id', 'service_type_id'],
   customer: [
     'customer_name',
     'customer_phone',
@@ -84,6 +89,7 @@ const stepFields: Record<(typeof steps)[number]['id'], (keyof FormValues)[]> = {
     'passenger_phone',
   ],
   trip: ['pickup_address_text', 'dropoff_address_text', 'pickup_at_utc', 'is_return_trip', 'return_pickup_at_utc', 'return_pickup_address_text', 'timezone'],
+  service: ['service_class_id', 'service_type_id'],
   requirements: ['passenger_count', 'luggage_count', 'special_requests'],
   review: [],
 };
@@ -96,6 +102,7 @@ export default function CreateBookingPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const [stepIndex, setStepIndex] = useState(0);
+  const [quote, setQuote] = useState<QuoteState>({ status: 'idle' });
 
   const { data: carTypes = [] } = useQuery({
     queryKey: ['car-types'],
@@ -198,6 +205,48 @@ export default function CreateBookingPage() {
   const stepId = steps[stepIndex].id;
   const values = watch();
 
+  const selectedCarType = useMemo(
+    () => carTypes.find((c: any) => c.id === values.service_class_id),
+    [carTypes, values.service_class_id],
+  );
+  const selectedServiceType = useMemo(
+    () => serviceTypes.find((s: any) => s.id === values.service_type_id),
+    [serviceTypes, values.service_type_id],
+  );
+
+  async function handleGetQuote() {
+    if (!values.pickup_address_text || !values.dropoff_address_text) {
+      setQuote({ status: 'error', message: 'Pickup and dropoff are required for route calculation.' });
+      return;
+    }
+    setQuote({ status: 'loading' });
+    try {
+      const res = await api.get('/maps/route', {
+        params: {
+          origin: values.pickup_address_text,
+          destination: values.dropoff_address_text,
+        },
+      });
+      if (!res.data || !res.data.distanceKm) {
+        setQuote({
+          status: 'error',
+          message: 'Route calculation unavailable. Please contact your administrator to configure Google Maps integration.',
+        });
+        return;
+      }
+      setQuote({
+        status: 'success',
+        distanceKm: res.data.distanceKm,
+        durationMinutes: res.data.durationMinutes,
+      });
+    } catch {
+      setQuote({
+        status: 'error',
+        message: 'Route calculation unavailable. Please contact your administrator to configure Google Maps integration.',
+      });
+    }
+  }
+
   return (
     <div className="space-y-4">
       {mutation.isError && <ErrorAlert message="Failed to create booking. Please try again." />}
@@ -234,46 +283,6 @@ export default function CreateBookingPage() {
           </div>
         }
       >
-        {stepId === 'service' && (
-          <div className="space-y-6">
-            <div className="space-y-2">
-              <h3 className="text-sm font-semibold text-gray-700">Car Type</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {carTypes.map((c: any) => (
-                  <button
-                    key={c.id}
-                    type="button"
-                    onClick={() => setValue('service_class_id', c.id, { shouldValidate: true })}
-                    className={`border rounded p-3 text-left ${values.service_class_id === c.id ? 'border-blue-600 bg-blue-50' : 'border-gray-200'}`}
-                  >
-                    <div className="font-medium">{c.name}</div>
-                    <div className="text-xs text-gray-500">Base ${toDisplay(c.base_fare_minor ?? 0)} · Hourly ${toDisplay(c.hourly_rate_minor ?? 0)}</div>
-                  </button>
-                ))}
-              </div>
-              {errors.service_class_id && <p className="text-xs text-red-600">{errors.service_class_id.message}</p>}
-            </div>
-
-            <div className="space-y-2">
-              <h3 className="text-sm font-semibold text-gray-700">Service Type</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {serviceTypes.map((s: any) => (
-                  <button
-                    key={s.id}
-                    type="button"
-                    onClick={() => setValue('service_type_id', s.id, { shouldValidate: true })}
-                    className={`border rounded p-3 text-left ${values.service_type_id === s.id ? 'border-blue-600 bg-blue-50' : 'border-gray-200'}`}
-                  >
-                    <div className="font-medium">{s.display_name ?? s.name}</div>
-                    <div className="text-xs text-gray-500">{s.calculation_type ?? s.calc_type ?? 'PTP'}</div>
-                  </button>
-                ))}
-              </div>
-              {errors.service_type_id && <p className="text-xs text-red-600">{errors.service_type_id.message}</p>}
-            </div>
-          </div>
-        )}
-
         {stepId === 'customer' && (
           <div className="grid grid-cols-1 gap-4">
             <Field label="Customer Name" error={errors.customer_name?.message}>
@@ -360,6 +369,76 @@ export default function CreateBookingPage() {
           </div>
         )}
 
+        {stepId === 'service' && (
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-semibold text-gray-700">Route Quote</h3>
+                <p className="text-xs text-gray-500">Calculate distance to unlock car types.</p>
+              </div>
+              <button
+                type="button"
+                onClick={handleGetQuote}
+                className="px-4 py-2 rounded bg-blue-600 text-white text-sm"
+              >
+                {quote.status === 'loading' ? 'Calculating...' : 'Get Quote'}
+              </button>
+            </div>
+
+            {quote.status === 'error' && (
+              <div className="bg-red-50 text-red-600 p-3 rounded text-sm">
+                {quote.message}
+              </div>
+            )}
+
+            {quote.status === 'success' && (
+              <div className="bg-green-50 text-green-700 p-3 rounded text-sm">
+                Distance: {quote.distanceKm.toFixed(1)} km · Estimated {quote.durationMinutes} min
+              </div>
+            )}
+
+            {quote.status === 'success' && (
+              <>
+                <div className="space-y-2">
+                  <h3 className="text-sm font-semibold text-gray-700">Car Type</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {carTypes.map((c: any) => (
+                      <button
+                        key={c.id}
+                        type="button"
+                        onClick={() => setValue('service_class_id', c.id, { shouldValidate: true })}
+                        className={`border rounded p-3 text-left ${values.service_class_id === c.id ? 'border-blue-600 bg-blue-50' : 'border-gray-200'}`}
+                      >
+                        <div className="font-medium">{c.name}</div>
+                        <div className="text-xs text-gray-500">Base ${toDisplay(c.base_fare_minor ?? 0)} · Hourly ${toDisplay(c.hourly_rate_minor ?? 0)}</div>
+                      </button>
+                    ))}
+                  </div>
+                  {errors.service_class_id && <p className="text-xs text-red-600">{errors.service_class_id.message}</p>}
+                </div>
+
+                <div className="space-y-2">
+                  <h3 className="text-sm font-semibold text-gray-700">Service Type</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {serviceTypes.map((s: any) => (
+                      <button
+                        key={s.id}
+                        type="button"
+                        onClick={() => setValue('service_type_id', s.id, { shouldValidate: true })}
+                        className={`border rounded p-3 text-left ${values.service_type_id === s.id ? 'border-blue-600 bg-blue-50' : 'border-gray-200'}`}
+                      >
+                        <div className="font-medium">{s.display_name ?? s.name}</div>
+                        <div className="text-xs text-gray-500">{s.calculation_type ?? s.calc_type ?? 'PTP'}</div>
+                      </button>
+                    ))}
+                  </div>
+                  {errors.service_type_id && <p className="text-xs text-red-600">{errors.service_type_id.message}</p>}
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
         {stepId === 'requirements' && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Field label="Passengers" error={errors.passenger_count?.message}>
@@ -395,8 +474,8 @@ export default function CreateBookingPage() {
 
         {stepId === 'review' && (
           <div className="space-y-4 text-sm">
-            <ReviewRow label="Car Type">{carTypes.find((c: any) => c.id === values.service_class_id)?.name ?? '—'}</ReviewRow>
-            <ReviewRow label="Service Type">{serviceTypes.find((s: any) => s.id === values.service_type_id)?.display_name ?? '—'}</ReviewRow>
+            <ReviewRow label="Car Type">{selectedCarType?.name ?? '—'}</ReviewRow>
+            <ReviewRow label="Service Type">{selectedServiceType?.display_name ?? selectedServiceType?.name ?? '—'}</ReviewRow>
             <ReviewRow label="Customer">{values.customer_name}</ReviewRow>
             <ReviewRow label="Contact">
               {values.customer_email || '—'} / {values.customer_phone || '—'}
