@@ -12,6 +12,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { ErrorAlert } from '@/components/ui/ErrorAlert';
 import { Toast } from '@/components/ui/Toast';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { Suspense } from 'react';
 
 type Booking = {
   id: string;
@@ -55,7 +56,7 @@ function relativeTime(value?: string | null) {
   return `${hours}h ago`;
 }
 
-export default function DispatchBoardPage() {
+function DispatchBoardInner() {
   const queryClient = useQueryClient();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -265,5 +266,13 @@ export default function DispatchBoardPage() {
         <Toast message={toast.message} tone={toast.tone} onClose={() => setToast(null)} />
       )}
     </div>
+  );
+}
+
+export default function DispatchBoardPage() {
+  return (
+    <Suspense fallback={<div className="p-6"><LoadingSpinner /></div>}>
+      <DispatchBoardInner />
+    </Suspense>
   );
 }
