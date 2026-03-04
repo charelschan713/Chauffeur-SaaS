@@ -75,6 +75,26 @@ const formSchema = z
         });
       }
     }
+    // Return trip: return time must be after outbound pickup time
+    if (values.is_return_trip && values.return_pickup_at_utc && values.pickup_at_utc) {
+      const outbound = new Date(values.pickup_at_utc).getTime();
+      const ret = new Date(values.return_pickup_at_utc).getTime();
+      if (ret <= outbound) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Return time must be after the outbound pickup time',
+          path: ['return_pickup_at_utc'],
+        });
+      }
+    }
+    // Return trip: return time is required if is_return_trip is checked
+    if (values.is_return_trip && !values.return_pickup_at_utc) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Return pickup time is required',
+        path: ['return_pickup_at_utc'],
+      });
+    }
   });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -531,7 +551,11 @@ export default function CreateBookingPage() {
               </label>
               {values.is_return_trip && (
                 <Field label="Return Date & Time" error={errors.return_pickup_at_utc?.message}>
-                  <Input type="datetime-local" {...register('return_pickup_at_utc')} />
+                  <Input
+                    type="datetime-local"
+                    min={values.pickup_at_utc || undefined}
+                    {...register('return_pickup_at_utc')}
+                  />
                 </Field>
               )}
             </div>
