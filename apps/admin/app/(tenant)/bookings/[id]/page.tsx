@@ -303,6 +303,42 @@ export default function BookingDetailPage() {
           />
         </div>
       </ConfirmModal>
+
+
+      {/* Assign Driver Modal */}
+      <AssignDriverModal
+        isOpen={assignOpen}
+        onClose={() => setAssignOpen(false)}
+        bookingId={booking?.id}
+        leg={assignLeg}
+        carTypeId={booking?.service_class_id ?? null}
+        fromAddress={booking?.pickup_address_text ?? ''}
+        toAddress={booking?.is_return_trip && assignLeg === 'B'
+          ? (booking?.return_pickup_address_text || booking?.pickup_address_text || '')
+          : (booking?.dropoff_address_text ?? '')}
+        timeLabel={assignLeg === 'B' && booking?.return_pickup_at_utc
+          ? formatPickupTime(booking.return_pickup_at_utc, booking.timezone)
+          : formatPickupTime(booking.pickup_at_utc, booking.timezone)}
+        onAssigned={() => {
+          setAssignOpen(false);
+          queryClient.invalidateQueries({ queryKey: ['booking', bookingId] });
+        }}
+      />
+
+      {/* Edit Driver Pay Modal */}
+      <EditDriverPayModal
+        isOpen={editPayOpen}
+        onClose={() => {
+          setEditPayOpen(false);
+          setEditPayAssignmentId(null);
+        }}
+        assignmentId={editPayAssignmentId}
+        onUpdated={() => {
+          setEditPayOpen(false);
+          setEditPayAssignmentId(null);
+          queryClient.invalidateQueries({ queryKey: ['booking', bookingId] });
+        }}
+      />
     </>
   );
 }
