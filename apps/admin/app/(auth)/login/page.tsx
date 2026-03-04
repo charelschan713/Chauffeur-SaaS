@@ -29,7 +29,7 @@ export default function LoginPage() {
       const payload = JSON.parse(atob(res.data.accessToken.split('.')[1]));
 
       if (payload.isPlatformAdmin) {
-        router.push('/overview');
+        router.push('/admin/dashboard');
       } else {
         router.push('/dashboard');
       }

@@ -19,6 +19,7 @@ import { CityModule } from './city/city.module';
 import { MapsModule } from './maps/maps.module';
 import { CustomerModule } from './customer/customer.module';
 import { AssignmentModule } from './assignment/assignment.module';
+import { TenantModule } from './tenant/tenant.module';
 import { TenantContextMiddleware } from './common/middleware/tenant-context.middleware';
 
 @Module({
@@ -53,6 +54,7 @@ import { TenantContextMiddleware } from './common/middleware/tenant-context.midd
     MapsModule,
     CustomerModule,
     AssignmentModule,
+    TenantModule,
   ],
   controllers: [HealthController],
 })

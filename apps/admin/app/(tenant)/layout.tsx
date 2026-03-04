@@ -71,6 +71,9 @@ export default function TenantLayout({
           <Link href="/settings/integrations" className="block px-3 py-2 rounded hover:bg-blue-800">
             Settings
           </Link>
+          <Link href="/settings/general" className="block px-3 py-2 rounded hover:bg-blue-800">
+            General
+          </Link>
           <Link href="/settings/cities" className="block px-3 py-2 rounded hover:bg-blue-800">
             Cities
           </Link>
