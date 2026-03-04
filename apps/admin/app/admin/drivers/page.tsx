@@ -2,14 +2,18 @@
 
 import { useQuery } from '@tanstack/react-query';
 import api from '@/lib/api';
+import { PageHeader } from '@/components/admin/PageHeader';
+import { Card } from '@/components/ui/Card';
+import { Badge } from '@/components/ui/Badge';
+import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import { ErrorAlert } from '@/components/ui/ErrorAlert';
+import { EmptyState } from '@/components/ui/EmptyState';
 
-function StatusBadge({ status }: { status: string }) {
-  const color = status === 'active' ? 'bg-green-100 text-green-800' : status === 'inactive' ? 'bg-gray-200 text-gray-700' : 'bg-yellow-100 text-yellow-800';
-  return <span className={`px-2 py-1 rounded text-xs ${color}`}>{status}</span>;
-}
+const statusVariant = (status: string) =>
+  status === 'active' ? 'success' : status === 'inactive' ? 'neutral' : 'warning';
 
-export default function DriversPage() {
-  const { data = [] } = useQuery({
+export default function AdminDriversPage() {
+  const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['platform-drivers'],
     queryFn: async () => {
       const res = await api.get('/platform/drivers');
@@ -17,29 +21,48 @@ export default function DriversPage() {
     },
   });
 
+  const drivers = Array.isArray(data) ? data : [];
+
   return (
-    <div className="bg-white border rounded p-6">
-      <h1 className="text-xl font-semibold mb-4">Drivers</h1>
-      <table className="w-full text-sm">
-        <thead className="bg-gray-50">
-          <tr>
-            {['Name', 'Email', 'Status', 'Tenant', 'Created'].map((h) => (
-              <th key={h} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{h}</th>
-            ))}
-          </tr>
-        </thead>
-        <tbody className="divide-y">
-          {data.map((d: any) => (
-            <tr key={d.id}>
-              <td className="px-4 py-3">{d.first_name} {d.last_name}</td>
-              <td className="px-4 py-3">{d.email}</td>
-              <td className="px-4 py-3"><StatusBadge status={d.status ?? 'unknown'} /></td>
-              <td className="px-4 py-3">{d.tenant_name ?? '-'}</td>
-              <td className="px-4 py-3 text-gray-600">{d.created_at ? new Date(d.created_at).toLocaleString() : '-'}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+    <div className="space-y-6">
+      <PageHeader title="Drivers" description="All drivers across the platform" />
+
+      {error && <ErrorAlert message="Unable to load drivers" onRetry={refetch} />}
+
+      <Card title={`All Drivers (${drivers.length})`}>
+        {isLoading ? (
+          <div className="flex items-center justify-center h-40"><LoadingSpinner /></div>
+        ) : drivers.length === 0 ? (
+          <EmptyState title="No drivers found" />
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-neutral-200 text-left text-xs text-neutral-500">
+                  {['Name', 'Email', 'Status', 'Tenant', 'Created'].map((h) => (
+                    <th key={h} className="pb-2 pr-4 font-medium">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-neutral-100">
+                {drivers.map((d: any) => (
+                  <tr key={d.id} className="hover:bg-neutral-50">
+                    <td className="py-3 pr-4 font-medium text-gray-900">{d.first_name} {d.last_name}</td>
+                    <td className="py-3 pr-4 text-gray-600">{d.email ?? '—'}</td>
+                    <td className="py-3 pr-4">
+                      <Badge variant={statusVariant(d.status ?? '')}>{d.status ?? 'unknown'}</Badge>
+                    </td>
+                    <td className="py-3 pr-4 text-gray-600">{d.tenant_name ?? '—'}</td>
+                    <td className="py-3 text-gray-500">
+                      {d.created_at ? new Date(d.created_at).toLocaleDateString() : '—'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Card>
     </div>
   );
 }

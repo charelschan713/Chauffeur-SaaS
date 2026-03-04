@@ -2,14 +2,26 @@
 
 import { useQuery } from '@tanstack/react-query';
 import api from '@/lib/api';
+import { PageHeader } from '@/components/admin/PageHeader';
+import { Card } from '@/components/ui/Card';
+import { Badge } from '@/components/ui/Badge';
+import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import { ErrorAlert } from '@/components/ui/ErrorAlert';
+import { EmptyState } from '@/components/ui/EmptyState';
 
-function TierBadge({ tier }: { tier: string }) {
-  const color = tier === 'VIP' ? 'bg-purple-100 text-purple-800' : tier === 'PLATINUM' ? 'bg-gray-200 text-gray-800' : tier === 'GOLD' ? 'bg-yellow-100 text-yellow-800' : tier === 'SILVER' ? 'bg-gray-100 text-gray-700' : 'bg-green-100 text-green-800';
-  return <span className={`px-2 py-1 rounded text-xs ${color}`}>{tier ?? 'STANDARD'}</span>;
-}
+const tierVariant = (tier: string) => {
+  const map: Record<string, 'info' | 'neutral' | 'warning' | 'success'> = {
+    VIP: 'info',
+    PLATINUM: 'neutral',
+    GOLD: 'warning',
+    SILVER: 'neutral',
+    STANDARD: 'success',
+  };
+  return map[tier] ?? 'neutral';
+};
 
-export default function CustomersPage() {
-  const { data = [] } = useQuery({
+export default function AdminCustomersPage() {
+  const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['platform-customers'],
     queryFn: async () => {
       const res = await api.get('/platform/customers');
@@ -17,29 +29,48 @@ export default function CustomersPage() {
     },
   });
 
+  const customers = Array.isArray(data) ? data : [];
+
   return (
-    <div className="bg-white border rounded p-6">
-      <h1 className="text-xl font-semibold mb-4">Customers</h1>
-      <table className="w-full text-sm">
-        <thead className="bg-gray-50">
-          <tr>
-            {['Name', 'Email', 'Tier', 'Tenant', 'Created'].map((h) => (
-              <th key={h} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{h}</th>
-            ))}
-          </tr>
-        </thead>
-        <tbody className="divide-y">
-          {data.map((c: any) => (
-            <tr key={c.id}>
-              <td className="px-4 py-3">{c.first_name} {c.last_name}</td>
-              <td className="px-4 py-3">{c.email}</td>
-              <td className="px-4 py-3"><TierBadge tier={c.tier ?? 'STANDARD'} /></td>
-              <td className="px-4 py-3">{c.tenant_name ?? '-'}</td>
-              <td className="px-4 py-3 text-gray-600">{c.created_at ? new Date(c.created_at).toLocaleString() : '-'}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+    <div className="space-y-6">
+      <PageHeader title="Customers" description="All customers across the platform" />
+
+      {error && <ErrorAlert message="Unable to load customers" onRetry={refetch} />}
+
+      <Card title={`All Customers (${customers.length})`}>
+        {isLoading ? (
+          <div className="flex items-center justify-center h-40"><LoadingSpinner /></div>
+        ) : customers.length === 0 ? (
+          <EmptyState title="No customers found" />
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-neutral-200 text-left text-xs text-neutral-500">
+                  {['Name', 'Email', 'Tier', 'Tenant', 'Created'].map((h) => (
+                    <th key={h} className="pb-2 pr-4 font-medium">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-neutral-100">
+                {customers.map((c: any) => (
+                  <tr key={c.id} className="hover:bg-neutral-50">
+                    <td className="py-3 pr-4 font-medium text-gray-900">{c.first_name} {c.last_name}</td>
+                    <td className="py-3 pr-4 text-gray-600">{c.email ?? '—'}</td>
+                    <td className="py-3 pr-4">
+                      <Badge variant={tierVariant(c.tier ?? 'STANDARD')}>{c.tier ?? 'STANDARD'}</Badge>
+                    </td>
+                    <td className="py-3 pr-4 text-gray-600">{c.tenant_name ?? '—'}</td>
+                    <td className="py-3 text-gray-500">
+                      {c.created_at ? new Date(c.created_at).toLocaleDateString() : '—'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Card>
     </div>
   );
 }

@@ -1,18 +1,20 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { PageHeader } from '@/components/admin/PageHeader';
+import { Card } from '@/components/ui/Card';
+import { Badge } from '@/components/ui/Badge';
 
 function parseJwt(token: string | null) {
   if (!token) return null;
   try {
-    const payload = token.split('.')[1];
-    return JSON.parse(atob(payload));
+    return JSON.parse(atob(token.split('.')[1]));
   } catch {
     return null;
   }
 }
 
-export default function SettingsPage() {
+export default function AdminSettingsPage() {
   const [user, setUser] = useState<any>(null);
 
   useEffect(() => {
@@ -22,22 +24,39 @@ export default function SettingsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="bg-white border rounded p-6">
-        <h1 className="text-xl font-semibold text-gray-900">Platform Admin</h1>
-        <div className="mt-4 text-sm text-gray-700 space-y-2">
-          <div><span className="font-medium">User ID:</span> {user?.sub ?? 'Unknown'}</div>
-          <div><span className="font-medium">Role:</span> {user?.role ?? 'tenant_admin'}</div>
-          <div><span className="font-medium">isPlatformAdmin:</span> {String(user?.isPlatformAdmin ?? false)}</div>
-        </div>
-      </div>
+      <PageHeader title="Platform Settings" description="System configuration and admin session info" />
 
-      <div className="bg-white border rounded p-6">
-        <h2 className="text-lg font-semibold text-gray-900">System Status</h2>
-        <div className="mt-4 text-sm text-gray-700 space-y-2">
-          <div>API: <span className="text-green-700">Online ✅</span></div>
-          <div>Database: <span className="text-green-700">Connected ✅</span></div>
+      <Card title="Session Info">
+        <div className="space-y-3 text-sm text-gray-700">
+          <InfoRow label="User ID" value={user?.sub ?? '—'} />
+          <InfoRow label="Role" value={user?.role ?? '—'} />
+          <InfoRow
+            label="Platform Admin"
+            value=""
+            badge={
+              <Badge variant={user?.isPlatformAdmin ? 'success' : 'neutral'}>
+                {String(user?.isPlatformAdmin ?? false)}
+              </Badge>
+            }
+          />
         </div>
-      </div>
+      </Card>
+
+      <Card title="System Status">
+        <div className="space-y-3 text-sm text-gray-700">
+          <InfoRow label="API" value="" badge={<Badge variant="success">Online ✅</Badge>} />
+          <InfoRow label="Database" value="" badge={<Badge variant="success">Connected ✅</Badge>} />
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+function InfoRow({ label, value, badge }: { label: string; value: string; badge?: React.ReactNode }) {
+  return (
+    <div className="flex items-center justify-between">
+      <span className="text-gray-500">{label}</span>
+      {badge ?? <span className="font-medium text-gray-900">{value}</span>}
     </div>
   );
 }

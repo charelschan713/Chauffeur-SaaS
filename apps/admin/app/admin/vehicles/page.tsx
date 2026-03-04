@@ -3,6 +3,14 @@
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import api from '@/lib/api';
+import { PageHeader } from '@/components/admin/PageHeader';
+import { Card } from '@/components/ui/Card';
+import { Badge } from '@/components/ui/Badge';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
+import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import { ErrorAlert } from '@/components/ui/ErrorAlert';
+import { EmptyState } from '@/components/ui/EmptyState';
 
 interface VehicleRow {
   id: string;
@@ -11,12 +19,8 @@ interface VehicleRow {
   active: boolean;
 }
 
-function ActiveBadge({ active }: { active: boolean }) {
-  return <span className={`px-2 py-1 rounded text-xs ${active ? 'bg-green-100 text-green-800' : 'bg-gray-200 text-gray-700'}`}>{active ? 'Active' : 'Inactive'}</span>;
-}
-
-export default function VehiclesPage() {
-  const { data = [], isLoading, refetch } = useQuery({
+export default function AdminVehiclesPage() {
+  const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['platform-vehicles'],
     queryFn: async () => {
       const res = await api.get('/platform/vehicles');
@@ -24,27 +28,38 @@ export default function VehiclesPage() {
     },
   });
 
+  const vehicles = (Array.isArray(data) ? data : []) as VehicleRow[];
+
   const [form, setForm] = useState({ make: '', model: '' });
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
 
-  const vehicles = data as VehicleRow[];
   const editing = useMemo(() => vehicles.find((v) => v.id === editingId) ?? null, [vehicles, editingId]);
 
-  async function handleCreate() {
-    await api.post('/platform/vehicles', form);
-    setForm({ make: '', model: '' });
-    await refetch();
+  function startEdit(row: VehicleRow) {
+    setEditingId(row.id);
+    setForm({ make: row.make, model: row.model });
   }
 
-  async function handleUpdate() {
-    if (!editingId) return;
-    await api.patch(`/platform/vehicles/${editingId}`, {
-      make: form.make,
-      model: form.model,
-    });
+  function cancelEdit() {
     setEditingId(null);
     setForm({ make: '', model: '' });
-    await refetch();
+  }
+
+  async function handleSave() {
+    setSaving(true);
+    try {
+      if (editingId) {
+        await api.patch(`/platform/vehicles/${editingId}`, { make: form.make, model: form.model });
+        cancelEdit();
+      } else {
+        await api.post('/platform/vehicles', form);
+        setForm({ make: '', model: '' });
+      }
+      await refetch();
+    } finally {
+      setSaving(false);
+    }
   }
 
   async function deactivate(id: string) {
@@ -54,85 +69,71 @@ export default function VehiclesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="bg-white border rounded p-6 space-y-4">
-        <h1 className="text-xl font-semibold">Platform Vehicles</h1>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          <input
+      <PageHeader title="Platform Vehicles" description="Manage vehicle catalogue available to all tenants" />
+
+      {error && <ErrorAlert message="Unable to load vehicles" onRetry={refetch} />}
+
+      <Card title={editingId ? `Editing: ${editing?.make} ${editing?.model}` : 'Add Vehicle'}>
+        <div className="flex flex-col sm:flex-row gap-3">
+          <Input
             value={form.make}
-            onChange={(e) => setForm((prev) => ({ ...prev, make: e.target.value }))}
+            onChange={(e) => setForm((p) => ({ ...p, make: e.target.value }))}
             placeholder="Make"
-            className="border rounded px-3 py-2 text-sm"
           />
-          <input
+          <Input
             value={form.model}
-            onChange={(e) => setForm((prev) => ({ ...prev, model: e.target.value }))}
+            onChange={(e) => setForm((p) => ({ ...p, model: e.target.value }))}
             placeholder="Model"
-            className="border rounded px-3 py-2 text-sm"
           />
-          <div className="flex gap-2">
-            <button
-              onClick={editingId ? handleUpdate : handleCreate}
-              className="px-4 py-2 rounded bg-blue-600 text-white text-sm"
-            >
-              {editingId ? 'Update' : 'Create'}
-            </button>
+          <div className="flex gap-2 shrink-0">
+            <Button onClick={handleSave} disabled={saving || !form.make || !form.model}>
+              {saving ? 'Saving…' : editingId ? 'Update' : 'Add'}
+            </Button>
             {editingId && (
-              <button
-                onClick={() => { setEditingId(null); setForm({ make: '', model: '' }); }}
-                className="px-4 py-2 rounded border text-sm"
-              >
-                Cancel
-              </button>
+              <Button variant="secondary" onClick={cancelEdit}>Cancel</Button>
             )}
           </div>
         </div>
-      </div>
+      </Card>
 
-      {isLoading ? (
-        <div className="text-gray-500">Loading...</div>
-      ) : (
-        <div className="bg-white border rounded">
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50">
-              <tr>
-                {['Make', 'Model', 'Status', ''].map((h) => (
-                  <th key={h} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    {h}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y">
-              {vehicles.map((row) => (
-                <tr key={row.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-3 font-medium">{row.make}</td>
-                  <td className="px-4 py-3">{row.model}</td>
-                  <td className="px-4 py-3"><ActiveBadge active={row.active} /></td>
-                  <td className="px-4 py-3 text-right space-x-2">
-                    <button
-                      onClick={() => {
-                        setEditingId(row.id);
-                        setForm({ make: row.make, model: row.model });
-                      }}
-                      className="text-blue-600 hover:underline"
-                    >
-                      Edit
-                    </button>
-                    {row.active && (
-                      <button
-                        onClick={() => deactivate(row.id)}
-                        className="text-red-600 hover:underline"
-                      >
-                        Deactivate
-                      </button>
-                    )}
-                  </td>
+      <Card title={`Vehicles (${vehicles.length})`}>
+        {isLoading ? (
+          <div className="flex items-center justify-center h-40"><LoadingSpinner /></div>
+        ) : vehicles.length === 0 ? (
+          <EmptyState title="No vehicles yet" description="Add a vehicle using the form above." />
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-neutral-200 text-left text-xs text-neutral-500">
+                  {['Make', 'Model', 'Status', ''].map((h) => (
+                    <th key={h} className="pb-2 pr-4 font-medium">{h}</th>
+                  ))}
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+              </thead>
+              <tbody className="divide-y divide-neutral-100">
+                {vehicles.map((row) => (
+                  <tr key={row.id} className="hover:bg-neutral-50">
+                    <td className="py-3 pr-4 font-medium text-gray-900">{row.make}</td>
+                    <td className="py-3 pr-4 text-gray-600">{row.model}</td>
+                    <td className="py-3 pr-4">
+                      <Badge variant={row.active ? 'success' : 'neutral'}>{row.active ? 'Active' : 'Inactive'}</Badge>
+                    </td>
+                    <td className="py-3 text-right space-x-2">
+                      <Button variant="ghost" onClick={() => startEdit(row)}>Edit</Button>
+                      {row.active && (
+                        <Button variant="ghost" onClick={() => deactivate(row.id)} className="text-red-600 hover:text-red-700">
+                          Deactivate
+                        </Button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Card>
     </div>
   );
 }
