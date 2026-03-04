@@ -85,7 +85,6 @@ export class AuthController {
     res.clearCookie('refresh_token', { path: '/auth' });
     return res.json({ success: true });
   }
-}
 
   // ─── Mobile-friendly endpoints (token in body, no cookies) ───────────────
 
