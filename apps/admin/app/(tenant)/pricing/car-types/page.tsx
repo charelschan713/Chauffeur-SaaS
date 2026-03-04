@@ -100,21 +100,27 @@ export default function CarTypesPage() {
   const items = (data as ServiceClassRow[]).filter((i) => i?.name?.trim());
   const editing = useMemo(() => items.find((i) => i.id === editingId) ?? null, [items, editingId]);
 
+  function buildPayload() {
+    return {
+      name: form.name,
+      description: form.description || null,
+      base_fare_minor: toMinor(form.base_fare_minor),
+      per_km_minor: toMinor(form.per_km_minor),
+      per_min_driving_minor: toMinor(form.per_min_driving_minor),
+      per_min_waiting_minor: toMinor(form.per_min_waiting_minor),
+      minimum_fare_minor: toMinor(form.minimum_fare_minor),
+      waypoint_minor: toMinor(form.waypoint_minor),
+      infant_seat_minor: toMinor(form.infant_seat_minor),
+      toddler_seat_minor: toMinor(form.toddler_seat_minor),
+      booster_seat_minor: toMinor(form.booster_seat_minor),
+      hourly_rate_minor: toMinor(form.hourly_rate_minor),
+    };
+  }
+
   async function handleCreate() {
     setFormSaving(true);
     try {
-      await api.post('/pricing/service-classes', {
-        name: form.name,
-        description: form.description || null,
-        displayOrder: Number(form.display_order) || 0,
-        base_fare_minor: toMinor(form.base_fare_minor),
-        per_km_minor: toMinor(form.per_km_minor),
-        per_min_driving_minor: toMinor(form.per_min_driving_minor),
-        per_min_waiting_minor: toMinor(form.per_min_waiting_minor),
-        minimum_fare_minor: toMinor(form.minimum_fare_minor),
-        booster_seat_minor: toMinor(form.booster_seat_minor),
-        hourly_rate_minor: toMinor(form.hourly_rate_minor),
-      });
+      await api.post('/pricing/service-classes', buildPayload());
       setForm(emptyForm);
       await refetch();
     } finally {
@@ -126,19 +132,7 @@ export default function CarTypesPage() {
     if (!editingId) return;
     setFormSaving(true);
     try {
-      await api.patch(`/pricing/service-classes/${editingId}`, {
-        name: form.name,
-        description: form.description || null,
-        displayOrder: Number(form.display_order) || 0,
-        base_fare_minor: toMinor(form.base_fare_minor),
-        per_km_minor: toMinor(form.per_km_minor),
-        per_min_driving_minor: toMinor(form.per_min_driving_minor),
-        per_min_waiting_minor: toMinor(form.per_min_waiting_minor),
-        minimum_fare_minor: toMinor(form.minimum_fare_minor),
-        booster_seat_minor: toMinor(form.booster_seat_minor),
-        hourly_rate_minor: toMinor(form.hourly_rate_minor),
-        waypoint_minor: toMinor(form.waypoint_minor),
-      });
+      await api.patch(`/pricing/service-classes/${editingId}`, buildPayload());
       setEditingId(null);
       setForm(emptyForm);
       await refetch();
@@ -199,43 +193,135 @@ export default function CarTypesPage() {
         </Button>
       }
       filters={
-        <div ref={formRef}>
-        {editingId && editing && (
-          <div className="mb-3 px-3 py-2 bg-blue-50 border border-blue-200 rounded text-sm text-blue-700 font-medium">
-            ✏️ Editing: {editing.name}
-          </div>
-        )}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Field label="Name">
-            <Input
-              value={form.name}
-              onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
-            />
-          </Field>
-          <Field label="Description">
-            <Input
-              value={form.description}
-              onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))}
-            />
-          </Field>
+        <div ref={formRef} className="space-y-5">
+          {editingId && editing && (
+            <div className="px-3 py-2 bg-blue-50 border border-blue-200 rounded text-sm text-blue-700 font-medium">
+              ✏️ Editing: {editing.name}
+            </div>
+          )}
 
-          <div className="flex items-end gap-2">
-            <Button onClick={editingId ? handleUpdate : handleCreate} disabled={formSaving}>
-              {formSaving ? <><InlineSpinner />{editingId ? 'Updating...' : 'Creating...'}</> : (editingId ? 'Update' : 'Create')}
+          {/* ── Identity ─────────────────────────────────────── */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Field label="Car Type Name *">
+              <Input
+                value={form.name}
+                placeholder="e.g. Luxury Sedan"
+                onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
+              />
+            </Field>
+            <Field label="Description">
+              <Input
+                value={form.description}
+                placeholder="Brief description shown to customers"
+                onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))}
+              />
+            </Field>
+          </div>
+
+          {/* ── Point-to-Point Pricing ───────────────────────── */}
+          <div>
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Point-to-Point Pricing</p>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+              <Field label="Base Fare ($)">
+                <Input
+                  type="number" min="0" step="0.01"
+                  value={form.base_fare_minor}
+                  onChange={(e) => setForm((prev) => ({ ...prev, base_fare_minor: e.target.value }))}
+                />
+              </Field>
+              <Field label="Per Km ($)">
+                <Input
+                  type="number" min="0" step="0.01"
+                  value={form.per_km_minor}
+                  onChange={(e) => setForm((prev) => ({ ...prev, per_km_minor: e.target.value }))}
+                />
+              </Field>
+              <Field label="Per Min Driving ($)">
+                <Input
+                  type="number" min="0" step="0.01"
+                  value={form.per_min_driving_minor}
+                  onChange={(e) => setForm((prev) => ({ ...prev, per_min_driving_minor: e.target.value }))}
+                />
+              </Field>
+              <Field label="Per Min Waiting ($)">
+                <Input
+                  type="number" min="0" step="0.01"
+                  value={form.per_min_waiting_minor}
+                  onChange={(e) => setForm((prev) => ({ ...prev, per_min_waiting_minor: e.target.value }))}
+                />
+              </Field>
+              <Field label="Minimum Fare ($)">
+                <Input
+                  type="number" min="0" step="0.01"
+                  value={form.minimum_fare_minor}
+                  onChange={(e) => setForm((prev) => ({ ...prev, minimum_fare_minor: e.target.value }))}
+                />
+              </Field>
+              <Field label="Waypoint Surcharge ($)">
+                <Input
+                  type="number" min="0" step="0.01"
+                  value={form.waypoint_minor}
+                  onChange={(e) => setForm((prev) => ({ ...prev, waypoint_minor: e.target.value }))}
+                />
+              </Field>
+            </div>
+          </div>
+
+          {/* ── Hourly Pricing ───────────────────────────────── */}
+          <div>
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Hourly Charter Pricing</p>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+              <Field label="Hourly Rate ($)">
+                <Input
+                  type="number" min="0" step="0.01"
+                  value={form.hourly_rate_minor}
+                  onChange={(e) => setForm((prev) => ({ ...prev, hourly_rate_minor: e.target.value }))}
+                />
+              </Field>
+            </div>
+          </div>
+
+          {/* ── Seat Surcharges ──────────────────────────────── */}
+          <div>
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Child Seat Surcharges</p>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+              <Field label="Infant Seat ($)">
+                <Input
+                  type="number" min="0" step="0.01"
+                  value={form.infant_seat_minor}
+                  onChange={(e) => setForm((prev) => ({ ...prev, infant_seat_minor: e.target.value }))}
+                />
+              </Field>
+              <Field label="Toddler Seat ($)">
+                <Input
+                  type="number" min="0" step="0.01"
+                  value={form.toddler_seat_minor}
+                  onChange={(e) => setForm((prev) => ({ ...prev, toddler_seat_minor: e.target.value }))}
+                />
+              </Field>
+              <Field label="Booster Seat ($)">
+                <Input
+                  type="number" min="0" step="0.01"
+                  value={form.booster_seat_minor}
+                  onChange={(e) => setForm((prev) => ({ ...prev, booster_seat_minor: e.target.value }))}
+                />
+              </Field>
+            </div>
+          </div>
+
+          {/* ── Actions ──────────────────────────────────────── */}
+          <div className="flex items-center gap-2 pt-1">
+            <Button onClick={editingId ? handleUpdate : handleCreate} disabled={formSaving || !form.name.trim()}>
+              {formSaving
+                ? <><InlineSpinner />{editingId ? 'Updating...' : 'Creating...'}</>
+                : editingId ? 'Update Car Type' : 'Create Car Type'}
             </Button>
             {editingId && (
-              <Button
-                variant="secondary"
-                onClick={() => {
-                  setEditingId(null);
-                  setForm(emptyForm);
-                }}
-              >
+              <Button variant="secondary" onClick={() => { setEditingId(null); setForm(emptyForm); }}>
                 Cancel
               </Button>
             )}
           </div>
-        </div>
         </div>
       }
       table={
