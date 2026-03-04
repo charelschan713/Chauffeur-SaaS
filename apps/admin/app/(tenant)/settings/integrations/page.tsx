@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import api from '@/lib/api';
 import { ConfirmModal } from '@/components/ui/ConfirmModal';
 import { Toast } from '@/components/ui/Toast';
+import {PageLoader, InlineSpinner} from '@/components/ui/LoadingSpinner';
 
 interface IntegrationRow {
   type: string;
@@ -95,6 +96,7 @@ export default function IntegrationsPage() {
   const [testStatus, setTestStatus] = useState<Record<string, { ok: boolean; message: string }>>({});
   const [removeTarget, setRemoveTarget] = useState<string | null>(null);
   const [removing, setRemoving] = useState(false);
+  const [intSaving, setIntSaving] = useState(false);
   const [toast, setToast] = useState<{ message: string; tone: 'success' | 'error' } | null>(null);
 
   useEffect(() => {
@@ -105,6 +107,8 @@ export default function IntegrationsPage() {
   }, []);
 
   async function saveIntegration(type: string) {
+    setIntSaving(true);
+    try {
     const config = formState[type]?.config ?? {};
     const rawKey = config.password || config.api_key || '';
     const maskedPreview = rawKey ? `****${rawKey.slice(-4)}` : null;

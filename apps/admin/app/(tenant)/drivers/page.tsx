@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Table } from '@/components/ui/Table';
 import { Badge } from '@/components/ui/Badge';
-import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import {LoadingSpinner, PageLoader, InlineSpinner} from '@/components/ui/LoadingSpinner';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ErrorAlert } from '@/components/ui/ErrorAlert';
 import { ConfirmModal } from '@/components/ui/ConfirmModal';
@@ -38,6 +38,7 @@ export default function DriversPage() {
   const [toast, setToast] = useState<{ message: string; tone: 'success' | 'error' } | null>(null);
 
   async function handleCreate() {
+    setFormSaving(true);
     try {
       await api.post('/drivers', { full_name: form.full_name, email: form.email, phone_country_code: form.phone_country_code, phone_number: form.phone_number });
       setForm({ id: '', full_name: '', email: '', phone_country_code: '+61', phone_number: '' });
@@ -45,11 +46,14 @@ export default function DriversPage() {
       setToast({ message: 'Driver created', tone: 'success' });
     } catch (err: any) {
       setToast({ message: err?.response?.data?.message ?? 'Failed to create driver', tone: 'error' });
+    } finally {
+      setFormSaving(false);
     }
   }
 
   async function handleUpdate() {
     if (!form.id) return;
+    setFormSaving(true);
     try {
       await api.patch(`/drivers/${form.id}`, { full_name: form.full_name, email: form.email, phone_country_code: form.phone_country_code, phone_number: form.phone_number });
       setForm({ id: '', full_name: '', email: '', phone_country_code: '+61', phone_number: '' });
@@ -57,6 +61,8 @@ export default function DriversPage() {
       setToast({ message: 'Driver updated', tone: 'success' });
     } catch (err: any) {
       setToast({ message: err?.response?.data?.message ?? 'Failed to update driver', tone: 'error' });
+    } finally {
+      setFormSaving(false);
     }
   }
 
@@ -110,11 +116,11 @@ export default function DriversPage() {
               <div className="flex gap-2 mt-3">
                 {form.id ? (
                   <>
-                    <Button onClick={handleUpdate}>Update Driver</Button>
+                    <Button onClick={handleUpdate} disabled={formSaving}>{formSaving ? <><InlineSpinner />Saving...</> : 'Update Driver'}</Button>
                     <Button variant="secondary" onClick={() => setForm({ id: '', full_name: '', email: '', phone_country_code: '+61', phone_number: '' })}>Cancel</Button>
                   </>
                 ) : (
-                  <Button onClick={handleCreate}>Create Driver</Button>
+                  <Button onClick={handleCreate} disabled={formSaving}>{formSaving ? <><InlineSpinner />Creating...</> : 'Create Driver'}</Button>
                 )}
               </div>
             </div>

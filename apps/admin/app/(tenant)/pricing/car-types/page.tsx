@@ -6,7 +6,7 @@ import { ListPage } from '@/components/patterns/ListPage';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Table } from '@/components/ui/Table';
-import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import {LoadingSpinner, PageLoader, InlineSpinner} from '@/components/ui/LoadingSpinner';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ErrorAlert } from '@/components/ui/ErrorAlert';
 import { ConfirmModal } from '@/components/ui/ConfirmModal';
@@ -91,6 +91,7 @@ export default function CarTypesPage() {
   const [form, setForm] = useState(emptyForm);
   const [editingId, setEditingId] = useState<string | null>(null);
   const formRef = useRef<HTMLDivElement>(null);
+  const [formSaving, setFormSaving] = useState(false);
   const [deactivateId, setDeactivateId] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; tone: 'success' | 'error' } | null>(null);
@@ -119,10 +120,13 @@ export default function CarTypesPage() {
     });
     setForm(emptyForm);
     await refetch();
+    } finally { setFormSaving(false); }
   }
 
   async function handleUpdate() {
     if (!editingId) return;
+    setFormSaving(true);
+    try {
     await api.patch(`/pricing/service-classes/${editingId}`, {
       name: form.name,
       description: form.description || null,
@@ -142,6 +146,7 @@ export default function CarTypesPage() {
     setEditingId(null);
     setForm(emptyForm);
     await refetch();
+    } finally { setFormSaving(false); }
   }
 
   async function handleDeactivate() {
@@ -245,8 +250,8 @@ export default function CarTypesPage() {
           </div>
 
           <div className="flex items-end gap-2">
-            <Button onClick={editingId ? handleUpdate : handleCreate}>
-              {editingId ? 'Update' : 'Create'}
+            <Button onClick={editingId ? handleUpdate : handleCreate} disabled={formSaving}>
+              {formSaving ? <><InlineSpinner />{editingId ? 'Updating...' : 'Creating...'}</> : (editingId ? 'Update' : 'Create')}
             </Button>
             {editingId && (
               <Button

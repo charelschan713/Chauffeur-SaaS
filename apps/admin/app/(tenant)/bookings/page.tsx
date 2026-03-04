@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { EmptyState } from '@/components/ui/EmptyState';
-import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import { LoadingSpinner, PageLoader, InlineSpinner } from '@/components/ui/LoadingSpinner';
 import { getBookingStatusBadge } from '@/lib/ui/statusBadge';
 
 interface Booking {

@@ -11,7 +11,7 @@ import { PageHeader } from '@/components/admin/PageHeader';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
-import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import {LoadingSpinner, PageLoader, InlineSpinner} from '@/components/ui/LoadingSpinner';
 import { BookingStatusTimeline } from '@/components/admin/BookingStatusTimeline';
 import { Toast } from '@/components/ui/Toast';
 import Link from 'next/link';
@@ -106,6 +106,7 @@ function BookingDetailInner() {
   });
 
   if (isLoading) {
+  if (isError) return <ErrorAlert message="Failed to load data." onRetry={() => refetch()} />;
     return (
       <div className="flex items-center justify-center h-64">
         <LoadingSpinner />

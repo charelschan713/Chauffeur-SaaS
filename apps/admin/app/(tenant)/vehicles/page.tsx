@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { Table } from '@/components/ui/Table';
-import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import {LoadingSpinner, PageLoader, InlineSpinner} from '@/components/ui/LoadingSpinner';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ErrorAlert } from '@/components/ui/ErrorAlert';
 import { ConfirmModal } from '@/components/ui/ConfirmModal';
@@ -35,6 +35,8 @@ export default function VehiclesPage() {
   const vehicles = data ?? [];
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deactivateTarget, setDeactivateTarget] = useState<{ id: string; label: string } | null>(null);
+  const [formSaving, setFormSaving] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
   const [deactivating, setDeactivating] = useState(false);
   const [toast, setToast] = useState<{ message: string; tone: 'success' | 'error' } | null>(null);
   const [form, setForm] = useState({
@@ -63,6 +65,9 @@ export default function VehiclesPage() {
 
   async function handleUpdate() {
     if (!editingId) return;
+    setFormSaving(true);
+    setFormError(null);
+    try {
     await api.patch(`/vehicles/${editingId}`, {
       platform_vehicle_id: form.platform_vehicle_id || null,
       year: form.year ? Number(form.year) : null,
@@ -74,6 +79,7 @@ export default function VehiclesPage() {
     });
     setEditingId(null);
     await queryClient.invalidateQueries({ queryKey: ['tenant-vehicles'] });
+    } catch (e: any) { setFormError(e?.response?.data?.message ?? 'Failed to save'); } finally { setFormSaving(false); }
   }
 
   async function confirmDeactivate() {
@@ -141,7 +147,7 @@ export default function VehiclesPage() {
                   <Input placeholder="Notes" value={form.notes} onChange={(e) => setForm((p) => ({ ...p, notes: e.target.value }))} />
                 </div>
                 <div className="flex gap-2">
-                  <Button onClick={handleUpdate}>Save</Button>
+                  <Button onClick={handleUpdate} disabled={formSaving}>{formSaving ? <><InlineSpinner />Saving...</> : 'Save'}</Button>
                   <Button variant="secondary" onClick={() => setEditingId(null)}>Cancel</Button>
                 </div>
               </div>

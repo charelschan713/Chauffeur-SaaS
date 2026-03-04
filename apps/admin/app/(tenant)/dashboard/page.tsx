@@ -9,6 +9,7 @@ import { Card } from '@/components/ui/Card';
 import { Table } from '@/components/ui/Table';
 import { Badge } from '@/components/ui/Badge';
 import { ErrorAlert } from '@/components/ui/ErrorAlert';
+import {PageLoader, InlineSpinner} from '@/components/ui/LoadingSpinner';
 
 export default function DashboardPage() {
   const router = useRouter();

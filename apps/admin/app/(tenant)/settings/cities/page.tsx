@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { ListPage } from '@/components/patterns/ListPage';
+import {PageLoader, InlineSpinner} from '@/components/ui/LoadingSpinner';
 
 const TIMEZONES = [
   'Australia/Sydney',
@@ -91,7 +92,7 @@ export default function CitiesPage() {
             disabled={saving}
             className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-60"
           >
-            {saving ? 'Saving...' : 'Add City'}
+            {saving ? <><InlineSpinner />Saving...</> : 'Add City'}
           </button>
         </div>
       }
