@@ -2,14 +2,13 @@
 
 import React from 'react';
 import { usePathname } from 'next/navigation';
-import { Button } from '@/components/ui/Button';
+import { ChevronRight, Bell } from 'lucide-react';
 
 interface AdminTopbarProps {
   tenantName?: string;
   onLogout?: () => void;
 }
 
-// Friendly label map for known route segments
 const SEGMENT_LABELS: Record<string, string> = {
   admin: 'Admin',
   bookings: 'Bookings',
@@ -23,22 +22,25 @@ const SEGMENT_LABELS: Record<string, string> = {
   tenants: 'Tenants',
   overview: 'Overview',
   new: 'New',
+  general: 'General',
+  cities: 'Cities',
+  templates: 'Templates',
+  integrations: 'Integrations',
+  'car-types': 'Car Types',
+  'service-types': 'Service Types',
 };
 
-// UUID-like: 20+ hex chars or standard UUID pattern
 const UUID_RE = /^[0-9a-fA-F-]{20,}$/;
 
 function friendlySegment(seg: string): string | null {
   if (UUID_RE.test(seg)) return 'Details';
   if (SEGMENT_LABELS[seg]) return SEGMENT_LABELS[seg];
-  // fallback: capitalise words
   return seg.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 export function AdminTopbar({ tenantName = 'Tenant', onLogout }: AdminTopbarProps) {
   const pathname = usePathname();
   const rawSegments = pathname?.split('/').filter(Boolean) ?? [];
-
   const crumbs = rawSegments
     .map((seg) => friendlySegment(seg))
     .filter((label): label is string => label !== null);
@@ -46,32 +48,46 @@ export function AdminTopbar({ tenantName = 'Tenant', onLogout }: AdminTopbarProp
   const pageTitle = crumbs[crumbs.length - 1] ?? 'Dashboard';
 
   return (
-    <div className="flex items-center justify-between h-14 border-b border-gray-200 bg-white px-6">
-      <div className="space-y-0.5">
-        {crumbs.length > 1 && (
-          <nav aria-label="Breadcrumb" className="text-xs text-gray-400">
-            {crumbs.slice(0, -1).map((crumb, i) => (
-              <span key={i}>
-                {i > 0 && <span className="mx-1">/</span>}
-                <span>{crumb}</span>
+    <header className="flex items-center justify-between h-14 border-b border-gray-200 bg-white px-6 shrink-0">
+      {/* Breadcrumb */}
+      <nav className="flex items-center gap-1 text-sm" aria-label="Breadcrumb">
+        {crumbs.length > 1 ? (
+          crumbs.map((crumb, i) => (
+            <React.Fragment key={i}>
+              {i > 0 && <ChevronRight className="w-3.5 h-3.5 text-gray-300" />}
+              <span
+                className={
+                  i === crumbs.length - 1
+                    ? 'font-semibold text-gray-900'
+                    : 'text-gray-400 hover:text-gray-600'
+                }
+              >
+                {crumb}
               </span>
-            ))}
-            <span className="mx-1">/</span>
-            <span className="text-gray-600 font-medium">{pageTitle}</span>
-          </nav>
+            </React.Fragment>
+          ))
+        ) : (
+          <span className="font-semibold text-gray-900">{pageTitle}</span>
         )}
-        <div className="text-base font-semibold text-gray-900">{pageTitle}</div>
+      </nav>
+
+      {/* Right side */}
+      <div className="flex items-center gap-3">
+        {/* Notification bell (UI only) */}
+        <button className="relative p-1.5 rounded-md hover:bg-gray-100 text-gray-500 transition-colors">
+          <Bell className="w-4 h-4" />
+        </button>
+
+        {/* Tenant name + avatar */}
+        <div className="flex items-center gap-2 pl-3 border-l border-gray-200">
+          <div className="w-7 h-7 rounded-full bg-blue-600 flex items-center justify-center text-xs font-semibold text-white select-none">
+            {tenantName?.charAt(0).toUpperCase()}
+          </div>
+          <span className="text-sm font-medium text-gray-700 max-w-[120px] truncate">
+            {tenantName}
+          </span>
+        </div>
       </div>
-      <div className="flex items-center gap-4">
-        <div className="text-sm text-gray-500">{tenantName}</div>
-        <div
-          className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-xs text-gray-500 select-none"
-          aria-hidden="true"
-        />
-        <Button variant="ghost" onClick={onLogout} className="text-gray-600">
-          Logout
-        </Button>
-      </div>
-    </div>
+    </header>
   );
 }

@@ -13,6 +13,7 @@ import { ErrorAlert } from '@/components/ui/ErrorAlert';
 import { ConfirmModal } from '@/components/ui/ConfirmModal';
 import { Toast } from '@/components/ui/Toast';
 import { PhoneSplitField, formatPhone } from '@/components/ui/PhoneSplitField';
+import { formatStatus } from '@/lib/ui/formatStatus';
 
 type MembershipStatus = 'active' | 'inactive' | 'suspended';
 
@@ -35,6 +36,7 @@ export default function DriversPage() {
   const [form, setForm] = useState({ id: '', full_name: '', email: '', phone_country_code: '+61', phone_number: '' });
   const [statusAction, setStatusAction] = useState<{ id: string; name: string; action: 'deactivate' | 'suspend' | 'reactivate' } | null>(null);
   const [statusSaving, setStatusSaving] = useState(false);
+  const [formSaving, setFormSaving] = useState(false);
   const [toast, setToast] = useState<{ message: string; tone: 'success' | 'error' } | null>(null);
 
   async function handleCreate() {

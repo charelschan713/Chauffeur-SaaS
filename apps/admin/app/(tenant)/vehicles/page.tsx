@@ -13,6 +13,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { ErrorAlert } from '@/components/ui/ErrorAlert';
 import { ConfirmModal } from '@/components/ui/ConfirmModal';
 import { Toast } from '@/components/ui/Toast';
+import { formatStatus } from '@/lib/ui/formatStatus';
 
 export default function VehiclesPage() {
   const queryClient = useQueryClient();

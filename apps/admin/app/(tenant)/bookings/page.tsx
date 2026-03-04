@@ -14,6 +14,7 @@ import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { LoadingSpinner, PageLoader, InlineSpinner } from '@/components/ui/LoadingSpinner';
+import { formatStatus } from '@/lib/ui/formatStatus';
 import { getBookingStatusBadge } from '@/lib/ui/statusBadge';
 
 interface Booking {
@@ -123,10 +124,12 @@ export default function BookingsPage() {
               }}
             >
               <option value="">All Status</option>
-              {['DRAFT','PENDING','CONFIRMED','ASSIGNED','IN_PROGRESS','JOB_STARTED','COMPLETED','JOB_COMPLETED','CANCELLED','NO_SHOW'].map((status) => (
-                <option key={status} value={status}>
-                  {status}
-                </option>
+              {[
+                ['DRAFT','Draft'],['PENDING','Pending'],['CONFIRMED','Confirmed'],['ASSIGNED','Assigned'],
+                ['IN_PROGRESS','In Progress'],['JOB_STARTED','In Progress'],['COMPLETED','Completed'],
+                ['JOB_COMPLETED','Completed'],['CANCELLED','Cancelled'],['NO_SHOW','No Show'],
+              ].map(([val, label]) => (
+                <option key={val} value={val}>{label}</option>
               ))}
             </Select>
             <Input type="date" disabled title="Coming soon" className="text-gray-400" />
@@ -137,8 +140,18 @@ export default function BookingsPage() {
       />
 
       {isLoading ? (
-        <div className="flex items-center justify-center h-32">
-          <LoadingSpinner />
+        <div className="space-y-1 bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+          {[...Array(6)].map((_, i) => (
+            <div key={i} className="flex items-center gap-4 px-6 py-4 border-b border-gray-50 animate-pulse">
+              <div className="h-3 w-20 bg-gray-100 rounded" />
+              <div className="h-3 w-28 bg-gray-100 rounded" />
+              <div className="h-3 flex-1 bg-gray-100 rounded hidden md:block" />
+              <div className="h-3 w-24 bg-gray-100 rounded hidden lg:block" />
+              <div className="h-5 w-16 bg-gray-100 rounded-full" />
+              <div className="h-5 w-12 bg-gray-100 rounded-full" />
+              <div className="h-3 w-16 bg-gray-100 rounded ml-auto" />
+            </div>
+          ))}
         </div>
       ) : bookings.length === 0 ? (
         <EmptyState

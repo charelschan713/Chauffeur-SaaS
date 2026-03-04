@@ -109,31 +109,36 @@ export default function IntegrationsPage() {
   async function saveIntegration(type: string) {
     setIntSaving(true);
     try {
-    const config = formState[type]?.config ?? {};
-    const rawKey = config.password || config.api_key || '';
-    const maskedPreview = rawKey ? `****${rawKey.slice(-4)}` : null;
-    await api.post(`/integrations/${type}`, {
-      config,
-      maskedPreview,
-    });
-    try {
-      const testRes = await api.post(`/integrations/test/${type}`);
-      setTestStatus((prev) => ({
-        ...prev,
-        [type]: {
-          ok: Boolean(testRes.data?.success),
-          message: testRes.data?.message ?? 'Connection test completed',
-        },
-      }));
-    } catch (err: any) {
-      const message = err?.response?.data?.message ?? 'Connection test failed';
-      setTestStatus((prev) => ({
-        ...prev,
-        [type]: { ok: false, message },
-      }));
+      const config = formState[type]?.config ?? {};
+      const rawKey = config.password || config.api_key || '';
+      const maskedPreview = rawKey ? `****${rawKey.slice(-4)}` : null;
+      await api.post(`/integrations/${type}`, {
+        config,
+        maskedPreview,
+      });
+      try {
+        const testRes = await api.post(`/integrations/test/${type}`);
+        setTestStatus((prev) => ({
+          ...prev,
+          [type]: {
+            ok: Boolean(testRes.data?.success),
+            message: testRes.data?.message ?? 'Connection test completed',
+          },
+        }));
+      } catch (err: any) {
+        const message = err?.response?.data?.message ?? 'Connection test failed';
+        setTestStatus((prev) => ({
+          ...prev,
+          [type]: { ok: false, message },
+        }));
+      }
+      const refreshed = await api.get('/integrations');
+      setRows(refreshed.data ?? []);
+    } catch (e: any) {
+      setToast({ message: e?.response?.data?.message ?? 'Save failed', tone: 'error' });
+    } finally {
+      setIntSaving(false);
     }
-    const refreshed = await api.get('/integrations');
-    setRows(refreshed.data ?? []);
   }
 
   async function removeIntegration() {

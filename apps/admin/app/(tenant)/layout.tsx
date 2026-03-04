@@ -2,47 +2,59 @@
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 import { AdminTopbar } from '@/components/admin/AdminTopbar';
+import {
+  LayoutDashboard,
+  CalendarCheck,
+  MapPin,
+  Users,
+  Car,
+  Truck,
+  Tag,
+  Layers,
+  Settings,
+  Building2,
+  Map,
+  Puzzle,
+  LogOut,
+  ChevronRight,
+} from 'lucide-react';
 
 const NAV_SECTIONS = [
   {
     title: 'Operations',
     items: [
-      { href: '/dashboard', label: 'Dashboard' },
-      { href: '/bookings', label: 'Bookings' },
-      { href: '/dispatch', label: 'Dispatch' },
-      { href: '/customers', label: 'Customers' },
+      { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+      { href: '/bookings', label: 'Bookings', icon: CalendarCheck },
+      { href: '/dispatch', label: 'Dispatch', icon: MapPin },
+      { href: '/customers', label: 'Customers', icon: Users },
     ],
   },
   {
     title: 'Fleet',
     items: [
-      { href: '/drivers', label: 'Drivers' },
-      { href: '/vehicles', label: 'Vehicles' },
+      { href: '/drivers', label: 'Drivers', icon: Car },
+      { href: '/vehicles', label: 'Vehicles', icon: Truck },
     ],
   },
   {
     title: 'Pricing',
     items: [
-      { href: '/pricing/car-types', label: 'Car Types' },
-      { href: '/pricing/service-types', label: 'Service Types' },
+      { href: '/pricing/car-types', label: 'Car Types', icon: Tag },
+      { href: '/pricing/service-types', label: 'Service Types', icon: Layers },
     ],
   },
   {
     title: 'Settings',
     items: [
-      { href: '/settings/general', label: 'General' },
-      { href: '/settings/cities', label: 'Cities' },
-      { href: '/settings/templates', label: 'Templates' },
-      { href: '/settings/integrations', label: 'Integrations' },
+      { href: '/settings/general', label: 'General', icon: Settings },
+      { href: '/settings/cities', label: 'Cities', icon: Building2 },
+      { href: '/settings/templates', label: 'Templates', icon: Map },
+      { href: '/settings/integrations', label: 'Integrations', icon: Puzzle },
     ],
   },
 ];
 
-export default function TenantLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function TenantLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
 
@@ -57,50 +69,72 @@ export default function TenantLayout({
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="flex">
-        <aside className="w-64 bg-gray-900 text-gray-300 min-h-screen flex flex-col px-3 py-4">
-          <div className="px-3 py-2 text-lg font-semibold text-white">Chauffeur Admin</div>
-          <nav className="flex-1 space-y-5">
-            {NAV_SECTIONS.map((section) => (
-              <div key={section.title}>
-                <div className="mt-4 mb-2 px-3 text-xs text-gray-400 tracking-wider uppercase">
-                  {section.title}
-                </div>
-                <div className="space-y-1">
-                  {section.items.map((item) => {
-                    const isActive = pathname === item.href || pathname?.startsWith(`${item.href}/`);
-                    return (
-                      <Link
-                        key={item.href}
-                        href={item.href}
-                        className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm transition ${
-                          isActive
-                            ? 'bg-gray-800 text-white border-l-2 border-blue-500 pl-[calc(0.75rem-2px)]'
-                            : 'hover:bg-gray-800 hover:text-white'
-                        }`}
-                      >
-                        {item.label}
-                      </Link>
-                    );
-                  })}
-                </div>
-              </div>
-            ))}
-          </nav>
-          <div className="mt-auto">
-            <button
-              onClick={handleLogout}
-              className="w-full px-3 py-2 rounded-md text-sm text-gray-300 hover:bg-gray-800 hover:text-white"
-            >
-              Sign out
-            </button>
+    <div className="min-h-screen bg-gray-50 flex">
+      {/* Sidebar */}
+      <aside className="w-60 bg-[#0f1117] text-gray-400 min-h-screen flex flex-col shrink-0">
+        {/* Logo */}
+        <div className="flex items-center gap-2.5 px-4 h-14 border-b border-white/5">
+          <div className="w-7 h-7 rounded-lg bg-blue-600 flex items-center justify-center shrink-0">
+            <Car className="w-4 h-4 text-white" />
           </div>
-        </aside>
-        <main className="flex-1">
-          <AdminTopbar tenantName="Tenant" onLogout={handleLogout} />
-          <div className="p-6">{children}</div>
-        </main>
+          <span className="text-sm font-semibold text-white tracking-tight">Chauffeur Admin</span>
+        </div>
+
+        {/* Nav */}
+        <nav className="flex-1 overflow-y-auto px-2 py-3 space-y-5">
+          {NAV_SECTIONS.map((section) => (
+            <div key={section.title}>
+              <div className="px-3 mb-1.5 text-[10px] font-semibold text-gray-500 uppercase tracking-widest">
+                {section.title}
+              </div>
+              <div className="space-y-0.5">
+                {section.items.map((item) => {
+                  const isActive =
+                    pathname === item.href || pathname?.startsWith(`${item.href}/`);
+                  const Icon = item.icon;
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      className={`group flex items-center gap-2.5 px-3 py-2 rounded-md text-sm transition-colors ${
+                        isActive
+                          ? 'bg-white/10 text-white'
+                          : 'hover:bg-white/5 hover:text-gray-200'
+                      }`}
+                    >
+                      <Icon
+                        className={`w-4 h-4 shrink-0 transition-colors ${
+                          isActive ? 'text-blue-400' : 'text-gray-500 group-hover:text-gray-300'
+                        }`}
+                      />
+                      <span className="flex-1">{item.label}</span>
+                      {isActive && (
+                        <ChevronRight className="w-3 h-3 text-gray-600" />
+                      )}
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </nav>
+
+        {/* Footer */}
+        <div className="px-2 py-3 border-t border-white/5">
+          <button
+            onClick={handleLogout}
+            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-sm text-gray-400 hover:bg-white/5 hover:text-gray-200 transition-colors"
+          >
+            <LogOut className="w-4 h-4 shrink-0 text-gray-500" />
+            Sign out
+          </button>
+        </div>
+      </aside>
+
+      {/* Main */}
+      <div className="flex-1 flex flex-col min-w-0">
+        <AdminTopbar tenantName="ASChauffeured" onLogout={handleLogout} />
+        <main className="flex-1 p-6 overflow-y-auto">{children}</main>
       </div>
     </div>
   );

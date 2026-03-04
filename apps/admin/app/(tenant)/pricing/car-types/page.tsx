@@ -11,6 +11,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { ErrorAlert } from '@/components/ui/ErrorAlert';
 import { ConfirmModal } from '@/components/ui/ConfirmModal';
 import { Toast } from '@/components/ui/Toast';
+import { formatStatus } from '@/lib/ui/formatStatus';
 
 interface ServiceClassRow {
   id: string;
@@ -102,51 +103,52 @@ export default function CarTypesPage() {
   const editing = useMemo(() => items.find((i) => i.id === editingId) ?? null, [items, editingId]);
 
   async function handleCreate() {
-    await api.post('/pricing/service-classes', {
-      name: form.name,
-      description: form.description || null,
-      displayOrder: Number(form.display_order) || 0,
-      base_fare_minor: toMinor(form.base_fare_minor),
-      per_km_minor: toMinor(form.per_km_minor),
-      per_min_driving_minor: toMinor(form.per_min_driving_minor),
-      per_min_waiting_minor: toMinor(form.per_min_waiting_minor),
-      minimum_fare_minor: toMinor(form.minimum_fare_minor),
-      waypoint_minor: toMinor(form.waypoint_minor),
-      infant_seat_minor: toMinor(form.infant_seat_minor),
-      toddler_seat_minor: toMinor(form.toddler_seat_minor),
-      booster_seat_minor: toMinor(form.booster_seat_minor),
-      hourly_rate_minor: toMinor(form.hourly_rate_minor),
-      toll_enabled: form.toll_enabled,
-    });
-    setForm(emptyForm);
-    await refetch();
-    } finally { setFormSaving(false); }
+    setFormSaving(true);
+    try {
+      await api.post('/pricing/service-classes', {
+        name: form.name,
+        description: form.description || null,
+        displayOrder: Number(form.display_order) || 0,
+        base_fare_minor: toMinor(form.base_fare_minor),
+        per_km_minor: toMinor(form.per_km_minor),
+        per_min_driving_minor: toMinor(form.per_min_driving_minor),
+        per_min_waiting_minor: toMinor(form.per_min_waiting_minor),
+        minimum_fare_minor: toMinor(form.minimum_fare_minor),
+        booster_seat_minor: toMinor(form.booster_seat_minor),
+        hourly_rate_minor: toMinor(form.hourly_rate_minor),
+        toll_enabled: form.toll_enabled,
+      });
+      setForm(emptyForm);
+      await refetch();
+    } finally {
+      setFormSaving(false);
+    }
   }
 
   async function handleUpdate() {
     if (!editingId) return;
     setFormSaving(true);
     try {
-    await api.patch(`/pricing/service-classes/${editingId}`, {
-      name: form.name,
-      description: form.description || null,
-      displayOrder: Number(form.display_order) || 0,
-      base_fare_minor: toMinor(form.base_fare_minor),
-      per_km_minor: toMinor(form.per_km_minor),
-      per_min_driving_minor: toMinor(form.per_min_driving_minor),
-      per_min_waiting_minor: toMinor(form.per_min_waiting_minor),
-      minimum_fare_minor: toMinor(form.minimum_fare_minor),
-      waypoint_minor: toMinor(form.waypoint_minor),
-      infant_seat_minor: toMinor(form.infant_seat_minor),
-      toddler_seat_minor: toMinor(form.toddler_seat_minor),
-      booster_seat_minor: toMinor(form.booster_seat_minor),
-      hourly_rate_minor: toMinor(form.hourly_rate_minor),
-      toll_enabled: form.toll_enabled,
-    });
-    setEditingId(null);
-    setForm(emptyForm);
-    await refetch();
-    } finally { setFormSaving(false); }
+      await api.patch(`/pricing/service-classes/${editingId}`, {
+        name: form.name,
+        description: form.description || null,
+        displayOrder: Number(form.display_order) || 0,
+        base_fare_minor: toMinor(form.base_fare_minor),
+        per_km_minor: toMinor(form.per_km_minor),
+        per_min_driving_minor: toMinor(form.per_min_driving_minor),
+        per_min_waiting_minor: toMinor(form.per_min_waiting_minor),
+        minimum_fare_minor: toMinor(form.minimum_fare_minor),
+        booster_seat_minor: toMinor(form.booster_seat_minor),
+        hourly_rate_minor: toMinor(form.hourly_rate_minor),
+        waypoint_minor: toMinor(form.waypoint_minor),
+        toll_enabled: form.toll_enabled,
+      });
+      setEditingId(null);
+      setForm(emptyForm);
+      await refetch();
+    } finally {
+      setFormSaving(false);
+    }
   }
 
   async function handleDeactivate() {

@@ -17,6 +17,7 @@ import { Toast } from '@/components/ui/Toast';
 import Link from 'next/link';
 import { getBookingStatusBadge } from '@/lib/ui/statusBadge';
 import { formatPhone } from '@/components/ui/PhoneSplitField';
+import { formatStatus } from '@/lib/ui/formatStatus';
 
 // Statuses that allow cancellation
 const CANCELABLE_STATUSES = new Set(['DRAFT', 'PENDING', 'CONFIRMED', 'ASSIGNED']);
@@ -105,14 +106,11 @@ function BookingDetailInner() {
     },
   });
 
-  if (isLoading) {
-  if (isError) return <ErrorAlert message="Failed to load data." onRetry={() => refetch()} />;
-    return (
-      <div className="flex items-center justify-center h-64">
-        <LoadingSpinner />
-      </div>
-    );
-  }
+  if (isLoading) return (
+    <div className="flex items-center justify-center h-64">
+      <LoadingSpinner />
+    </div>
+  );
 
   if (error || !booking) {
     return <ErrorAlert message="Unable to load booking." onRetry={refetch} />;
@@ -129,7 +127,7 @@ function BookingDetailInner() {
         actions={
           <div className="flex items-center gap-2">
             <Badge variant={getBookingStatusBadge(booking.operational_status)}>
-              {booking.operational_status}
+              {formatStatus(booking.operational_status)}
             </Badge>
             <Badge variant={PAY_BADGE[booking.payment_status] ?? 'neutral'}>
               {booking.payment_status ?? '—'}

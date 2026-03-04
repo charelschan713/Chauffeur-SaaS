@@ -14,6 +14,7 @@ import { ErrorAlert } from '@/components/ui/ErrorAlert';
 import { ConfirmModal } from '@/components/ui/ConfirmModal';
 import { Toast } from '@/components/ui/Toast';
 import { PhoneSplitField, formatPhone } from '@/components/ui/PhoneSplitField';
+import { formatStatus } from '@/lib/ui/formatStatus';
 
 const TIER_COLORS: Record<string, string> = {
   STANDARD: 'bg-green-100 text-green-800',

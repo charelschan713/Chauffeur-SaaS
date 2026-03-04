@@ -13,6 +13,7 @@ import { ErrorAlert } from '@/components/ui/ErrorAlert';
 import { Toast } from '@/components/ui/Toast';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense } from 'react';
+import { formatStatus } from '@/lib/ui/formatStatus';
 
 type Booking = {
   id: string;

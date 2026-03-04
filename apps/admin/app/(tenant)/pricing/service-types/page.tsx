@@ -11,6 +11,7 @@ import { Table } from '@/components/ui/Table';
 import {LoadingSpinner, PageLoader, InlineSpinner} from '@/components/ui/LoadingSpinner';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ErrorAlert } from '@/components/ui/ErrorAlert';
+import { formatStatus } from '@/lib/ui/formatStatus';
 
 interface ServiceTypeRow {
   id: string;
