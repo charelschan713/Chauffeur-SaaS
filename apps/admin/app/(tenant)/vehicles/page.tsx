@@ -15,9 +15,18 @@ export default function VehiclesPage() {
     },
   });
 
+  const { data: platformVehicles = [] } = useQuery({
+    queryKey: ['platform-vehicles-public'],
+    queryFn: async () => {
+      const res = await api.get('/platform/vehicles/public');
+      return res.data ?? [];
+    },
+  });
+
   const vehicles = data ?? [];
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState({
+    platform_vehicle_id: '',
     year: '',
     colour: '',
     plate: '',
@@ -30,6 +39,7 @@ export default function VehiclesPage() {
 
   function loadForm(v: any) {
     setForm({
+      platform_vehicle_id: v.platform_vehicle_id ?? '',
       year: v.year ?? '',
       colour: v.colour ?? '',
       plate: v.plate ?? '',
@@ -42,6 +52,7 @@ export default function VehiclesPage() {
   async function handleUpdate() {
     if (!editingId) return;
     await api.patch(`/vehicles/${editingId}`, {
+      platform_vehicle_id: form.platform_vehicle_id || null,
       year: form.year ? Number(form.year) : null,
       colour: form.colour || null,
       plate: form.plate || null,
@@ -79,6 +90,16 @@ export default function VehiclesPage() {
               <div className="bg-white border rounded p-4 mb-4 space-y-3">
                 <h3 className="text-sm font-semibold">Edit Vehicle</h3>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <select
+                    className="border rounded px-3 py-2 text-sm"
+                    value={form.platform_vehicle_id}
+                    onChange={(e) => setForm((p) => ({ ...p, platform_vehicle_id: e.target.value }))}
+                  >
+                    <option value="">Select Platform Vehicle</option>
+                    {(platformVehicles as any[]).map((pv) => (
+                      <option key={pv.id} value={pv.id}>{pv.make} {pv.model}</option>
+                    ))}
+                  </select>
                   <input className="border rounded px-3 py-2 text-sm" placeholder="Year" value={form.year} onChange={(e) => setForm((p) => ({ ...p, year: e.target.value }))} />
                   <input className="border rounded px-3 py-2 text-sm" placeholder="Colour" value={form.colour} onChange={(e) => setForm((p) => ({ ...p, colour: e.target.value }))} />
                   <input className="border rounded px-3 py-2 text-sm" placeholder="Plate" value={form.plate} onChange={(e) => setForm((p) => ({ ...p, plate: e.target.value }))} />

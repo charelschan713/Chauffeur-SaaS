@@ -33,6 +33,31 @@ export class PricingController {
     });
   }
 
+  @Get('car-types')
+  async listCarTypes(@Req() req: any) {
+    return this.pricingService.listServiceClasses(req.user.tenant_id);
+  }
+
+  @Post('car-types')
+  async createCarType(@Body() body: any, @Req() req: any) {
+    return this.pricingService.createServiceClass(req.user.tenant_id, body);
+  }
+
+  @Get('car-types/:id')
+  async getCarType(@Param('id') id: string, @Req() req: any) {
+    return this.pricingService.getServiceClass(req.user.tenant_id, id);
+  }
+
+  @Patch('car-types/:id')
+  async updateCarType(@Param('id') id: string, @Body() body: any, @Req() req: any) {
+    return this.pricingService.updateServiceClass(req.user.tenant_id, id, body);
+  }
+
+  @Delete('car-types/:id')
+  async deleteCarType(@Param('id') id: string, @Req() req: any) {
+    return this.pricingService.deactivateServiceClass(req.user.tenant_id, id);
+  }
+
   @Get('service-classes')
   async listServiceClasses(@Req() req: any) {
     return this.pricingService.listServiceClasses(req.user.tenant_id);
@@ -62,7 +87,6 @@ export class PricingController {
     return this.pricingService.deactivateServiceClass(req.user.tenant_id, id);
   }
 
-
   @Get('service-classes/:id/platform-vehicles')
   async listServiceClassPlatformVehicles(@Param('id') id: string, @Req() req: any) {
     return this.pricingService.listServiceClassPlatformVehicles(req.user.tenant_id, id);
@@ -85,6 +109,7 @@ export class PricingController {
   ) {
     return this.pricingService.unlinkServiceClassPlatformVehicle(req.user.tenant_id, id, pvId);
   }
+
   @Get('items')
   async listItems(@Query('serviceClassId') serviceClassId: string, @Req() req: any) {
     return this.pricingService.listItems(req.user.tenant_id, serviceClassId);
