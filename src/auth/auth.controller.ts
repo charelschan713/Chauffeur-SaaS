@@ -86,3 +86,28 @@ export class AuthController {
     return res.json({ success: true });
   }
 }
+
+  // ─── Mobile-friendly endpoints (token in body, no cookies) ───────────────
+
+  @Post('mobile/login')
+  async mobileLogin(@Body() dto: LoginDto) {
+    // Returns both tokens in response body for native app storage
+    const result = await this.auth.login(dto.email, dto.password);
+    return {
+      access_token: result.accessToken,
+      refresh_token: result.refreshToken,
+      expires_in: result.expiresIn,
+    };
+  }
+
+  @Post('mobile/refresh')
+  async mobileRefresh(@Body('refresh_token') refreshToken: string) {
+    if (!refreshToken) throw new UnauthorizedException('No refresh token');
+    const result = await this.auth.refresh(refreshToken);
+    return {
+      access_token: result.accessToken,
+      refresh_token: result.refreshToken,
+      expires_in: result.expiresIn,
+    };
+  }
+}
