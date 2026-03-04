@@ -1,5 +1,5 @@
 'use client';
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { ConsoleLayout } from '@/components/patterns/Console';
@@ -128,33 +128,48 @@ export default function DispatchConsolePage() {
       </div>
 
       <ConsoleLayout
-        header={<h2 className="text-xl font-semibold text-gray-900">Dispatch Console</h2>}
-        actions={
-          <button
-            onClick={() => mutation.mutate()}
-            disabled={!hasBookings || mutation.isPending}
-            className="px-4 py-2 rounded bg-blue-600 text-white text-sm disabled:opacity-60"
-          >
-            {mutation.isPending ? 'Dispatching...' : 'Offer Booking'}
-          </button>
-        }
-      >
-        {error && <ErrorAlert message="Unable to load dispatch data" />}
-        {isLoading ? (
-          <p className="text-sm text-gray-500">Loading dispatch queue...</p>
-        ) : hasBookings ? (
-          <div className="space-y-3">
-            {bookings.map((b: any) => (
-              <div key={b.id} className="border rounded p-4">
-                <div className="font-medium text-gray-900">{b.booking_reference}</div>
-                <div className="text-sm text-gray-500">{b.pickup_address_text} → {b.dropoff_address_text}</div>
-              </div>
-            ))}
+        header={
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-semibold text-gray-900">Dispatch Console</h2>
+            <button
+              onClick={() => mutation.mutate()}
+              disabled={!hasBookings || mutation.isPending}
+              className="px-4 py-2 rounded bg-blue-600 text-white text-sm disabled:opacity-60"
+            >
+              {mutation.isPending ? 'Dispatching...' : 'Offer Booking'}
+            </button>
           </div>
-        ) : (
-          <p className="text-sm text-gray-500 text-center">No confirmed bookings awaiting dispatch.</p>
-        )}
-      </ConsoleLayout>
+        }
+        queue={
+          error ? (
+            <ErrorAlert message="Unable to load dispatch data" />
+          ) : isLoading ? (
+            <p className="text-sm text-gray-500">Loading dispatch queue...</p>
+          ) : hasBookings ? (
+            <div className="space-y-3">
+              {bookings.map((b: any) => (
+                <div key={b.id} className="border rounded p-4">
+                  <div className="font-medium text-gray-900">{b.booking_reference}</div>
+                  <div className="text-sm text-gray-500">{b.pickup_address_text} → {b.dropoff_address_text}</div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-gray-500 text-center">No confirmed bookings awaiting dispatch.</p>
+          )
+        }
+        workspace={
+          <div className="text-sm text-gray-600 space-y-2">
+            <p>Ready to offer the next booking in queue.</p>
+            <p>Auto Assign: {settings?.auto_assign_enabled ? 'ON' : 'OFF'}</p>
+          </div>
+        }
+        resources={
+          <div className="text-sm text-gray-600 space-y-2">
+            <div>Queue size: {bookings.length}</div>
+          </div>
+        }
+      />
     </div>
   );
 }
