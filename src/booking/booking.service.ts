@@ -157,6 +157,17 @@ export class BookingService {
     const pickupAtUtc = dto.pickup_at_utc;
     const pickupTimezone = dto.timezone || 'Australia/Sydney';
 
+    // Fetch toll_enabled flag from service class
+    let tollEnabled = false;
+    if (dto.service_class_id) {
+      const scRows = await this.dataSource.query(
+        `SELECT toll_enabled FROM public.tenant_service_classes
+         WHERE id = $1 AND tenant_id = $2 LIMIT 1`,
+        [dto.service_class_id, tenantId],
+      );
+      tollEnabled = scRows[0]?.toll_enabled ?? false;
+    }
+
     const pricingContext: any = {
       tenantId,
       serviceClassId: dto.service_class_id,
@@ -172,6 +183,9 @@ export class BookingService {
       returnDistanceKm: dto.return_distance_km ?? null,
       returnDurationMinutes: dto.return_duration_minutes ?? null,
       bookedHours: dto.booked_hours ?? null,
+      tollEnabled,
+      pickupAddress: dto.pickup_address_text ?? null,
+      dropoffAddress: dto.dropoff_address_text ?? null,
     };
 
     const pricing = await this.pricing.resolve(pricingContext);

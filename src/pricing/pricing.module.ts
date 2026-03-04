@@ -9,9 +9,10 @@ import { MultiplierResolver } from './resolvers/multiplier.resolver';
 import { AdjustmentResolver } from './resolvers/adjustment.resolver';
 import { PricingService } from './pricing.service';
 import { CustomerModule } from '../customer/customer.module';
+import { MapsModule } from '../maps/maps.module';
 
 @Module({
-  imports: [CustomerModule],
+  imports: [CustomerModule, MapsModule],
   controllers: [PricingController, ServiceTypeController, PricingProfileController],
   providers: [
     PricingResolver,

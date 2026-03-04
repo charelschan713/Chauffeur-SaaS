@@ -1,5 +1,6 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { DataSource } from 'typeorm';
+import { GoogleMapsService } from '../maps/google-maps.service';
 import { ZoneResolver } from './resolvers/zone.resolver';
 import { ItemResolver } from './resolvers/item.resolver';
 import { MultiplierResolver } from './resolvers/multiplier.resolver';
@@ -20,6 +21,8 @@ type HourlyTier = {
 
 @Injectable()
 export class PricingResolver {
+  private readonly logger = new Logger(PricingResolver.name);
+
   constructor(
     private readonly dataSource: DataSource,
     private readonly zoneResolver: ZoneResolver,
@@ -27,7 +30,33 @@ export class PricingResolver {
     private readonly multiplierResolver: MultiplierResolver,
     private readonly adjustmentResolver: AdjustmentResolver,
     private readonly discountResolver: DiscountResolver,
+    private readonly mapsService: GoogleMapsService,
   ) {}
+
+  // Estimate toll from route distance (Sydney CityLink rates)
+  // Google Maps Distance Matrix doesn't return toll costs directly;
+  // we use a per-km estimate based on known Sydney toll corridors.
+  // If both pickup + dropoff are provided and toll_enabled, we fetch the
+  // actual route distance and apply the estimate.
+  private async resolveToll(ctx: PricingContext): Promise<number> {
+    if (!ctx.tollEnabled) return 0;
+    if (!ctx.pickupAddress || !ctx.dropoffAddress) return 0;
+    try {
+      const route = await this.mapsService.getRoute(
+        ctx.tenantId,
+        ctx.pickupAddress,
+        ctx.dropoffAddress,
+      );
+      if (!route) return 0;
+      // Flat toll estimate: AUD $0.20/km (capped at $25)
+      // Operators should adjust via the Assign Modal if actual toll differs
+      const estimatedTollAUD = Math.min(route.distanceKm * 0.2, 25);
+      return Math.round(estimatedTollAUD * 100); // return minor units
+    } catch (err) {
+      this.logger.warn(`Toll estimation failed: ${(err as Error).message}`);
+      return 0;
+    }
+  }
 
   private applyMultiplier(
     baseMinor: number,
@@ -87,7 +116,7 @@ export class PricingResolver {
         currency: ctx.currency,
       });
 
-      const tollParkingMinor = 0;
+      const tollParkingMinor = await this.resolveToll(ctx);
       const discount = await this.discountResolver.resolve(
         ctx.tenantId,
         ctx.customerId ?? null,
@@ -124,7 +153,7 @@ export class PricingResolver {
       currency: ctx.currency,
     });
 
-    const tollParkingMinor = 0;
+    const tollParkingMinor = await this.resolveToll(ctx);
     const discount = await this.discountResolver.resolve(
       ctx.tenantId,
       ctx.customerId ?? null,
@@ -248,7 +277,7 @@ export class PricingResolver {
       }
     }
 
-    const tollParkingMinor = 0;
+    const tollParkingMinor = await this.resolveToll(ctx);
     const discount = await this.discountResolver.resolve(
       ctx.tenantId,
       ctx.customerId ?? null,

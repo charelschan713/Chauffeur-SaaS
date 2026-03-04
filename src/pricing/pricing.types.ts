@@ -2,6 +2,9 @@ export interface PricingContext {
   tenantId: string;
   serviceClassId: string;
   distanceKm: number;
+  tollEnabled?: boolean;
+  pickupAddress?: string | null;
+  dropoffAddress?: string | null;
   durationMinutes: number;
   pickupZoneName?: string;
   dropoffZoneName?: string;
