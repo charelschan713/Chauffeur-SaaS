@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm, Resolver } from 'react-hook-form';
 import { z } from 'zod';
@@ -11,6 +11,9 @@ import { ErrorAlert } from '@/components/ui/ErrorAlert';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
+import { PhoneSplitField } from '@/components/ui/PhoneSplitField';
+import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import { Badge } from '@/components/ui/Badge';
 import { useBookingWizardStore } from '@/lib/ui/useBookingWizardStore';
 
 const formSchema = z
@@ -20,7 +23,8 @@ const formSchema = z
     city_id: z.string().min(1, 'City is required'),
     flight_number: z.string().optional(),
     customer_name: z.string().trim().min(2, 'Name must be at least 2 characters'),
-    customer_phone: z.string().trim().optional(),
+    customer_phone_country_code: z.string().default('+61'),
+    customer_phone_number: z.string().trim().optional(),
     customer_email: z
       .string()
       .trim()
@@ -29,7 +33,8 @@ const formSchema = z
     passenger_is_customer: z.boolean().default(true),
     passenger_first_name: z.string().trim().optional(),
     passenger_last_name: z.string().trim().optional(),
-    passenger_phone: z.string().trim().optional(),
+    passenger_phone_country_code: z.string().default('+61'),
+    passenger_phone_number: z.string().trim().optional(),
     pickup_address_text: z.string().trim().min(5, 'Pickup address must be at least 5 characters'),
     dropoff_address_text: z.string().trim().min(5, 'Dropoff address must be at least 5 characters'),
     waypoints: z.array(z.string()).default([]),
@@ -61,11 +66,11 @@ const formSchema = z
           path: ['passenger_last_name'],
         });
       }
-      if (!values.passenger_phone?.trim()) {
+      if (!values.passenger_phone_number?.trim()) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           message: 'Passenger phone is required',
-          path: ['passenger_phone'],
+          path: ['passenger_phone_number'],
         });
       }
     }
@@ -99,6 +104,11 @@ export default function CreateBookingPage() {
   const queryClient = useQueryClient();
   const { state: wizardState, update: updateWizard } = useBookingWizardStore();
   const [quote, setQuote] = useState<QuoteState>({ status: 'idle' });
+  const [customerSearch, setCustomerSearch] = useState('');
+  const [customerResults, setCustomerResults] = useState<any[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [searchLabel, setSearchLabel] = useState('Recent Customers');
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [waypoints, setWaypoints] = useState<string[]>(wizardState.waypoints ?? []);
   const [activeSection, setActiveSection] = useState(wizardState.activeSection ?? 'service');
 
@@ -141,7 +151,8 @@ export default function CreateBookingPage() {
       city_id: '',
       flight_number: '',
       customer_name: '',
-      customer_phone: '',
+      customer_phone_country_code: '+61',
+      customer_phone_number: '',
       customer_email: '',
       pickup_address_text: '',
       dropoff_address_text: '',
@@ -173,6 +184,47 @@ export default function CreateBookingPage() {
     return () => subscription.unsubscribe();
   }, [watch, updateWizard]);
 
+  // Load recent customers on mount
+  useEffect(() => {
+    api.get('/customers?limit=5&sort=recent').then((res) => {
+      const data = Array.isArray(res.data) ? res.data : (res.data?.data ?? []);
+      setCustomerResults(data);
+      setSearchLabel('Recent Customers');
+    });
+  }, []);
+
+  // Debounced customer search
+  useEffect(() => {
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+    if (!customerSearch.trim()) {
+      setSearchLabel('Recent Customers');
+      api.get('/customers?limit=5&sort=recent').then((res) => {
+        const data = Array.isArray(res.data) ? res.data : (res.data?.data ?? []);
+        setCustomerResults(data);
+      });
+      return;
+    }
+    setSearchLabel('Search Results');
+    setSearchLoading(true);
+    searchTimerRef.current = setTimeout(async () => {
+      try {
+        const res = await api.get(`/customers?search=${encodeURIComponent(customerSearch.trim())}&limit=8`);
+        const data = Array.isArray(res.data) ? res.data : (res.data?.data ?? []);
+        setCustomerResults(data);
+      } finally {
+        setSearchLoading(false);
+      }
+    }, 300);
+  }, [customerSearch]);
+
+  function selectCustomer(c: any) {
+    setValue('customer_name', `${c.first_name ?? ''} ${c.last_name ?? ''}`.trim());
+    setValue('customer_email', c.email ?? '');
+    setValue('customer_phone_country_code', c.phone_country_code ?? '+61');
+    setValue('customer_phone_number', c.phone_number ?? '');
+    setCustomerSearch('');
+  }
+
   const mutation = useMutation({
     mutationFn: async (values: FormValues) => {
       const [firstName, ...rest] = values.customer_name.trim().split(' ');
@@ -181,7 +233,8 @@ export default function CreateBookingPage() {
           firstName,
           lastName: rest.join(' ') || 'Customer',
           email: values.customer_email?.trim() || undefined,
-          phone: values.customer_phone?.trim() || undefined,
+          phone_country_code: values.customer_phone_country_code || '+61',
+          phone_number: values.customer_phone_number?.trim() || undefined,
         },
         pickup: { address: values.pickup_address_text.trim() },
         dropoff: { address: values.dropoff_address_text.trim() },
@@ -201,6 +254,12 @@ export default function CreateBookingPage() {
         city_id: values.city_id,
         flight_number: values.flight_number?.trim() || undefined,
         waypoints: waypoints.map((w) => ({ address: w })),
+        passenger_phone_country_code: values.passenger_is_customer
+          ? (values.customer_phone_country_code || '+61')
+          : (values.passenger_phone_country_code || '+61'),
+        passenger_phone_number: values.passenger_is_customer
+          ? (values.customer_phone_number?.trim() || undefined)
+          : (values.passenger_phone_number?.trim() || undefined),
         infant_seats: values.infant_seats,
         toddler_seats: values.toddler_seats,
         booster_seats: values.booster_seats,
@@ -357,12 +416,13 @@ export default function CreateBookingPage() {
                   placeholder="e.g. Jane Doe"
                 />
               </Field>
-              <Field label="Phone" error={errors.customer_phone?.message}>
-                <Input
-                  {...register('customer_phone')}
-                  placeholder="Optional"
-                />
-              </Field>
+              <PhoneSplitField
+                label="Phone"
+                countryCode={values.customer_phone_country_code ?? '+61'}
+                number={values.customer_phone_number ?? ''}
+                onCountryCodeChange={(v) => setValue('customer_phone_country_code', v)}
+                onNumberChange={(v) => setValue('customer_phone_number', v)}
+              />
               <Field label="Email" error={errors.customer_email?.message}>
                 <Input
                   {...register('customer_email')}
@@ -388,11 +448,14 @@ export default function CreateBookingPage() {
                       {...register('passenger_last_name')}
                     />
                   </Field>
-                  <Field label="Passenger Phone" error={errors.passenger_phone?.message}>
-                    <Input
-                      {...register('passenger_phone')}
-                    />
-                  </Field>
+                  <PhoneSplitField
+                    label="Passenger Phone"
+                    error={errors.passenger_phone_number?.message}
+                    countryCode={values.passenger_phone_country_code ?? '+61'}
+                    number={values.passenger_phone_number ?? ''}
+                    onCountryCodeChange={(v) => setValue('passenger_phone_country_code', v)}
+                    onNumberChange={(v) => setValue('passenger_phone_number', v)}
+                  />
                 </div>
               )}
             </div>

@@ -13,6 +13,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { ErrorAlert } from '@/components/ui/ErrorAlert';
 import { ConfirmModal } from '@/components/ui/ConfirmModal';
 import { Toast } from '@/components/ui/Toast';
+import { PhoneSplitField, formatPhone } from '@/components/ui/PhoneSplitField';
 
 const TIER_COLORS: Record<string, string> = {
   STANDARD: 'bg-green-100 text-green-800',
@@ -257,7 +258,7 @@ export default function CustomersPage() {
               <tr className="hover:bg-gray-50">
                 <td className="px-4 py-3 font-medium">{c.first_name} {c.last_name}</td>
                 <td className="px-4 py-3">{c.email ?? '—'}</td>
-                <td className="px-4 py-3">{c.phone_country_code ?? ''} {c.phone_number ?? ''}</td>
+                <td className="px-4 py-3">{formatPhone(c.phone_country_code, c.phone_number)}</td>
                 <td className="px-4 py-3">
                   <span className={`px-2 py-1 rounded text-xs ${TIER_COLORS[c.tier ?? 'STANDARD'] ?? 'bg-gray-100 text-gray-700'}`}>
                     {c.tier ?? 'STANDARD'}
@@ -292,7 +293,7 @@ export default function CustomersPage() {
                             <div key={p.id} className="flex items-center justify-between bg-white border rounded p-3">
                               <div>
                                 <div className="font-medium">{p.first_name} {p.last_name}</div>
-                                <div className="text-xs text-gray-500">{p.phone_country_code ?? ''} {p.phone_number ?? ''}</div>
+                                <div className="text-xs text-gray-500">{formatPhone(p.phone_country_code, p.phone_number)}</div>
                                 <div className="text-xs text-gray-500">
                                   🌡 {p.preferences?.temperature_c ?? 22}°C · 🎵 {p.preferences?.music ?? 'OFF'} · 💬 {p.preferences?.conversation ?? 'QUIET'} · 💺 {p.preferences?.seat ?? 'REAR'}
                                 </div>
@@ -331,8 +332,12 @@ export default function CustomersPage() {
               <Input placeholder="First Name" value={customerForm.first_name} onChange={(e) => setCustomerForm((p) => ({ ...p, first_name: e.target.value }))} />
               <Input placeholder="Last Name" value={customerForm.last_name} onChange={(e) => setCustomerForm((p) => ({ ...p, last_name: e.target.value }))} />
               <Input placeholder="Email" value={customerForm.email} onChange={(e) => setCustomerForm((p) => ({ ...p, email: e.target.value }))} />
-              <Input placeholder="Phone Country Code" value={customerForm.phone_country_code} onChange={(e) => setCustomerForm((p) => ({ ...p, phone_country_code: e.target.value }))} />
-              <Input placeholder="Phone Number" value={customerForm.phone_number} onChange={(e) => setCustomerForm((p) => ({ ...p, phone_number: e.target.value }))} />
+              <PhoneSplitField
+                countryCode={customerForm.phone_country_code}
+                number={customerForm.phone_number}
+                onCountryCodeChange={(v) => setCustomerForm((p) => ({ ...p, phone_country_code: v }))}
+                onNumberChange={(v) => setCustomerForm((p) => ({ ...p, phone_number: v }))}
+              />
               <Select value={customerForm.tier} onChange={(e) => setCustomerForm((p) => ({ ...p, tier: e.target.value }))}>
                 {['STANDARD','SILVER','GOLD','PLATINUM','VIP','CUSTOM'].map((t) => (
                   <option key={t} value={t}>{t}</option>
@@ -400,8 +405,12 @@ export default function CustomersPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <Input placeholder="First Name" value={passengerForm.first_name} onChange={(e) => setPassengerForm((p) => ({ ...p, first_name: e.target.value }))} />
               <Input placeholder="Last Name" value={passengerForm.last_name} onChange={(e) => setPassengerForm((p) => ({ ...p, last_name: e.target.value }))} />
-              <Input placeholder="Phone Country Code" value={passengerForm.phone_country_code} onChange={(e) => setPassengerForm((p) => ({ ...p, phone_country_code: e.target.value }))} />
-              <Input placeholder="Phone Number" value={passengerForm.phone_number} onChange={(e) => setPassengerForm((p) => ({ ...p, phone_number: e.target.value }))} />
+              <PhoneSplitField
+                countryCode={passengerForm.phone_country_code}
+                number={passengerForm.phone_number}
+                onCountryCodeChange={(v) => setPassengerForm((p) => ({ ...p, phone_country_code: v }))}
+                onNumberChange={(v) => setPassengerForm((p) => ({ ...p, phone_number: v }))}
+              />
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <label className="text-sm">Temperature

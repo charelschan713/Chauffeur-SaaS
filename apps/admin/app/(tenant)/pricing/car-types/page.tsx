@@ -1,5 +1,5 @@
 'use client';
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { ListPage } from '@/components/patterns/ListPage';
@@ -86,9 +86,11 @@ export default function CarTypesPage() {
 
   const [form, setForm] = useState(emptyForm);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const formRef = useRef<HTMLDivElement>(null);
   const [selectedPlatformIds, setSelectedPlatformIds] = useState<string[]>([]);
 
-  const items = data as ServiceClassRow[];
+  // Filter out blank/ghost rows (name is empty or null)
+  const items = (data as ServiceClassRow[]).filter((i) => i?.name?.trim());
   const editing = useMemo(() => items.find((i) => i.id === editingId) ?? null, [items, editingId]);
 
   async function handleCreate() {
@@ -163,6 +165,12 @@ export default function CarTypesPage() {
         </Button>
       }
       filters={
+        <div ref={formRef}>
+        {editingId && editing && (
+          <div className="mb-3 px-3 py-2 bg-blue-50 border border-blue-200 rounded text-sm text-blue-700 font-medium">
+            ✏️ Editing: {editing.name}
+          </div>
+        )}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Field label="Name">
             <Input
@@ -202,6 +210,7 @@ export default function CarTypesPage() {
             )}
           </div>
         </div>
+        </div>
       }
       table={
         isLoading ? (
@@ -227,6 +236,7 @@ export default function CarTypesPage() {
                     className="text-blue-600 hover:underline"
                     onClick={() => {
                       setEditingId(item.id);
+                      setTimeout(() => formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
                       setForm({
                         name: item.name,
                         description: item.description ?? '',

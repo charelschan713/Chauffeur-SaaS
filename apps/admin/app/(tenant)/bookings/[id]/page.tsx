@@ -16,6 +16,7 @@ import { BookingStatusTimeline } from '@/components/admin/BookingStatusTimeline'
 import { Toast } from '@/components/ui/Toast';
 import Link from 'next/link';
 import { getBookingStatusBadge } from '@/lib/ui/statusBadge';
+import { formatPhone } from '@/components/ui/PhoneSplitField';
 
 // Statuses that allow cancellation
 const CANCELABLE_STATUSES = new Set(['DRAFT', 'PENDING', 'CONFIRMED', 'ASSIGNED']);
@@ -172,7 +173,7 @@ function BookingDetailInner() {
           <Card title="Customer">
             <div className="space-y-2 text-sm text-gray-700">
               <div>{customerName || '—'}</div>
-              <div>{booking.customer_phone ?? '—'}</div>
+              <div>{formatPhone(booking.customer_phone_country_code, booking.customer_phone_number)}</div>
               <div>{booking.customer_email ?? '—'}</div>
               {booking.customer_tier && <Badge variant="info">{booking.customer_tier}</Badge>}
             </div>
@@ -181,7 +182,7 @@ function BookingDetailInner() {
           <Card title="Passenger">
             <div className="space-y-2 text-sm text-gray-700">
               <div>{booking.passenger_name ?? '—'}</div>
-              <div>{booking.passenger_phone ?? '—'}</div>
+              <div>{formatPhone(booking.passenger_phone_country_code, booking.passenger_phone_number)}</div>
               {booking.passenger_preferences && (
                 <div className="text-gray-500">{booking.passenger_preferences}</div>
               )}

@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+
 import { DataSource } from 'typeorm';
 import { EncryptionService } from './encryption.service';
 
@@ -40,7 +41,14 @@ export class IntegrationResolver {
           typeof rows[0].config_encrypted === 'string'
             ? rows[0].config_encrypted
             : JSON.stringify(rows[0].config_encrypted);
-        const config = JSON.parse(this.encryption.decrypt(raw));
+        let config: any;
+        try {
+          config = JSON.parse(this.encryption.decrypt(raw));
+        } catch {
+          // ENCRYPTION_KEY mismatch — key was saved with a different key
+          this.logger.warn(`Integration decryption failed for ${integrationType} — ENCRYPTION_KEY mismatch. Re-save the integration.`);
+          return null;
+        }
         return {
           provider: rows[0].integration_type,
           config,

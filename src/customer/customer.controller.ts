@@ -25,22 +25,37 @@ export class CustomerController {
     const limit = Math.min(Math.max(Number(query.limit ?? 20), 1), 100);
     const offset = (page - 1) * limit;
 
-    let where = 'WHERE c.tenant_id = $1 AND c.deleted_at IS NULL';
+
+    // Check if deleted_at column exists (migration may not have run yet)
+    const colExists = await this.dataSource.query(
+      `SELECT 1 FROM information_schema.columns
+       WHERE table_schema = 'public' AND table_name = 'customers' AND column_name = 'deleted_at'
+       LIMIT 1`,
+    );
+    const deletedAtFilter = colExists.length > 0 ? 'AND c.deleted_at IS NULL' : '';
+
+    let where = `WHERE c.tenant_id = $1 ${deletedAtFilter}`;
     const params: any[] = [req.user.tenant_id];
     let idx = 2;
 
     if (query.search) {
+      const s = `${query.search}`;
       where += ` AND (
         c.first_name ILIKE $${idx}
         OR c.last_name ILIKE $${idx}
+        OR c.last_name ILIKE $${idx}
         OR c.email ILIKE $${idx}
-        OR c.phone_country_code ILIKE $${idx}
-        OR c.phone_number ILIKE $${idx}
-        OR CONCAT(c.phone_country_code, c.phone_number) ILIKE $${idx}
+        OR CONCAT(c.first_name,' ',c.last_name) ILIKE $${idx}
+        OR c.phone_number ILIKE $${idx + 1}
       )`;
-      params.push(`%${query.search}%`);
-      idx++;
+      params.push(`%${s}%`);
+      params.push(`${s}%`);
+      idx += 2;
     }
+
+    const orderClause = (query.sort === 'recent')
+      ? 'ORDER BY c.created_at DESC'
+      : 'ORDER BY c.last_name ASC';
 
     const count = await this.dataSource.query(
       `SELECT COUNT(*) FROM public.customers c ${where}`,
@@ -52,7 +67,7 @@ export class CustomerController {
       `SELECT c.*
        FROM public.customers c
        ${where}
-       ORDER BY c.created_at DESC
+       ${orderClause}
        LIMIT $${idx} OFFSET $${idx + 1}`,
       [...params, limit, offset],
     );
@@ -91,7 +106,7 @@ export class CustomerController {
   @Get(':id')
   async get(@Req() req: any, @Param('id') id: string) {
     const rows = await this.dataSource.query(
-      `SELECT * FROM public.customers WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL`,
+      `SELECT * FROM public.customers WHERE id = $1 AND tenant_id = $2`,
       [id, req.user.tenant_id],
     );
     const customer = rows[0] ?? null;
@@ -152,7 +167,13 @@ export class CustomerController {
       throw new BadRequestException('Customer has active bookings and cannot be deleted');
     }
     await this.dataSource.query(
-      `UPDATE public.customers SET deleted_at = NOW() WHERE id = $1 AND tenant_id = $2`,
+      // deleted_at may not exist yet - guard
+      `UPDATE public.customers SET deleted_at = NOW()
+       WHERE id = $1 AND tenant_id = $2
+         AND EXISTS (
+           SELECT 1 FROM information_schema.columns
+           WHERE table_schema = 'public' AND table_name = 'customers' AND column_name = 'deleted_at'
+         )`,
       [id, req.user.tenant_id],
     );
     return { success: true };

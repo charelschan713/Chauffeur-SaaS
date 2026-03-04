@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { toE164 } from '../common/phone.util';
 import { DataSource } from 'typeorm';
 import { IntegrationResolver } from '../integration/integration.resolver';
 import { EmailProvider } from './providers/email.provider';
@@ -126,7 +127,8 @@ export class NotificationService {
 
       const body = renderTemplate(smsTemplate.body || platformBody, templateVars);
 
-      await this.smsProvider.send(smsIntegration, booking.customer_phone, body);
+      const customerPhone = toE164(booking.customer_phone_country_code, booking.customer_phone_number);
+      if (customerPhone) await this.smsProvider.send(smsIntegration, customerPhone, body);
     }
   }
 
@@ -191,7 +193,8 @@ export class NotificationService {
 
       const body = renderTemplate(smsTemplate.body || platformBody, templateVars);
 
-      await this.smsProvider.send(smsIntegration, booking.customer_phone, body);
+      const customerPhone = toE164(booking.customer_phone_country_code, booking.customer_phone_number);
+      if (customerPhone) await this.smsProvider.send(smsIntegration, customerPhone, body);
     }
   }
 
@@ -223,7 +226,8 @@ export class NotificationService {
 
     const body = renderTemplate(smsTemplate.body || platformBody, templateVars);
 
-    await this.smsProvider.send(smsIntegration, driver.phone, body);
+    const driverPhone = toE164(driver.phone_country_code, driver.phone_number);
+    if (driverPhone) await this.smsProvider.send(smsIntegration, driverPhone, body);
   }
 
   private async onJobCompleted(tenantId: string, payload: any) {
@@ -283,7 +287,8 @@ export class NotificationService {
 
       const body = renderTemplate(smsTemplate.body || platformBody, templateVars);
 
-      await this.smsProvider.send(smsIntegration, booking.customer_phone, body);
+      const customerPhone = toE164(booking.customer_phone_country_code, booking.customer_phone_number);
+      if (customerPhone) await this.smsProvider.send(smsIntegration, customerPhone, body);
     }
   }
 
@@ -342,7 +347,8 @@ export class NotificationService {
 
       const body = renderTemplate(smsTemplate.body || platformBody, templateVars);
 
-      await this.smsProvider.send(smsIntegration, booking.customer_phone, body);
+      const customerPhone = toE164(booking.customer_phone_country_code, booking.customer_phone_number);
+      if (customerPhone) await this.smsProvider.send(smsIntegration, customerPhone, body);
     }
   }
 
@@ -401,7 +407,8 @@ export class NotificationService {
 
       const body = renderTemplate(smsTemplate.body || platformBody, templateVars);
 
-      await this.smsProvider.send(smsIntegration, booking.customer_phone, body);
+      const customerPhone = toE164(booking.customer_phone_country_code, booking.customer_phone_number);
+      if (customerPhone) await this.smsProvider.send(smsIntegration, customerPhone, body);
     }
   }
 
@@ -427,7 +434,8 @@ export class NotificationService {
 
     const body = renderTemplate(smsTemplate.body || platformBody, templateVars);
 
-    await this.smsProvider.send(smsIntegration, booking.customer_phone, body);
+    const customerPhone = toE164(booking.customer_phone_country_code, booking.customer_phone_number);
+    if (customerPhone) await this.smsProvider.send(smsIntegration, customerPhone, body);
   }
 
   private async onDriverPayUpdated(tenantId: string, payload: any) {
@@ -452,7 +460,8 @@ export class NotificationService {
 
     const body = renderTemplate(smsTemplate.body || platformBody, templateVars);
 
-    await this.smsProvider.send(smsIntegration, booking.customer_phone, body);
+    const customerPhone = toE164(booking.customer_phone_country_code, booking.customer_phone_number);
+    if (customerPhone) await this.smsProvider.send(smsIntegration, customerPhone, body);
   }
 
   private buildTemplateVariables(booking: any, driver?: any): TemplateVariables {
@@ -471,7 +480,7 @@ export class NotificationService {
       total_price: booking.total_amount,
       currency: booking.currency,
       passenger_name: booking.passenger_name,
-      passenger_phone: booking.passenger_phone,
+      passenger_phone: toE164(booking.passenger_phone_country_code, booking.passenger_phone_number) ?? undefined,
     };
   }
 
@@ -486,11 +495,13 @@ export class NotificationService {
           b.customer_first_name,
           b.customer_last_name,
           b.customer_email,
-          b.customer_phone,
+          b.customer_phone_country_code,
+          b.customer_phone_number,
           b.currency,
           b.total_amount,
           b.passenger_name,
-          b.passenger_phone,
+          b.passenger_phone_country_code,
+          b.passenger_phone_number,
           v.make as vehicle_make,
           v.model as vehicle_model
        FROM public.bookings b

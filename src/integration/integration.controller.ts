@@ -87,6 +87,17 @@ export class IntegrationController {
     return result;
   }
 
+  @Get('debug/key-check')
+  async debugKeyCheck() {
+    const key = process.env.ENCRYPTION_KEY ?? '';
+    return {
+      set: key.length > 0,
+      length: key.length,
+      valid: key.length === 64 && /^[0-9a-fA-F]+$/.test(key),
+      expected: '64 hex characters',
+    };
+  }
+
   @Post('stripe/sync-currency')
   async syncStripeCurrency(@Req() req: any) {
     const integration = await this.integrationResolver.resolve(req.user.tenant_id, 'stripe');

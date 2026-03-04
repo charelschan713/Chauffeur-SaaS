@@ -17,7 +17,8 @@ export class DriverService {
       .select('u.id', 'driver_id')
       .addSelect('u.full_name', 'full_name')
       .addSelect('u.email', 'email')
-      .addSelect('u.phone', 'phone')
+      .addSelect('u.phone_country_code', 'phone_country_code')
+      .addSelect('u.phone_number', 'phone_number')
       .addSelect('m.status', 'membership_status')
       .addSelect('coalesce(ds.status, \'OFFLINE\')', 'availability_status')
       .addSelect('ds.updated_at', 'last_seen_at')
@@ -53,7 +54,8 @@ export class DriverService {
     const firstName = body.first_name?.trim() ?? '';
     const lastName = body.last_name?.trim() ?? '';
     const fullName = `${firstName} ${lastName}`.trim();
-    const phone = body.phone?.trim() ?? null;
+    const phoneCountryCode = body.phone_country_code?.trim() ?? null;
+    const phoneNumber = body.phone_number?.trim() ?? null;
 
     if (!email) {
       throw new BadRequestException('email is required');
@@ -70,14 +72,15 @@ export class DriverService {
       const userId = authRows[0].id;
 
       await manager.query(
-        `insert into public.users (id, email, full_name, phone, is_platform_admin)
-         values ($1,$2,$3,$4,false)
+        `insert into public.users (id, email, full_name, phone_country_code, phone_number, is_platform_admin)
+         values ($1,$2,$3,$4,$5,false)
          on conflict (id) do update set
            email = excluded.email,
            full_name = excluded.full_name,
-           phone = excluded.phone
+           phone_country_code = excluded.phone_country_code,
+           phone_number = excluded.phone_number
         `,
-        [userId, email, fullName || null, phone],
+        [userId, email, fullName || null, phoneCountryCode, phoneNumber],
       );
 
       await manager.query(
@@ -88,7 +91,7 @@ export class DriverService {
         [tenantId, userId],
       );
 
-      return { id: userId, email, full_name: fullName, phone };
+      return { id: userId, email, full_name: fullName, phone_country_code: phoneCountryCode, phone_number: phoneNumber };
     });
   }
 
@@ -96,7 +99,8 @@ export class DriverService {
     const firstName = body.first_name?.trim() ?? '';
     const lastName = body.last_name?.trim() ?? '';
     const fullName = `${firstName} ${lastName}`.trim();
-    const phone = body.phone?.trim() ?? null;
+    const phoneCountryCode = body.phone_country_code?.trim() ?? null;
+    const phoneNumber = body.phone_number?.trim() ?? null;
     const email = body.email?.trim();
 
     return this.dataSource.transaction(async (manager) => {
@@ -118,10 +122,11 @@ export class DriverService {
       await manager.query(
         `update public.users
            set full_name = coalesce($1, full_name),
-               phone = coalesce($2, phone),
-               email = coalesce($3, email)
-         where id = $4`,
-        [fullName || null, phone, email, driverId],
+               phone_country_code = coalesce($2, phone_country_code),
+               phone_number = coalesce($3, phone_number),
+               email = coalesce($4, email)
+         where id = $5`,
+        [fullName || null, phoneCountryCode, phoneNumber, email, driverId],
       );
 
       return { success: true };
