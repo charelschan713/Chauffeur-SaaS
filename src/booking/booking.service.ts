@@ -69,6 +69,9 @@ export class BookingService {
         b.dropoff_address_text,
         b.total_price_minor,
         b.currency,
+        b.owner_tenant_id,
+        b.executor_tenant_id,
+        b.transfer_source_tenant_name_snapshot,
         a.driver_id,
         a.status as assignment_status
        FROM public.bookings b
@@ -112,9 +115,16 @@ export class BookingService {
                 tv.plate as vehicle_plate,
                 pv.make as vehicle_make,
                 pv.model as vehicle_model,
-                a.leg
+                a.leg,
+                COALESCE(dp.source_type, 'INTERNAL')   AS driver_source_type,
+                COALESCE(dp.approval_status, 'APPROVED') AS driver_approval_status,
+                COALESCE(dp.platform_verified, false)  AS driver_platform_verified,
+                COALESCE(tv.source_type, 'INTERNAL')   AS vehicle_source_type,
+                COALESCE(tv.approval_status, 'APPROVED') AS vehicle_approval_status,
+                COALESCE(tv.platform_verified, false)  AS vehicle_platform_verified
            FROM public.assignments a
            LEFT JOIN public.users u ON u.id = a.driver_id
+           LEFT JOIN public.driver_profiles dp ON dp.user_id = a.driver_id
            LEFT JOIN public.tenant_vehicles tv ON tv.id = a.vehicle_id
            LEFT JOIN public.platform_vehicles pv ON pv.id = tv.platform_vehicle_id
           WHERE a.booking_id = $1

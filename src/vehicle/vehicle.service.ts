@@ -10,6 +10,8 @@ export class VehicleService {
       `SELECT tv.id, tv.active, tv.created_at, tv.updated_at,
               tv.year, tv.colour, tv.plate,
               tv.passenger_capacity, tv.luggage_capacity, tv.notes,
+              tv.source_type, tv.approval_status, tv.platform_verified,
+              tv.external_driver_id,
               pv.id as platform_vehicle_id,
               pv.make, pv.model, pv.active as platform_active
          FROM public.tenant_vehicles tv

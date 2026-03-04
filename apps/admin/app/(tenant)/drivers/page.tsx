@@ -13,6 +13,7 @@ import { ErrorAlert } from '@/components/ui/ErrorAlert';
 import { ConfirmModal } from '@/components/ui/ConfirmModal';
 import { Toast } from '@/components/ui/Toast';
 import { PhoneSplitField, formatPhone } from '@/components/ui/PhoneSplitField';
+import { getVerificationBadge } from '@/lib/badges/getVerificationBadge';
 import { formatStatus } from '@/lib/ui/formatStatus';
 
 type MembershipStatus = 'active' | 'inactive' | 'suspended';

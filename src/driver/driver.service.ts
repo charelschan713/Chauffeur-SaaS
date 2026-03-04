@@ -22,6 +22,9 @@ export class DriverService {
       .addSelect('m.status', 'membership_status')
       .addSelect('coalesce(ds.status, \'OFFLINE\')', 'availability_status')
       .addSelect('ds.updated_at', 'last_seen_at')
+      .addSelect("COALESCE(dp.source_type, 'INTERNAL')", 'source_type')
+      .addSelect("COALESCE(dp.approval_status, 'APPROVED')", 'approval_status')
+      .addSelect('COALESCE(dp.platform_verified, false)', 'platform_verified')
       .from('memberships', 'm')
       .innerJoin('users', 'u', 'u.id = m.user_id')
       .leftJoin(
@@ -29,6 +32,7 @@ export class DriverService {
         'ds',
         'ds.driver_id = u.id AND ds.tenant_id = m.tenant_id',
       )
+      .leftJoin('driver_profiles', 'dp', 'dp.user_id = u.id')
       .where('m.tenant_id = :tenantId', { tenantId })
       .andWhere('m.role = :role', { role: 'driver' });
 

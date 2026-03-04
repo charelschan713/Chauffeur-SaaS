@@ -17,6 +17,7 @@ import { Toast } from '@/components/ui/Toast';
 import Link from 'next/link';
 import { getBookingStatusBadge } from '@/lib/ui/statusBadge';
 import { formatPhone } from '@/components/ui/PhoneSplitField';
+import { getVerificationBadge, getTransferBadge } from '@/lib/badges/getVerificationBadge';
 import { formatStatus } from '@/lib/ui/formatStatus';
 
 // Statuses that allow cancellation
@@ -122,7 +123,12 @@ function BookingDetailInner() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title={`Booking ${booking.booking_reference}`}
+        title={`Booking ${booking.booking_reference}
+                  {getTransferBadge(booking).show && (
+                    <Badge variant="info">
+                      📥 Transferred from {getTransferBadge(booking).sourceTenantName ?? 'another tenant'}
+                    </Badge>
+                  )}`}
         description={`Created ${new Date(booking.created_at).toLocaleString()}`}
         actions={
           <div className="flex items-center gap-2">

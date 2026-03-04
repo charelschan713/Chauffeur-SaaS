@@ -14,6 +14,7 @@ import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { LoadingSpinner, PageLoader, InlineSpinner } from '@/components/ui/LoadingSpinner';
+import { getTransferBadge } from '@/lib/badges/getVerificationBadge';
 import { formatStatus } from '@/lib/ui/formatStatus';
 import { getBookingStatusBadge } from '@/lib/ui/statusBadge';
 
