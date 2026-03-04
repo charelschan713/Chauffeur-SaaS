@@ -1,6 +1,6 @@
 'use client';
 import { useMemo, useState, useEffect, Suspense } from 'react';
-import { useParams, useRouter, useSearchParams } from 'next/navigation';
+import { useParams, useSearchParams } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { ConfirmModal } from '@/components/ui/ConfirmModal';
@@ -47,7 +47,6 @@ function ComingSoon({ children }: { children: React.ReactNode }) {
 function BookingDetailInner() {
   const params = useParams<{ id: string }>();
   const bookingId = params.id;
-  const router = useRouter();
   const queryClient = useQueryClient();
   const searchParams = useSearchParams();
 
@@ -242,16 +241,6 @@ function BookingDetailInner() {
           {/* Actions */}
           <Card title="Actions">
             <div className="flex flex-col gap-2">
-
-              {/* Edit — DRAFT / PENDING only */}
-              {['DRAFT', 'PENDING'].includes(booking.operational_status) && (
-                <Button
-                  variant="secondary"
-                  onClick={() => router.push(`/bookings/${booking.id}/edit`)}
-                >
-                  Edit Booking
-                </Button>
-              )}
 
               {/* Cancel — gate by CANCELABLE_STATUSES */}
               {canCancel ? (

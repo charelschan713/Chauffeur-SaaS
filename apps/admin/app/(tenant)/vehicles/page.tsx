@@ -11,6 +11,8 @@ import { Table } from '@/components/ui/Table';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ErrorAlert } from '@/components/ui/ErrorAlert';
+import { ConfirmModal } from '@/components/ui/ConfirmModal';
+import { Toast } from '@/components/ui/Toast';
 
 export default function VehiclesPage() {
   const queryClient = useQueryClient();
@@ -32,6 +34,9 @@ export default function VehiclesPage() {
 
   const vehicles = data ?? [];
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [deactivateTarget, setDeactivateTarget] = useState<{ id: string; label: string } | null>(null);
+  const [deactivating, setDeactivating] = useState(false);
+  const [toast, setToast] = useState<{ message: string; tone: 'success' | 'error' } | null>(null);
   const [form, setForm] = useState({
     platform_vehicle_id: '',
     year: '',
@@ -71,14 +76,25 @@ export default function VehiclesPage() {
     await queryClient.invalidateQueries({ queryKey: ['tenant-vehicles'] });
   }
 
-  async function deactivate(id: string) {
-    await api.patch(`/vehicles/${id}`, { active: false });
-    await queryClient.invalidateQueries({ queryKey: ['tenant-vehicles'] });
+  async function confirmDeactivate() {
+    if (!deactivateTarget) return;
+    setDeactivating(true);
+    try {
+      await api.patch(`/vehicles/${deactivateTarget.id}`, { active: false });
+      await queryClient.invalidateQueries({ queryKey: ['tenant-vehicles'] });
+      setToast({ message: `${deactivateTarget.label} deactivated`, tone: 'success' });
+    } catch {
+      setToast({ message: 'Failed to deactivate vehicle', tone: 'error' });
+    } finally {
+      setDeactivating(false);
+      setDeactivateTarget(null);
+    }
   }
 
   if (error) return <ErrorAlert message="Unable to load vehicles" onRetry={refetch} />;
 
   return (
+    <>
     <ListPage
       title="Fleet Vehicles"
       subtitle="Manage your tenant fleet"
@@ -142,7 +158,12 @@ export default function VehiclesPage() {
                   <td className="px-6 py-4 text-sm text-right space-x-2">
                     <button className="text-blue-600 hover:underline" onClick={() => { setEditingId(v.id); loadForm(v); }}>Edit</button>
                     {v.active && (
-                      <button className="text-red-600 hover:underline" onClick={() => deactivate(v.id)}>Deactivate</button>
+                      <button
+                        className="text-red-600 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-1 rounded text-sm"
+                        onClick={() => setDeactivateTarget({ id: v.id, label: `${v.make} ${v.model}` })}
+                      >
+                        Deactivate
+                      </button>
                     )}
                   </td>
                 </tr>
@@ -152,5 +173,21 @@ export default function VehiclesPage() {
         )
       }
     />
+
+    <ConfirmModal
+      title="Deactivate vehicle?"
+      description={`${deactivateTarget?.label} will be removed from active assignments.`}
+      isOpen={!!deactivateTarget}
+      onClose={() => setDeactivateTarget(null)}
+      onConfirm={confirmDeactivate}
+      confirmText={deactivating ? 'Deactivating…' : 'Yes, deactivate'}
+      confirmTone="danger"
+      loading={deactivating}
+    />
+
+    {toast && (
+      <Toast message={toast.message} tone={toast.tone} onClose={() => setToast(null)} />
+    )}
+    </>
   );
 }

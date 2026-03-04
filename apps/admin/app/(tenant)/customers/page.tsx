@@ -11,6 +11,8 @@ import { Table } from '@/components/ui/Table';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ErrorAlert } from '@/components/ui/ErrorAlert';
+import { ConfirmModal } from '@/components/ui/ConfirmModal';
+import { Toast } from '@/components/ui/Toast';
 
 const TIER_COLORS: Record<string, string> = {
   STANDARD: 'bg-green-100 text-green-800',
@@ -34,6 +36,10 @@ export default function CustomersPage() {
   const [passengerModalOpen, setPassengerModalOpen] = useState(false);
   const [editingPassenger, setEditingPassenger] = useState<any | null>(null);
   const [activeCustomerId, setActiveCustomerId] = useState<string | null>(null);
+  const [deletePassengerId, setDeletePassengerId] = useState<string | null>(null);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
+  const [deleting, setDeleting] = useState(false);
+  const [toast, setToast] = useState<{ message: string; tone: 'success' | 'error' } | null>(null);
 
   const { data: customers = [], isLoading, error, refetch } = useQuery({
     queryKey: ['customers', search],
@@ -183,9 +189,20 @@ export default function CustomersPage() {
     await queryClient.invalidateQueries({ queryKey: ['customer-detail', activeCustomerId] });
   }
 
-  async function deletePassenger(id: string) {
-    await api.delete(`/passengers/${id}`);
-    await queryClient.invalidateQueries({ queryKey: ['customer-detail', expandedId] });
+  async function confirmDeletePassenger() {
+    if (!deletePassengerId) return;
+    setDeleting(true);
+    try {
+      await api.delete(`/passengers/${deletePassengerId}`);
+      await queryClient.invalidateQueries({ queryKey: ['customer-detail', expandedId] });
+      setToast({ message: 'Passenger deleted', tone: 'success' });
+    } catch {
+      setToast({ message: 'Failed to delete passenger', tone: 'error' });
+    } finally {
+      setDeleting(false);
+      setDeletePassengerId(null);
+      setDeleteConfirmText('');
+    }
   }
 
   if (error) return <ErrorAlert message="Unable to load customers" onRetry={refetch} />;
@@ -228,8 +245,8 @@ export default function CustomersPage() {
                 </td>
                 <td className="px-4 py-3 text-gray-500">{c.created_at ? new Date(c.created_at).toLocaleDateString() : '—'}</td>
                 <td className="px-4 py-3 text-right space-x-2">
-                  <button className="text-blue-600 hover:underline" onClick={() => openEditCustomer(c)}>Edit</button>
-                  <button className="text-gray-600 hover:underline" onClick={() => setExpandedId(expandedId === c.id ? null : c.id)}>Passengers</button>
+                  <Button variant="ghost" onClick={() => openEditCustomer(c)}>Edit</Button>
+                  <Button variant="ghost" onClick={() => setExpandedId(expandedId === c.id ? null : c.id)}>Passengers</Button>
                 </td>
               </tr>
               {expandedId === c.id && (
@@ -257,8 +274,14 @@ export default function CustomersPage() {
                                 )}
                               </div>
                               <div className="space-x-2">
-                                <button className="text-blue-600 hover:underline text-sm" onClick={() => openEditPassenger(c.id, p)}>Edit</button>
-                                <button className="text-red-600 hover:underline text-sm" onClick={() => deletePassenger(p.id)}>Delete</button>
+                                <Button variant="ghost" onClick={() => openEditPassenger(c.id, p)}>Edit</Button>
+                                <Button
+                                  variant="ghost"
+                                  className="text-red-600 hover:text-red-700"
+                                  onClick={() => { setDeletePassengerId(p.id); setDeleteConfirmText(''); }}
+                                >
+                                  Delete
+                                </Button>
                               </div>
                             </div>
                           ))}
@@ -307,6 +330,24 @@ export default function CustomersPage() {
         </div>
       )}
 
+      <ConfirmModal
+        title="Delete passenger?"
+        description='This cannot be undone. Type DELETE to confirm.'
+        isOpen={!!deletePassengerId}
+        onClose={() => { setDeletePassengerId(null); setDeleteConfirmText(''); }}
+        onConfirm={confirmDeletePassenger}
+        confirmText={deleting ? 'Deleting…' : 'Delete'}
+        confirmTone="danger"
+        loading={deleting || deleteConfirmText !== 'DELETE'}
+      >
+        <input
+          value={deleteConfirmText}
+          onChange={(e) => setDeleteConfirmText(e.target.value)}
+          placeholder='Type DELETE to confirm'
+          className="w-full rounded border border-gray-200 px-3 py-2 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2"
+        />
+      </ConfirmModal>
+
       {passengerModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
           <div className="bg-white rounded-lg shadow-xl w-full max-w-lg p-6 space-y-4">
@@ -346,6 +387,9 @@ export default function CustomersPage() {
             </div>
           </div>
         </div>
+      )}
+      {toast && (
+        <Toast message={toast.message} tone={toast.tone} onClose={() => setToast(null)} />
       )}
     </div>
   );
