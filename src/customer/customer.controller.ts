@@ -28,7 +28,14 @@ export class CustomerController {
     let idx = 2;
 
     if (query.search) {
-      where += ` AND (c.first_name ILIKE $${idx} OR c.last_name ILIKE $${idx} OR c.email ILIKE $${idx})`;
+      where += ` AND (
+        c.first_name ILIKE $${idx}
+        OR c.last_name ILIKE $${idx}
+        OR c.email ILIKE $${idx}
+        OR c.phone_country_code ILIKE $${idx}
+        OR c.phone_number ILIKE $${idx}
+        OR CONCAT(c.phone_country_code, c.phone_number) ILIKE $${idx}
+      )`;
       params.push(`%${query.search}%`);
       idx++;
     }

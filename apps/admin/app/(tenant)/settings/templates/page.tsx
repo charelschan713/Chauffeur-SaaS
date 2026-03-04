@@ -6,27 +6,25 @@ import { ListPage } from '@/components/patterns/ListPage';
 
 const EVENTS = [
   { key: 'BookingConfirmed', label: 'Booking Confirmed' },
-  { key: 'DriverAcceptedAssignment', label: 'Driver Accepted' },
-  { key: 'DriverInvitationSent', label: 'Driver Invitation' },
-  { key: 'JobCompleted', label: 'Job Completed' },
+  { key: 'DriverAcceptedAssignment', label: 'Driver Assigned' },
+  { key: 'DriverInvitationSent', label: 'Driver En Route' },
+  { key: 'JobCompleted', label: 'Booking Completed' },
   { key: 'BookingCancelled', label: 'Booking Cancelled' },
   { key: 'DriverRejectedAssignment', label: 'Driver Rejected (Admin)' },
-  { key: 'AssignmentCancelled', label: 'Assignment Cancelled (Driver)' },
-  { key: 'DriverPayUpdated', label: 'Driver Pay Updated (Driver)' },
+  { key: 'AssignmentCancelled', label: 'Assignment Cancelled' },
+  { key: 'DriverPayUpdated', label: 'Driver Pay Updated' },
 ];
 
 const VARIABLES = [
   'booking_reference',
-  'customer_first_name',
-  'customer_last_name',
+  'customer_name',
   'pickup_address',
   'dropoff_address',
   'pickup_time',
   'driver_name',
   'vehicle_make',
   'vehicle_model',
-  'total_amount',
-  'currency',
+  'total_price',
 ];
 
 interface TemplateRow {
@@ -38,14 +36,20 @@ interface TemplateRow {
   active: boolean;
 }
 
+type TemplateState = {
+  subject: string;
+  body: string;
+};
+
+type PreviewState = {
+  subject?: string;
+  body?: string;
+};
+
 export default function TemplatesPage() {
-  const [selectedEvent, setSelectedEvent] = useState(EVENTS[0].key);
-  const [channel, setChannel] = useState<'email' | 'sms'>('email');
-  const [subject, setSubject] = useState('');
-  const [body, setBody] = useState('');
-  const [preview, setPreview] = useState<{ subject?: string; body?: string } | null>(null);
-  const [saving, setSaving] = useState(false);
-  const [focused, setFocused] = useState<'subject' | 'body' | null>(null);
+  const [templatesState, setTemplatesState] = useState<Record<string, TemplateState>>({});
+  const [previewState, setPreviewState] = useState<Record<string, PreviewState>>({});
+  const [savingKey, setSavingKey] = useState<string | null>(null);
 
   const { data: templates = [], isLoading, refetch } = useQuery({
     queryKey: ['notification-templates'],
@@ -55,206 +59,203 @@ export default function TemplatesPage() {
     },
   });
 
-  const currentTemplate = useMemo(() => {
-    return (templates as TemplateRow[]).find(
-      (t) => t.event_type === selectedEvent && t.channel === channel,
-    );
-  }, [templates, selectedEvent, channel]);
+  useEffect(() => {
+    if (!templates?.length) return;
+    setTemplatesState((prev) => {
+      const next = { ...prev };
+      (templates as TemplateRow[]).forEach((t) => {
+        const key = `${t.event_type}:${t.channel}`;
+        if (!next[key]) {
+          next[key] = { subject: t.subject ?? '', body: t.body ?? '' };
+        }
+      });
+      return next;
+    });
+  }, [templates]);
 
-  async function loadTemplate() {
-    const res = await api.get(`/notification-templates/${selectedEvent}/${channel}`);
-    const data = res.data;
-    setSubject(data?.subject ?? '');
-    setBody(data?.body ?? '');
-    setPreview(null);
+  function keyFor(eventType: string, channel: 'email' | 'sms') {
+    return `${eventType}:${channel}`;
   }
 
-  useEffect(() => {
-    loadTemplate();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedEvent, channel]);
+  function getState(eventType: string, channel: 'email' | 'sms') {
+    const key = keyFor(eventType, channel);
+    return templatesState[key] ?? { subject: '', body: '' };
+  }
 
-  async function handleSave() {
-    setSaving(true);
+  function updateState(eventType: string, channel: 'email' | 'sms', patch: Partial<TemplateState>) {
+    const key = keyFor(eventType, channel);
+    setTemplatesState((prev) => ({
+      ...prev,
+      [key]: { ...(prev[key] ?? { subject: '', body: '' }), ...patch },
+    }));
+  }
+
+  async function loadTemplate(eventType: string, channel: 'email' | 'sms') {
+    const res = await api.get(`/notification-templates/${eventType}/${channel}`);
+    const data = res.data ?? {};
+    updateState(eventType, channel, { subject: data.subject ?? '', body: data.body ?? '' });
+  }
+
+  async function handleSave(eventType: string, channel: 'email' | 'sms') {
+    const state = getState(eventType, channel);
+    const key = keyFor(eventType, channel);
+    setSavingKey(key);
     await api.post('/notification-templates', {
-      event_type: selectedEvent,
+      event_type: eventType,
       channel,
-      subject: subject || null,
-      body,
+      subject: channel === 'email' ? (state.subject || null) : null,
+      body: state.body,
     });
     await refetch();
-    setSaving(false);
+    setSavingKey(null);
   }
 
-  async function handleReset() {
-    setSaving(true);
-    await api.delete(`/notification-templates/${selectedEvent}/${channel}`);
-    await refetch();
-    await loadTemplate();
-    setSaving(false);
-  }
-
-  async function handlePreview() {
+  async function handlePreview(eventType: string, channel: 'email' | 'sms') {
+    const state = getState(eventType, channel);
     const res = await api.post('/notification-templates/preview', {
       channel,
-      subject,
-      body,
+      subject: state.subject,
+      body: state.body,
     });
+    const key = keyFor(eventType, channel);
     if (channel === 'sms') {
-      setPreview({ body: res.data?.text_rendered ?? '' });
+      setPreviewState((prev) => ({ ...prev, [key]: { body: res.data?.text_rendered ?? '' } }));
     } else {
-      setPreview({ subject: res.data?.subject_rendered ?? '', body: res.data?.html_rendered ?? '' });
+      setPreviewState((prev) => ({
+        ...prev,
+        [key]: {
+          subject: res.data?.subject_rendered ?? '',
+          body: res.data?.html_rendered ?? '',
+        },
+      }));
     }
   }
 
-  function insertVar(variable: string) {
-    const token = `{{${variable}}}`;
-    if (focused === 'subject') {
-      setSubject((prev) => `${prev}${token}`);
-      return;
-    }
-    setBody((prev) => `${prev}${token}`);
+  async function handleReset(eventType: string, channel: 'email' | 'sms') {
+    const key = keyFor(eventType, channel);
+    setSavingKey(key);
+    await api.delete(`/notification-templates/${eventType}/${channel}`);
+    await loadTemplate(eventType, channel);
+    setPreviewState((prev) => ({ ...prev, [key]: {} }));
+    setSavingKey(null);
   }
+
+  const variableTokens = useMemo(() => VARIABLES.map((v) => `{{${v}}}`), []);
 
   return (
     <ListPage
       title="Templates"
       subtitle="Manage notification templates for your tenant"
       table={
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="bg-white border rounded p-4 space-y-2">
-            <div className="text-sm font-medium text-gray-700">Events</div>
-            {EVENTS.map((e) => (
-              <button
-                key={e.key}
-                onClick={async () => {
-                  setSelectedEvent(e.key);
-                  await loadTemplate();
-                }}
-                className={`w-full text-left px-3 py-2 rounded text-sm ${
-                  selectedEvent === e.key ? 'bg-blue-600 text-white' : 'hover:bg-gray-50'
-                }`}
-              >
-                {e.label}
-              </button>
-            ))}
-          </div>
-
-          <div className="lg:col-span-2 bg-white border rounded p-4 space-y-4">
-            <div className="flex items-center gap-2">
-              <button
-                onClick={async () => {
-                  setChannel('email');
-                  await loadTemplate();
-                }}
-                className={`px-3 py-2 text-sm rounded ${
-                  channel === 'email' ? 'bg-blue-600 text-white' : 'bg-gray-100'
-                }`}
-              >
-                Email
-              </button>
-              <button
-                onClick={async () => {
-                  setChannel('sms');
-                  await loadTemplate();
-                }}
-                className={`px-3 py-2 text-sm rounded ${
-                  channel === 'sms' ? 'bg-blue-600 text-white' : 'bg-gray-100'
-                }`}
-              >
-                SMS
-              </button>
-            </div>
-
-            {isLoading ? (
-              <div className="text-sm text-gray-500">Loading...</div>
-            ) : (
-              <div className="space-y-3">
-                {channel === 'email' && (
+        <div className="space-y-6">
+          {isLoading && <div className="text-sm text-gray-500">Loading...</div>}
+          {EVENTS.map((event) => (
+            <div key={event.key} className="bg-white border rounded p-4 space-y-4">
+              <div className="text-sm font-semibold text-gray-800">{event.label}</div>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <div className="border rounded p-4 space-y-3">
+                  <div className="text-sm font-medium text-gray-700">Email</div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Subject</label>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Subject</label>
                     <input
-                      value={subject}
-                      onChange={(e) => setSubject(e.target.value)}
-                      onFocus={() => setFocused('subject')}
+                      value={getState(event.key, 'email').subject}
+                      onChange={(e) => updateState(event.key, 'email', { subject: e.target.value })}
                       className="w-full border rounded px-3 py-2 text-sm"
-                      placeholder="Booking confirmed for {{customer_first_name}}"
+                      placeholder="Subject"
                     />
                   </div>
-                )}
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    {channel === 'email' ? 'HTML Body' : 'SMS Text'}
-                  </label>
-                  <textarea
-                    value={body}
-                    onChange={(e) => setBody(e.target.value)}
-                    onFocus={() => setFocused('body')}
-                    className="w-full border rounded px-3 py-2 text-sm h-48"
-                  />
-                  {channel === 'sms' && (
-                    <div className="text-xs text-gray-500 mt-1">{body.length}/160</div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Body</label>
+                    <textarea
+                      value={getState(event.key, 'email').body}
+                      onChange={(e) => updateState(event.key, 'email', { body: e.target.value })}
+                      className="w-full border rounded px-3 py-2 text-sm h-40"
+                    />
+                  </div>
+                  <div className="text-xs text-gray-500">
+                    Variables: {variableTokens.join(' ')}
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handlePreview(event.key, 'email')}
+                      className="px-3 py-2 text-xs rounded bg-gray-100 hover:bg-gray-200"
+                    >
+                      Preview
+                    </button>
+                    <button
+                      onClick={() => handleSave(event.key, 'email')}
+                      disabled={savingKey === keyFor(event.key, 'email')}
+                      className="px-3 py-2 text-xs rounded bg-blue-600 text-white disabled:opacity-60"
+                    >
+                      Save
+                    </button>
+                    <button
+                      onClick={() => handleReset(event.key, 'email')}
+                      disabled={savingKey === keyFor(event.key, 'email')}
+                      className="px-3 py-2 text-xs rounded bg-red-600 text-white disabled:opacity-60"
+                    >
+                      Reset to Default
+                    </button>
+                  </div>
+                  {previewState[keyFor(event.key, 'email')]?.body && (
+                    <div className="border rounded p-3 bg-gray-50 text-xs">
+                      {previewState[keyFor(event.key, 'email')]?.subject && (
+                        <div className="mb-2">
+                          <div className="text-[10px] text-gray-500">Subject</div>
+                          <div className="font-medium">{previewState[keyFor(event.key, 'email')]?.subject}</div>
+                        </div>
+                      )}
+                      <div className="text-[10px] text-gray-500">Preview</div>
+                      <div className="whitespace-pre-wrap">{previewState[keyFor(event.key, 'email')]?.body}</div>
+                    </div>
                   )}
                 </div>
 
-                <div>
-                  <div className="text-sm font-medium text-gray-700 mb-1">Variables</div>
-                  <div className="flex flex-wrap gap-2">
-                    {VARIABLES.map((v) => (
-                      <button
-                        key={v}
-                        onClick={() => insertVar(v)}
-                        className="text-xs px-2 py-1 rounded bg-gray-100 hover:bg-gray-200"
-                      >
-                        {`{{${v}}}`}
-                      </button>
-                    ))}
+                <div className="border rounded p-4 space-y-3">
+                  <div className="text-sm font-medium text-gray-700">SMS</div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Body</label>
+                    <textarea
+                      value={getState(event.key, 'sms').body}
+                      onChange={(e) => updateState(event.key, 'sms', { body: e.target.value })}
+                      className="w-full border rounded px-3 py-2 text-sm h-40"
+                    />
                   </div>
-                </div>
-
-                <div className="flex gap-2">
-                  <button
-                    onClick={handlePreview}
-                    className="px-3 py-2 text-sm rounded bg-gray-100 hover:bg-gray-200"
-                  >
-                    Preview
-                  </button>
-                  <button
-                    onClick={handleSave}
-                    disabled={saving}
-                    className="px-3 py-2 text-sm rounded bg-blue-600 text-white disabled:opacity-60"
-                  >
-                    {saving ? 'Saving...' : 'Save'}
-                  </button>
-                  <button
-                    onClick={handleReset}
-                    disabled={saving}
-                    className="px-3 py-2 text-sm rounded bg-red-600 text-white disabled:opacity-60"
-                  >
-                    Reset to Default
-                  </button>
-                </div>
-
-                {preview && (
-                  <div className="border rounded p-3 bg-gray-50 text-sm">
-                    {preview.subject && (
-                      <div className="mb-2">
-                        <div className="text-xs text-gray-500">Subject</div>
-                        <div className="font-medium">{preview.subject}</div>
-                      </div>
-                    )}
-                    <div className="text-xs text-gray-500">Preview</div>
-                    <div className="whitespace-pre-wrap">{preview.body}</div>
+                  <div className="text-xs text-gray-500">
+                    Variables: {variableTokens.join(' ')}
                   </div>
-                )}
-
-                {currentTemplate && (
-                  <div className="text-xs text-gray-500">Loaded custom template</div>
-                )}
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handlePreview(event.key, 'sms')}
+                      className="px-3 py-2 text-xs rounded bg-gray-100 hover:bg-gray-200"
+                    >
+                      Preview
+                    </button>
+                    <button
+                      onClick={() => handleSave(event.key, 'sms')}
+                      disabled={savingKey === keyFor(event.key, 'sms')}
+                      className="px-3 py-2 text-xs rounded bg-blue-600 text-white disabled:opacity-60"
+                    >
+                      Save
+                    </button>
+                    <button
+                      onClick={() => handleReset(event.key, 'sms')}
+                      disabled={savingKey === keyFor(event.key, 'sms')}
+                      className="px-3 py-2 text-xs rounded bg-red-600 text-white disabled:opacity-60"
+                    >
+                      Reset to Default
+                    </button>
+                  </div>
+                  {previewState[keyFor(event.key, 'sms')]?.body && (
+                    <div className="border rounded p-3 bg-gray-50 text-xs">
+                      <div className="text-[10px] text-gray-500">Preview</div>
+                      <div className="whitespace-pre-wrap">{previewState[keyFor(event.key, 'sms')]?.body}</div>
+                    </div>
+                  )}
+                </div>
               </div>
-            )}
-          </div>
+            </div>
+          ))}
         </div>
       }
     />
