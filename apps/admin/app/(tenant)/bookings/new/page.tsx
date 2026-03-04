@@ -5,13 +5,15 @@ import { useRouter } from 'next/navigation';
 import { useForm, Resolver } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { WizardLayout } from '@/components/patterns/Wizard';
 import { ErrorAlert } from '@/components/ui/ErrorAlert';
 
 const formSchema = z
   .object({
+    service_class_id: z.string().min(1, 'Car type is required'),
+    service_type_id: z.string().min(1, 'Service type is required'),
     customer_name: z.string().trim().min(2, 'Name must be at least 2 characters'),
     customer_phone: z.string().trim().optional(),
     customer_email: z
@@ -63,6 +65,7 @@ const formSchema = z
 type FormValues = z.infer<typeof formSchema>;
 
 const steps = [
+  { id: 'service', label: 'Service' },
   { id: 'customer', label: 'Customer Details' },
   { id: 'trip', label: 'Trip Details' },
   { id: 'requirements', label: 'Requirements' },
@@ -70,6 +73,7 @@ const steps = [
 ] as const;
 
 const stepFields: Record<(typeof steps)[number]['id'], (keyof FormValues)[]> = {
+  service: ['service_class_id', 'service_type_id'],
   customer: [
     'customer_name',
     'customer_phone',
@@ -84,10 +88,30 @@ const stepFields: Record<(typeof steps)[number]['id'], (keyof FormValues)[]> = {
   review: [],
 };
 
+function toDisplay(minor: number) {
+  return (minor / 100).toFixed(2);
+}
+
 export default function CreateBookingPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const [stepIndex, setStepIndex] = useState(0);
+
+  const { data: carTypes = [] } = useQuery({
+    queryKey: ['car-types'],
+    queryFn: async () => {
+      const res = await api.get('/pricing/service-classes');
+      return res.data ?? [];
+    },
+  });
+
+  const { data: serviceTypes = [] } = useQuery({
+    queryKey: ['service-types'],
+    queryFn: async () => {
+      const res = await api.get('/service-types');
+      return res.data ?? [];
+    },
+  });
 
   const {
     register,
@@ -95,9 +119,12 @@ export default function CreateBookingPage() {
     trigger,
     watch,
     formState: { errors },
+    setValue,
   } = useForm<FormValues>({
     resolver: zodResolver(formSchema) as Resolver<FormValues>,
     defaultValues: {
+      service_class_id: '',
+      service_type_id: '',
       customer_name: '',
       customer_phone: '',
       customer_email: '',
@@ -136,6 +163,8 @@ export default function CreateBookingPage() {
         luggageCount: values.luggage_count ?? 0,
         specialRequests: values.special_requests?.trim() || undefined,
         bookingSource: 'ADMIN' as const,
+        service_class_id: values.service_class_id,
+        service_type_id: values.service_type_id,
       };
       const response = await api.post('/bookings', payload);
       return response.data;
@@ -144,9 +173,9 @@ export default function CreateBookingPage() {
       queryClient.invalidateQueries({ queryKey: ['bookings'] });
       const bookingId = response?.data?.id ?? response?.data?.booking?.id;
       if (bookingId) {
-        router.push(`/tenant/bookings/${bookingId}`);
+        router.push(`/bookings/${bookingId}`);
       } else {
-        router.push('/tenant/bookings');
+        router.push('/bookings');
       }
     },
   });
@@ -205,6 +234,46 @@ export default function CreateBookingPage() {
           </div>
         }
       >
+        {stepId === 'service' && (
+          <div className="space-y-6">
+            <div className="space-y-2">
+              <h3 className="text-sm font-semibold text-gray-700">Car Type</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {carTypes.map((c: any) => (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => setValue('service_class_id', c.id, { shouldValidate: true })}
+                    className={`border rounded p-3 text-left ${values.service_class_id === c.id ? 'border-blue-600 bg-blue-50' : 'border-gray-200'}`}
+                  >
+                    <div className="font-medium">{c.name}</div>
+                    <div className="text-xs text-gray-500">Base ${toDisplay(c.base_fare_minor ?? 0)} · Hourly ${toDisplay(c.hourly_rate_minor ?? 0)}</div>
+                  </button>
+                ))}
+              </div>
+              {errors.service_class_id && <p className="text-xs text-red-600">{errors.service_class_id.message}</p>}
+            </div>
+
+            <div className="space-y-2">
+              <h3 className="text-sm font-semibold text-gray-700">Service Type</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {serviceTypes.map((s: any) => (
+                  <button
+                    key={s.id}
+                    type="button"
+                    onClick={() => setValue('service_type_id', s.id, { shouldValidate: true })}
+                    className={`border rounded p-3 text-left ${values.service_type_id === s.id ? 'border-blue-600 bg-blue-50' : 'border-gray-200'}`}
+                  >
+                    <div className="font-medium">{s.display_name ?? s.name}</div>
+                    <div className="text-xs text-gray-500">{s.calculation_type ?? s.calc_type ?? 'PTP'}</div>
+                  </button>
+                ))}
+              </div>
+              {errors.service_type_id && <p className="text-xs text-red-600">{errors.service_type_id.message}</p>}
+            </div>
+          </div>
+        )}
+
         {stepId === 'customer' && (
           <div className="grid grid-cols-1 gap-4">
             <Field label="Customer Name" error={errors.customer_name?.message}>
@@ -326,6 +395,8 @@ export default function CreateBookingPage() {
 
         {stepId === 'review' && (
           <div className="space-y-4 text-sm">
+            <ReviewRow label="Car Type">{carTypes.find((c: any) => c.id === values.service_class_id)?.name ?? '—'}</ReviewRow>
+            <ReviewRow label="Service Type">{serviceTypes.find((s: any) => s.id === values.service_type_id)?.display_name ?? '—'}</ReviewRow>
             <ReviewRow label="Customer">{values.customer_name}</ReviewRow>
             <ReviewRow label="Contact">
               {values.customer_email || '—'} / {values.customer_phone || '—'}
