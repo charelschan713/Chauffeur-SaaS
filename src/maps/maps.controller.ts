@@ -15,4 +15,19 @@ export class MapsController {
   ) {
     return this.mapsService.getRoute(req.user.tenant_id, origin, destination);
   }
+
+  @Get('route/toll')
+  async getRouteWithToll(
+    @Query('origin') origin: string,
+    @Query('destination') destination: string,
+    @Query('currency') currency: string,
+    @Req() req: any,
+  ) {
+    return this.mapsService.getRouteWithToll(
+      req.user.tenant_id,
+      origin,
+      destination,
+      currency ?? 'AUD',
+    );
+  }
 }

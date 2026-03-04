@@ -42,18 +42,16 @@ export class PricingResolver {
     if (!ctx.tollEnabled) return 0;
     if (!ctx.pickupAddress || !ctx.dropoffAddress) return 0;
     try {
-      const route = await this.mapsService.getRoute(
+      const route = await this.mapsService.getRouteWithToll(
         ctx.tenantId,
         ctx.pickupAddress,
         ctx.dropoffAddress,
+        ctx.currency,
       );
       if (!route) return 0;
-      // Flat toll estimate: AUD $0.20/km (capped at $25)
-      // Operators should adjust via the Assign Modal if actual toll differs
-      const estimatedTollAUD = Math.min(route.distanceKm * 0.2, 25);
-      return Math.round(estimatedTollAUD * 100); // return minor units
+      return route.tollAmountMinor;
     } catch (err) {
-      this.logger.warn(`Toll estimation failed: ${(err as Error).message}`);
+      this.logger.warn(`Toll calculation failed: ${(err as Error).message}`);
       return 0;
     }
   }
