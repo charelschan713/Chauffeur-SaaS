@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { PhoneSplitField } from '@/components/ui/PhoneSplitField';
+import { PlacesAutocomplete } from '@/components/ui/PlacesAutocomplete';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { Badge } from '@/components/ui/Badge';
 import { useBookingWizardStore } from '@/lib/ui/useBookingWizardStore';
@@ -109,6 +110,9 @@ export default function CreateBookingPage() {
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchLabel, setSearchLabel] = useState('Recent Customers');
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [pickupPlaceId, setPickupPlaceId] = useState('');
+  const [dropoffPlaceId, setDropoffPlaceId] = useState('');
+  const [returnPickupPlaceId, setReturnPickupPlaceId] = useState('');
   const [waypoints, setWaypoints] = useState<string[]>(wizardState.waypoints ?? []);
   const [activeSection, setActiveSection] = useState(wizardState.activeSection ?? 'service');
 
@@ -236,8 +240,8 @@ export default function CreateBookingPage() {
           phone_country_code: values.customer_phone_country_code || '+61',
           phone_number: values.customer_phone_number?.trim() || undefined,
         },
-        pickup: { address: values.pickup_address_text.trim() },
-        dropoff: { address: values.dropoff_address_text.trim() },
+        pickup: { address: values.pickup_address_text.trim(), place_id: pickupPlaceId || undefined },
+        dropoff: { address: values.dropoff_address_text.trim(), place_id: dropoffPlaceId || undefined },
         pickupAtUtc: new Date(values.pickup_at_utc).toISOString(),
         timezone: values.timezone || 'Australia/Sydney',
         is_return_trip: values.is_return_trip,
@@ -540,9 +544,14 @@ export default function CreateBookingPage() {
           <AccordionCard title="Route" summary={summaries.route} open={activeSection === 'route'}>
             <div className="space-y-4">
               <Field label="Pickup Address" error={errors.pickup_address_text?.message}>
-                <Input
-                  {...register('pickup_address_text')}
+                <PlacesAutocomplete
+                  value={values.pickup_address_text ?? ''}
+                  onChange={(val, placeId) => {
+                    setValue('pickup_address_text', val, { shouldValidate: true });
+                    setPickupPlaceId(placeId ?? '');
+                  }}
                   placeholder="123 George St, Sydney"
+                  error={errors.pickup_address_text?.message}
                 />
               </Field>
 
@@ -564,14 +573,15 @@ export default function CreateBookingPage() {
                 {waypoints.map((wp, idx) => (
                   <div key={idx} className="space-y-2">
                     <div className="flex items-center gap-2">
-                      <Input
+                      <PlacesAutocomplete
                         value={wp}
-                        onChange={(e) => {
+                        onChange={(val) => {
                           const next = [...waypoints];
-                          next[idx] = e.target.value;
+                          next[idx] = val;
                           setWaypoints(next);
                         }}
                         placeholder={`Stop ${idx + 1} address`}
+                        className="flex-1"
                       />
                       <button
                         type="button"
@@ -587,9 +597,14 @@ export default function CreateBookingPage() {
               </div>
 
               <Field label="Dropoff Address" error={errors.dropoff_address_text?.message}>
-                <Input
-                  {...register('dropoff_address_text')}
+                <PlacesAutocomplete
+                  value={values.dropoff_address_text ?? ''}
+                  onChange={(val, placeId) => {
+                    setValue('dropoff_address_text', val, { shouldValidate: true });
+                    setDropoffPlaceId(placeId ?? '');
+                  }}
                   placeholder="Airport or destination"
+                  error={errors.dropoff_address_text?.message}
                 />
               </Field>
             </div>
