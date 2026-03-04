@@ -247,6 +247,7 @@ export default function CreateBookingPage() {
     setValue('customer_phone_country_code', c.phone_country_code ?? '+61');
     setValue('customer_phone_number', c.phone_number ?? '');
     setCustomerSearch('');
+    setCustomerResults([]);   // close dropdown
   }
 
   const mutation = useMutation({
