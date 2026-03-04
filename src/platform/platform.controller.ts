@@ -90,6 +90,17 @@ export class PlatformController {
     );
   }
 
+
+  @Get('vehicles/public')
+  async listVehiclesPublic() {
+    return this.dataSource.query(
+      `SELECT id, make, model, active, created_at
+       FROM public.platform_vehicles
+       WHERE active = true
+       ORDER BY make, model ASC`,
+    );
+  }
+
   @Post('vehicles')
   async createVehicle(@Body() body: any, @Req() req: Request) {
     this.assertPlatformAdmin(req);

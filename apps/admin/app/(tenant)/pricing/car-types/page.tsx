@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { ListPage } from '@/components/patterns/ListPage';
@@ -60,8 +60,28 @@ export default function CarTypesPage() {
     },
   });
 
+
+  const { data: platformVehicles = [] } = useQuery({
+    queryKey: ['platform-vehicles'],
+    queryFn: async () => {
+      const res = await api.get('/platform/vehicles/public');
+      return res.data ?? [];
+    },
+  });
+
   const [form, setForm] = useState<FormState>(emptyForm);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [selectedPlatformIds, setSelectedPlatformIds] = useState<string[]>([]);
+
+  const { data: carTypeDetail } = useQuery({
+    queryKey: ['car-type-detail', editingId],
+    queryFn: async () => {
+      if (!editingId) return null;
+      const res = await api.get(`/pricing/service-classes/${editingId}`);
+      return res.data;
+    },
+    enabled: !!editingId,
+  });
 
   const carTypes = data as CarTypeRow[];
 
@@ -69,6 +89,12 @@ export default function CarTypesPage() {
     if (!editingId) return null;
     return carTypes.find((row) => row.id === editingId) ?? null;
   }, [editingId, carTypes]);
+
+
+  useEffect(() => {
+    const linked = carTypeDetail?.platform_vehicles ?? [];
+    setSelectedPlatformIds(linked.map((v: any) => v.id));
+  }, [carTypeDetail]);
 
   function loadForm(row: CarTypeRow) {
     setForm({
@@ -135,6 +161,15 @@ export default function CarTypesPage() {
     await refetch();
   }
 
+
+  async function handleSavePlatformVehicles() {
+    if (!editingId) return;
+    await api.post('/pricing/service-classes/platform-vehicles', {
+      service_class_id: editingId,
+      platform_vehicle_ids: selectedPlatformIds,
+    });
+  }
+
   return (
     <ListPage
       title="Car Types"
@@ -194,6 +229,35 @@ export default function CarTypesPage() {
             <MoneyField label="Toddler Seat ($)" value={form.toddler_seat_minor} onChange={(v) => setForm((p) => ({ ...p, toddler_seat_minor: v }))} />
             <MoneyField label="Booster Seat ($)" value={form.booster_seat_minor} onChange={(v) => setForm((p) => ({ ...p, booster_seat_minor: v }))} />
             <MoneyField label="Hourly Rate ($)" value={form.hourly_rate_minor} onChange={(v) => setForm((p) => ({ ...p, hourly_rate_minor: v }))} />
+          </div>
+
+          <div className="md:col-span-2 space-y-2">
+            <p className="text-sm font-medium text-gray-700">Linked Platform Vehicles</p>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+              {(platformVehicles as any[]).map((v) => (
+                <label key={v.id} className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={selectedPlatformIds.includes(v.id)}
+                    onChange={(e) => {
+                      setSelectedPlatformIds((prev) =>
+                        e.target.checked
+                          ? [...prev, v.id]
+                          : prev.filter((id) => id !== v.id),
+                      );
+                    }}
+                  />
+                  <span>{v.make} {v.model}</span>
+                </label>
+              ))}
+            </div>
+            <button
+              onClick={handleSavePlatformVehicles}
+              disabled={!editingId}
+              className="px-4 py-2 rounded bg-blue-600 text-white text-sm disabled:opacity-50"
+            >
+              Save Linked Vehicles
+            </button>
           </div>
         </div>
       }
