@@ -333,13 +333,19 @@ export class BookingService {
         return { success: true };
       }
 
-      await manager.query(
+      const updated = await manager.query(
         `UPDATE public.bookings
          SET operational_status = 'CANCELLED',
              updated_at = now()
-         WHERE id = $1`,
+         WHERE id = $1
+           AND operational_status IN ('DRAFT','PENDING','CONFIRMED','ASSIGNED')
+         RETURNING id`,
         [bookingId],
       );
+      if (!updated.length) {
+        // Race condition: status changed between SELECT and UPDATE
+        throw new Error('Booking cannot be cancelled in its current status');
+      }
 
       await manager.query(
         `INSERT INTO public.booking_status_history

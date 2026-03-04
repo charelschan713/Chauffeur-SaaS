@@ -9,6 +9,7 @@ interface CreatePaymentIntentDto {
   amountMinor: number;
   currency: string;
   stripeAccountId: string;
+  stripeCustomerId?: string | null;
 }
 
 @Injectable()
@@ -24,11 +25,27 @@ export class PaymentService {
     bookingId: string,
     dto: CreatePaymentIntentDto,
   ) {
+    // Resolve stripe_customer_id for this booking's customer (enables saved cards)
+    let stripeCustomerId = dto.stripeCustomerId ?? null;
+    if (!stripeCustomerId) {
+      const customerRows = await this.dataSource.query(
+        `SELECT pm.stripe_customer_id
+         FROM public.bookings b
+         JOIN public.payment_methods pm ON pm.customer_id = b.customer_id
+           AND pm.tenant_id = b.tenant_id AND pm.is_active = true
+         WHERE b.id = $1 AND b.tenant_id = $2
+         LIMIT 1`,
+        [bookingId, tenantId],
+      );
+      stripeCustomerId = customerRows[0]?.stripe_customer_id ?? null;
+    }
+
     const paymentIntent = await this.stripe.paymentIntents.create(
       {
         amount: dto.amountMinor,
         currency: dto.currency,
         capture_method: 'manual',
+        ...(stripeCustomerId ? { customer: stripeCustomerId } : {}),
         metadata: {
           tenant_id: tenantId,
           booking_id: bookingId,
