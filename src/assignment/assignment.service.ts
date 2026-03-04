@@ -150,8 +150,7 @@ export class AssignmentService {
        SET driver_pay_type = $3,
            driver_pay_value = $4,
            driver_pay_minor = $5,
-           platform_fee_minor = $6,
-           status = CASE WHEN status = 'FULFILLED' THEN status ELSE 'PENDING' END
+           platform_fee_minor = $6
        WHERE id = $1 AND tenant_id = $2`,
       [assignmentId, tenantId, dto.driver_pay_type, dto.driver_pay_value, driverPayMinor, customerTotal - driverPayMinor],
     );
