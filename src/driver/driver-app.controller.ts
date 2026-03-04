@@ -84,6 +84,18 @@ export class DriverAppController {
     return this.service.updateLocation(userId, body.lat, body.lng);
   }
 
+  /**
+   * Driver unbinds themselves from current tenant
+   * Body: { reason? }
+   */
+  @Post('unbind')
+  async selfUnbind(
+    @CurrentUser('sub') userId: string,
+    @Body('reason') reason?: string,
+  ) {
+    return this.service.selfUnbind(userId, reason);
+  }
+
   /** Save APNs / FCM push token */
   @Post('apns-token')
   async saveApnsToken(

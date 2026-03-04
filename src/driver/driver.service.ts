@@ -71,6 +71,24 @@ export class DriverService {
       }
       const userId = authRows[0].id;
 
+      // ── Single-tenant binding rule ──────────────────────────────────────
+      // A driver can only be actively bound to one tenant at a time.
+      const existing = await manager.query(
+        `SELECT m.tenant_id, t.name AS tenant_name
+         FROM public.memberships m
+         LEFT JOIN public.tenants t ON t.id = m.tenant_id
+         WHERE m.user_id = $1 AND m.role = 'driver' AND m.status = 'active'
+         LIMIT 1`,
+        [userId],
+      );
+      if (existing.length && existing[0].tenant_id !== tenantId) {
+        throw new BadRequestException(
+          `This driver is already bound to "${existing[0].tenant_name ?? existing[0].tenant_id}". ` +
+          `They must be released from that tenant before binding to a new one.`,
+        );
+      }
+      // ───────────────────────────────────────────────────────────────────
+
       await manager.query(
         `insert into public.users (id, email, full_name, phone_country_code, phone_number, is_platform_admin)
          values ($1,$2,$3,$4,$5,false)
@@ -91,7 +109,70 @@ export class DriverService {
         [tenantId, userId],
       );
 
+      // Record in binding history
+      await manager.query(
+        `INSERT INTO public.driver_binding_history (user_id, tenant_id, bound_at)
+         VALUES ($1, $2, NOW())
+         ON CONFLICT DO NOTHING`,
+        [userId, tenantId],
+      );
+
       return { id: userId, email, full_name: fullName, phone_country_code: phoneCountryCode, phone_number: phoneNumber };
+    });
+  }
+
+  // ── Tenant releases a driver (admin action) ─────────────────────────────
+  async releaseDriver(tenantId: string, driverId: string, reason?: string) {
+    return this.dataSource.transaction(async (manager) => {
+      const rows = await manager.query(
+        `SELECT id FROM public.memberships
+         WHERE user_id = $1 AND tenant_id = $2 AND role = 'driver' AND status = 'active'`,
+        [driverId, tenantId],
+      );
+      if (!rows.length) throw new NotFoundException('Active driver binding not found');
+
+      await manager.query(
+        `UPDATE public.memberships SET status = 'disabled', updated_at = NOW()
+         WHERE user_id = $1 AND tenant_id = $2 AND role = 'driver'`,
+        [driverId, tenantId],
+      );
+
+      await manager.query(
+        `UPDATE public.driver_binding_history
+         SET unbound_at = NOW(), unbound_by = 'tenant', unbound_reason = $3
+         WHERE user_id = $1 AND tenant_id = $2 AND unbound_at IS NULL`,
+        [driverId, tenantId, reason ?? null],
+      );
+
+      return { success: true, message: 'Driver released from tenant' };
+    });
+  }
+
+  // ── Driver releases themselves ────────────────────────────────────────────
+  async selfRelease(userId: string, reason?: string) {
+    return this.dataSource.transaction(async (manager) => {
+      const rows = await manager.query(
+        `SELECT tenant_id FROM public.memberships
+         WHERE user_id = $1 AND role = 'driver' AND status = 'active'`,
+        [userId],
+      );
+      if (!rows.length) throw new NotFoundException('No active binding found');
+      const tenantId = rows[0].tenant_id;
+
+      await manager.query(
+        `UPDATE public.memberships SET status = 'disabled', updated_at = NOW()
+         WHERE user_id = $1 AND role = 'driver' AND status = 'active'`,
+        [userId],
+      );
+
+      await manager.query(
+        `UPDATE public.driver_binding_history
+         SET unbound_at = NOW(), unbound_by = 'driver', unbound_reason = $2
+         WHERE user_id = $1 AND tenant_id = $3 AND unbound_at IS NULL`,
+        [userId, reason ?? null, tenantId],
+      );
+
+      return { success: true, message: 'Successfully unbound from tenant' };
     });
   }
 

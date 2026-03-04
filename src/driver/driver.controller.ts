@@ -74,6 +74,16 @@ export class DriverController {
     return this.drivers.setMembershipStatus(tenantId, driverId, 'suspended');
   }
 
+  /** Release (unbind) a driver from this tenant */
+  @Patch(':id/release')
+  async release(
+    @CurrentUser('tenant_id') tenantId: string,
+    @Param('id') driverId: string,
+    @Body('reason') reason?: string,
+  ) {
+    return this.drivers.releaseDriver(tenantId, driverId, reason);
+  }
+
   @Patch(':id/reactivate')
   async reactivate(
     @CurrentUser('tenant_id') tenantId: string,

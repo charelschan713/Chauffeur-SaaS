@@ -233,6 +233,33 @@ export class DriverAppService {
     return { success: true };
   }
 
+  async selfUnbind(userId: string, reason?: string) {
+    return this.dataSource.transaction(async (manager) => {
+      const rows = await manager.query(
+        `SELECT tenant_id FROM public.memberships
+         WHERE user_id = $1 AND role = 'driver' AND status = 'active'`,
+        [userId],
+      );
+      if (!rows.length) throw new NotFoundException('No active tenant binding found');
+      const tenantId = rows[0].tenant_id;
+
+      await manager.query(
+        `UPDATE public.memberships SET status = 'disabled', updated_at = NOW()
+         WHERE user_id = $1 AND role = 'driver' AND status = 'active'`,
+        [userId],
+      );
+
+      await manager.query(
+        `UPDATE public.driver_binding_history
+         SET unbound_at = NOW(), unbound_by = 'driver', unbound_reason = $2
+         WHERE user_id = $1 AND tenant_id = $3 AND unbound_at IS NULL`,
+        [userId, reason ?? null, tenantId],
+      );
+
+      return { success: true, message: 'You have been unbound from the tenant' };
+    });
+  }
+
   async saveApnsToken(userId: string, token: string, platform: string = 'ios') {
     const me = await this.getMe(userId);
     await this.dataSource.query(

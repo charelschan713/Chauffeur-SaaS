@@ -34,7 +34,7 @@ export default function DriversPage() {
   });
 
   const [form, setForm] = useState({ id: '', full_name: '', email: '', phone_country_code: '+61', phone_number: '' });
-  const [statusAction, setStatusAction] = useState<{ id: string; name: string; action: 'deactivate' | 'suspend' | 'reactivate' } | null>(null);
+  const [statusAction, setStatusAction] = useState<{ id: string; name: string; action: 'deactivate' | 'suspend' | 'reactivate' | 'release' } | null>(null);
   const [statusSaving, setStatusSaving] = useState(false);
   const [formSaving, setFormSaving] = useState(false);
   const [toast, setToast] = useState<{ message: string; tone: 'success' | 'error' } | null>(null);
@@ -74,7 +74,7 @@ export default function DriversPage() {
     try {
       await api.patch(`/drivers/${statusAction.id}/${statusAction.action}`);
       await refetch();
-      const labels = { deactivate: 'deactivated', suspend: 'suspended', reactivate: 'reactivated' };
+      const labels = { deactivate: 'deactivated', suspend: 'suspended', reactivate: 'reactivated', release: 'released from tenant' };
       setToast({ message: `${statusAction.name} ${labels[statusAction.action]}`, tone: 'success' });
     } catch (err: any) {
       setToast({ message: err?.response?.data?.message ?? 'Failed to update status', tone: 'error' });
@@ -167,6 +167,13 @@ export default function DriversPage() {
                           >
                             Suspend
                           </Button>
+                          <Button
+                            variant="ghost"
+                            className="text-orange-600 hover:text-orange-700"
+                            onClick={() => setStatusAction({ id: d.driver_id, name: d.full_name, action: 'release' })}
+                          >
+                            Release
+                          </Button>
                         </>
                       )}
                       {!isActive && (
@@ -189,19 +196,21 @@ export default function DriversPage() {
     />
 
     <ConfirmModal
-      title={`${statusAction?.action === 'suspend' ? 'Suspend' : statusAction?.action === 'reactivate' ? 'Reactivate' : 'Deactivate'} driver?`}
+      title={`${statusAction?.action === 'suspend' ? 'Suspend' : statusAction?.action === 'reactivate' ? 'Reactivate' : statusAction?.action === 'release' ? 'Release Driver' : 'Deactivate'} driver?`}
       description={
         statusAction?.action === 'suspend'
           ? `${statusAction?.name} will be suspended and blocked from the platform.`
           : statusAction?.action === 'reactivate'
           ? `${statusAction?.name} will be reactivated and can log in again.`
+          : statusAction?.action === 'release'
+          ? `${statusAction?.name} will be unbound from this tenant. They can then join another company.`
           : `${statusAction?.name} will be deactivated and cannot log in.`
       }
       isOpen={!!statusAction}
       onClose={() => setStatusAction(null)}
       onConfirm={applyStatusAction}
       confirmText={statusSaving ? 'Saving…' : 'Confirm'}
-      confirmTone={statusAction?.action === 'reactivate' ? 'primary' : 'danger'}
+      confirmTone={statusAction?.action === 'reactivate' ? 'primary' : statusAction?.action === 'release' ? 'danger' : 'danger'}
       loading={statusSaving}
     />
 
