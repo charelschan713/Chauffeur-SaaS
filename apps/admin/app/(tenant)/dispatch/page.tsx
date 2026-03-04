@@ -1,5 +1,5 @@
 'use client';
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { PageHeader } from '@/components/admin/PageHeader';
@@ -11,6 +11,7 @@ import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ErrorAlert } from '@/components/ui/ErrorAlert';
 import { Toast } from '@/components/ui/Toast';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 type Booking = {
   id: string;
@@ -56,12 +57,18 @@ function relativeTime(value?: string | null) {
 
 export default function DispatchBoardPage() {
   const queryClient = useQueryClient();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const bookingParam = searchParams?.get('booking_id');
+  const returnParam = searchParams?.get('return');
+
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null);
   const [selectedDriverId, setSelectedDriverId] = useState<string | null>(null);
   const [searchBooking, setSearchBooking] = useState('');
   const [searchDriver, setSearchDriver] = useState('');
   const [toast, setToast] = useState<{ message: string; tone: 'success' | 'error' } | null>(null);
   const [offerState, setOfferState] = useState<Record<string, 'NONE' | 'OFFERED' | 'FAILED'>>({});
+  const [bookingNotFound, setBookingNotFound] = useState(false);
 
   const { data: bookingsData, isLoading: bookingsLoading, error: bookingsError, refetch: refetchBookings } = useQuery({
     queryKey: ['dispatch-bookings'],
@@ -81,6 +88,17 @@ export default function DispatchBoardPage() {
 
   const bookings: Booking[] = bookingsData ?? [];
   const drivers: Driver[] = driversData ?? [];
+
+  useEffect(() => {
+    if (!bookingParam || bookings.length === 0) return;
+    const match = bookings.find((b) => b.id === bookingParam);
+    if (match) {
+      setSelectedBookingId(match.id);
+      setBookingNotFound(false);
+    } else {
+      setBookingNotFound(true);
+    }
+  }, [bookingParam, bookings]);
 
   const filteredBookings = useMemo(() => {
     const q = searchBooking.toLowerCase();
@@ -128,6 +146,12 @@ export default function DispatchBoardPage() {
       {bookingsError && <ErrorAlert message="Unable to load bookings" onRetry={refetchBookings} />}
       {driversError && <ErrorAlert message="Unable to load drivers" onRetry={refetchDrivers} />}
 
+      {bookingNotFound && (
+        <div className="bg-yellow-50 text-yellow-700 border border-yellow-200 rounded px-4 py-2 text-sm">
+          This booking is not in CONFIRMED dispatch queue.
+        </div>
+      )}
+
       <div className="bg-white border rounded p-4 flex items-center justify-between">
         <div className="text-sm text-gray-700">
           {selectedBooking ? `Booking: ${selectedBooking.booking_reference}` : 'Select a booking'}
@@ -141,6 +165,15 @@ export default function DispatchBoardPage() {
           {offerMutation.isPending ? 'Sending...' : 'Send Offer'}
         </Button>
       </div>
+
+      {offerState[selectedBookingId ?? ''] === 'OFFERED' && returnParam && (
+        <div className="bg-green-50 text-green-700 border border-green-200 rounded px-4 py-2 text-sm flex items-center justify-between">
+          <span>Offer sent</span>
+          <Button variant="secondary" onClick={() => router.push(returnParam)}>
+            Return to booking
+          </Button>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card

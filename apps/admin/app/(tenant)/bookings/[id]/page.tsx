@@ -1,5 +1,5 @@
 'use client';
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
@@ -14,21 +14,9 @@ import { Button } from '@/components/ui/Button';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { BookingStatusTimeline } from '@/components/admin/BookingStatusTimeline';
 import Link from 'next/link';
+import { getBookingStatusBadge } from '@/lib/ui/statusBadge';
 
 const CANCELABLE_STATUSES = new Set(['DRAFT', 'PENDING', 'CONFIRMED', 'ASSIGNED']);
-
-const OP_BADGE: Record<string, 'neutral' | 'info' | 'warning' | 'success' | 'danger'> = {
-  DRAFT: 'neutral',
-  PENDING: 'neutral',
-  CONFIRMED: 'info',
-  ASSIGNED: 'info',
-  IN_PROGRESS: 'warning',
-  JOB_STARTED: 'warning',
-  COMPLETED: 'success',
-  JOB_COMPLETED: 'success',
-  CANCELLED: 'danger',
-  NO_SHOW: 'danger',
-};
 
 const PAY_BADGE: Record<string, 'neutral' | 'warning' | 'success' | 'danger'> = {
   UNPAID: 'warning',
@@ -59,6 +47,12 @@ export default function BookingDetailPage() {
     },
     enabled: Boolean(bookingId),
   });
+
+  useEffect(() => {
+    if (bookingId) {
+      queryClient.invalidateQueries({ queryKey: ['booking', bookingId] });
+    }
+  }, [bookingId, queryClient]);
 
   const booking = data?.booking;
   const assignments = data?.assignments ?? [];
@@ -99,7 +93,7 @@ export default function BookingDetailPage() {
         description={`Created ${new Date(booking.created_at).toLocaleString()}`}
         actions={
           <div className="flex items-center gap-2">
-            <Badge variant={OP_BADGE[booking.operational_status] ?? 'neutral'}>
+            <Badge variant={getBookingStatusBadge(booking.operational_status)}>
               {booking.operational_status}
             </Badge>
             <Badge variant={PAY_BADGE[booking.payment_status] ?? 'neutral'}>
@@ -175,16 +169,15 @@ export default function BookingDetailPage() {
                 <div><span className="text-gray-500">Driver Phone:</span> {latestAssignment.driver_phone ?? '—'}</div>
                 <div><span className="text-gray-500">Status:</span> {latestAssignment.status ?? '—'}</div>
                 <div className="mt-3">
-                  <Button variant="secondary" onClick={() => {
-                    setAssignLeg('A');
-                    setAssignOpen(true);
-                  }}>Reassign</Button>
+                  <Link href={`/dispatch?booking_id=${booking.id}&return=/bookings/${booking.id}`}>
+                    <Button variant="secondary">Reassign</Button>
+                  </Link>
                 </div>
               </div>
             ) : (
               <div className="space-y-3">
                 <div className="text-sm text-gray-500">No driver assigned</div>
-                <Link href={`/dispatch?booking_id=${booking.id}`}>
+                <Link href={`/dispatch?booking_id=${booking.id}&return=/bookings/${booking.id}`}>
                   <Button>Assign Driver</Button>
                 </Link>
               </div>
@@ -208,11 +201,15 @@ export default function BookingDetailPage() {
                 </>
               )}
               {booking.operational_status === 'CONFIRMED' && (
-                <Button onClick={() => setAssignOpen(true)}>Assign Driver</Button>
+                <Link href={`/dispatch?booking_id=${booking.id}&return=/bookings/${booking.id}`}>
+                  <Button>Assign Driver</Button>
+                </Link>
               )}
               {booking.operational_status === 'ASSIGNED' && (
                 <>
-                  <Button onClick={() => setAssignOpen(true)}>Reassign</Button>
+                  <Link href={`/dispatch?booking_id=${booking.id}&return=/bookings/${booking.id}`}>
+                    <Button>Reassign</Button>
+                  </Link>
                   <Button variant="danger" onClick={() => setModalOpen(true)}>Cancel</Button>
                 </>
               )}
