@@ -16,7 +16,8 @@ export default function DriversPage() {
     queryKey: ['drivers'],
     queryFn: async () => {
       const res = await api.get('/drivers');
-      return res.data ?? [];
+      const d = res.data;
+      return Array.isArray(d) ? d : (d?.data ?? []);
     },
   });
 
