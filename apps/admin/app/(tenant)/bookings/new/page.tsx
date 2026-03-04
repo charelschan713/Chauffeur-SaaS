@@ -129,6 +129,9 @@ export default function CreateBookingPage() {
   const [customerResults, setCustomerResults] = useState<any[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchLabel, setSearchLabel] = useState('Recent Customers');
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
+  const [saveAsPassenger, setSaveAsPassenger] = useState(false);
+  const [passengerLabel, setPassengerLabel] = useState('');
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [pickupPlaceId, setPickupPlaceId] = useState('');
   const [dropoffPlaceId, setDropoffPlaceId] = useState('');
@@ -246,8 +249,9 @@ export default function CreateBookingPage() {
     setValue('customer_email', c.email ?? '');
     setValue('customer_phone_country_code', c.phone_country_code ?? '+61');
     setValue('customer_phone_number', c.phone_number ?? '');
+    setSelectedCustomerId(c.id ?? null);
     setCustomerSearch('');
-    setCustomerResults([]);   // close dropdown
+    setCustomerResults([]);
   }
 
   const mutation = useMutation({
@@ -290,6 +294,33 @@ export default function CreateBookingPage() {
         booster_seats: values.booster_seats,
       };
       const response = await api.post('/bookings', payload);
+
+      // Save passenger profile if opted in and a known customer is selected
+      if (saveAsPassenger && selectedCustomerId) {
+        const v = values;
+        const isPassengerCustomer = v.passenger_is_customer;
+        const pFirstName = isPassengerCustomer
+          ? payload.customer.firstName
+          : (v.passenger_first_name ?? payload.customer.firstName);
+        const pLastName = isPassengerCustomer
+          ? payload.customer.lastName
+          : (v.passenger_last_name ?? payload.customer.lastName);
+        const pPhoneCountry = isPassengerCustomer
+          ? (v.customer_phone_country_code || '+61')
+          : (v.passenger_phone_country_code || '+61');
+        const pPhoneNumber = isPassengerCustomer
+          ? v.customer_phone_number
+          : v.passenger_phone_number;
+
+        await api.post(`/customers/${selectedCustomerId}/passengers`, {
+          first_name: pFirstName,
+          last_name: pLastName,
+          phone_country_code: pPhoneCountry || '+61',
+          phone_number: pPhoneNumber || null,
+          preferences: passengerLabel ? { label: passengerLabel } : {},
+        }).catch(() => {/* non-blocking */});
+      }
+
       return response.data;
     },
     onSuccess: (response) => {
@@ -531,6 +562,36 @@ export default function CreateBookingPage() {
                 </div>
               )}
             </div>
+
+            {/* Save as Passenger Profile */}
+            {selectedCustomerId && (
+              <div className="mt-4 border-t pt-4 space-y-3">
+                <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={saveAsPassenger}
+                    onChange={(e) => setSaveAsPassenger(e.target.checked)}
+                    className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  <span className="text-sm font-medium text-gray-700">
+                    Save passenger to this customer's profile
+                  </span>
+                </label>
+                {saveAsPassenger && (
+                  <div>
+                    <label className="block text-xs font-medium text-gray-500 mb-1">
+                      Profile Label <span className="text-gray-400 font-normal">(optional — e.g. "Wife", "PA")</span>
+                    </label>
+                    <Input
+                      value={passengerLabel}
+                      onChange={(e) => setPassengerLabel(e.target.value)}
+                      placeholder="e.g. Wife, PA, Child"
+                      className="text-sm"
+                    />
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
