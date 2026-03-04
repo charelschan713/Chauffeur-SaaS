@@ -1,6 +1,7 @@
 'use client';
 import Link from 'next/link';
-import { useQuery } from '@tanstack/react-query';
+import { useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 
 interface Booking {
@@ -27,15 +28,27 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 export default function BookingsPage() {
+  const queryClient = useQueryClient();
+  const [statusFilter, setStatusFilter] = useState('');
+  const [search, setSearch] = useState('');
   const { data, isLoading } = useQuery({
     queryKey: ['bookings'],
     queryFn: async () => {
-      const res = await api.get('/bookings');
+      const res = await api.get('/bookings', {
+        params: {
+          operational_status: statusFilter || undefined,
+          search: search || undefined,
+        },
+      });
       return res.data?.data ?? [];
     },
   });
 
   const bookings: Booking[] = data ?? [];
+  const cancelMutation = async (id: string) => {
+    await api.patch(`/bookings/${id}/cancel`);
+    await queryClient.invalidateQueries({ queryKey: ['bookings'] });
+  };
 
   if (isLoading) return <div className="text-gray-500">Loading...</div>;
 
@@ -51,6 +64,26 @@ export default function BookingsPage() {
         </Link>
       </div>
 
+
+      <div className="flex flex-col md:flex-row md:items-center gap-3 mb-4">
+        <select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+          className="border rounded px-3 py-2 text-sm"
+        >
+          <option value="">All statuses</option>
+          <option value="PENDING">PENDING</option>
+          <option value="CONFIRMED">CONFIRMED</option>
+          <option value="COMPLETED">COMPLETED</option>
+          <option value="CANCELLED">CANCELLED</option>
+        </select>
+        <input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search by reference or customer"
+          className="border rounded px-3 py-2 text-sm"
+        />
+      </div>
       <div className="bg-white rounded-lg shadow overflow-hidden">
         <table className="w-full">
           <thead className="bg-gray-50">
@@ -91,9 +124,17 @@ export default function BookingsPage() {
                   {b.currency} {(b.total_price_minor / 100).toFixed(2)}
                 </td>
                 <td className="px-6 py-4">
-                  <Link href={`/bookings/${b.id}`} className="text-blue-600 hover:underline text-sm">
-                    View
-                  </Link>
+                  <div className="flex gap-2">
+                  <Link href={`/bookings/${b.id}`} className="text-blue-600 hover:underline text-sm">View</Link>
+                  {b.operational_status === 'CONFIRMED' && (
+                    <button
+                      onClick={() => cancelMutation(b.id)}
+                      className="text-red-600 hover:underline text-sm"
+                    >
+                      Cancel
+                    </button>
+                  )}
+                </div>
                 </td>
               </tr>
             ))}

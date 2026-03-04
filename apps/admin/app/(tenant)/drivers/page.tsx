@@ -27,6 +27,31 @@ export default function DriversPage() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
 
+  const [form, setForm] = useState({ first_name: '', last_name: '', email: '', phone: '' });
+  const [editingId, setEditingId] = useState<string | null>(null);
+
+  const createMutation = useMutation({
+    mutationFn: async () => {
+      await api.post('/drivers', form);
+    },
+    onSuccess: () => {
+      setForm({ first_name: '', last_name: '', email: '', phone: '' });
+      queryClient.invalidateQueries({ queryKey: ['drivers'] });
+    },
+  });
+
+  const editMutation = useMutation({
+    mutationFn: async () => {
+      if (!editingId) return;
+      await api.patch(`/drivers/${editingId}`, form);
+    },
+    onSuccess: () => {
+      setEditingId(null);
+      setForm({ first_name: '', last_name: '', email: '', phone: '' });
+      queryClient.invalidateQueries({ queryKey: ['drivers'] });
+    },
+  });
+
   const query = useQuery({
     queryKey: ['drivers', { search, statusFilter }],
     queryFn: async () => {
@@ -117,7 +142,53 @@ export default function DriversPage() {
         title="Drivers"
         subtitle="Manage availability and monitor live status"
         filters={
+
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search by name or email"
+              className="border rounded px-3 py-2 text-sm"
+            />
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="border rounded px-3 py-2 text-sm"
+            >
+              <option value="">All statuses</option>
+              {STATUS_OPTIONS.map((option) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="mt-4 p-4 border rounded bg-white">
+            <h3 className="text-sm font-semibold mb-3">{editingId ? 'Edit Driver' : 'Add Driver'}</h3>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+              <input className="border rounded px-3 py-2 text-sm" placeholder="First name" value={form.first_name} onChange={(e) => setForm((p) => ({ ...p, first_name: e.target.value }))} />
+              <input className="border rounded px-3 py-2 text-sm" placeholder="Last name" value={form.last_name} onChange={(e) => setForm((p) => ({ ...p, last_name: e.target.value }))} />
+              <input className="border rounded px-3 py-2 text-sm" placeholder="Email" value={form.email} onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))} />
+              <input className="border rounded px-3 py-2 text-sm" placeholder="Phone" value={form.phone} onChange={(e) => setForm((p) => ({ ...p, phone: e.target.value }))} />
+            </div>
+            <div className="mt-3 flex gap-2">
+              <button
+                onClick={() => (editingId ? editMutation.mutate() : createMutation.mutate())}
+                className="px-4 py-2 rounded bg-blue-600 text-white text-sm"
+              >
+                {editingId ? 'Save' : 'Create'}
+              </button>
+              {editingId && (
+                <button
+                  onClick={() => { setEditingId(null); setForm({ first_name: '', last_name: '', email: '', phone: '' }); }}
+                  className="px-4 py-2 rounded border text-sm"
+                >
+                  Cancel
+                </button>
+              )}
+            </div>
+          </div>
+
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}

@@ -5,6 +5,7 @@ import {
   Get,
   Param,
   Patch,
+  Post,
   Query,
   UseGuards,
 } from '@nestjs/common';
@@ -38,6 +39,24 @@ export class DriverController {
     return this.drivers.listDrivers(tenantId, {
       availabilityStatus: 'AVAILABLE',
     });
+  }
+
+
+  @Post()
+  async createDriver(
+    @CurrentUser('tenant_id') tenantId: string,
+    @Body() body: any,
+  ) {
+    return this.drivers.createDriver(tenantId, body);
+  }
+
+  @Patch(':id')
+  async updateDriver(
+    @CurrentUser('tenant_id') tenantId: string,
+    @Param('id') driverId: string,
+    @Body() body: any,
+  ) {
+    return this.drivers.updateDriver(tenantId, driverId, body);
   }
 
   @Patch(':id/status')
