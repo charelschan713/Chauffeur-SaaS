@@ -139,60 +139,58 @@ export default function BookingDetailPage() {
               </div>
             </DetailSection>
 
-            
-<DetailSection title="Assignment">
-  {booking.is_return_trip ? (
-    <div className="space-y-4">
-      <AssignmentCard
-        title="Leg A — Outbound"
-        assignment={legAAssignment}
-        from={booking.pickup_address_text}
-        to={booking.dropoff_address_text}
-        time={formatPickupTime(booking.pickup_at_utc, booking.timezone)}
-        onAssign={() => {
-          setAssignLeg('A');
-          setAssignOpen(true);
-        }}
-        onEditPay={(id) => {
-          setEditPayAssignmentId(id);
-          setEditPayOpen(true);
-        }}
-      />
-      <AssignmentCard
-        title="Leg B — Return"
-        assignment={legBAssignment}
-        from={booking.dropoff_address_text}
-        to={booking.return_pickup_address_text || booking.pickup_address_text}
-        time={booking.return_pickup_at_utc ? formatPickupTime(booking.return_pickup_at_utc, booking.timezone) : 'Return time not set'}
-        onAssign={() => {
-          setAssignLeg('B');
-          setAssignOpen(true);
-        }}
-        onEditPay={(id) => {
-          setEditPayAssignmentId(id);
-          setEditPayOpen(true);
-        }}
-      />
-    </div>
-  ) : (
-    <AssignmentCard
-      title="Assignment"
-      assignment={latestAssignment}
-      from={booking.pickup_address_text}
-      to={booking.dropoff_address_text}
-      time={formatPickupTime(booking.pickup_at_utc, booking.timezone)}
-      onAssign={() => {
-        setAssignLeg('A');
-        setAssignOpen(true);
-      }}
-      onEditPay={(id) => {
-        setEditPayAssignmentId(id);
-        setEditPayOpen(true);
-      }}
-    />
-  )}
-</DetailSection>
-
+            <DetailSection title="Assignment">
+              {booking.is_return_trip ? (
+                <div className="space-y-4">
+                  <AssignmentCard
+                    title="Leg A — Outbound"
+                    assignment={legAAssignment}
+                    from={booking.pickup_address_text}
+                    to={booking.dropoff_address_text}
+                    time={formatPickupTime(booking.pickup_at_utc, booking.timezone)}
+                    onAssign={() => {
+                      setAssignLeg('A');
+                      setAssignOpen(true);
+                    }}
+                    onEditPay={(id) => {
+                      setEditPayAssignmentId(id);
+                      setEditPayOpen(true);
+                    }}
+                  />
+                  <AssignmentCard
+                    title="Leg B — Return"
+                    assignment={legBAssignment}
+                    from={booking.dropoff_address_text}
+                    to={booking.return_pickup_address_text || booking.pickup_address_text}
+                    time={booking.return_pickup_at_utc ? formatPickupTime(booking.return_pickup_at_utc, booking.timezone) : 'Return time not set'}
+                    onAssign={() => {
+                      setAssignLeg('B');
+                      setAssignOpen(true);
+                    }}
+                    onEditPay={(id) => {
+                      setEditPayAssignmentId(id);
+                      setEditPayOpen(true);
+                    }}
+                  />
+                </div>
+              ) : (
+                <AssignmentCard
+                  title="Assignment"
+                  assignment={latestAssignment}
+                  from={booking.pickup_address_text}
+                  to={booking.dropoff_address_text}
+                  time={formatPickupTime(booking.pickup_at_utc, booking.timezone)}
+                  onAssign={() => {
+                    setAssignLeg('A');
+                    setAssignOpen(true);
+                  }}
+                  onEditPay={(id) => {
+                    setEditPayAssignmentId(id);
+                    setEditPayOpen(true);
+                  }}
+                />
+              )}
+            </DetailSection>
 
             <DetailSection title="Pricing Breakdown">
               {booking.pricing_snapshot ? (
@@ -345,7 +343,6 @@ function formatPickupTime(isoUtc: string, tz: string) {
   return `${formatted} (${location})`;
 }
 
-
 function AssignmentCard({
   title,
   assignment,
@@ -364,7 +361,7 @@ function AssignmentCard({
   onEditPay: (id: string) => void;
 }) {
   return (
-    <div className="border rounded p-4 space-y-2">
+    <div className="border rounded p-4 space-y-3">
       <div className="flex items-center justify-between">
         <h4 className="font-medium">{title}</h4>
         {assignment ? (
@@ -373,17 +370,65 @@ function AssignmentCard({
           <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-full">Unassigned</span>
         )}
       </div>
-      <div className="text-sm text-gray-600">
+
+      <div className="text-sm text-gray-600 space-y-1">
         <div><strong>From:</strong> {from}</div>
         <div><strong>To:</strong> {to}</div>
         <div><strong>Time:</strong> {time}</div>
       </div>
+
+      {assignment && (
+        <div className="bg-gray-50 rounded p-3 text-sm space-y-1">
+          <div>
+            <span className="text-gray-500">Driver:</span>{' '}
+            <span className="font-medium">{assignment.driver_name ?? 'Unknown'}</span>
+          </div>
+          {assignment.vehicle_plate && (
+            <div>
+              <span className="text-gray-500">Vehicle:</span>{' '}
+              <span className="font-medium">
+                {assignment.vehicle_make} {assignment.vehicle_model} · {assignment.vehicle_plate}
+              </span>
+            </div>
+          )}
+          {assignment.driver_pay_minor != null && (
+            <div>
+              <span className="text-gray-500">Driver Pay:</span>{' '}
+              <span className="font-medium">
+                {assignment.driver_pay_type === 'PERCENTAGE'
+                  ? `${assignment.driver_pay_value}%`
+                  : `$${(assignment.driver_pay_minor / 100).toFixed(2)}`}
+                {' '}(${(assignment.driver_pay_minor / 100).toFixed(2)})
+              </span>
+            </div>
+          )}
+        </div>
+      )}
+
       <div className="flex gap-2">
         {!assignment && (
-          <button onClick={onAssign} className="text-blue-600 hover:underline text-sm">Assign Driver</button>
+          <button
+            onClick={onAssign}
+            className="px-3 py-1.5 bg-blue-600 text-white text-sm rounded hover:bg-blue-700"
+          >
+            Assign Driver
+          </button>
         )}
-        {assignment && (
-          <button onClick={() => onEditPay(assignment.id)} className="text-blue-600 hover:underline text-sm">Edit Pay</button>
+        {assignment && assignment.status !== 'IN_PROGRESS' && (
+          <button
+            onClick={() => onEditPay(assignment.id)}
+            className="px-3 py-1.5 border text-sm rounded hover:bg-gray-50"
+          >
+            Edit Pay
+          </button>
+        )}
+        {assignment && ['PENDING', 'ACCEPTED'].includes(assignment.status) && (
+          <button
+            onClick={onAssign}
+            className="px-3 py-1.5 border text-sm rounded hover:bg-gray-50 text-orange-600"
+          >
+            Reassign
+          </button>
         )}
       </div>
     </div>

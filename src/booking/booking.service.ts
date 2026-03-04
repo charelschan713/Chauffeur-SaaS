@@ -1,33 +1,13 @@
-import {
-  ForbiddenException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
-import { DataSource, EntityManager } from 'typeorm';
-import { randomUUID } from 'crypto';
-import { BOOKING_EVENTS } from './booking-events';
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { DataSource } from 'typeorm';
 import { PricingResolver } from '../pricing/pricing.resolver';
-
-export class ImmutableBookingError extends ForbiddenException {
-  constructor() {
-    super('Booking is immutable after COMPLETED');
-  }
-}
-
-const ALLOWED_TRANSITIONS: Record<string, string[]> = {
-  DRAFT: ['PENDING', 'CANCELLED'],
-  PENDING: ['CONFIRMED', 'CANCELLED'],
-  CONFIRMED: ['ASSIGNED', 'CANCELLED', 'NO_SHOW'],
-  ASSIGNED: ['IN_PROGRESS', 'CANCELLED'],
-  IN_PROGRESS: ['COMPLETED'],
-};
+import { randomUUID } from 'crypto';
 
 @Injectable()
 export class BookingService {
-
   constructor(
     private readonly dataSource: DataSource,
-    private readonly pricingResolver: PricingResolver,
+    private readonly pricing: PricingResolver
   ) {}
 
   async listBookings(tenantId: string, query: Record<string, any>) {
@@ -128,9 +108,15 @@ export class BookingService {
         [bookingId],
       ),
       this.dataSource.query(
-        `SELECT a.*, u.full_name as driver_name, a.leg
+        `SELECT a.*, u.full_name as driver_name,
+                tv.plate as vehicle_plate,
+                pv.make as vehicle_make,
+                pv.model as vehicle_model,
+                a.leg
            FROM public.assignments a
            LEFT JOIN public.users u ON u.id = a.driver_id
+           LEFT JOIN public.tenant_vehicles tv ON tv.id = a.vehicle_id
+           LEFT JOIN public.platform_vehicles pv ON pv.id = tv.platform_vehicle_id
           WHERE a.booking_id = $1
           ORDER BY a.created_at DESC`,
         [bookingId],
@@ -158,307 +144,197 @@ export class BookingService {
       assignments,
       payments: payments.length
         ? {
-            items: payments,
             summary,
+            items: payments,
           }
         : null,
     };
   }
 
   async createBooking(tenantId: string, dto: any) {
-    const clientRequestId = dto.clientRequestId ?? randomUUID();
+    const id = randomUUID();
+    const now = new Date().toISOString();
+    const pickupAtUtc = dto.pickup_at_utc;
+    const pickupTimezone = dto.timezone || 'Australia/Sydney';
 
-    const existing = await this.dataSource.query(
-      `select booking_id from public.idempotency_keys
-       where tenant_id = $1 and client_request_id = $2`,
-      [tenantId, clientRequestId],
+    const pricingContext: any = {
+      tenantId,
+      serviceClassId: dto.service_class_id,
+      serviceTypeId: dto.service_type_id ?? null,
+      distanceKm: dto.distance_km ?? 0,
+      durationMinutes: dto.duration_minutes ?? 0,
+      waypointsCount: Array.isArray(dto.waypoints) ? dto.waypoints.length : 0,
+      babyseatCount: dto.babyseat_count ?? 0,
+      requestedAtUtc: new Date(pickupAtUtc),
+      currency: dto.currency ?? 'AUD',
+      customerId: dto.customer_id ?? null,
+      tripType: dto.is_return_trip ? 'RETURN' : 'ONE_WAY' as const,
+      returnDistanceKm: dto.return_distance_km ?? null,
+      returnDurationMinutes: dto.return_duration_minutes ?? null,
+      bookedHours: dto.booked_hours ?? null,
+    };
+
+    const pricing = await this.pricing.resolve(pricingContext);
+
+    const bookingRows = await this.dataSource.query(
+      `INSERT INTO public.bookings
+       (id, tenant_id, booking_reference, booking_source,
+        customer_first_name, customer_last_name, customer_email,
+        customer_phone_country_code, customer_phone_number,
+        pickup_address_text, pickup_lat, pickup_lng, pickup_place_id,
+        dropoff_address_text, dropoff_lat, dropoff_lng, dropoff_place_id,
+        pickup_at_utc, timezone, passenger_count, luggage_count,
+        special_requests, pricing_snapshot, total_price_minor, currency,
+        booking_status, operational_status, payment_status,
+        estimated_duration_seconds, created_at, updated_at,
+        passenger_first_name, passenger_last_name,
+        passenger_phone_country_code, passenger_phone_number,
+        passenger_is_customer,
+        customer_id, passenger_id,
+        is_return_trip, return_pickup_at_utc, return_pickup_address_text,
+        return_pickup_lat, return_pickup_lng, return_pickup_place_id,
+        service_class_id, service_type_id
+       )
+       VALUES ($1,$2,$3,$4,
+               $5,$6,$7,
+               $8,$9,
+               $10,$11,$12,$13,
+               $14,$15,$16,$17,
+               $18,$19,$20,$21,
+               $22,$23,$24,$25,
+               $26,$27,$28,
+               $29,$30,
+               $31,$32,
+               $33,$34,
+               $35,
+               $36,$37,
+               $38,$39,$40,
+               $41,$42,$43,
+               $44,$45
+       )
+       RETURNING *`,
+      [
+        id,
+        tenantId,
+        dto.booking_reference ?? `BK-${Math.random().toString(36).slice(2, 10).toUpperCase()}`,
+        dto.booking_source ?? 'ADMIN',
+        dto.customer_first_name,
+        dto.customer_last_name,
+        dto.customer_email ?? null,
+        dto.customer_phone_country_code ?? null,
+        dto.customer_phone_number ?? null,
+        dto.pickup_address_text,
+        dto.pickup_lat ?? null,
+        dto.pickup_lng ?? null,
+        dto.pickup_place_id ?? null,
+        dto.dropoff_address_text,
+        dto.dropoff_lat ?? null,
+        dto.dropoff_lng ?? null,
+        dto.dropoff_place_id ?? null,
+        pickupAtUtc,
+        pickupTimezone,
+        dto.passenger_count ?? 1,
+        dto.luggage_count ?? 0,
+        dto.special_requests ?? null,
+        pricing,
+        pricing.totalPriceMinor ?? 0,
+        pricing.currency ?? 'AUD',
+        'PENDING',
+        dto.operational_status ?? 'PENDING',
+        dto.payment_status ?? 'UNPAID',
+        dto.estimated_duration_seconds ?? null,
+        now,
+        now,
+        dto.passenger_first_name ?? dto.customer_first_name,
+        dto.passenger_last_name ?? dto.customer_last_name,
+        dto.passenger_phone_country_code ?? null,
+        dto.passenger_phone_number ?? null,
+        dto.passenger_is_customer ?? true,
+        dto.customer_id ?? null,
+        dto.passenger_id ?? null,
+        dto.is_return_trip ?? false,
+        dto.return_pickup_at_utc ?? null,
+        dto.return_pickup_address_text ?? null,
+        dto.return_pickup_lat ?? null,
+        dto.return_pickup_lng ?? null,
+        dto.return_pickup_place_id ?? null,
+        dto.service_class_id ?? null,
+        dto.service_type_id ?? null,
+      ],
     );
-    if (existing.length) return { bookingId: existing[0].booking_id };
 
-    return this.dataSource.transaction(async (manager: EntityManager) => {
-      const bookingId = randomUUID();
-      const bookingReference =
-        'BK-' + Math.random().toString(36).substring(2, 10).toUpperCase();
+    await this.dataSource.query(
+      `INSERT INTO public.booking_status_history
+       (id, tenant_id, booking_id, previous_status, new_status, triggered_by, reason, created_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+      [randomUUID(), tenantId, id, null, dto.operational_status ?? 'PENDING', null, null, now],
+    );
 
-      let pricingSnapshot: any = null;
-      let totalPriceMinor = 0;
-
-      if (dto.serviceClassId) {
-        const snapshot = await this.pricingResolver.resolve({
-          tenantId,
-          serviceClassId: dto.serviceClassId,
-          distanceKm: dto.distanceKm ?? 0,
-          durationMinutes: dto.durationMinutes ?? 0,
-          pickupZoneName: dto.pickupAddress,
-          dropoffZoneName: dto.dropoffAddress,
-          waypointsCount: dto.waypoints?.length ?? 0,
-          babyseatCount: dto.babyseatCount ?? 0,
-          requestedAtUtc: new Date(dto.pickupAtUtc),
-          currency: dto.currency ?? 'AUD',
-          customerId: dto.customerId ?? null,
-        });
-        pricingSnapshot = snapshot;
-        totalPriceMinor = snapshot.totalPriceMinor;
-      }
-
-      const parsePhone = (raw?: string) => {
-        const value = raw ?? '';
-        if (!value) return { countryCode: '', number: '' };
-        if (value.startsWith('+')) {
-          const match = value.match(/^(\+\d{1,3})(\d+)$/);
-          if (match) {
-            return { countryCode: match[1], number: match[2] };
-          }
-          return { countryCode: '', number: value };
-        }
-        return { countryCode: '', number: value };
-      };
-
-      const customerPhone = parsePhone(dto.customer?.phone);
-
-      const passengerIsCustomer = dto.passenger_is_customer ?? true;
-      const passengerFirstName = passengerIsCustomer
-        ? dto.customer.firstName
-        : dto.passenger?.firstName;
-      const passengerLastName = passengerIsCustomer
-        ? dto.customer.lastName
-        : dto.passenger?.lastName;
-      const passengerPhone = passengerIsCustomer
-        ? customerPhone
-        : parsePhone(dto.passenger?.phone);
-      const passengerPhoneCountryCode = passengerPhone.countryCode;
-      const passengerPhoneNumber = passengerPhone.number;
-
-      await manager.query(
-        `insert into public.bookings (
-          id, tenant_id, booking_reference, booking_source,
-          customer_first_name, customer_last_name, customer_email,
-          customer_phone_country_code, customer_phone_number,
-          passenger_first_name, passenger_last_name,
-          passenger_phone_country_code, passenger_phone_number,
-          passenger_is_customer,
-          pickup_address_text, dropoff_address_text,
-          pickup_at_utc, timezone,
-          is_return_trip, return_pickup_at_utc, return_pickup_address_text, return_pickup_lat, return_pickup_lng, return_pickup_place_id,
-          total_price_minor, currency, client_request_id,
-          service_class_id, pricing_snapshot,
-          customer_id, passenger_id
-        ) values (
-          $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31
-        )`,
-        [
-          bookingId,
-          tenantId,
-          bookingReference,
-          dto.bookingSource ?? 'ADMIN',
-          dto.customer.firstName,
-          dto.customer.lastName,
-          dto.customer.email,
-          customerPhone.countryCode,
-          customerPhone.number,
-          passengerFirstName,
-          passengerLastName,
-          passengerPhoneCountryCode,
-          passengerPhoneNumber,
-          passengerIsCustomer,
-          dto.pickup.address,
-          dto.dropoff.address,
-          dto.pickupAtUtc,
-          dto.timezone ?? 'UTC',
-          dto.is_return_trip ?? false,
-          dto.return_pickup_at_utc ?? null,
-          dto.return_pickup_address_text ?? null,
-          dto.return_pickup_lat ?? null,
-          dto.return_pickup_lng ?? null,
-          dto.return_pickup_place_id ?? null,
-          totalPriceMinor,
-          dto.currency ?? 'AUD',
-          clientRequestId,
-          dto.serviceClassId ?? null,
-          pricingSnapshot,
-          dto.customerId ?? null,
-          dto.passengerId ?? null,
-        ],
-      );
-
-      await manager.query(
-        `insert into public.idempotency_keys
-         (tenant_id, client_request_id, booking_id)
-         values ($1,$2,$3)`,
-        [tenantId, clientRequestId, bookingId],
-      );
-
-      const payload = {
-        booking_id: bookingId,
-        tenant_id: tenantId,
-        booking_reference: bookingReference,
-        customer_name: `${dto.customer.firstName} ${dto.customer.lastName}`,
-        pickup_address: dto.pickup.address,
-        dropoff_address: dto.dropoff.address,
-        pickup_at_utc: dto.pickupAtUtc,
-        total_price_minor: dto.totalPriceMinor ?? 0,
-        currency: dto.currency ?? 'AUD',
-      };
-
-      await manager.query(
-        `insert into public.outbox_events
-         (tenant_id, aggregate_type, aggregate_id,
-          event_type, event_schema_version, payload)
-         values ($1,'booking',$2,$3,1,$4)`
-      , [tenantId, bookingId, BOOKING_EVENTS.BOOKING_CREATED, payload]);
-
-      return { bookingId, bookingReference };
-    });
+    return bookingRows[0];
   }
 
   async transition(
     bookingId: string,
     newStatus: string,
-    triggeredBy: string,
+    userId: string,
     reason?: string,
   ) {
-    return this.dataSource.transaction(async (manager: EntityManager) => {
-      const rows = await manager.query(
-        `select * from public.bookings
-         where id = $1 for update`,
-        [bookingId],
-      );
+    const bookings = await this.dataSource.query(
+      `SELECT tenant_id, operational_status FROM public.bookings WHERE id = $1`,
+      [bookingId],
+    );
+    if (!bookings.length) throw new NotFoundException('Booking not found');
+    const booking = bookings[0];
 
+    if (newStatus === booking.operational_status) return { success: true };
+
+    await this.dataSource.query(
+      `UPDATE public.bookings
+       SET operational_status = $1,
+           updated_at = now()
+       WHERE id = $2`,
+      [newStatus, bookingId],
+    );
+
+    await this.dataSource.query(
+      `INSERT INTO public.booking_status_history
+       (id, tenant_id, booking_id, previous_status, new_status, triggered_by, reason, created_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+      [randomUUID(), booking.tenant_id, bookingId, booking.operational_status, newStatus, userId, reason ?? null, new Date().toISOString()],
+    );
+
+    return { success: true };
+  }
+
+  async cancelBooking(tenantId: string, bookingId: string, actor: string) {
+    return this.dataSource.transaction(async (manager) => {
+      const rows = await manager.query(
+        `SELECT id, operational_status FROM public.bookings WHERE id = $1 AND tenant_id = $2`,
+        [bookingId, tenantId],
+      );
       if (!rows.length) throw new NotFoundException('Booking not found');
       const booking = rows[0];
 
-      if (booking.operational_status === 'COMPLETED')
-        throw new ImmutableBookingError();
-
-      const allowed = ALLOWED_TRANSITIONS[booking.operational_status] ?? [];
-      if (!allowed.includes(newStatus))
-        throw new ForbiddenException(
-          `Cannot transition from ${booking.operational_status} to ${newStatus}`,
-        );
-
-      const updateResult = await manager.query(
-        `update public.bookings
-         set operational_status = $1, updated_at = now()
-         where id = $2 and operational_status = $3`,
-        [newStatus, bookingId, booking.operational_status],
-      );
-
-      if (updateResult[1] === 0)
-        throw new ForbiddenException('Concurrent modification detected');
-
-      await manager.query(
-        `insert into public.booking_status_history
-         (tenant_id, booking_id, previous_status, new_status,
-          triggered_by, reason)
-         values ($1,$2,$3,$4,$5,$6)`,
-        [
-          booking.tenant_id,
-          bookingId,
-          booking.operational_status,
-          newStatus,
-          triggeredBy,
-          reason ?? null,
-        ],
-      );
-
-      const STATUSES_WITH_EVENTS = new Set([
-        'CONFIRMED',
-        'COMPLETED',
-        'CANCELLED',
-        'NO_SHOW',
-      ]);
-
-      if (STATUSES_WITH_EVENTS.has(newStatus)) {
-        const eventPayload = this.buildEventPayload(
-          booking,
-          newStatus,
-          triggeredBy,
-        );
-
-        await manager.query(
-          `insert into public.outbox_events
-           (tenant_id, aggregate_type, aggregate_id,
-            event_type, event_schema_version, payload)
-           values ($1,'booking',$2,$3,1,$4)`
-        , [
-            booking.tenant_id,
-            bookingId,
-            eventPayload.eventType,
-            eventPayload.body,
-          ]);
+      if (['CANCELLED', 'COMPLETED'].includes(booking.operational_status)) {
+        return { success: true };
       }
 
-      return { bookingId, previous: booking.operational_status, newStatus };
+      await manager.query(
+        `UPDATE public.bookings
+         SET operational_status = 'CANCELLED',
+             updated_at = now()
+         WHERE id = $1`,
+        [bookingId],
+      );
+
+      await manager.query(
+        `INSERT INTO public.booking_status_history
+         (id, tenant_id, booking_id, previous_status, new_status, triggered_by, reason, created_at)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+        [randomUUID(), tenantId, bookingId, booking.operational_status, 'CANCELLED', actor, null, new Date().toISOString()],
+      );
+
+      return { success: true };
     });
   }
-
-  async cancelBooking(
-    tenantId: string,
-    bookingId: string,
-    triggeredBy: string,
-    reason?: string,
-  ) {
-    const rows = await this.dataSource.query(
-      `SELECT tenant_id FROM public.bookings WHERE id = $1`,
-      [bookingId],
-    );
-    if (!rows.length) throw new NotFoundException('Booking not found');
-    if (rows[0].tenant_id !== tenantId) {
-      throw new ForbiddenException('Booking does not belong to tenant');
-    }
-
-    return this.transition(bookingId, 'CANCELLED', triggeredBy, reason);
-  }
-
-  private buildEventPayload(booking: any, status: string, actor: string) {
-    switch (status) {
-      case 'CONFIRMED':
-        return {
-          eventType: BOOKING_EVENTS.BOOKING_CONFIRMED,
-          body: {
-            booking_id: booking.id,
-            tenant_id: booking.tenant_id,
-            booking_reference: booking.booking_reference,
-            customer_email: booking.customer_email,
-            total_price_minor: booking.total_price_minor,
-            currency: booking.currency,
-          },
-        };
-      case 'COMPLETED':
-        return {
-          eventType: BOOKING_EVENTS.JOB_COMPLETED,
-          body: {
-            booking_id: booking.id,
-            tenant_id: booking.tenant_id,
-            booking_reference: booking.booking_reference,
-            total_price_minor: booking.total_price_minor,
-            currency: booking.currency,
-            completed_at: new Date(),
-          },
-        };
-      case 'CANCELLED':
-        return {
-          eventType: BOOKING_EVENTS.BOOKING_CANCELLED,
-          body: {
-            booking_id: booking.id,
-            tenant_id: booking.tenant_id,
-            booking_reference: booking.booking_reference,
-            cancelled_by: actor,
-          },
-        };
-      case 'NO_SHOW':
-        return {
-          eventType: BOOKING_EVENTS.BOOKING_NO_SHOW,
-          body: {
-            booking_id: booking.id,
-            tenant_id: booking.tenant_id,
-            booking_reference: booking.booking_reference,
-          },
-        };
-      default:
-        throw new Error(`Unsupported transition: ${status}`);
-    }
-  }
 }
-
-
