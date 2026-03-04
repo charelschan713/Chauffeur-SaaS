@@ -13,11 +13,15 @@ import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { BookingStatusTimeline } from '@/components/admin/BookingStatusTimeline';
+import { Toast } from '@/components/ui/Toast';
 import Link from 'next/link';
 import { getBookingStatusBadge } from '@/lib/ui/statusBadge';
-import { Toast } from '@/components/ui/Toast';
 
+// Statuses that allow cancellation
 const CANCELABLE_STATUSES = new Set(['DRAFT', 'PENDING', 'CONFIRMED', 'ASSIGNED']);
+
+// Statuses where assignment actions make no sense
+const NO_ASSIGN_STATUSES = new Set(['CANCELLED', 'COMPLETED', 'JOB_COMPLETED', 'NO_SHOW']);
 
 const PAY_BADGE: Record<string, 'neutral' | 'warning' | 'success' | 'danger'> = {
   UNPAID: 'warning',
@@ -28,14 +32,28 @@ const PAY_BADGE: Record<string, 'neutral' | 'warning' | 'success' | 'danger'> = 
   FAILED: 'danger',
 };
 
+// ─── Tooltip wrapper for disabled/coming-soon actions ────────────────────────
+function ComingSoon({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="relative group w-full">
+      {children}
+      <div className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 hidden group-hover:flex items-center whitespace-nowrap rounded bg-gray-800 px-2 py-1 text-xs text-white shadow-lg">
+        Coming soon
+      </div>
+    </div>
+  );
+}
+
 function BookingDetailInner() {
   const params = useParams<{ id: string }>();
   const bookingId = params.id;
   const router = useRouter();
   const queryClient = useQueryClient();
   const searchParams = useSearchParams();
+
   const [isModalOpen, setModalOpen] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
+  const [cancelError, setCancelError] = useState<string | null>(null);
   const [assignOpen, setAssignOpen] = useState(false);
   const [assignLeg, setAssignLeg] = useState<'A' | 'B'>('A');
   const [editPayOpen, setEditPayOpen] = useState(false);
@@ -51,13 +69,14 @@ function BookingDetailInner() {
     enabled: Boolean(bookingId),
   });
 
+  // Always refetch fresh data on mount
   useEffect(() => {
     if (bookingId) {
       queryClient.invalidateQueries({ queryKey: ['booking', bookingId] });
     }
   }, [bookingId, queryClient]);
 
-  // Show "Driver assigned" toast when returning from dispatch with ?assigned=1
+  // "Driver assigned" toast when returning from dispatch
   useEffect(() => {
     if (searchParams?.get('assigned') === '1') {
       setToast({ message: 'Driver assigned', tone: 'success' });
@@ -67,9 +86,8 @@ function BookingDetailInner() {
   const booking = data?.booking;
   const assignments = data?.assignments ?? [];
   const latestAssignment = useMemo(() => assignments.at(0), [assignments]);
-  const legAAssignment = assignments.find((a: any) => a.leg === 'A') ?? latestAssignment;
-  const legBAssignment = assignments.find((a: any) => a.leg === 'B') ?? null;
   const canCancel = booking && CANCELABLE_STATUSES.has(booking.operational_status);
+  const canAssign = booking && !NO_ASSIGN_STATUSES.has(booking.operational_status);
 
   const cancelMutation = useMutation({
     mutationFn: async () => {
@@ -79,6 +97,11 @@ function BookingDetailInner() {
       queryClient.invalidateQueries({ queryKey: ['booking', bookingId] });
       setModalOpen(false);
       setCancelReason('');
+      setCancelError(null);
+      setToast({ message: 'Booking cancelled', tone: 'success' });
+    },
+    onError: () => {
+      setCancelError('Failed to cancel booking. Please try again.');
     },
   });
 
@@ -95,6 +118,7 @@ function BookingDetailInner() {
   }
 
   const customerName = `${booking.customer_first_name ?? ''} ${booking.customer_last_name ?? ''}`.trim();
+  const dispatchHref = `/dispatch?booking_id=${booking.id}&return=/bookings/${booking.id}`;
 
   return (
     <div className="space-y-6">
@@ -114,6 +138,8 @@ function BookingDetailInner() {
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+        {/* ── Left column ── */}
         <div className="lg:col-span-2 space-y-6">
           <Card title="Booking Info">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-700">
@@ -133,7 +159,7 @@ function BookingDetailInner() {
               <div><span className="text-gray-500">Dropoff:</span> {booking.dropoff_address_text}</div>
               {booking.waypoints && booking.waypoints.length > 0 && (
                 <div>
-                  <div className="text-gray-500">Waypoints:</div>
+                  <div className="text-gray-500 mb-1">Waypoints:</div>
                   <ul className="list-disc pl-5 space-y-1">
                     {booking.waypoints.map((wp: any, idx: number) => (
                       <li key={idx}>{wp?.address ?? wp?.address_text ?? wp}</li>
@@ -149,9 +175,7 @@ function BookingDetailInner() {
               <div>{customerName || '—'}</div>
               <div>{booking.customer_phone ?? '—'}</div>
               <div>{booking.customer_email ?? '—'}</div>
-              {booking.customer_tier && (
-                <Badge variant="info">{booking.customer_tier}</Badge>
-              )}
+              {booking.customer_tier && <Badge variant="info">{booking.customer_tier}</Badge>}
             </div>
           </Card>
 
@@ -170,73 +194,111 @@ function BookingDetailInner() {
           </Card>
         </div>
 
+        {/* ── Right column ── */}
         <div className="space-y-6">
+
+          {/* Assignment */}
           <Card title="Assignment">
             {latestAssignment ? (
               <div className="space-y-2 text-sm text-gray-700">
                 <div><span className="text-gray-500">Driver:</span> {latestAssignment.driver_name ?? '—'}</div>
-                <div><span className="text-gray-500">Vehicle:</span> {latestAssignment.vehicle_make ?? ''} {latestAssignment.vehicle_model ?? ''} {latestAssignment.vehicle_plate ?? ''}</div>
-                <div><span className="text-gray-500">Driver Phone:</span> {latestAssignment.driver_phone ?? '—'}</div>
-                <div><span className="text-gray-500">Status:</span> {latestAssignment.status ?? '—'}</div>
-                <div className="mt-3">
-                  <Link href={`/dispatch?booking_id=${booking.id}&return=/bookings/${booking.id}`}>
-                    <Button variant="secondary">Reassign</Button>
-                  </Link>
+                <div>
+                  <span className="text-gray-500">Vehicle:</span>{' '}
+                  {[latestAssignment.vehicle_make, latestAssignment.vehicle_model, latestAssignment.vehicle_plate]
+                    .filter(Boolean).join(' ') || '—'}
                 </div>
+                <div><span className="text-gray-500">Phone:</span> {latestAssignment.driver_phone ?? '—'}</div>
+                <div>
+                  <span className="text-gray-500">Status:</span>{' '}
+                  <Badge variant={getBookingStatusBadge(latestAssignment.status ?? '')}>
+                    {latestAssignment.status ?? '—'}
+                  </Badge>
+                </div>
+                {canAssign && (
+                  <div className="mt-3">
+                    <Link href={dispatchHref}>
+                      <Button variant="secondary" className="w-full">Reassign</Button>
+                    </Link>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="space-y-3">
                 <div className="text-sm text-gray-500">No driver assigned</div>
-                <Link href={`/dispatch?booking_id=${booking.id}&return=/bookings/${booking.id}`}>
-                  <Button>Assign Driver</Button>
-                </Link>
+                {canAssign && (
+                  <Link href={dispatchHref}>
+                    <Button className="w-full">Assign Driver</Button>
+                  </Link>
+                )}
               </div>
             )}
           </Card>
 
+          {/* Status Timeline */}
           <Card title="Status Timeline">
             <BookingStatusTimeline status={booking.operational_status} />
           </Card>
 
+          {/* Actions */}
           <Card title="Actions">
             <div className="flex flex-col gap-2">
+
+              {/* Edit — DRAFT / PENDING only */}
               {['DRAFT', 'PENDING'].includes(booking.operational_status) && (
-                <>
-                  <Button variant="secondary" onClick={() => router.push(`/bookings/${booking.id}/edit`)}>
-                    Edit
+                <Button
+                  variant="secondary"
+                  onClick={() => router.push(`/bookings/${booking.id}/edit`)}
+                >
+                  Edit Booking
+                </Button>
+              )}
+
+              {/* Cancel — gate by CANCELABLE_STATUSES */}
+              {canCancel ? (
+                <Button variant="danger" onClick={() => { setCancelError(null); setModalOpen(true); }}>
+                  Cancel Booking
+                </Button>
+              ) : (
+                !['CANCELLED', 'COMPLETED', 'JOB_COMPLETED'].includes(booking.operational_status) && (
+                  <Button variant="ghost" disabled className="cursor-not-allowed opacity-50">
+                    Cancel Booking
                   </Button>
-                  <Button variant="danger" onClick={() => setModalOpen(true)}>
-                    Cancel
-                  </Button>
-                </>
+                )
               )}
-              {booking.operational_status === 'CONFIRMED' && (
-                <Link href={`/dispatch?booking_id=${booking.id}&return=/bookings/${booking.id}`}>
-                  <Button>Assign Driver</Button>
-                </Link>
-              )}
-              {booking.operational_status === 'ASSIGNED' && (
-                <>
-                  <Link href={`/dispatch?booking_id=${booking.id}&return=/bookings/${booking.id}`}>
-                    <Button>Reassign</Button>
-                  </Link>
-                  <Button variant="danger" onClick={() => setModalOpen(true)}>Cancel</Button>
-                </>
-              )}
+
+              {/* Mark Completed — no endpoint yet */}
               {['IN_PROGRESS', 'JOB_STARTED'].includes(booking.operational_status) && (
-                <Button>Mark Completed</Button>
+                <ComingSoon>
+                  <Button variant="secondary" disabled className="w-full cursor-not-allowed opacity-60">
+                    Mark Completed
+                  </Button>
+                </ComingSoon>
               )}
+
+              {/* View Invoice — no endpoint yet */}
               {['COMPLETED', 'JOB_COMPLETED'].includes(booking.operational_status) && (
-                <Button variant="secondary">View Invoice</Button>
+                <ComingSoon>
+                  <Button variant="ghost" disabled className="w-full cursor-not-allowed opacity-60">
+                    View Invoice
+                  </Button>
+                </ComingSoon>
               )}
+
+              {/* Terminal — no actions */}
               {booking.operational_status === 'CANCELLED' && (
-                <div className="text-sm text-gray-500">No actions available</div>
+                <p className="text-xs text-gray-400 text-center py-1">No actions available</p>
+              )}
+
+              {/* Inline cancel error */}
+              {cancelError && (
+                <ErrorAlert message={cancelError} />
               )}
             </div>
           </Card>
         </div>
       </div>
 
+      {/* Cancel modal */}
       <ConfirmModal
         title="Cancel booking"
         description="Provide a reason (optional)"
@@ -244,23 +306,28 @@ function BookingDetailInner() {
         onClose={() => {
           setModalOpen(false);
           setCancelReason('');
+          setCancelError(null);
         }}
         onConfirm={() => cancelMutation.mutate()}
-        confirmText={cancelMutation.isPending ? 'Cancelling...' : 'Confirm cancel'}
+        confirmText={cancelMutation.isPending ? 'Cancelling…' : 'Confirm cancel'}
         loading={cancelMutation.isPending}
         confirmTone="danger"
       >
-        <label className="text-sm font-medium text-gray-700">Reason</label>
-        <div className="border rounded px-3 py-2">
+        <div className="space-y-1">
+          <label className="text-sm font-medium text-gray-700" htmlFor="cancel-reason">
+            Reason
+          </label>
           <input
+            id="cancel-reason"
             value={cancelReason}
             onChange={(e) => setCancelReason(e.target.value)}
             placeholder="Optional"
-            className="w-full outline-none text-sm"
+            className="w-full rounded border border-gray-200 px-3 py-2 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2"
           />
         </div>
       </ConfirmModal>
 
+      {/* Assign driver modal (legacy — kept for backward compat) */}
       <AssignDriverModal
         isOpen={assignOpen}
         onClose={() => setAssignOpen(false)}
@@ -290,6 +357,7 @@ function BookingDetailInner() {
         }}
       />
 
+      {/* Edit driver pay modal */}
       <EditDriverPayModal
         isOpen={editPayOpen}
         onClose={() => {
