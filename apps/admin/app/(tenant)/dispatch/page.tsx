@@ -31,9 +31,11 @@ type Booking = {
 
 type Driver = {
   id: string;
+  driver_id?: string;   // alias used by some endpoints
   full_name: string;
   vehicle_label?: string | null;
   status?: string | null;
+  availability_status?: string | null;
   last_seen_at?: string | null;
 };
 
@@ -83,7 +85,7 @@ function DispatchBoardInner() {
   const { data: driversData, isLoading: driversLoading, error: driversError, refetch: refetchDrivers } = useQuery({
     queryKey: ['dispatch-drivers'],
     queryFn: async () => {
-      const res = await api.get('/drivers/available');
+      const res = await api.get('/drivers');
       return res.data ?? [];
     },
   });
@@ -232,36 +234,49 @@ function DispatchBoardInner() {
           )}
         </Card>
 
-        <Card title={`Available Drivers (${filteredDrivers.length})`}>
+        <Card title={`Drivers (${filteredDrivers.length})`}>
           <div className="mb-3">
             <Input
               value={searchDriver}
               onChange={(e) => setSearchDriver(e.target.value)}
-              placeholder="Search drivers"
+              placeholder="Search by name…"
             />
           </div>
           {driversLoading ? (
             <div className="flex items-center justify-center h-40"><LoadingSpinner /></div>
           ) : filteredDrivers.length === 0 ? (
-            <EmptyState title="No available drivers right now" />
+            <EmptyState title="No drivers found" description="Add drivers in the Drivers page." />
           ) : (
             <div className="space-y-3 max-h-[520px] overflow-auto pr-2">
-              {filteredDrivers.map((d) => (
-                <button
-                  key={d.id}
-                  onClick={() => setSelectedDriverId(d.id)}
-                  className={`w-full text-left border rounded p-3 transition ${
-                    selectedDriverId === d.id ? 'ring-2 ring-blue-600 bg-blue-50' : 'hover:bg-gray-50'
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="font-medium text-gray-900">{d.full_name}</div>
-                    <Badge variant="success">AVAILABLE</Badge>
-                  </div>
-                  {d.vehicle_label && <div className="text-xs text-gray-500">{d.vehicle_label}</div>}
-                  <div className="text-xs text-gray-500">Last seen {relativeTime(d.last_seen_at)}</div>
-                </button>
-              ))}
+              {filteredDrivers.map((d) => {
+                const status = (d.availability_status ?? 'OFFLINE').toUpperCase();
+                const statusVariant =
+                  status === 'AVAILABLE' ? 'success'
+                  : status === 'ON_TRIP' ? 'warning'
+                  : 'neutral';
+                return (
+                  <button
+                    key={d.id ?? d.driver_id}
+                    onClick={() => setSelectedDriverId(d.id ?? d.driver_id)}
+                    className={`w-full text-left border rounded p-3 transition ${
+                      selectedDriverId === (d.id ?? d.driver_id) ? 'ring-2 ring-blue-600 bg-blue-50' : 'hover:bg-gray-50'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="font-medium text-gray-900">{d.full_name}</div>
+                      <Badge variant={statusVariant}>
+                        {status === 'AVAILABLE' ? 'Available'
+                          : status === 'ON_TRIP' ? 'On Trip'
+                          : 'Offline'}
+                      </Badge>
+                    </div>
+                    {d.vehicle_label && <div className="text-xs text-gray-500 mt-0.5">{d.vehicle_label}</div>}
+                    {d.last_seen_at && (
+                      <div className="text-xs text-gray-400 mt-0.5">Last seen {relativeTime(d.last_seen_at)}</div>
+                    )}
+                  </button>
+                );
+              })}
             </div>
           )}
         </Card>
