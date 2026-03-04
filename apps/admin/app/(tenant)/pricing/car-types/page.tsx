@@ -77,9 +77,9 @@ export default function CarTypesPage() {
   });
 
   const { data: platformVehicles = [] } = useQuery({
-    queryKey: ['platform-vehicles'],
+    queryKey: ['platform-vehicles-public'],
     queryFn: async () => {
-      const res = await api.get('/platform/vehicles');
+      const res = await api.get('/platform/vehicles/public');
       return res.data ?? [];
     },
   });

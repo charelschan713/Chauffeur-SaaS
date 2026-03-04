@@ -58,9 +58,25 @@ export default function GeneralSettingsPage() {
     },
   });
 
+  const currency = settings?.currency ?? '—';
+  const timezone = settings?.timezone ?? '';
+
   return (
     <div className="space-y-6 max-w-2xl">
       <h1 className="text-xl font-semibold">General Settings</h1>
+
+      {/* Currency — read-only, only super admin can change */}
+      <div className="bg-white border rounded p-6 space-y-2">
+        <h2 className="text-lg font-medium">Currency</h2>
+        <div className="flex items-center gap-3">
+          <span className="text-sm font-semibold text-gray-900 bg-gray-100 px-3 py-1.5 rounded">
+            {currency}
+          </span>
+        </div>
+        <p className="text-xs text-gray-400">
+          To change currency, please contact platform support.
+        </p>
+      </div>
 
       {/* Auto Assign */}
       <div className="bg-white border rounded p-6 space-y-4">

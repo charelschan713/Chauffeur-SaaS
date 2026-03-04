@@ -179,11 +179,20 @@ export default function AdminTenantsPage() {
             </div>
             <div>
               <label className="text-xs text-gray-500 mb-1 block">Currency</label>
-              <Input
+              <select
                 value={form.currency}
                 onChange={(e) => setForm((p) => ({ ...p, currency: e.target.value }))}
-                placeholder="AUD"
-              />
+                className="w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2"
+              >
+                <option value="AUD">AUD — Australian Dollar</option>
+                <option value="USD">USD — US Dollar</option>
+                <option value="GBP">GBP — British Pound</option>
+                <option value="EUR">EUR — Euro</option>
+                <option value="SGD">SGD — Singapore Dollar</option>
+                <option value="HKD">HKD — Hong Kong Dollar</option>
+                <option value="NZD">NZD — New Zealand Dollar</option>
+              </select>
+              <p className="text-xs text-gray-400 mt-1">Cannot be changed after tenant creation.</p>
             </div>
             {createError && <ErrorAlert message={createError} />}
             <Button
