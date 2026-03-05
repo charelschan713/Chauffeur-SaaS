@@ -10,7 +10,8 @@ export class PricingService {
       `SELECT id, name, description, display_order, surge_multiplier, currency, active, created_at,
               base_fare_minor, per_km_minor, per_min_driving_minor, per_min_waiting_minor,
               minimum_fare_minor, waypoint_minor, infant_seat_minor, toddler_seat_minor,
-              booster_seat_minor, hourly_rate_minor
+              booster_seat_minor, hourly_rate_minor,
+              passenger_capacity, luggage_capacity
        FROM public.tenant_service_classes
        WHERE tenant_id = $1 AND active = true
        ORDER BY display_order ASC, created_at ASC`,
