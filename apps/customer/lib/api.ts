@@ -8,6 +8,13 @@ api.interceptors.request.use((config) => {
   if (typeof window !== 'undefined') {
     const token = localStorage.getItem('customer_token');
     if (token) config.headers.Authorization = `Bearer ${token}`;
+
+    // Multi-tenant: inject slug from cookie
+    const slug = document.cookie
+      .split('; ')
+      .find(r => r.startsWith('tenant_slug='))
+      ?.split('=')[1];
+    if (slug) config.headers['X-Tenant-Slug'] = slug;
   }
   return config;
 });
