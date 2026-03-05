@@ -82,7 +82,7 @@ export default function VehiclesPage() {
       colour: form.colour || null,
       plate: form.plate || null,
       passenger_capacity: Number(form.passenger_capacity) || 4,
-      luggage_capacity: Number(form.luggage_capacity) || 2,
+      luggage_capacity: Number(form.luggage_capacity),
       notes: form.notes || null,
       rego_expiry: form.rego_expiry || null,
       insurance_expiry: form.insurance_expiry || null,
