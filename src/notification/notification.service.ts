@@ -325,6 +325,9 @@ export class NotificationService {
       actual_total:         payload.actual_total_minor        ? NotificationService.formatMinor(payload.actual_total_minor)        : '',
       already_paid:         payload.already_paid_minor        ? NotificationService.formatMinor(payload.already_paid_minor)        : '0',
       charged_at:           payload.charged_at                 ?? '',
+      card_last4:           payload.card_last4                 ?? '',
+      balance_due:          payload.balance_due_minor          ? NotificationService.formatMinor(payload.balance_due_minor) : '',
+      extra_total:          payload.extra_total_minor          ? NotificationService.formatMinor(payload.extra_total_minor)  : '',
     };
 
     const templateVars = { ...this.buildTemplateVariables(booking), ...extrasVars } as Record<string, string>;

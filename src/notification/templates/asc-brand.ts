@@ -329,12 +329,13 @@ export function ascFulfilledWithExtrasEmail(vars: Record<string, string>): strin
   if (vars.adjustment_amount)  extraRows.push({ label: 'Adjustment', value: `${cur} ${vars.adjustment_amount}` });
   if (vars.other_extras)       extraRows.push({ label: 'Other', value: `${cur} ${vars.other_extras}` });
 
-  // Extra amount was charged to saved card by Admin — this is a receipt, no CTA needed
-  const chargedOn = vars.charged_at ? `Charged on ${vars.charged_at}` : 'Charged to your saved card on file';
+  const cardNote = vars.card_last4
+    ? `charged on ${vars.charged_at || 'completion'} to card ending ${vars.card_last4}`
+    : `charged on ${vars.charged_at || 'completion'} to your saved card`;
 
   return ascBrandedEmail({
     title: 'Receipt — Additional Charges',
-    introHtml: `Your trip <strong>#${vars.booking_reference}</strong> is complete. An additional amount has been charged to your saved card.`,
+    introHtml: `Your trip <strong>#${vars.booking_reference}</strong> is complete. See below for your full charge breakdown.`,
     bookingRef: vars.booking_reference,
     sections: [
       {
@@ -348,10 +349,11 @@ export function ascFulfilledWithExtrasEmail(vars: Record<string, string>): strin
       {
         heading: 'CHARGES',
         rows: [
-          { label: 'Original Fare', value: `${cur} ${vars.prepay_total || vars.original_fare || '—'}` },
+          { label: 'Pre-charged',      value: `${cur} ${vars.prepay_total || vars.original_fare || '—'}` },
           ...extraRows,
-          { label: 'Total Charged', value: `${cur} ${vars.actual_total || '—'}` },
-          { label: 'Payment',       value: chargedOn },
+          { label: 'Extra Charged',    value: `${cur} ${vars.balance_due || vars.extra_total || '—'}` },
+          { label: 'Charged to',       value: cardNote },
+          { label: 'Total',            value: `${cur} ${vars.actual_total || '—'}` },
         ],
       },
     ],
