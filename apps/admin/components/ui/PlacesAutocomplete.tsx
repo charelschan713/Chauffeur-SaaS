@@ -97,21 +97,13 @@ export function PlacesAutocomplete({
   const containerRef = useRef<HTMLDivElement>(null);
   // Session token — reset after each selection (Google billing best practice)
   const sessionTokenRef = useRef<string>(generateToken());
-  // Suppress fetch after user just picked a prediction
-  const justSelectedRef = useRef(false);
+  // Track last selected description — suppress fetch when query matches a just-selected value
+  const lastSelectedRef = useRef<string>('');
 
   useEffect(() => { setMounted(true); setRecentPicks(getRecent()); }, []);
 
-  // Track last programmatic value to avoid retriggering fetch when parent syncs back
-  const lastExternalValueRef = useRef(value);
-  // Sync external value (form reset) — suppress the debounce fetch it would cause
-  useEffect(() => {
-    if (lastExternalValueRef.current !== value) {
-      lastExternalValueRef.current = value;
-      justSelectedRef.current = true;
-      setQuery(value);
-    }
-  }, [value]);
+  // Sync external value (form reset)
+  useEffect(() => { setQuery(value); }, [value]);
 
   function updateDropdownPosition() {
     const el = inputRef.current;
@@ -135,13 +127,8 @@ export function PlacesAutocomplete({
       setHasQueried(false);
       return;
     }
-    // If user just selected a prediction, skip fetches until query changes again manually
-    if (justSelectedRef.current) {
-      // Keep blocking until user manually edits (query won't match any prediction description)
-      // Reset only when this is a brand-new manual keystroke (not a programmatic setQuery from value sync)
-      justSelectedRef.current = false;
-      return;
-    }
+    // Skip fetch if query exactly matches the last selected prediction (prevents re-opening after selection)
+    if (query === lastSelectedRef.current) return;
     setLoading(true);
     timerRef.current = setTimeout(async () => {
       try {
@@ -200,7 +187,7 @@ export function PlacesAutocomplete({
   }, [open, showRecent]);
 
   const selectPrediction = useCallback((p: Prediction) => {
-    justSelectedRef.current = true;
+    lastSelectedRef.current = p.description;
     setQuery(p.description);
     setPredictions([]);
     setOpen(false);
@@ -215,7 +202,7 @@ export function PlacesAutocomplete({
   }, [onChange]);
 
   function selectRecent(r: RecentPick) {
-    justSelectedRef.current = true;
+    lastSelectedRef.current = r.description;
     setQuery(r.description);
     setShowRecent(false);
     setOpen(false);
@@ -225,7 +212,7 @@ export function PlacesAutocomplete({
   }
 
   function clearInput() {
-    justSelectedRef.current = false;
+    lastSelectedRef.current = '';
     setQuery('');
     setPredictions([]);
     setOpen(false);
