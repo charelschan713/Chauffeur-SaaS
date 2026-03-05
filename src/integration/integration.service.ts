@@ -79,7 +79,7 @@ export class IntegrationService {
         {
           headers: {
             Authorization: `Basic ${Buffer.from(
-              `${config.account_sid}:${config.api_key}`,
+              `${config.account_sid}:${config.auth_token ?? config.api_key}`,
             ).toString('base64')}`,
           },
         },
