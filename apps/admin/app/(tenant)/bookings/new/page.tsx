@@ -748,6 +748,8 @@ export default function CreateBookingPage() {
                   }}
                   placeholder="123 George St, Sydney"
                   error={errors.pickup_address_text?.message}
+                  cityLat={selectedCity?.lat ?? null}
+                  cityLng={selectedCity?.lng ?? null}
                 />
               </Field>
 
@@ -778,6 +780,8 @@ export default function CreateBookingPage() {
                         }}
                         placeholder={`Stop ${idx + 1} address`}
                         className="flex-1"
+                        cityLat={selectedCity?.lat ?? null}
+                        cityLng={selectedCity?.lng ?? null}
                       />
                       <button
                         type="button"
@@ -801,6 +805,8 @@ export default function CreateBookingPage() {
                   }}
                   placeholder="Airport or destination"
                   error={errors.dropoff_address_text?.message}
+                  cityLat={selectedCity?.lat ?? null}
+                  cityLng={selectedCity?.lng ?? null}
                 />
               </Field>
             </div>

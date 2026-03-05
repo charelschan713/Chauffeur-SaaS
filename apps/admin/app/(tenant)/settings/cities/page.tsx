@@ -38,16 +38,21 @@ export default function CitiesPage() {
   });
 
   const cities: CityRow[] = data ?? [];
-  const [form, setForm] = useState({ name: '', timezone: 'Australia/Sydney' });
+  const [form, setForm] = useState({ name: '', timezone: 'Australia/Sydney', lat: '', lng: '' });
   const [saving, setSaving] = useState(false);
 
   async function addCity() {
     if (!form.name.trim()) return;
     setSaving(true);
-    await api.post('/cities', { name: form.name.trim(), timezone: form.timezone });
+    await api.post('/cities', {
+      name: form.name.trim(),
+      timezone: form.timezone,
+      lat: form.lat ? Number(form.lat) : null,
+      lng: form.lng ? Number(form.lng) : null,
+    });
     const res = await api.get('/cities');
     queryClient.setQueryData(['cities'], res.data ?? []);
-    setForm({ name: '', timezone: 'Australia/Sydney' });
+    setForm({ name: '', timezone: 'Australia/Sydney', lat: '', lng: '' });
     await refetch();
     setSaving(false);
   }
@@ -86,6 +91,18 @@ export default function CitiesPage() {
                 </option>
               ))}
             </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Latitude <span className="text-gray-400 font-normal">(for address bias)</span></label>
+            <input type="number" step="any" value={form.lat}
+              onChange={(e) => setForm((prev) => ({ ...prev, lat: e.target.value }))}
+              className="w-full border rounded px-3 py-2 text-sm" placeholder="-33.8688" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Longitude</label>
+            <input type="number" step="any" value={form.lng}
+              onChange={(e) => setForm((prev) => ({ ...prev, lng: e.target.value }))}
+              className="w-full border rounded px-3 py-2 text-sm" placeholder="151.2093" />
           </div>
           <button
             onClick={addCity}

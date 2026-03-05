@@ -24,6 +24,8 @@ export class MapsController {
   async autocomplete(
     @Query('input') input: string,
     @Query('sessiontoken') sessionToken: string,
+    @Query('lat') lat: string,
+    @Query('lng') lng: string,
     @Req() req: any,
   ) {
     if (!input?.trim()) return { predictions: [] };
@@ -31,14 +33,20 @@ export class MapsController {
     const integration = await this.integrationResolver.resolve(req.user.tenant_id, 'google_maps');
     if (!integration) return { predictions: [] };
 
-    const params = new URLSearchParams({
+    const paramObj: Record<string, string> = {
       input: input.trim(),
       key: integration.config.api_key,
       types: 'address',
       language: 'en-AU',
       components: 'country:au',
-      ...(sessionToken ? { sessiontoken: sessionToken } : {}),
-    });
+    };
+    if (sessionToken) paramObj.sessiontoken = sessionToken;
+    // Location bias: prioritise results near the selected city (50km radius)
+    if (lat && lng) {
+      paramObj.location = `${lat},${lng}`;
+      paramObj.radius = '50000';
+    }
+    const params = new URLSearchParams(paramObj);
 
     const res = await fetch(
       `https://maps.googleapis.com/maps/api/place/autocomplete/json?${params}`,

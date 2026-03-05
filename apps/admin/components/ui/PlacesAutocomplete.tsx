@@ -18,6 +18,8 @@ interface PlacesAutocompleteProps {
   error?: string;
   disabled?: boolean;
   className?: string;
+  cityLat?: number | null;
+  cityLng?: number | null;
 }
 
 // Stable session token per component mount (reduces API billing)
@@ -33,6 +35,8 @@ export function PlacesAutocomplete({
   error,
   disabled,
   className,
+  cityLat,
+  cityLng,
 }: PlacesAutocompleteProps) {
   const [query, setQuery] = useState(value);
   const [predictions, setPredictions] = useState<Prediction[]>([]);
@@ -59,8 +63,11 @@ export function PlacesAutocomplete({
     setLoading(true);
     timerRef.current = setTimeout(async () => {
       try {
+        const biasParams = cityLat != null && cityLng != null
+          ? `&lat=${cityLat}&lng=${cityLng}`
+          : '';
         const res = await api.get(
-          `/maps/autocomplete?input=${encodeURIComponent(query.trim())}&sessiontoken=${sessionToken}`,
+          `/maps/autocomplete?input=${encodeURIComponent(query.trim())}&sessiontoken=${sessionToken}${biasParams}`,
         );
         const preds: Prediction[] = res.data?.predictions ?? [];
         if (res.data?.error) {

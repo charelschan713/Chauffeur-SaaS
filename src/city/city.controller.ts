@@ -21,7 +21,7 @@ export class CityController {
   @Get()
   async list(@Req() req: any) {
     return this.dataSource.query(
-      `SELECT id, name, timezone, active
+      `SELECT id, name, timezone, active, lat, lng
        FROM public.tenant_service_cities
        WHERE tenant_id = $1
        ORDER BY name ASC`,
@@ -33,10 +33,10 @@ export class CityController {
   async create(@Body() body: any, @Req() req: any) {
     const rows = await this.dataSource.query(
       `INSERT INTO public.tenant_service_cities
-         (tenant_id, name, timezone, active)
-       VALUES ($1, $2, $3, true)
-       RETURNING id, name, timezone, active`,
-      [req.user.tenant_id, body.name, body.timezone],
+         (tenant_id, name, timezone, active, lat, lng)
+       VALUES ($1, $2, $3, true, $4, $5)
+       RETURNING id, name, timezone, active, lat, lng`,
+      [req.user.tenant_id, body.name, body.timezone, body.lat ?? null, body.lng ?? null],
     );
     return rows[0];
   }
@@ -70,9 +70,11 @@ export class CityController {
       `UPDATE public.tenant_service_cities
        SET name = COALESCE($3, name),
            timezone = COALESCE($4, timezone),
-           active = COALESCE($5, active)
+           active = COALESCE($5, active),
+           lat = COALESCE($6, lat),
+           lng = COALESCE($7, lng)
        WHERE id = $1 AND tenant_id = $2`,
-      [id, req.user.tenant_id, body.name, body.timezone, body.active],
+      [id, req.user.tenant_id, body.name ?? null, body.timezone ?? null, body.active ?? null, body.lat ?? null, body.lng ?? null],
     );
     return { success: true };
   }
