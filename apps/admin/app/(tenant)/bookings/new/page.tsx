@@ -125,7 +125,7 @@ const SECTIONS = ['service', 'datetime', 'route', 'requirements', 'car', 'extras
 export default function CreateBookingPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const { state: wizardState, update: updateWizard } = useBookingWizardStore();
+  const { state: wizardState, update: updateWizard, reset: resetWizard } = useBookingWizardStore();
   const [quote, setQuote] = useState<QuoteState>({ status: 'idle' });
   const [customerSearch, setCustomerSearch] = useState('');
   const [customerResults, setCustomerResults] = useState<any[]>([]);
@@ -170,6 +170,7 @@ export default function CreateBookingPage() {
     handleSubmit,
     watch,
     trigger,
+    reset,
     formState: { errors },
     setValue,
   } = useForm<FormValues>({
@@ -221,6 +222,27 @@ export default function CreateBookingPage() {
       setSearchLabel('Recent Customers');
     });
   }, []);
+
+  // ── Clear All ────────────────────────────────────────────────────────────
+  function clearAll() {
+    reset({
+      service_class_id: '', service_type_id: '', city_id: '', flight_number: '',
+      customer_name: '', customer_phone_country_code: '+61', customer_phone_number: '', customer_email: '',
+      pickup_address_text: '', dropoff_address_text: '', waypoints: [],
+      pickup_at_utc: '', is_return_trip: false, return_pickup_at_utc: '', return_pickup_address_text: '',
+      timezone: 'Australia/Sydney', passenger_count: 1, luggage_count: 0, special_requests: '',
+      infant_seats: 0, toddler_seats: 0, booster_seats: 0,
+    });
+    setWaypoints([]);
+    setPickupPlaceId('');
+    setDropoffPlaceId('');
+    setSelectedCustomerId(null);
+    setSaveAsPassenger(false);
+    setPassengerLabel('');
+    setCustomerSearch('');
+    setActiveSection('service');
+    resetWizard();
+  }
 
   // Debounced customer search
   useEffect(() => {
@@ -461,6 +483,24 @@ export default function CreateBookingPage() {
 
   return (
     <div className="space-y-4">
+      {/* Page header with Clear All */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-bold text-gray-900">New Booking</h1>
+          <p className="text-sm text-gray-500 mt-0.5">Fill in the details below to create a booking</p>
+        </div>
+        <button
+          type="button"
+          onClick={clearAll}
+          className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-500 hover:text-red-600 hover:bg-red-50 border border-gray-200 hover:border-red-200 rounded-lg transition-colors"
+        >
+          <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8">
+            <path d="M2 4h12M5 4V2h6v2M6 7v5M10 7v5M3 4l1 10h8l1-10" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+          Clear All
+        </button>
+      </div>
+
       {mutation.isError && <ErrorAlert message="Failed to create booking. Please try again." />}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
