@@ -3,6 +3,7 @@ import { useMemo, useState, useEffect, Suspense } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
+import { formatBookingTime } from '@/lib/format-datetime';
 import { ConfirmModal } from '@/components/ui/ConfirmModal';
 import { AssignDriverModal } from '@/components/assign-driver-modal';
 import { AssignPartnerModal } from '@/components/assign-partner-modal';
@@ -134,7 +135,7 @@ function BookingDetailInner() {
                       📥 Transferred from {getTransferBadge(booking).sourceTenantName ?? 'another tenant'}
                     </Badge>
                   )}`}
-        description={`Created ${new Date(booking.created_at).toLocaleString()}`}
+        description={`Created ${formatBookingTime(booking.created_at, null, null)}`}
         actions={
           <div className="flex items-center gap-2">
             <Badge variant={getBookingStatusBadge(booking.operational_status)}>
@@ -156,9 +157,9 @@ function BookingDetailInner() {
               <InfoRow label="Reference" value={booking.booking_reference} />
               <InfoRow label="Service Type" value={booking.service_type_name ?? '—'} />
               <InfoRow label="Car Type" value={booking.service_class_name ?? '—'} />
-              <InfoRow label="Pickup Time" value={formatPickupTime(booking.pickup_at_utc, booking.timezone)} />
+              <InfoRow label="Pickup Time" value={formatPickupTime(booking.pickup_at_utc, booking.timezone, booking.city_name)} />
               {booking.return_pickup_at_utc && (
-                <InfoRow label="Return Time" value={formatPickupTime(booking.return_pickup_at_utc, booking.timezone)} />
+                <InfoRow label="Return Time" value={formatPickupTime(booking.return_pickup_at_utc, booking.timezone, booking.city_name)} />
               )}
             </div>
           </Card>
@@ -490,17 +491,6 @@ function InfoRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-function formatPickupTime(isoUtc: string, tz: string) {
-  if (!isoUtc) return '—';
-  const location = tz?.includes('/') ? tz.split('/')[1] : tz;
-  const formatted = new Date(isoUtc).toLocaleString('en-AU', {
-    timeZone: tz,
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: true,
-  });
-  return `${formatted} (${location})`;
+function formatPickupTime(isoUtc: string, tz: string, cityName?: string) {
+  return formatBookingTime(isoUtc, tz, cityName ?? null);
 }

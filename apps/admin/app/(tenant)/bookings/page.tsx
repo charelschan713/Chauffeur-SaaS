@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
+import { formatBookingTime } from '@/lib/format-datetime';
 import { PageHeader } from '@/components/admin/PageHeader';
 import { PageToolbar } from '@/components/admin/PageToolbar';
 import { Badge } from '@/components/ui/Badge';
@@ -27,6 +28,8 @@ interface Booking {
   pickup_address_text?: string | null;
   dropoff_address_text?: string | null;
   pickup_at_utc?: string | null;
+  timezone?: string | null;
+  city_name?: string | null;
   operational_status: string;
   payment_status?: string | null;
   total_price_minor: number;
@@ -42,9 +45,9 @@ const PAY_BADGE: Record<string, 'neutral' | 'warning' | 'success' | 'danger'> = 
   FAILED: 'danger',
 };
 
-function formatTime(value?: string | null) {
+function formatTime(value?: string | null, timezone?: string | null, city?: string | null) {
   if (!value) return '—';
-  return new Date(value).toLocaleString();
+  return formatBookingTime(value, timezone, city);
 }
 
 function shortAddress(value?: string | null) {
@@ -181,7 +184,7 @@ export default function BookingsPage() {
                 <td className="px-6 py-4 text-sm text-gray-700">
                   {shortAddress(booking.pickup_address_text)} → {shortAddress(booking.dropoff_address_text)}
                 </td>
-                <td className="px-6 py-4 text-sm text-gray-700">{formatTime(booking.pickup_at_utc)}</td>
+                <td className="px-6 py-4 text-sm text-gray-700 whitespace-nowrap">{formatTime(booking.pickup_at_utc, booking.timezone, booking.city_name)}</td>
                 <td className="px-6 py-4 text-sm">
                   <Badge variant={getBookingStatusBadge(booking.operational_status)}>
                     {booking.operational_status}

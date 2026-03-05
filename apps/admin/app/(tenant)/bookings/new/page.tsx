@@ -11,6 +11,7 @@ import { ErrorAlert } from '@/components/ui/ErrorAlert';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { DateTimePicker } from '@/components/ui/DateTimePicker';
+import { formatBookingTime } from '@/lib/format-datetime';
 import { Select } from '@/components/ui/Select';
 import { PhoneSplitField } from '@/components/ui/PhoneSplitField';
 import { PlacesAutocomplete } from '@/components/ui/PlacesAutocomplete';
@@ -409,7 +410,7 @@ export default function CreateBookingPage() {
   const summaries = {
     service: selectedCity?.name && selectedServiceType?.display_name ? `${selectedCity.name} · ${selectedServiceType.display_name}` : 'Select city and service type',
     datetime: values.pickup_at_utc
-      ? `${new Date(values.pickup_at_utc).toLocaleDateString()} ${new Date(values.pickup_at_utc).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}${values.timezone ? ' · ' + values.timezone : ''}`
+      ? formatBookingTime(values.pickup_at_utc, values.timezone, selectedCity?.name)
       : 'Select pickup time',
     route: values.pickup_address_text && values.dropoff_address_text
       ? waypoints.length > 0
@@ -621,7 +622,7 @@ export default function CreateBookingPage() {
                 <span className="text-gray-400 w-5 shrink-0">🕐</span>
                 <span className={values.pickup_at_utc ? 'text-gray-900' : 'text-gray-300'}>
                   {values.pickup_at_utc
-                    ? new Date(values.pickup_at_utc).toLocaleString('en-AU', { dateStyle: 'short', timeStyle: 'short' })
+                    ? formatBookingTime(values.pickup_at_utc, values.timezone, selectedCity?.name)
                     : 'No date/time'}
                 </span>
               </div>
