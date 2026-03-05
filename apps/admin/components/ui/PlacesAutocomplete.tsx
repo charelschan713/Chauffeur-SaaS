@@ -11,13 +11,6 @@ interface Prediction {
   secondary_text: string;
 }
 
-interface RecentPick {
-  place_id: string;
-  description: string;
-  main_text: string;
-  secondary_text: string;
-}
-
 interface PlacesAutocompleteProps {
   value: string;
   onChange: (value: string, placeId?: string) => void;
@@ -29,23 +22,6 @@ interface PlacesAutocompleteProps {
   cityLat?: number | null;
   cityLng?: number | null;
   cityName?: string | null;
-}
-
-const RECENT_KEY = 'asc_recent_places';
-const RECENT_MAX = 3;
-
-function getRecent(): RecentPick[] {
-  try {
-    return JSON.parse(localStorage.getItem(RECENT_KEY) ?? '[]');
-  } catch {
-    return [];
-  }
-}
-
-function saveRecent(pick: RecentPick) {
-  const existing = getRecent().filter((r) => r.place_id !== pick.place_id);
-  const next = [pick, ...existing].slice(0, RECENT_MAX);
-  localStorage.setItem(RECENT_KEY, JSON.stringify(next));
 }
 
 function generateToken() {
@@ -86,9 +62,7 @@ export function PlacesAutocomplete({
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [activeIdx, setActiveIdx] = useState(-1);
-  const [showRecent, setShowRecent] = useState(false);
   const [hasQueried, setHasQueried] = useState(false);
-  const [recentPicks, setRecentPicks] = useState<RecentPick[]>([]);
   const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
   const [mounted, setMounted] = useState(false);
 
@@ -100,7 +74,7 @@ export function PlacesAutocomplete({
   // Only fetch when user MANUALLY types — not when query is set programmatically
   const manualInputRef = useRef(false);
 
-  useEffect(() => { setMounted(true); setRecentPicks(getRecent()); }, []);
+  useEffect(() => { setMounted(true); }, []);
 
   // Sync external value (form reset)
   useEffect(() => { setQuery(value); }, [value]);
@@ -146,7 +120,6 @@ export function PlacesAutocomplete({
         setHasQueried(true);
         updateDropdownPosition();
         setOpen(true);
-        setShowRecent(false);
         setActiveIdx(-1);
       } catch {
         setPredictions([]);
@@ -169,7 +142,6 @@ export function PlacesAutocomplete({
         !(portalEl && portalEl.contains(target))
       ) {
         setOpen(false);
-        setShowRecent(false);
       }
     }
     document.addEventListener('mousedown', handle);
@@ -178,7 +150,7 @@ export function PlacesAutocomplete({
 
   // Reposition on scroll/resize
   useEffect(() => {
-    if (!open && !showRecent) return;
+    if (!open) return;
     const handleScroll = () => updateDropdownPosition();
     window.addEventListener('scroll', handleScroll, true);
     window.addEventListener('resize', handleScroll);
@@ -186,36 +158,21 @@ export function PlacesAutocomplete({
       window.removeEventListener('scroll', handleScroll, true);
       window.removeEventListener('resize', handleScroll);
     };
-  }, [open, showRecent]);
+  }, [open]);
 
   const selectPrediction = useCallback((p: Prediction) => {
     setQuery(p.description);
     setPredictions([]);
     setOpen(false);
-    setShowRecent(false);
     setHasQueried(false);
-    // Reset session token after selection
     sessionTokenRef.current = generateToken();
-    // Save to recent
-    saveRecent(p);
-    setRecentPicks(getRecent());
     onChange(p.description, p.place_id);
   }, [onChange]);
-
-  function selectRecent(r: RecentPick) {
-    setQuery(r.description);
-    setShowRecent(false);
-    setOpen(false);
-    setHasQueried(false);
-    sessionTokenRef.current = generateToken();
-    onChange(r.description, r.place_id);
-  }
 
   function clearInput() {
     setQuery('');
     setPredictions([]);
     setOpen(false);
-    setShowRecent(false);
     setHasQueried(false);
     onChange('', undefined);
     inputRef.current?.focus();
@@ -241,49 +198,20 @@ export function PlacesAutocomplete({
       }
     } else if (e.key === 'Escape') {
       setOpen(false);
-      setShowRecent(false);
     }
   }
 
   // Determine what to show in dropdown
-  const showRecentPanel = showRecent && recentPicks.length > 0 && !open;
   const showPredictions = open && predictions.length > 0;
   const showNoResults = open && predictions.length === 0 && !loading && hasQueried && query.trim().length >= 2;
-
   const showLoadingPanel = open && loading && query.trim().length >= 2;
-  const dropdownContent = (showRecentPanel || showPredictions || showNoResults || showLoadingPanel) && (
+
+  const dropdownContent = (showPredictions || showNoResults || showLoadingPanel) && (
     <div
       id="places-portal"
       style={dropdownStyle}
       className="bg-white border border-gray-200 rounded-lg shadow-xl overflow-hidden"
     >
-      {/* Recent picks */}
-      {showRecentPanel && (
-        <>
-          <div className="px-3 pt-2 pb-1">
-            <p className="text-xs text-gray-400 uppercase tracking-wide font-medium">Recent</p>
-          </div>
-          <ul role="listbox">
-            {recentPicks.map((r, idx) => (
-              <li
-                key={r.place_id}
-                role="option"
-                aria-selected={false}
-                onMouseDown={(e) => { e.preventDefault(); selectRecent(r); }}
-                className="px-4 py-3 cursor-pointer text-sm flex items-start gap-3 hover:bg-gray-50"
-              >
-                <span className="mt-0.5 text-gray-400 shrink-0 text-base">🕐</span>
-                <div className="min-w-0">
-                  <p className="font-medium text-gray-900 truncate">{r.main_text}</p>
-                  {r.secondary_text && <p className="text-xs text-gray-500 truncate">{r.secondary_text}</p>}
-                </div>
-              </li>
-            ))}
-          </ul>
-          <div className="border-t border-gray-100" />
-        </>
-      )}
-
       {/* Predictions */}
       {showPredictions && (
         <ul role="listbox">
@@ -351,20 +279,14 @@ export function PlacesAutocomplete({
             onChange(e.target.value);
           }}
           onFocus={() => {
-            updateDropdownPosition();
             if (predictions.length > 0) {
+              updateDropdownPosition();
               setOpen(true);
-            } else if (!query.trim() && recentPicks.length > 0) {
-              setShowRecent(true);
             }
           }}
           onBlur={() => {
             setTimeout(() => {
-              if (predictions.length > 0 && query.trim() && query !== predictions[0]?.description) {
-                selectPrediction(predictions[0]);
-              }
               setOpen(false);
-              setShowRecent(false);
             }, 150);
           }}
           onKeyDown={handleKeyDown}
