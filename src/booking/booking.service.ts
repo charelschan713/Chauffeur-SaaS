@@ -192,7 +192,10 @@ export class BookingService {
       distanceKm: dto.distance_km ?? 0,
       durationMinutes: dto.duration_minutes ?? 0,
       waypointsCount: Array.isArray(dto.waypoints) ? dto.waypoints.length : 0,
-      babyseatCount: dto.babyseat_count ?? 0,
+      babyseatCount: (dto.infant_seats ?? 0) + (dto.toddler_seats ?? 0) + (dto.booster_seats ?? 0) + (dto.babyseat_count ?? 0),
+      infantSeats:  dto.infant_seats  ?? 0,
+      toddlerSeats: dto.toddler_seats ?? 0,
+      boosterSeats: dto.booster_seats ?? 0,
       requestedAtUtc: new Date(pickupAtUtc),
       currency: dto.currency ?? 'AUD',
       customerId: dto.customer_id ?? null,
@@ -224,7 +227,8 @@ export class BookingService {
         customer_id, passenger_id,
         is_return_trip, return_pickup_at_utc, return_pickup_address_text,
         return_pickup_lat, return_pickup_lng, return_pickup_place_id,
-        service_class_id, service_type_id
+        service_class_id, service_type_id,
+        infant_seats, toddler_seats, booster_seats
        )
        VALUES ($1,$2,$3,$4,
                $5,$6,$7,
@@ -241,7 +245,8 @@ export class BookingService {
                $36,$37,
                $38,$39,$40,
                $41,$42,$43,
-               $44,$45
+               $44,$45,
+               $46,$47,$48
        )
        RETURNING *`,
       [
@@ -291,6 +296,9 @@ export class BookingService {
         dto.return_pickup_place_id ?? null,
         dto.service_class_id ?? null,
         dto.service_type_id ?? null,
+        dto.infant_seats  ?? 0,
+        dto.toddler_seats ?? 0,
+        dto.booster_seats ?? 0,
       ],
     );
 

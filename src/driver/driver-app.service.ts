@@ -70,7 +70,10 @@ export class DriverAppService {
          NULL AS flight_number,
          b.is_return_trip,
          b.return_pickup_at_utc,
-         b.waypoints
+         b.waypoints,
+         COALESCE(b.infant_seats, 0)  AS infant_seats,
+         COALESCE(b.toddler_seats, 0) AS toddler_seats,
+         COALESCE(b.booster_seats, 0) AS booster_seats
        FROM assignments a
        JOIN bookings b ON b.id = a.booking_id
        LEFT JOIN tenant_service_classes sc ON sc.id = b.service_class_id
@@ -306,7 +309,10 @@ export class DriverAppService {
     b.passenger_first_name,
     b.passenger_last_name,
     b.passenger_phone_country_code,
-    b.passenger_phone_number
+    b.passenger_phone_number,
+    COALESCE(b.infant_seats, 0)  AS infant_seats,
+    COALESCE(b.toddler_seats, 0) AS toddler_seats,
+    COALESCE(b.booster_seats, 0) AS booster_seats
   `;
 
   private shapeAssignment(row: any) {
@@ -317,11 +323,15 @@ export class DriverAppService {
       pickup_at: row.pickup_at_utc,
       pickup_location: row.pickup_address_text,
       dropoff_location: row.dropoff_address_text,
-      vehicle_name: null, // populated from vehicle assignment if needed
+      vehicle_name: null,
       driver_execution_status: row.driver_execution_status,
       service_type: row.service_type_name,
       driver_pay_minor: row.driver_pay_minor,
       currency: row.currency,
+      baby_seats: (row.infant_seats ?? 0) + (row.toddler_seats ?? 0) + (row.booster_seats ?? 0),
+      infant_seats:  row.infant_seats  ?? 0,
+      toddler_seats: row.toddler_seats ?? 0,
+      booster_seats: row.booster_seats ?? 0,
     };
   }
 
@@ -372,6 +382,11 @@ export class DriverAppService {
         passenger_name: passengerName,
         passenger_phone: passengerPhone,
         passenger_type: passengerName ? 'other' : 'customer',
+        // Baby seats
+        baby_seats: (row.infant_seats ?? 0) + (row.toddler_seats ?? 0) + (row.booster_seats ?? 0),
+        infant_seats:  row.infant_seats  ?? 0,
+        toddler_seats: row.toddler_seats ?? 0,
+        booster_seats: row.booster_seats ?? 0,
       },
     };
   }
