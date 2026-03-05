@@ -22,9 +22,9 @@ const STATUS_LABELS: Record<string, string> = {
   // Driver execution statuses (shown as secondary badge)
   assigned: 'Assigned',
   accepted: 'Driver Accepted',
-  on_the_way: 'In Progress',
-  arrived: 'In Progress',
-  passenger_on_board: 'In Progress',
+  on_the_way: 'Driver On the Way',
+  arrived: 'Driver Arrived',
+  passenger_on_board: 'Passenger On Board',
   job_done: 'Job Done',
   fulfilled: 'Fulfilled',
   // Payment
