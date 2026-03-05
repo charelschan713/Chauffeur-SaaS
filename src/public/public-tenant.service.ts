@@ -45,22 +45,33 @@ export class PublicTenantService {
 
   async getTenantInfo(slug: string) {
     const tenant = await this.resolveTenantBySlug(slug);
-    // Fetch logo/brand from integrations
-    const [branding] = await this.db.query(
-      `SELECT settings FROM public.integrations
-       WHERE tenant_id = $1 AND type = 'BRANDING' AND active = true
-       LIMIT 1`,
-      [tenant.id],
-    );
-    const settings = branding?.settings ?? {};
+
+    // Fetch branding — gracefully handle missing table/row
+    let branding: any = null;
+    try {
+      const [row] = await this.db.query(
+        `SELECT logo_url, primary_color, primary_foreground, font_family, cancel_window_hours
+         FROM public.tenant_branding
+         WHERE tenant_id = $1
+         LIMIT 1`,
+        [tenant.id],
+      );
+      branding = row ?? null;
+    } catch {
+      // tenant_branding table may not exist yet — fall through to defaults
+    }
+
     return {
+      id: tenant.id,
       company_name: tenant.name,
       slug: tenant.slug,
       currency: tenant.currency,
-      timezone: tenant.timezone,
-      logo_url: settings.logo_url ?? null,
-      primary_color: settings.primary_color ?? '#2563eb',
-      cancel_window_hours: settings.cancel_window_hours ?? 24,
+      timezone: tenant.timezone ?? 'Australia/Sydney',
+      logo_url: branding?.logo_url ?? null,
+      primary_color: branding?.primary_color ?? null,
+      primary_foreground: branding?.primary_foreground ?? null,
+      font_family: branding?.font_family ?? null,
+      cancel_window_hours: branding?.cancel_window_hours ?? 24,
     };
   }
 
