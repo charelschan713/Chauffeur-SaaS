@@ -149,7 +149,10 @@ export function DateTimePicker({ value, onChange, label, error, minDate, placeho
   // ── display label ──────────────────────────────────────────────────────────
 
   const displayValue = snapped
-    ? snapped.toLocaleString('en-AU', { dateStyle: 'short', timeStyle: 'short' })
+    ? snapped.toLocaleString('en-AU', {
+        day: 'numeric', month: 'short', year: 'numeric',
+        hour: 'numeric', minute: '2-digit', hour12: true,
+      }).replace(',', '').replace(/\bam\b/, 'AM').replace(/\bpm\b/, 'PM')
     : '';
 
   return (
@@ -335,7 +338,10 @@ export function DateTimePicker({ value, onChange, label, error, minDate, placeho
           {/* ── Confirm footer ────────────────────────────────────────── */}
           <div className="mt-4 pt-3 border-t flex items-center justify-between gap-3">
             <span className="text-sm text-gray-500">
-              {draft.toLocaleString('en-AU', { dateStyle: 'medium', timeStyle: 'short' })}
+              {draft.toLocaleString('en-AU', {
+                day: 'numeric', month: 'short', year: 'numeric',
+                hour: 'numeric', minute: '2-digit', hour12: true,
+              }).replace(',', '').replace(/\bam\b/, 'AM').replace(/\bpm\b/, 'PM')}
             </span>
             <div className="flex gap-2">
               <button
