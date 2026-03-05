@@ -58,7 +58,7 @@ export class PublicPricingService {
     const expiresAt = new Date(quotedAt.getTime() + 30 * 60 * 1000);
 
     const results = await Promise.all(
-      carTypes.map(async (ct) => {
+      carTypes.map(async (ct: any) => {
         const ctx: PricingContext = {
           tenantId: tenant.id,
           serviceClassId: ct.id,

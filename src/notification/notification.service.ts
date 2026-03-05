@@ -555,6 +555,8 @@ export class NotificationService {
       to: payload.to_email,
       subject: `${payload.company_name} — Driver Registration Invite`,
       html,
+      fromAddress: emailIntegration.config.from_address,
+      fromName: emailIntegration.config.from_name,
     });
   }
 }

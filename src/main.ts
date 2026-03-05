@@ -10,7 +10,7 @@ async function bootstrap() {
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
   app.use('/webhooks/stripe', express.raw({ type: 'application/json' }));
   app.enableCors({
-    origin: (origin, callback) => {
+    origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
       // Always allow public widget + portal origins
       const allowed = [
         ...(process.env.ALLOWED_ORIGINS?.split(',') ?? ['http://localhost:3000']),
