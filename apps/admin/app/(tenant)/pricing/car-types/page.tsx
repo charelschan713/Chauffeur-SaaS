@@ -28,6 +28,8 @@ interface ServiceClassRow {
   toddler_seat_minor: number | null;
   booster_seat_minor: number | null;
   hourly_rate_minor: number | null;
+  passenger_capacity: number | null;
+  luggage_capacity: number | null;
   active: boolean;
 }
 
@@ -51,6 +53,8 @@ const emptyForm = {
   toddler_seat_minor: '0',
   booster_seat_minor: '0',
   hourly_rate_minor: '0',
+  passenger_capacity: '4',
+  luggage_capacity: '2',
 };
 
 function toMinor(value: string) {
@@ -126,6 +130,8 @@ export default function CarTypesPage() {
       toddler_seat_minor: toMinor(form.toddler_seat_minor),
       booster_seat_minor: toMinor(form.booster_seat_minor),
       hourly_rate_minor: toMinor(form.hourly_rate_minor),
+      passenger_capacity: Number(form.passenger_capacity) || 0,
+      luggage_capacity: Number(form.luggage_capacity) || 0,
     };
   }
 
@@ -301,6 +307,27 @@ export default function CarTypesPage() {
             </div>
           </div>
 
+          {/* ── Capacity ─────────────────────────────────────── */}
+          <div>
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Capacity</p>
+            <div className="grid grid-cols-2 gap-4">
+              <Field label="Passenger Capacity">
+                <Input
+                  type="number" min="1" max="20" step="1"
+                  value={form.passenger_capacity}
+                  onChange={(e) => setForm((prev) => ({ ...prev, passenger_capacity: e.target.value }))}
+                />
+              </Field>
+              <Field label="Luggage Capacity">
+                <Input
+                  type="number" min="0" max="20" step="1"
+                  value={form.luggage_capacity}
+                  onChange={(e) => setForm((prev) => ({ ...prev, luggage_capacity: e.target.value }))}
+                />
+              </Field>
+            </div>
+          </div>
+
           {/* ── Seat Surcharges ──────────────────────────────── */}
           <div>
             <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Child Seat Surcharges</p>
@@ -350,14 +377,15 @@ export default function CarTypesPage() {
         ) : items.length === 0 ? (
           <EmptyState title="No car types yet" description="Create your first car type to get started." />
         ) : (
-          <Table headers={['Name', 'Base Fare', 'Per Km', 'Per Min', 'Minimum', 'Active', '']}>
+          <Table headers={['Name', 'Pax', 'Bags', 'Base Fare', 'Per Km', 'Minimum', 'Active', '']}>
             {items.map((item) => (
               <tr key={item.id} className="hover:bg-gray-50">
                 <td className="px-6 py-4 font-medium text-gray-900">{item.name}</td>
-                <td className="px-6 py-4 text-sm">{toMoney(item.base_fare_minor)}</td>
-                <td className="px-6 py-4 text-sm">{toMoney(item.per_km_minor)}</td>
-                <td className="px-6 py-4 text-sm">{toMoney(item.per_min_driving_minor)}</td>
-                <td className="px-6 py-4 text-sm">{toMoney(item.minimum_fare_minor)}</td>
+                <td className="px-6 py-4 text-sm text-center">🧍 {item.passenger_capacity ?? 0}</td>
+                <td className="px-6 py-4 text-sm text-center">🧳 {item.luggage_capacity ?? 0}</td>
+                <td className="px-6 py-4 text-sm">${toMoney(item.base_fare_minor)}</td>
+                <td className="px-6 py-4 text-sm">${toMoney(item.per_km_minor)}</td>
+                <td className="px-6 py-4 text-sm">${toMoney(item.minimum_fare_minor)}</td>
                 <td className="px-6 py-4 text-sm">
                   <span className={`px-2 py-1 rounded text-xs ${item.active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-700'}`}>
                     {item.active ? 'Active' : 'Inactive'}
@@ -383,7 +411,9 @@ export default function CarTypesPage() {
                         toddler_seat_minor: toMoney(item.toddler_seat_minor),
                         booster_seat_minor: toMoney(item.booster_seat_minor),
                         hourly_rate_minor: toMoney(item.hourly_rate_minor),
-                                      });
+                        passenger_capacity: String(item.passenger_capacity ?? 4),
+                        luggage_capacity: String(item.luggage_capacity ?? 2),
+                      });
                     }}
                   >
                     Edit

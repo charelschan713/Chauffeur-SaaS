@@ -26,8 +26,8 @@ export class PricingService {
         (tenant_id, name, description, display_order, surge_multiplier, currency, active,
          base_fare_minor, per_km_minor, per_min_driving_minor, per_min_waiting_minor,
          minimum_fare_minor, waypoint_minor, infant_seat_minor, toddler_seat_minor,
-         booster_seat_minor, hourly_rate_minor)
-       VALUES ($1,$2,$3,$4,$5,$6,true,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
+         booster_seat_minor, hourly_rate_minor, passenger_capacity, luggage_capacity)
+       VALUES ($1,$2,$3,$4,$5,$6,true,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)
        RETURNING *`,
       [
         tenantId,
@@ -46,6 +46,8 @@ export class PricingService {
         body.toddler_seat_minor ?? 0,
         body.booster_seat_minor ?? 0,
         body.hourly_rate_minor ?? 0,
+        body.passenger_capacity ?? 4,
+        body.luggage_capacity ?? 2,
       ],
     );
     return rows[0];
@@ -89,8 +91,10 @@ export class PricingService {
            toddler_seat_minor = COALESCE($14, toddler_seat_minor),
            booster_seat_minor = COALESCE($15, booster_seat_minor),
            hourly_rate_minor = COALESCE($16, hourly_rate_minor),
+           passenger_capacity = COALESCE($17, passenger_capacity),
+           luggage_capacity = COALESCE($18, luggage_capacity),
            updated_at = now()
-       WHERE tenant_id = $17 AND id = $18
+       WHERE tenant_id = $19 AND id = $20
        RETURNING *`,
       [
         body.name ?? null,
@@ -109,6 +113,8 @@ export class PricingService {
         body.toddler_seat_minor ?? null,
         body.booster_seat_minor ?? null,
         body.hourly_rate_minor ?? null,
+        body.passenger_capacity ?? null,
+        body.luggage_capacity ?? null,
         tenantId,
         id,
       ],
