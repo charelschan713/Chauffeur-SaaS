@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { PricingResolver } from '../pricing/pricing.resolver';
 import { randomUUID } from 'crypto';
@@ -7,7 +7,7 @@ import { randomUUID } from 'crypto';
 export class BookingService {
   constructor(
     private readonly dataSource: DataSource,
-    private readonly pricing: PricingResolver
+    private readonly pricing: PricingResolver,
   ) {}
 
   async listBookings(tenantId: string, query: Record<string, any>) {
@@ -381,5 +381,47 @@ export class BookingService {
 
       return { success: true };
     });
+  }
+
+  async markPaid(tenantId: string, bookingId: string) {
+    await this.dataSource.query(
+      `UPDATE public.bookings SET payment_status = 'PAID', updated_at = NOW()
+       WHERE id = $1 AND tenant_id = $2`,
+      [bookingId, tenantId],
+    );
+    return { success: true };
+  }
+
+  async sendPaymentLink(tenantId: string, bookingId: string) {
+    const rows = await this.dataSource.query(
+      `SELECT id, customer_email, customer_first_name, total_price_minor, currency, booking_reference, pickup_at_utc
+       FROM public.bookings WHERE id = $1 AND tenant_id = $2`,
+      [bookingId, tenantId],
+    );
+    if (!rows.length) throw new NotFoundException('Booking not found');
+    const booking = rows[0];
+
+    // Generate payment token (TTL = min(24h, pickup time))
+    const now = new Date();
+    const pickup = new Date(booking.pickup_at_utc);
+    const maxExpiry = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+    const expiry = pickup > now && pickup < maxExpiry ? pickup : maxExpiry;
+    const token = randomUUID();
+
+    await this.dataSource.query(
+      `UPDATE public.bookings SET payment_token = $1, payment_token_expires_at = $2, updated_at = NOW()
+       WHERE id = $3`,
+      [token, expiry.toISOString(), bookingId],
+    );
+
+    // TODO: wire to NotificationService.handleEvent('PaymentLinkSent', ...) when circular dep resolved
+
+    return { success: true, token, expires_at: expiry.toISOString() };
+  }
+
+  async chargeNow(tenantId: string, bookingId: string) {
+    // Stripe charge via saved payment method — Phase 2 (Stripe not yet wired)
+    // For now return actionable message
+    throw new BadRequestException('Stripe charge not yet configured. Use "Send Payment Link" or "Mark as Paid".');
   }
 }

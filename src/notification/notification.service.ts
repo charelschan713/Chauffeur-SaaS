@@ -140,6 +140,7 @@ export class NotificationService {
   }
 
   private async onDriverAccepted(tenantId: string, payload: any) {
+    const eventType = 'DriverAcceptedAssignment';
     const booking = await this.getBooking(payload.booking_id);
     if (!booking) return;
     const driver = await this.getDriver(payload.driver_id);
@@ -177,13 +178,7 @@ export class NotificationService {
       );
       const body = renderTemplate(emailTemplate.body || platformTemplate.html, templateVars);
 
-      await this.emailProvider.send(emailIntegration, {
-        to: booking.customer_email,
-        subject,
-        html: body,
-        fromAddress: emailIntegration.config.from_address,
-        fromName: emailIntegration.config.from_name,
-      });
+      await this.sendEmailWithLog(tenantId, eventType, emailIntegration, { to: booking.customer_email, subject, html: body, fromAddress: emailIntegration.config.from_address, fromName: emailIntegration.config.from_name }, booking.id).catch(() => {});
     }
 
     if (smsIntegration) {
@@ -201,11 +196,12 @@ export class NotificationService {
       const body = renderTemplate(smsTemplate.body || platformBody, templateVars);
 
       const customerPhone = toE164(booking.customer_phone_country_code, booking.customer_phone_number);
-      if (customerPhone) await this.smsProvider.send(smsIntegration, customerPhone, body);
+      if (customerPhone) await this.sendSmsWithLog(tenantId, eventType, smsIntegration, customerPhone, body, booking.id).catch(() => {});
     }
   }
 
   private async onDriverInvitation(tenantId: string, payload: any) {
+    const eventType = 'DriverInvitationSent';
     const booking = await this.getBooking(payload.booking_id);
     if (!booking) return;
     const driver = await this.getDriver(payload.driver_id);
@@ -234,10 +230,11 @@ export class NotificationService {
     const body = renderTemplate(smsTemplate.body || platformBody, templateVars);
 
     const driverPhone = toE164(driver.phone_country_code, driver.phone_number);
-    if (driverPhone) await this.smsProvider.send(smsIntegration, driverPhone, body);
+    if (driverPhone) await this.sendSmsWithLog(tenantId, eventType, smsIntegration, driverPhone, body, booking.id).catch(() => {});
   }
 
   private async onJobCompleted(tenantId: string, payload: any) {
+    const eventType = 'JobCompleted';
     const booking = await this.getBooking(payload.booking_id);
     if (!booking) return;
 
@@ -272,13 +269,7 @@ export class NotificationService {
       );
       const body = renderTemplate(emailTemplate.body || platformTemplate.html, templateVars);
 
-      await this.emailProvider.send(emailIntegration, {
-        to: booking.customer_email,
-        subject,
-        html: body,
-        fromAddress: emailIntegration.config.from_address,
-        fromName: emailIntegration.config.from_name,
-      });
+      await this.sendEmailWithLog(tenantId, eventType, emailIntegration, { to: booking.customer_email, subject, html: body, fromAddress: emailIntegration.config.from_address, fromName: emailIntegration.config.from_name }, booking.id).catch(() => {});
     }
 
     if (smsIntegration) {
@@ -295,11 +286,12 @@ export class NotificationService {
       const body = renderTemplate(smsTemplate.body || platformBody, templateVars);
 
       const customerPhone = toE164(booking.customer_phone_country_code, booking.customer_phone_number);
-      if (customerPhone) await this.smsProvider.send(smsIntegration, customerPhone, body);
+      if (customerPhone) await this.sendSmsWithLog(tenantId, eventType, smsIntegration, customerPhone, body, booking.id).catch(() => {});
     }
   }
 
   private async onBookingCancelled(tenantId: string, payload: any) {
+    const eventType = 'BookingCancelled';
     const booking = await this.getBooking(payload.booking_id);
     if (!booking) return;
 
@@ -332,13 +324,7 @@ export class NotificationService {
       );
       const body = renderTemplate(emailTemplate.body || platformTemplate.html, templateVars);
 
-      await this.emailProvider.send(emailIntegration, {
-        to: booking.customer_email,
-        subject,
-        html: body,
-        fromAddress: emailIntegration.config.from_address,
-        fromName: emailIntegration.config.from_name,
-      });
+      await this.sendEmailWithLog(tenantId, eventType, emailIntegration, { to: booking.customer_email, subject, html: body, fromAddress: emailIntegration.config.from_address, fromName: emailIntegration.config.from_name }, booking.id).catch(() => {});
     }
 
     if (smsIntegration) {
@@ -355,11 +341,12 @@ export class NotificationService {
       const body = renderTemplate(smsTemplate.body || platformBody, templateVars);
 
       const customerPhone = toE164(booking.customer_phone_country_code, booking.customer_phone_number);
-      if (customerPhone) await this.smsProvider.send(smsIntegration, customerPhone, body);
+      if (customerPhone) await this.sendSmsWithLog(tenantId, eventType, smsIntegration, customerPhone, body, booking.id).catch(() => {});
     }
   }
 
   private async onDriverRejectedAssignment(tenantId: string, payload: any) {
+    const eventType = 'DriverRejectedAssignment';
     const booking = await this.getBooking(payload.booking_id);
     if (!booking) return;
     const driver = await this.getDriver(payload.driver_id);
@@ -394,13 +381,7 @@ export class NotificationService {
       );
       const body = renderTemplate(emailTemplate.body || platformTemplate.html, templateVars);
 
-      await this.emailProvider.send(emailIntegration, {
-        to: booking.customer_email,
-        subject,
-        html: body,
-        fromAddress: emailIntegration.config.from_address,
-        fromName: emailIntegration.config.from_name,
-      });
+      await this.sendEmailWithLog(tenantId, eventType, emailIntegration, { to: booking.customer_email, subject, html: body, fromAddress: emailIntegration.config.from_address, fromName: emailIntegration.config.from_name }, booking.id).catch(() => {});
     }
 
     if (smsIntegration) {
@@ -415,11 +396,12 @@ export class NotificationService {
       const body = renderTemplate(smsTemplate.body || platformBody, templateVars);
 
       const customerPhone = toE164(booking.customer_phone_country_code, booking.customer_phone_number);
-      if (customerPhone) await this.smsProvider.send(smsIntegration, customerPhone, body);
+      if (customerPhone) await this.sendSmsWithLog(tenantId, eventType, smsIntegration, customerPhone, body, booking.id).catch(() => {});
     }
   }
 
   private async onAssignmentCancelled(tenantId: string, payload: any) {
+    const eventType = 'AssignmentCancelled';
     const booking = await this.getBooking(payload.booking_id);
     if (!booking) return;
 
@@ -442,10 +424,11 @@ export class NotificationService {
     const body = renderTemplate(smsTemplate.body || platformBody, templateVars);
 
     const customerPhone = toE164(booking.customer_phone_country_code, booking.customer_phone_number);
-    if (customerPhone) await this.smsProvider.send(smsIntegration, customerPhone, body);
+    if (customerPhone) await this.sendSmsWithLog(tenantId, eventType, smsIntegration, customerPhone, body, booking.id).catch(() => {});
   }
 
   private async onDriverPayUpdated(tenantId: string, payload: any) {
+    const eventType = 'DriverPayUpdated';
     const booking = await this.getBooking(payload.booking_id);
     if (!booking) return;
 
@@ -468,7 +451,7 @@ export class NotificationService {
     const body = renderTemplate(smsTemplate.body || platformBody, templateVars);
 
     const customerPhone = toE164(booking.customer_phone_country_code, booking.customer_phone_number);
-    if (customerPhone) await this.smsProvider.send(smsIntegration, customerPhone, body);
+    if (customerPhone) await this.sendSmsWithLog(tenantId, eventType, smsIntegration, customerPhone, body, booking.id).catch(() => {});
   }
 
   private static formatMinor(minor: number): string {

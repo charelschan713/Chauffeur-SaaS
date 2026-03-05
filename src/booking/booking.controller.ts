@@ -63,4 +63,28 @@ export class BookingController {
   ) {
     return this.service.cancelBooking(tenantId, bookingId, userId);
   }
+
+  @Post(':id/mark-paid')
+  markPaid(
+    @Param('id') bookingId: string,
+    @CurrentUser('tenant_id') tenantId: string,
+  ) {
+    return this.service.markPaid(tenantId, bookingId);
+  }
+
+  @Post(':id/send-payment-link')
+  sendPaymentLink(
+    @Param('id') bookingId: string,
+    @CurrentUser('tenant_id') tenantId: string,
+  ) {
+    return this.service.sendPaymentLink(tenantId, bookingId);
+  }
+
+  @Post(':id/charge')
+  chargeNow(
+    @Param('id') bookingId: string,
+    @CurrentUser('tenant_id') tenantId: string,
+  ) {
+    return this.service.chargeNow(tenantId, bookingId);
+  }
 }

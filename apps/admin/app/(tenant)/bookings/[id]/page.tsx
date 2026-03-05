@@ -6,6 +6,7 @@ import api from '@/lib/api';
 import { formatBookingTime } from '@/lib/format-datetime';
 import { ConfirmModal } from '@/components/ui/ConfirmModal';
 import { AssignDriverModal } from '@/components/assign-driver-modal';
+import { PaymentModal } from '@/components/payment-modal';
 import { AssignPartnerModal } from '@/components/assign-partner-modal';
 import { EditDriverPayModal } from '@/components/edit-driver-pay-modal';
 import { ErrorAlert } from '@/components/ui/ErrorAlert';
@@ -65,6 +66,7 @@ function BookingDetailInner() {
   const [partnerActionId, setPartnerActionId] = useState<string | null>(null);
   const [partnerActionLoading, setPartnerActionLoading] = useState(false);
   const [editPayOpen, setEditPayOpen] = useState(false);
+  const [paymentOpen, setPaymentOpen] = useState(false);
   const [editPayAssignmentId, setEditPayAssignmentId] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; tone: 'success' | 'error' } | null>(null);
 
@@ -144,6 +146,9 @@ function BookingDetailInner() {
             <Badge variant={PAY_BADGE[booking.payment_status] ?? 'neutral'}>
               {booking.payment_status ?? '—'}
             </Badge>
+            <Button size="sm" variant="outline" onClick={() => setPaymentOpen(true)}>
+              💳 Payment
+            </Button>
           </div>
         }
       />
@@ -467,6 +472,18 @@ function BookingDetailInner() {
           setEditPayAssignmentId(null);
           refetch();
         }}
+      />
+
+      <PaymentModal
+        isOpen={paymentOpen}
+        onClose={() => setPaymentOpen(false)}
+        bookingId={booking?.id ?? ''}
+        bookingRef={booking?.booking_reference ?? ''}
+        totalMinor={booking?.total_price_minor ?? 0}
+        currency={booking?.currency ?? 'AUD'}
+        customerEmail={booking?.customer_email ?? ''}
+        paymentStatus={booking?.payment_status ?? 'UNPAID'}
+        onUpdated={() => { setPaymentOpen(false); refetch(); setToast({ message: 'Payment updated', tone: 'success' }); }}
       />
 
       {toast && (
