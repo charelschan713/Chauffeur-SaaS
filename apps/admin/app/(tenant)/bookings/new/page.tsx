@@ -412,7 +412,7 @@ export default function CreateBookingPage() {
           dropoffAddress: values.dropoff_address_text,
         });
         estimates[c.id] = estimateRes.data?.grand_total_minor ?? estimateRes.data?.total_minor ?? 0;
-        tolls[c.id] = estimateRes.data?.toll_parking_minor ?? 0;
+        tolls[c.id] = estimateRes.data?.toll_minor ?? estimateRes.data?.toll_parking_minor ?? 0;
       }
 
       setQuote({
@@ -890,7 +890,7 @@ export default function CreateBookingPage() {
             </div>
             {quote.status === 'error' && <p className="text-sm text-red-600 mb-3">{quote.message}</p>}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {carTypes.map((c: any) => {
+              {carTypes.filter((c: any) => c.name && c.active !== false).map((c: any) => {
                 const price = quote.status === 'success' ? (quote.estimates[c.id] ?? 0) : 0;
                 const toll  = quote.status === 'success' ? (quote.tolls[c.id]     ?? 0) : 0;
                 const insufficient = (c.passenger_capacity ?? 0) > 0 && ((c.passenger_capacity ?? 0) < values.passenger_count || (c.luggage_capacity ?? 0) < (values.luggage_count ?? 0));
