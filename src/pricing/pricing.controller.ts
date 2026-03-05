@@ -30,6 +30,8 @@ export class PricingController {
       infantSeats:  body.infant_seats  ?? body.babyseatCount ?? 0,
       toddlerSeats: body.toddler_seats ?? 0,
       boosterSeats: body.booster_seats ?? 0,
+      pickupAddress:  body.pickupAddress  ?? null,
+      dropoffAddress: body.dropoffAddress ?? null,
       requestedAtUtc: new Date(),
       currency: body.currency ?? 'AUD',
       customerId: body.customerId ?? null,

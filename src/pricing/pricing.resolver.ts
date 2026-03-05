@@ -196,13 +196,13 @@ export class PricingResolver {
     const carType = classRows[0];
 
     const waypoints = Math.max(0, ctx.waypointsCount ?? 0);
-    const infantSeats  = Math.max(0, (ctx as any).infantSeats  ?? ctx.babyseatCount ?? 0);
-    const toddlerSeats = Math.max(0, (ctx as any).toddlerSeats ?? 0);
-    const boosterSeats = Math.max(0, (ctx as any).boosterSeats ?? 0);
+    const infantSeats  = Math.max(0, ctx.infantSeats  ?? ctx.babyseatCount ?? 0);
+    const toddlerSeats = Math.max(0, ctx.toddlerSeats ?? 0);
+    const boosterSeats = Math.max(0, ctx.boosterSeats ?? 0);
     const extras = waypoints * (carType.waypoint_minor ?? 0)
-      + infantSeats  * (carType.infant_seat_minor  ?? 0)
-      + toddlerSeats * ((carType as any).toddler_seat_minor ?? 0)
-      + boosterSeats * ((carType as any).booster_seat_minor ?? 0);
+      + infantSeats  * (carType.infant_seat_minor   ?? 0)
+      + toddlerSeats * (carType.toddler_seat_minor  ?? 0)
+      + boosterSeats * (carType.booster_seat_minor  ?? 0);
 
     let baseMinor = 0;
     let multiplierMode: MultiplierMode = 'PERCENTAGE';

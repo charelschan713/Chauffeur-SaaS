@@ -105,7 +105,7 @@ type QuoteState =
   | { status: 'idle' }
   | { status: 'loading' }
   | { status: 'error'; message: string }
-  | { status: 'success'; distanceKm: number; durationMinutes: number; estimates: Record<string, number> };
+  | { status: 'success'; distanceKm: number; durationMinutes: number; estimates: Record<string, number>; tolls: Record<string, number> };
 
 function toDisplay(minor: number) {
   return (minor / 100).toFixed(2);
@@ -397,24 +397,22 @@ export default function CreateBookingPage() {
       const classes = classesRes.data ?? [];
 
       const estimates: Record<string, number> = {};
+      const tolls: Record<string, number> = {};
       for (const c of classes) {
         const estimateRes = await api.post('/pricing/estimate', {
-          service_class_id: c.id,
           serviceClassId: c.id,
-          service_type_id: values.service_type_id,
           serviceTypeId: values.service_type_id,
           distanceKm: routeRes.data.distanceKm,
           durationMinutes: routeRes.data.durationMinutes,
-          distance_km: routeRes.data.distanceKm,
-          duration_minutes: routeRes.data.durationMinutes,
-          passenger_count: values.passenger_count,
-          luggage_count: values.luggage_count ?? 0,
           waypointsCount: waypoints.filter(Boolean).length,
           infant_seats: values.infant_seats ?? 0,
           toddler_seats: values.toddler_seats ?? 0,
           booster_seats: values.booster_seats ?? 0,
+          pickupAddress: values.pickup_address_text,
+          dropoffAddress: values.dropoff_address_text,
         });
         estimates[c.id] = estimateRes.data?.grand_total_minor ?? estimateRes.data?.total_minor ?? 0;
+        tolls[c.id] = estimateRes.data?.toll_parking_minor ?? 0;
       }
 
       setQuote({
@@ -422,6 +420,7 @@ export default function CreateBookingPage() {
         distanceKm: routeRes.data.distanceKm,
         durationMinutes: routeRes.data.durationMinutes,
         estimates,
+        tolls,
       });
     } catch {
       setQuote({
@@ -890,13 +889,21 @@ export default function CreateBookingPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {carTypes.map((c: any) => {
                 const price = quote.status === 'success' ? (quote.estimates[c.id] ?? 0) : 0;
-                const insufficient = (c.passenger_capacity ?? 0) < values.passenger_count || (c.luggage_capacity ?? 0) < (values.luggage_count ?? 0);
+                const toll  = quote.status === 'success' ? (quote.tolls[c.id]     ?? 0) : 0;
+                const insufficient = (c.passenger_capacity ?? 0) > 0 && ((c.passenger_capacity ?? 0) < values.passenger_count || (c.luggage_capacity ?? 0) < (values.luggage_count ?? 0));
                 return (
                   <button key={c.id} type="button" disabled={insufficient}
                     onClick={() => setValue('service_class_id', c.id, { shouldValidate: true })}
                     className={`border rounded-lg p-3 text-left transition-colors ${values.service_class_id === c.id ? 'border-blue-600 bg-blue-50' : 'border-gray-200 hover:border-gray-300'} ${insufficient ? 'opacity-40 cursor-not-allowed' : ''}`}>
                     <div className="font-medium text-gray-900">{c.name}</div>
-                    {quote.status === 'success' && <div className="text-blue-600 font-semibold text-sm mt-0.5">${toDisplay(price)}</div>}
+                    {quote.status === 'success' && (
+                      <div className="mt-1 space-y-0.5">
+                        <div className="text-blue-600 font-semibold text-sm">${toDisplay(price)}</div>
+                        {toll > 0 && (
+                          <div className="text-xs text-amber-600 font-medium">+ ${toDisplay(toll)} toll est.</div>
+                        )}
+                      </div>
+                    )}
                     <div className="text-xs text-gray-500 mt-1">🧍 {c.passenger_capacity ?? 0} · 🧳 {c.luggage_capacity ?? 0}</div>
                   </button>
                 );

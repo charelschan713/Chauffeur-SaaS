@@ -10,6 +10,9 @@ export interface PricingContext {
   dropoffZoneName?: string;
   waypointsCount: number;
   babyseatCount: number;
+  infantSeats?: number;
+  toddlerSeats?: number;
+  boosterSeats?: number;
   requestedAtUtc: Date;
   currency: string;
   customerId?: string | null;
