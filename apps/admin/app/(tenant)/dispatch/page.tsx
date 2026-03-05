@@ -68,6 +68,8 @@ function DispatchBoardInner() {
 
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null);
   const [selectedDriverId, setSelectedDriverId] = useState<string | null>(null);
+  const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(null);
+  const [searchVehicle, setSearchVehicle] = useState('');
   const [searchBooking, setSearchBooking] = useState('');
   const [searchDriver, setSearchDriver] = useState('');
   const [toast, setToast] = useState<{ message: string; tone: 'success' | 'error' } | null>(null);
@@ -90,12 +92,21 @@ function DispatchBoardInner() {
     },
   });
 
+  const { data: vehiclesData } = useQuery({
+    queryKey: ['dispatch-vehicles'],
+    queryFn: async () => {
+      const res = await api.get('/vehicles');
+      return res.data ?? [];
+    },
+  });
+
   const bookings: Booking[] = Array.isArray(bookingsData)
     ? bookingsData
     : (bookingsData?.data ?? []);
   const drivers: Driver[] = Array.isArray(driversData)
     ? driversData
     : (driversData?.data ?? []);
+  const vehicles: any[] = Array.isArray(vehiclesData) ? vehiclesData : (vehiclesData?.data ?? []);
 
   useEffect(() => {
     if (!bookingParam || bookings.length === 0) return;
@@ -124,13 +135,25 @@ function DispatchBoardInner() {
     return drivers.filter((d) => d.full_name?.toLowerCase().includes(q));
   }, [drivers, searchDriver]);
 
+  const filteredVehicles = useMemo(() => {
+    const q = searchVehicle.toLowerCase();
+    return vehicles.filter((v) =>
+      `${v.make} ${v.model} ${v.plate} ${v.colour ?? ''}`.toLowerCase().includes(q)
+    ).filter((v) => v.active);
+  }, [vehicles, searchVehicle]);
+
   const selectedBooking = bookings.find((b) => b.id === selectedBookingId) ?? null;
   const selectedDriver = drivers.find((d) => d.id === selectedDriverId) ?? null;
+  const selectedVehicle = vehicles.find((v) => v.id === selectedVehicleId) ?? null;
 
   const offerMutation = useMutation({
     mutationFn: async () => {
       if (!selectedBookingId || !selectedDriverId) return;
-      await api.post('/dispatch/offer', { booking_id: selectedBookingId, driver_id: selectedDriverId });
+      await api.post('/dispatch/offer', {
+        bookingId: selectedBookingId,
+        driverId: selectedDriverId,
+        vehicleId: selectedVehicleId ?? undefined,
+      });
     },
     onSuccess: () => {
       if (selectedBookingId) {
@@ -161,10 +184,20 @@ function DispatchBoardInner() {
       )}
 
       <div className="bg-white border rounded p-4 flex items-center justify-between">
-        <div className="text-sm text-gray-700">
-          {selectedBooking ? `Booking: ${selectedBooking.booking_reference}` : 'Select a booking'}
-          {' · '}
-          {selectedDriver ? `Driver: ${selectedDriver.full_name}` : 'Select a driver'}
+        <div className="flex items-center gap-3 text-sm flex-wrap">
+          <span className={selectedBooking ? 'text-gray-900 font-medium' : 'text-gray-400'}>
+            {selectedBooking ? `📋 ${selectedBooking.booking_reference}` : '📋 Select booking'}
+          </span>
+          <span className="text-gray-300">·</span>
+          <span className={selectedDriver ? 'text-gray-900 font-medium' : 'text-gray-400'}>
+            {selectedDriver ? `👤 ${selectedDriver.full_name}` : '👤 Select driver'}
+          </span>
+          <span className="text-gray-300">·</span>
+          <span className={selectedVehicle ? 'text-gray-900 font-medium' : 'text-gray-400'}>
+            {selectedVehicle
+              ? `🚘 ${selectedVehicle.make} ${selectedVehicle.model} · ${selectedVehicle.plate}`
+              : '🚘 Select vehicle (optional)'}
+          </span>
         </div>
         <Button
           disabled={!selectedBookingId || !selectedDriverId || offerMutation.isPending}
@@ -187,7 +220,7 @@ function DispatchBoardInner() {
         </Card>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <Card
           title={`Unassigned Bookings (${filteredBookings.length})`}
         >
@@ -277,6 +310,44 @@ function DispatchBoardInner() {
                   </button>
                 );
               })}
+            </div>
+          )}
+        </Card>
+
+        {/* Vehicles column */}
+        <Card title={`Vehicles (${filteredVehicles.length})`}>
+          <div className="mb-3">
+            <Input
+              value={searchVehicle}
+              onChange={(e) => setSearchVehicle(e.target.value)}
+              placeholder="Search make, model, plate…"
+            />
+          </div>
+          {filteredVehicles.length === 0 ? (
+            <EmptyState title="No vehicles found" description="Add vehicles in the Vehicles page." />
+          ) : (
+            <div className="space-y-3 max-h-[520px] overflow-auto pr-2">
+              {filteredVehicles.map((v) => (
+                <button
+                  key={v.id}
+                  onClick={() => setSelectedVehicleId(v.id === selectedVehicleId ? null : v.id)}
+                  className={`w-full text-left border rounded p-3 transition ${
+                    selectedVehicleId === v.id ? 'ring-2 ring-blue-600 bg-blue-50' : 'hover:bg-gray-50'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="font-medium text-gray-900">{v.make} {v.model}</div>
+                    <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded font-mono">
+                      {v.plate}
+                    </span>
+                  </div>
+                  <div className="text-xs text-gray-500 mt-0.5">
+                    {v.colour && <span>{v.colour} · </span>}
+                    {v.year && <span>{v.year} · </span>}
+                    {v.passenger_capacity && <span>👥 {v.passenger_capacity} pax</span>}
+                  </div>
+                </button>
+              ))}
             </div>
           )}
         </Card>
