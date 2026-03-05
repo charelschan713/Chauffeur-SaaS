@@ -596,6 +596,63 @@ export default function CreateBookingPage() {
               </div>
             )}
           </div>
+          {/* Booking Summary Card */}
+          <div className="bg-white border rounded p-5 space-y-3">
+            <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Booking Summary</h3>
+            <div className="space-y-2 text-sm">
+              {/* Customer */}
+              <div className="flex gap-2">
+                <span className="text-gray-400 w-5 shrink-0">👤</span>
+                <span className={values.customer_name ? 'text-gray-900' : 'text-gray-300'}>
+                  {values.customer_name || 'No customer'}
+                </span>
+              </div>
+              {/* Service */}
+              <div className="flex gap-2">
+                <span className="text-gray-400 w-5 shrink-0">🏙️</span>
+                <span className={selectedCity ? 'text-gray-900' : 'text-gray-300'}>
+                  {selectedCity?.name && selectedServiceType?.display_name
+                    ? `${selectedCity.name} · ${selectedServiceType.display_name}`
+                    : 'No service selected'}
+                </span>
+              </div>
+              {/* Date/time */}
+              <div className="flex gap-2">
+                <span className="text-gray-400 w-5 shrink-0">🕐</span>
+                <span className={values.pickup_at_utc ? 'text-gray-900' : 'text-gray-300'}>
+                  {values.pickup_at_utc
+                    ? new Date(values.pickup_at_utc).toLocaleString('en-AU', { dateStyle: 'short', timeStyle: 'short' })
+                    : 'No date/time'}
+                </span>
+              </div>
+              {/* Route */}
+              <div className="flex gap-2 items-start">
+                <span className="text-gray-400 w-5 shrink-0 mt-0.5">📍</span>
+                <span className={values.pickup_address_text ? 'text-gray-900' : 'text-gray-300'}>
+                  {values.pickup_address_text
+                    ? <><span className="block truncate">{values.pickup_address_text}</span><span className="block text-gray-400">↓</span><span className="block truncate">{values.dropoff_address_text || '—'}</span></>
+                    : 'No route'}
+                </span>
+              </div>
+              {/* Car type + price */}
+              {selectedCarType && (
+                <div className="flex gap-2">
+                  <span className="text-gray-400 w-5 shrink-0">🚘</span>
+                  <span className="text-gray-900">
+                    {selectedCarType.name}
+                    {quote.status === 'success' && quote.estimates[selectedCarType.id]
+                      ? <span className="ml-1 text-blue-600 font-semibold">${toDisplay(quote.estimates[selectedCarType.id])}</span>
+                      : null}
+                  </span>
+                </div>
+              )}
+              {/* Pax */}
+              <div className="flex gap-2">
+                <span className="text-gray-400 w-5 shrink-0">🧳</span>
+                <span className="text-gray-600">{values.passenger_count} pax · {values.luggage_count ?? 0} bags</span>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Right Column */}

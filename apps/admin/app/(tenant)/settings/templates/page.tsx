@@ -268,7 +268,13 @@ export default function TemplatesPage() {
                         </div>
                       )}
                       <div className="text-[10px] text-gray-500">Preview</div>
-                      <div className="whitespace-pre-wrap">{previewState[keyFor(event.key, 'email')]?.body}</div>
+                      <iframe
+                        srcDoc={previewState[keyFor(event.key, 'email')]?.body}
+                        sandbox=""
+                        className="w-full rounded border bg-white"
+                        style={{ minHeight: 320, height: 400 }}
+                        title="Email preview"
+                      />
                     </div>
                   )}
                 </div>
