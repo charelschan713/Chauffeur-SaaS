@@ -125,4 +125,30 @@ export class DriverAppController {
   ) {
     return this.service.saveApnsToken(userId, body.token, body.platform);
   }
+
+  /** Submit post-job extras report */
+  @Post('extra-report')
+  async submitExtraReport(
+    @CurrentUser('sub') driverId: string,
+    @CurrentUser('tenant_id') tenantId: string,
+    @Body() body: {
+      assignment_id: string;
+      extra_waypoints?: string[];
+      waiting_minutes?: number;
+      extra_toll?: number;
+      extra_parking?: number;
+      notes?: string;
+    },
+  ) {
+    return this.service.submitExtraReport(driverId, tenantId, body);
+  }
+
+  /** Get extras report for an assignment */
+  @Get('extra-report/:assignmentId')
+  async getExtraReport(
+    @CurrentUser('sub') driverId: string,
+    @Param('assignmentId') assignmentId: string,
+  ) {
+    return this.service.getExtraReport(driverId, assignmentId);
+  }
 }

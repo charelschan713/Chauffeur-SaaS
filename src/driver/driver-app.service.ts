@@ -252,6 +252,89 @@ export class DriverAppService {
     return { success: true, new_status: newStatus };
   }
 
+  async submitExtraReport(
+    driverId: string,
+    tenantId: string,
+    body: {
+      assignment_id: string;
+      extra_waypoints?: string[];
+      waiting_minutes?: number;
+      extra_toll?: number;
+      extra_parking?: number;
+      notes?: string;
+    },
+  ) {
+    // Verify assignment belongs to this driver
+    const rows = await this.dataSource.query(
+      `SELECT id, booking_id FROM public.assignments
+       WHERE id = $1 AND driver_id = $2 AND driver_execution_status = 'job_done'`,
+      [body.assignment_id, driverId],
+    );
+    if (!rows.length) throw new ForbiddenException('Assignment not found or not in job_done state');
+
+    const assignment = rows[0];
+
+    // Upsert — one report per assignment
+    const existing = await this.dataSource.query(
+      `SELECT id FROM public.driver_extra_reports WHERE assignment_id = $1`,
+      [body.assignment_id],
+    );
+
+    if (existing.length) {
+      await this.dataSource.query(
+        `UPDATE public.driver_extra_reports
+         SET extra_waypoints = $1, waiting_minutes = $2, extra_toll = $3,
+             extra_parking = $4, notes = $5, status = 'pending', updated_at = NOW()
+         WHERE assignment_id = $6`,
+        [
+          body.extra_waypoints ?? [],
+          body.waiting_minutes ?? null,
+          body.extra_toll ?? null,
+          body.extra_parking ?? null,
+          body.notes ?? null,
+          body.assignment_id,
+        ],
+      );
+    } else {
+      await this.dataSource.query(
+        `INSERT INTO public.driver_extra_reports
+         (tenant_id, assignment_id, booking_id, driver_id, extra_waypoints,
+          waiting_minutes, extra_toll, extra_parking, notes)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+        [
+          tenantId,
+          body.assignment_id,
+          assignment.booking_id,
+          driverId,
+          body.extra_waypoints ?? [],
+          body.waiting_minutes ?? null,
+          body.extra_toll ?? null,
+          body.extra_parking ?? null,
+          body.notes ?? null,
+        ],
+      );
+    }
+
+    // Update assignment post_job_status
+    await this.dataSource.query(
+      `UPDATE public.assignments SET post_job_status = 'submitted', updated_at = NOW()
+       WHERE id = $1`,
+      [body.assignment_id],
+    );
+
+    return { success: true };
+  }
+
+  async getExtraReport(driverId: string, assignmentId: string) {
+    const rows = await this.dataSource.query(
+      `SELECT r.* FROM public.driver_extra_reports r
+       JOIN public.assignments a ON a.id = r.assignment_id
+       WHERE r.assignment_id = $1 AND a.driver_id = $2`,
+      [assignmentId, driverId],
+    );
+    return rows[0] ?? null;
+  }
+
   async updateLocation(userId: string, lat: number, lng: number) {
     const me = await this.getMe(userId);
     await this.dataSource.query(
