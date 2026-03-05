@@ -26,6 +26,7 @@ export class MapsController {
     @Query('sessiontoken') sessionToken: string,
     @Query('lat') lat: string,
     @Query('lng') lng: string,
+    @Query('city') cityName: string,
     @Req() req: any,
   ) {
     if (!input?.trim()) return { predictions: [] };
@@ -41,11 +42,14 @@ export class MapsController {
       components: 'country:au',
     };
     if (sessionToken) paramObj.sessiontoken = sessionToken;
-    // Location bias: restrict results to within ~100km of the selected city
+    // Location bias: soft-bias towards selected city (no strictbounds — inter-state routes allowed)
     if (lat && lng) {
       paramObj.location = `${lat},${lng}`;
-      paramObj.radius = '100000';   // 100km covers greater metro area
-      paramObj.strictbounds = 'true'; // hard-restrict, not just bias
+      paramObj.radius = '100000';
+    }
+    // Append city name to query so short inputs like "T1" resolve to the right city first
+    if (cityName) {
+      paramObj.input = `${input.trim()} ${cityName}`;
     }
     const params = new URLSearchParams(paramObj);
 

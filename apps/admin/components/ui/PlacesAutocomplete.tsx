@@ -21,6 +21,7 @@ interface PlacesAutocompleteProps {
   className?: string;
   cityLat?: number | null;
   cityLng?: number | null;
+  cityName?: string | null;
 }
 
 function useSessionToken() {
@@ -37,6 +38,7 @@ export function PlacesAutocomplete({
   className,
   cityLat,
   cityLng,
+  cityName,
 }: PlacesAutocompleteProps) {
   const [query, setQuery] = useState(value);
   const [predictions, setPredictions] = useState<Prediction[]>([]);
@@ -85,8 +87,9 @@ export function PlacesAutocomplete({
         const biasParams = cityLat != null && cityLng != null
           ? `&lat=${cityLat}&lng=${cityLng}`
           : '';
+        const cityParam = cityName ? `&city=${encodeURIComponent(cityName)}` : '';
         const res = await api.get(
-          `/maps/autocomplete?input=${encodeURIComponent(query.trim())}&sessiontoken=${sessionToken}${biasParams}`,
+          `/maps/autocomplete?input=${encodeURIComponent(query.trim())}&sessiontoken=${sessionToken}${biasParams}${cityParam}`,
         );
         if (res.data?.error) console.warn('[PlacesAutocomplete]', res.data.error);
         const preds: Prediction[] = res.data?.predictions ?? [];

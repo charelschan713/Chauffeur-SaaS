@@ -791,6 +791,7 @@ export default function CreateBookingPage() {
                   error={errors.pickup_address_text?.message}
                   cityLat={selectedCity?.lat ?? null}
                   cityLng={selectedCity?.lng ?? null}
+                  cityName={selectedCity?.name ?? null}
                 />
               </Field>
 
@@ -823,6 +824,7 @@ export default function CreateBookingPage() {
                         className="flex-1"
                         cityLat={selectedCity?.lat ?? null}
                         cityLng={selectedCity?.lng ?? null}
+                  cityName={selectedCity?.name ?? null}
                       />
                       <button
                         type="button"
@@ -848,6 +850,7 @@ export default function CreateBookingPage() {
                   error={errors.dropoff_address_text?.message}
                   cityLat={selectedCity?.lat ?? null}
                   cityLng={selectedCity?.lng ?? null}
+                  cityName={selectedCity?.name ?? null}
                 />
               </Field>
             </div>
