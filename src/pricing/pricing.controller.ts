@@ -35,7 +35,11 @@ export class PricingController {
 
   @Get('car-types')
   async listCarTypes(@Req() req: any) {
-    return this.pricingService.listServiceClasses(req.user.tenant_id);
+    try {
+      return await this.pricingService.listServiceClasses(req.user.tenant_id);
+    } catch (e: any) {
+      throw new (await import('@nestjs/common').then(m => m.InternalServerErrorException))(e?.message ?? 'Failed to list car types');
+    }
   }
 
   @Post('car-types')

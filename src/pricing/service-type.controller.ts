@@ -24,7 +24,7 @@ export class ServiceTypeController {
               one_way_type, one_way_value, one_way_surcharge_minor,
               return_type, return_value, return_surcharge_minor,
               minimum_hours, km_per_hour_included, hourly_tiers,
-              booking_flow, active
+              booking_flow, active, toll_enabled
        FROM public.tenant_service_types
        WHERE tenant_id = $1
        ORDER BY display_name ASC`,

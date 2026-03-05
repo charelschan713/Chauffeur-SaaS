@@ -89,7 +89,7 @@ export class PublicTenantService {
 
     const rows = await this.db.query(
       `SELECT tsc.id, tsc.name, tsc.description, tsc.image_url,
-              tsc.display_order, tsc.active, tsc.toll_enabled,
+              tsc.display_order, tsc.active,
               tsc.base_fare_minor, tsc.minimum_fare_minor
        FROM public.tenant_service_classes tsc
        WHERE tsc.tenant_id = $1 AND tsc.active = true
