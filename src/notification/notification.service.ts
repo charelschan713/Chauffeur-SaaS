@@ -8,6 +8,15 @@ import { TemplateResolver } from './template.resolver';
 import { renderTemplate } from './template.renderer';
 import { TemplateVariables } from './notification.types';
 import {
+  ascBookingConfirmedEmail,
+  ascBookingCancelledEmail,
+  ascDriverAcceptedEmail,
+  ascJobCompletedEmail,
+  ascPaymentLinkEmail,
+} from './templates/asc-brand';
+
+const ASC_TENANT_ID = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
+import {
   bookingConfirmedEmail,
   driverAcceptedEmail,
   jobCompletedEmail,
@@ -117,7 +126,7 @@ export class NotificationService {
         html: body,
         fromAddress: emailIntegration.config.from_address,
         fromName: emailIntegration.config.from_name,
-      }, booking.id).catch(() => {});
+      }, booking.id, templateVars as Record<string,string>).catch(() => {});
     }
 
     if (smsIntegration) {
@@ -178,7 +187,7 @@ export class NotificationService {
       );
       const body = renderTemplate(emailTemplate.body || platformTemplate.html, templateVars);
 
-      await this.sendEmailWithLog(tenantId, eventType, emailIntegration, { to: booking.customer_email, subject, html: body, fromAddress: emailIntegration.config.from_address, fromName: emailIntegration.config.from_name }, booking.id).catch(() => {});
+      await this.sendEmailWithLog(tenantId, eventType, emailIntegration, { to: booking.customer_email, subject, html: body, fromAddress: emailIntegration.config.from_address, fromName: emailIntegration.config.from_name }, booking.id, templateVars as Record<string,string>).catch(() => {});
     }
 
     if (smsIntegration) {
@@ -269,7 +278,7 @@ export class NotificationService {
       );
       const body = renderTemplate(emailTemplate.body || platformTemplate.html, templateVars);
 
-      await this.sendEmailWithLog(tenantId, eventType, emailIntegration, { to: booking.customer_email, subject, html: body, fromAddress: emailIntegration.config.from_address, fromName: emailIntegration.config.from_name }, booking.id).catch(() => {});
+      await this.sendEmailWithLog(tenantId, eventType, emailIntegration, { to: booking.customer_email, subject, html: body, fromAddress: emailIntegration.config.from_address, fromName: emailIntegration.config.from_name }, booking.id, templateVars as Record<string,string>).catch(() => {});
     }
 
     if (smsIntegration) {
@@ -324,7 +333,7 @@ export class NotificationService {
       );
       const body = renderTemplate(emailTemplate.body || platformTemplate.html, templateVars);
 
-      await this.sendEmailWithLog(tenantId, eventType, emailIntegration, { to: booking.customer_email, subject, html: body, fromAddress: emailIntegration.config.from_address, fromName: emailIntegration.config.from_name }, booking.id).catch(() => {});
+      await this.sendEmailWithLog(tenantId, eventType, emailIntegration, { to: booking.customer_email, subject, html: body, fromAddress: emailIntegration.config.from_address, fromName: emailIntegration.config.from_name }, booking.id, templateVars as Record<string,string>).catch(() => {});
     }
 
     if (smsIntegration) {
@@ -381,7 +390,7 @@ export class NotificationService {
       );
       const body = renderTemplate(emailTemplate.body || platformTemplate.html, templateVars);
 
-      await this.sendEmailWithLog(tenantId, eventType, emailIntegration, { to: booking.customer_email, subject, html: body, fromAddress: emailIntegration.config.from_address, fromName: emailIntegration.config.from_name }, booking.id).catch(() => {});
+      await this.sendEmailWithLog(tenantId, eventType, emailIntegration, { to: booking.customer_email, subject, html: body, fromAddress: emailIntegration.config.from_address, fromName: emailIntegration.config.from_name }, booking.id, templateVars as Record<string,string>).catch(() => {});
     }
 
     if (smsIntegration) {
@@ -456,6 +465,23 @@ export class NotificationService {
 
   private static formatMinor(minor: number): string {
     return (minor / 100).toFixed(2);
+  }
+
+  /** Returns branded HTML for ASC tenant, null otherwise (fallback to plain template) */
+  private ascBrandedHtml(
+    tenantId: string,
+    eventType: string,
+    vars: Record<string, string>,
+  ): string | null {
+    if (tenantId !== ASC_TENANT_ID) return null;
+    switch (eventType) {
+      case 'BookingConfirmed':        return ascBookingConfirmedEmail(vars);
+      case 'BookingCancelled':        return ascBookingCancelledEmail(vars);
+      case 'DriverAcceptedAssignment':return ascDriverAcceptedEmail(vars);
+      case 'JobCompleted':            return ascJobCompletedEmail(vars);
+      case 'PaymentLinkSent':         return ascPaymentLinkEmail(vars);
+      default:                        return null;
+    }
   }
 
   private buildTemplateVariables(booking: any, driver?: any, assignment?: any): TemplateVariables {
@@ -553,17 +579,23 @@ export class NotificationService {
     integration: any,
     opts: { to: string; subject: string; html: string; fromAddress?: string; fromName?: string },
     bookingId?: string,
+    templateVars?: Record<string, string>,
   ): Promise<void> {
+    // Apply ASC branded HTML if applicable
+    const brandedHtml = templateVars
+      ? this.ascBrandedHtml(tenantId, eventType, templateVars)
+      : null;
+    const finalOpts = brandedHtml ? { ...opts, html: brandedHtml } : opts;
     try {
-      await this.emailProvider.send(integration, opts);
+      await this.emailProvider.send(integration, finalOpts);
       await this.logNotification({
-        tenantId, eventType, channel: 'email', recipientEmail: opts.to,
-        subject: opts.subject, body: opts.html, status: 'SENT', bookingId,
+        tenantId, eventType, channel: 'email', recipientEmail: finalOpts.to,
+        subject: finalOpts.subject, body: finalOpts.html, status: 'SENT', bookingId,
       });
     } catch (err: any) {
       await this.logNotification({
-        tenantId, eventType, channel: 'email', recipientEmail: opts.to,
-        subject: opts.subject, body: opts.html, status: 'FAILED',
+        tenantId, eventType, channel: 'email', recipientEmail: finalOpts.to,
+        subject: finalOpts.subject, body: finalOpts.html, status: 'FAILED',
         errorMessage: err?.message, bookingId,
       });
       throw err;
