@@ -18,6 +18,7 @@ import {
   LogOut,
   ChevronRight,
   FileText,
+  UserCircle,
 } from 'lucide-react';
 
 const NAV_SECTIONS = [
@@ -122,7 +123,18 @@ export default function TenantLayout({ children }: { children: React.ReactNode }
         </nav>
 
         {/* Footer */}
-        <div className="px-2 py-3 border-t border-white/5">
+        <div className="px-2 py-3 border-t border-white/5 space-y-0.5">
+          <Link
+            href="/profile"
+            className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-sm transition-colors ${
+              pathname === '/profile'
+                ? 'bg-white/10 text-white'
+                : 'text-gray-400 hover:bg-white/5 hover:text-gray-200'
+            }`}
+          >
+            <UserCircle className={`w-4 h-4 shrink-0 ${pathname === '/profile' ? 'text-blue-400' : 'text-gray-500'}`} />
+            My Profile
+          </Link>
           <button
             onClick={handleLogout}
             className="w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-sm text-gray-400 hover:bg-white/5 hover:text-gray-200 transition-colors"

@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { ChevronRight, Bell } from 'lucide-react';
 
@@ -78,15 +79,15 @@ export function AdminTopbar({ tenantName = 'Tenant', onLogout }: AdminTopbarProp
           <Bell className="w-4 h-4" />
         </button>
 
-        {/* Tenant name + avatar */}
-        <div className="flex items-center gap-2 pl-3 border-l border-gray-200">
+        {/* Tenant name + avatar → links to profile */}
+        <Link href="/profile" className="flex items-center gap-2 pl-3 border-l border-gray-200 hover:opacity-80 transition-opacity">
           <div className="w-7 h-7 rounded-full bg-blue-600 flex items-center justify-center text-xs font-semibold text-white select-none">
             {tenantName?.charAt(0).toUpperCase()}
           </div>
           <span className="text-sm font-medium text-gray-700 max-w-[120px] truncate">
             {tenantName}
           </span>
-        </div>
+        </Link>
       </div>
     </header>
   );
