@@ -332,12 +332,17 @@ export class NotificationService {
       toll_delta:           tollDeltaMinor    > 0             ? NotificationService.formatMinor(tollDeltaMinor)                    : '',
       parking_delta:        parkingDeltaMinor > 0             ? NotificationService.formatMinor(parkingDeltaMinor)                 : '',
       adjustment_amount:    payload.adjustment_amount_minor   ? NotificationService.formatMinor(payload.adjustment_amount_minor)   : '',
+      // Actual trip details
+      actual_distance_km:       payload.actual_distance_km        ? String(payload.actual_distance_km)                                   : '',
+      actual_duration_minutes:  payload.actual_duration_minutes   ? String(payload.actual_duration_minutes)                              : '',
+      actual_toll_amount:       payload.actual_toll_minor         ? NotificationService.formatMinor(payload.actual_toll_minor)           : '',
+      actual_parking_amount:    payload.actual_parking_minor      ? NotificationService.formatMinor(payload.actual_parking_minor)        : '',
       // Totals
-      actual_total:         payload.actual_total_minor        ? NotificationService.formatMinor(payload.actual_total_minor)        : '',
-      balance_due:          payload.balance_due_minor         ? NotificationService.formatMinor(payload.balance_due_minor)         : '',
+      actual_total:             payload.actual_total_minor        ? NotificationService.formatMinor(payload.actual_total_minor)          : '',
+      balance_due:              payload.balance_due_minor         ? NotificationService.formatMinor(payload.balance_due_minor)           : '',
       // Card info
-      charged_at:           payload.charged_at               ?? '',
-      card_last4:           payload.card_last4               ?? '',
+      charged_at:               payload.charged_at               ?? '',
+      card_last4:               payload.card_last4               ?? '',
     };
 
     const templateVars = { ...this.buildTemplateVariables(booking), ...extrasVars } as Record<string, string>;

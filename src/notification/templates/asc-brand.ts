@@ -342,38 +342,60 @@ export function ascFulfilledWithExtrasEmail(vars: Record<string, string>): strin
     : `charged on ${vars.charged_at || 'completion'} to your saved card`;
 
   return ascBrandedEmail({
-    title: 'Receipt — Additional Charges',
-    introHtml: `Your trip <strong>#${vars.booking_reference}</strong> is complete. See below for your full charge breakdown.`,
+    title: 'Receipt — Final Invoice',
+    introHtml: `Your trip <strong>#${vars.booking_reference}</strong> is complete. Below is a full comparison of your original quote vs actual trip.`,
     bookingRef: vars.booking_reference,
     sections: [
+      // ── ORIGINAL BOOKING ─────────────────────────────────────────
       {
-        heading: 'TRIP SUMMARY',
+        heading: 'ORIGINAL BOOKING',
         rows: [
-          { label: 'Date & Time', value: vars.pickup_time || '—' },
-          { label: 'Pickup',      value: vars.pickup_address || '—' },
-          { label: 'Drop-off',    value: vars.dropoff_address || '—' },
+          { label: 'Service',      value: vars.service_type_name || '—' },
+          { label: 'Vehicle',      value: vars.car_type_name     || '—' },
+          { label: 'Date & Time',  value: vars.pickup_time       || '—' },
+          { label: 'Pickup',       value: vars.pickup_address    || '—' },
+          ...(vars.waypoints ? [{ label: 'Stops', value: vars.waypoints }] : []),
+          { label: 'Drop-off',     value: vars.dropoff_address   || '—' },
+          { label: 'Passengers',   value: vars.passenger_count   || '—' },
+          ...(vars.baby_seat_detail ? [{ label: 'Baby Seats', value: vars.baby_seat_detail }] : []),
+          ...(vars.special_requests ? [{ label: 'Special Requests', value: vars.special_requests }] : []),
         ],
       },
+      // ── ORIGINAL QUOTE (prepay breakdown) ────────────────────────
       {
-        heading: 'PRE-CHARGED',
+        heading: 'ORIGINAL QUOTE',
         rows: [
-          // Show breakdown if available, else just the total
-          ...(prepayRows.length > 0 ? prepayRows : []),
-          { label: 'Pre-charged Total', value: `${cur} ${vars.prepay_total || vars.original_fare || '—'}` },
+          ...(vars.prepay_base_fare ? [{ label: 'Base Fare',  value: `${cur} ${vars.prepay_base_fare}` }] : []),
+          ...(vars.prepay_toll      ? [{ label: 'Toll',       value: `${cur} ${vars.prepay_toll}` }]      : []),
+          ...(vars.prepay_parking   ? [{ label: 'Parking',    value: `${cur} ${vars.prepay_parking}` }]   : []),
+          ...(vars.prepay_waypoints ? [{ label: 'Waypoints',  value: `${cur} ${vars.prepay_waypoints}` }] : []),
+          { label: 'Pre-charged',   value: `${cur} ${vars.prepay_total || '—'}` },
         ],
       },
-      ...(extraRows.length > 0 ? [{
-        heading: 'EXTRA CHARGED',
-        rows: [
-          ...extraRows,
-          { label: 'Extra Total',  value: `${cur} ${vars.balance_due || vars.extra_total || '—'}` },
-          { label: 'Charged to',   value: cardNote },
-        ],
-      }] : []),
+      // ── ACTUAL TRIP ───────────────────────────────────────────────
       {
-        heading: 'SUMMARY',
+        heading: 'ACTUAL TRIP',
         rows: [
-          { label: 'Total Charged', value: `${cur} ${vars.actual_total || '—'}` },
+          { label: 'Pickup',        value: vars.pickup_address       || '—' },
+          { label: 'Drop-off',      value: vars.dropoff_address      || '—' },
+          ...(vars.actual_distance_km       ? [{ label: 'Distance',      value: `${vars.actual_distance_km} km` }]          : []),
+          ...(vars.actual_duration_minutes  ? [{ label: 'Duration',      value: `${vars.actual_duration_minutes} min` }]     : []),
+          ...(vars.waiting_time_minutes     ? [{ label: 'Waiting Time',  value: `${vars.waiting_time_minutes} min` }]        : []),
+          ...(vars.actual_toll_amount       ? [{ label: 'Actual Toll',   value: `${cur} ${vars.actual_toll_amount}` }]       : []),
+          ...(vars.actual_parking_amount    ? [{ label: 'Actual Parking',value: `${cur} ${vars.actual_parking_amount}` }]    : []),
+        ],
+      },
+      // ── CHARGES SUMMARY ───────────────────────────────────────────
+      {
+        heading: 'CHARGES',
+        rows: [
+          { label: 'Pre-charged',   value: `${cur} ${vars.prepay_total || '—'}` },
+          ...(extraRows.length > 0 ? extraRows : []),
+          ...(vars.balance_due && vars.balance_due !== '0.00'
+            ? [{ label: 'Extra Charged', value: `${cur} ${vars.balance_due}` },
+               { label: 'Charged to',   value: cardNote }]
+            : []),
+          { label: 'Total',         value: `${cur} ${vars.actual_total || '—'}` },
         ],
       },
     ],
