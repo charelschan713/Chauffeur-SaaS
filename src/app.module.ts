@@ -13,6 +13,7 @@ import { DriverModule } from './driver/driver.module';
 import { NetworkModule } from './network/network.module';
 import { ReviewsModule } from './reviews/reviews.module';
 import { PublicModule } from './public/public.module';
+import { InvoiceModule } from './invoice/invoice.module';
 import { PricingModule } from './pricing/pricing.module';
 import { HealthController } from './health/health.controller';
 import { IntegrationModule } from './integration/integration.module';
@@ -52,6 +53,7 @@ import { TenantContextMiddleware } from './common/middleware/tenant-context.midd
     NetworkModule,
     ReviewsModule,
     PublicModule,
+    InvoiceModule,
     PricingModule,
     IntegrationModule,
     NotificationModule,

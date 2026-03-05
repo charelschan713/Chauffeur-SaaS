@@ -17,6 +17,7 @@ import {
   Puzzle,
   LogOut,
   ChevronRight,
+  FileText,
 } from 'lucide-react';
 
 const NAV_SECTIONS = [
@@ -27,6 +28,7 @@ const NAV_SECTIONS = [
       { href: '/bookings', label: 'Bookings', icon: CalendarCheck },
       { href: '/dispatch', label: 'Dispatch', icon: MapPin },
       { href: '/customers', label: 'Customers', icon: Users },
+      { href: '/invoices', label: 'Invoices', icon: FileText },
     ],
   },
   {
