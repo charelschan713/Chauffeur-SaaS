@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { Toast } from '@/components/ui/Toast';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import {PageLoader, InlineSpinner} from '@/components/ui/LoadingSpinner';
@@ -35,6 +36,17 @@ export default function GeneralSettingsPage() {
     default_driver_pay_type: 'PERCENTAGE',
     default_driver_pay_value: 70,
   });
+  const [payToast, setPayToast] = useState(false);
+
+  // Sync settings → payForm once loaded
+  useEffect(() => {
+    if (settings) {
+      setPayForm({
+        default_driver_pay_type: settings.default_driver_pay_type ?? 'PERCENTAGE',
+        default_driver_pay_value: parseFloat(settings.default_driver_pay_value ?? '70'),
+      });
+    }
+  }, [settings]);
 
   const toggleMutation = useMutation({
     mutationFn: async () => {
@@ -56,6 +68,7 @@ export default function GeneralSettingsPage() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['tenant-settings'] });
+      setPayToast(true);
     },
   });
 
@@ -64,6 +77,9 @@ export default function GeneralSettingsPage() {
 
   return (
     <div className="space-y-6 max-w-2xl">
+      {payToast && (
+        <Toast message="Default Driver Pay saved" tone="success" onClose={() => setPayToast(false)} />
+      )}
       <h1 className="text-xl font-semibold">General Settings</h1>
 
       {/* Currency — read-only, synced from Stripe */}
