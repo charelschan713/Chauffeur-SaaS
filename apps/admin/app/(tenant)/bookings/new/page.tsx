@@ -431,10 +431,17 @@ export default function CreateBookingPage() {
     }
   }
 
-  const onSubmit = handleSubmit((vals) => mutation.mutate(vals));
+  const onSubmit = handleSubmit((vals) => {
+    if (!seatCountValid) return;
+    mutation.mutate(vals);
+  });
+
+  const totalBabySeats = (values.infant_seats ?? 0) + (values.toddler_seats ?? 0) + (values.booster_seats ?? 0);
+  const maxBabySeats = Math.max(0, (values.passenger_count ?? 1) - 1);
+  const seatCountValid = totalBabySeats <= maxBabySeats;
 
   const canQuote = Boolean(
-    values.service_type_id && values.city_id && values.pickup_address_text && values.dropoff_address_text && values.pickup_at_utc,
+    values.service_type_id && values.city_id && values.pickup_address_text && values.dropoff_address_text && values.pickup_at_utc && seatCountValid,
   );
 
   const summaries = {
@@ -835,18 +842,35 @@ export default function CreateBookingPage() {
           {/* Extra Options — before quote so final price is inclusive */}
           <div className="bg-white border border-gray-200 rounded-xl p-5">
             <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">Extra Options</h2>
-            <div className="grid grid-cols-3 gap-4">
-              <Field label="Infant Seat">
-                <Input type="number" min={0} max={3} {...register('infant_seats', { valueAsNumber: true })} />
-              </Field>
-              <Field label="Toddler Seat">
-                <Input type="number" min={0} max={3} {...register('toddler_seats', { valueAsNumber: true })} />
-              </Field>
-              <Field label="Booster Seat">
-                <Input type="number" min={0} max={3} {...register('booster_seats', { valueAsNumber: true })} />
-              </Field>
-            </div>
-            <p className="text-xs text-gray-400 mt-2">Seat surcharge prices are set per car type and will be included in the quote.</p>
+            {(() => {
+              const seatError = !seatCountValid && totalBabySeats > 0;
+              return (
+                <>
+                  <div className="grid grid-cols-3 gap-4">
+                    <Field label="Infant Seat">
+                      <Input type="number" min={0} max={values.passenger_count} {...register('infant_seats', { valueAsNumber: true })} />
+                    </Field>
+                    <Field label="Toddler Seat">
+                      <Input type="number" min={0} max={values.passenger_count} {...register('toddler_seats', { valueAsNumber: true })} />
+                    </Field>
+                    <Field label="Booster Seat">
+                      <Input type="number" min={0} max={values.passenger_count} {...register('booster_seats', { valueAsNumber: true })} />
+                    </Field>
+                  </div>
+                  {seatError ? (
+                    <p className="text-xs text-red-600 mt-2 font-medium">
+                      ⚠️ Total baby seats ({totalBabySeats}) cannot exceed passenger count - 1 (max {maxBabySeats}). At least 1 adult seat required.
+                    </p>
+                  ) : totalBabySeats > 0 ? (
+                    <p className="text-xs text-green-600 mt-2">
+                      ✓ {totalBabySeats} baby seat{totalBabySeats > 1 ? 's' : ''} · {(values.passenger_count ?? 1) - totalBabySeats} adult seat{(values.passenger_count ?? 1) - totalBabySeats !== 1 ? 's' : ''}
+                    </p>
+                  ) : (
+                    <p className="text-xs text-gray-400 mt-2">Seat surcharge prices are set per car type and will be included in the quote.</p>
+                  )}
+                </>
+              );
+            })()}
           </div>
 
           {/* Car Type + Quote */}
