@@ -81,6 +81,7 @@ export class ServiceTypeController {
          km_per_hour_included = COALESCE($12, km_per_hour_included),
          hourly_tiers = COALESCE($13, hourly_tiers),
          active = COALESCE($14, active),
+         toll_enabled = COALESCE($15, toll_enabled),
          updated_at = now()
        WHERE id = $1 AND tenant_id = $2`,
       [
@@ -98,6 +99,7 @@ export class ServiceTypeController {
         body.km_per_hour_included,
         body.hourly_tiers ? JSON.stringify(body.hourly_tiers) : null,
         body.active,
+        body.toll_enabled !== undefined ? body.toll_enabled : null,
       ],
     );
     return { success: true };
