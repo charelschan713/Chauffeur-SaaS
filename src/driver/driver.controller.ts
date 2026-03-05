@@ -9,6 +9,8 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
+import { InjectDataSource } from '@nestjs/typeorm';
+import { DataSource } from 'typeorm';
 import { JwtGuard } from '../common/guards/jwt.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { DriverService } from './driver.service';
@@ -20,7 +22,10 @@ class UpdateDriverStatusDto {
 @UseGuards(JwtGuard)
 @Controller('drivers')
 export class DriverController {
-  constructor(private readonly drivers: DriverService) {}
+  constructor(
+    private readonly drivers: DriverService,
+    @InjectDataSource() private readonly db: DataSource,
+  ) {}
 
   @Get()
   async listDrivers(
@@ -100,5 +105,99 @@ export class DriverController {
   ) {
     if (!status) throw new BadRequestException('status is required');
     return this.drivers.updateStatus(tenantId, driverId, status);
+  }
+
+  // ── Driver Profile (extended) ────────────────────────────────────────────
+
+  @Get(':id/profile')
+  async getProfile(
+    @CurrentUser('tenant_id') tenantId: string,
+    @Param('id') driverId: string,
+  ) {
+    // driverId here is the membership driver_id (= user_id)
+    const rows = await this.db.query(
+      `SELECT
+          u.id, u.email, u.first_name, u.last_name,
+          u.phone_country_code, u.phone_number,
+          u.dob, u.address_line1, u.address_line2, u.city, u.state, u.postcode,
+          u.avatar_url, u.abn, u.notes,
+          u.driver_license_number, u.driver_license_state,
+          u.driver_license_expiry, u.driver_license_class,
+          u.vehicle_hire_license_number, u.vehicle_hire_license_expiry,
+          u.emergency_contact_name, u.emergency_contact_phone,
+          u.emergency_contact_relationship,
+          u.bank_name, u.bank_account_name, u.bank_bsb, u.bank_account_number,
+          m.status AS membership_status, m.role,
+          m.created_at AS joined_at
+        FROM public.users u
+        JOIN public.memberships m ON m.user_id = u.id
+       WHERE u.id = $1 AND m.tenant_id = $2 AND m.role IN ('driver','DRIVER')`,
+      [driverId, tenantId],
+    );
+    return rows[0] ?? null;
+  }
+
+  @Patch(':id/profile')
+  async updateProfile(
+    @CurrentUser('tenant_id') tenantId: string,
+    @Param('id') driverId: string,
+    @Body() body: any,
+  ) {
+    // Verify driver belongs to tenant
+    const check = await this.db.query(
+      `SELECT 1 FROM public.memberships WHERE user_id=$1 AND tenant_id=$2 AND role IN ('driver','DRIVER')`,
+      [driverId, tenantId],
+    );
+    if (!check.length) throw new BadRequestException('Driver not found');
+
+    await this.db.query(
+      `UPDATE public.users SET
+          first_name                   = COALESCE($1,  first_name),
+          last_name                    = COALESCE($2,  last_name),
+          phone_country_code           = COALESCE($3,  phone_country_code),
+          phone_number                 = COALESCE($4,  phone_number),
+          dob                          = COALESCE($5,  dob),
+          address_line1                = COALESCE($6,  address_line1),
+          address_line2                = COALESCE($7,  address_line2),
+          city                         = COALESCE($8,  city),
+          state                        = COALESCE($9,  state),
+          postcode                     = COALESCE($10, postcode),
+          avatar_url                   = COALESCE($11, avatar_url),
+          abn                          = COALESCE($12, abn),
+          driver_license_number        = COALESCE($13, driver_license_number),
+          driver_license_state         = COALESCE($14, driver_license_state),
+          driver_license_expiry        = COALESCE($15, driver_license_expiry),
+          driver_license_class         = COALESCE($16, driver_license_class),
+          vehicle_hire_license_number  = COALESCE($17, vehicle_hire_license_number),
+          vehicle_hire_license_expiry  = COALESCE($18, vehicle_hire_license_expiry),
+          emergency_contact_name       = COALESCE($19, emergency_contact_name),
+          emergency_contact_phone      = COALESCE($20, emergency_contact_phone),
+          emergency_contact_relationship = COALESCE($21, emergency_contact_relationship),
+          bank_name                    = COALESCE($22, bank_name),
+          bank_account_name            = COALESCE($23, bank_account_name),
+          bank_bsb                     = COALESCE($24, bank_bsb),
+          bank_account_number          = COALESCE($25, bank_account_number),
+          notes                        = COALESCE($26, notes),
+          updated_at                   = now()
+       WHERE id = $27`,
+      [
+        body.first_name ?? null, body.last_name ?? null,
+        body.phone_country_code ?? null, body.phone_number ?? null,
+        body.dob || null,
+        body.address_line1 ?? null, body.address_line2 ?? null,
+        body.city ?? null, body.state ?? null, body.postcode ?? null,
+        body.avatar_url ?? null, body.abn ?? null,
+        body.driver_license_number ?? null, body.driver_license_state ?? null,
+        body.driver_license_expiry || null, body.driver_license_class ?? null,
+        body.vehicle_hire_license_number ?? null, body.vehicle_hire_license_expiry || null,
+        body.emergency_contact_name ?? null, body.emergency_contact_phone ?? null,
+        body.emergency_contact_relationship ?? null,
+        body.bank_name ?? null, body.bank_account_name ?? null,
+        body.bank_bsb ?? null, body.bank_account_number ?? null,
+        body.notes ?? null,
+        driverId,
+      ],
+    );
+    return { success: true };
   }
 }

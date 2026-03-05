@@ -1,6 +1,7 @@
 'use client';
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
+import Link from 'next/link';
 import { ListPage } from '@/components/patterns/ListPage';
 import api from '@/lib/api';
 import { Button } from '@/components/ui/Button';
@@ -154,6 +155,10 @@ export default function DriversPage() {
                       <Badge variant={membershipBadge(ms)}>{ms.toUpperCase()}</Badge>
                     </td>
                     <td className="px-6 py-4 text-sm text-right space-x-2">
+                      <Link href={`/drivers/${d.driver_id}`}
+                        className="text-sm text-blue-600 hover:text-blue-700 font-medium">
+                        View Profile
+                      </Link>
                       <Button
                         variant="ghost"
                         onClick={() => setForm({ id: d.driver_id, full_name: d.full_name, email: d.email, phone_country_code: d.phone_country_code ?? '+61', phone_number: d.phone_number ?? '' })}
