@@ -10,13 +10,14 @@ export class VehicleService {
       `SELECT tv.id, tv.active, tv.created_at, tv.updated_at,
               tv.year, tv.colour, tv.plate,
               tv.passenger_capacity, tv.luggage_capacity, tv.notes,
+              tv.rego_expiry, tv.insurance_expiry,
               tv.source_type, tv.approval_status, tv.platform_verified,
               tv.external_driver_id,
               pv.id as platform_vehicle_id,
               pv.make, pv.model, pv.active as platform_active
          FROM public.tenant_vehicles tv
          JOIN public.platform_vehicles pv ON pv.id = tv.platform_vehicle_id
-        WHERE tv.tenant_id = $1
+        WHERE tv.tenant_id = $1 AND tv.deleted_at IS NULL
         ORDER BY tv.created_at DESC`,
       [tenantId],
     );
@@ -31,10 +32,10 @@ export class VehicleService {
   async claimVehicle(tenantId: string, platformVehicleId: string, body?: any) {
     const rows = await this.dataSource.query(
       `INSERT INTO public.tenant_vehicles
-        (tenant_id, platform_vehicle_id, active, year, colour, plate, passenger_capacity, luggage_capacity, notes)
-       VALUES ($1,$2,true,$3,$4,$5,$6,$7,$8)
+        (tenant_id, platform_vehicle_id, active, year, colour, plate, passenger_capacity, luggage_capacity, notes, rego_expiry, insurance_expiry)
+       VALUES ($1,$2,true,$3,$4,$5,$6,$7,$8,$9,$10)
        ON CONFLICT (tenant_id, platform_vehicle_id)
-       DO UPDATE SET active = true
+       DO UPDATE SET active = true, deleted_at = NULL
        RETURNING *`,
       [
         tenantId,
@@ -45,6 +46,8 @@ export class VehicleService {
         body?.passenger_capacity ?? 4,
         body?.luggage_capacity ?? 2,
         body?.notes ?? null,
+        body?.rego_expiry ?? null,
+        body?.insurance_expiry ?? null,
       ],
     );
     return rows[0];
@@ -97,8 +100,10 @@ export class VehicleService {
            passenger_capacity = COALESCE($5, passenger_capacity),
            luggage_capacity = COALESCE($6, luggage_capacity),
            notes = COALESCE($7, notes),
+           rego_expiry = COALESCE($8, rego_expiry),
+           insurance_expiry = COALESCE($9, insurance_expiry),
            updated_at = now()
-       WHERE tenant_id = $8 AND id = $9
+       WHERE tenant_id = $10 AND id = $11
        RETURNING *`,
       [
         body.active ?? null,
@@ -108,11 +113,34 @@ export class VehicleService {
         body.passenger_capacity ?? null,
         body.luggage_capacity ?? null,
         body.notes ?? null,
+        body.rego_expiry ?? null,
+        body.insurance_expiry ?? null,
         tenantId,
         id,
       ],
     );
     if (!rows.length) throw new NotFoundException('Vehicle not found');
     return rows[0];
+  }
+
+  async deleteTenantVehicle(tenantId: string, id: string) {
+    // Guard: no in-progress assignments
+    const check = await this.dataSource.query(
+      `SELECT COUNT(*) FROM public.assignments a
+         JOIN public.bookings b ON b.id = a.booking_id
+        WHERE a.vehicle_id = $1 AND b.tenant_id = $2
+          AND a.status IN ('PENDING','ACCEPTED','JOB_STARTED')`,
+      [id, tenantId],
+    );
+    if (Number(check[0]?.count ?? 0) > 0) {
+      throw new BadRequestException('Vehicle has active assignments and cannot be deleted');
+    }
+    const rows = await this.dataSource.query(
+      `UPDATE public.tenant_vehicles SET deleted_at = now(), active = false, updated_at = now()
+       WHERE id = $1 AND tenant_id = $2 RETURNING id`,
+      [id, tenantId],
+    );
+    if (!rows.length) throw new NotFoundException('Vehicle not found');
+    return { success: true };
   }
 }

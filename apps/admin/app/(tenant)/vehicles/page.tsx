@@ -49,7 +49,11 @@ export default function VehiclesPage() {
     passenger_capacity: 4,
     luggage_capacity: 2,
     notes: '',
+    rego_expiry: '',
+    insurance_expiry: '',
   });
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; label: string } | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const editing = useMemo(() => vehicles.find((v: any) => v.id === editingId) ?? null, [vehicles, editingId]);
 
@@ -62,6 +66,8 @@ export default function VehiclesPage() {
       passenger_capacity: v.passenger_capacity ?? 4,
       luggage_capacity: v.luggage_capacity ?? 2,
       notes: v.notes ?? '',
+      rego_expiry: v.rego_expiry?.slice(0, 10) ?? '',
+      insurance_expiry: v.insurance_expiry?.slice(0, 10) ?? '',
     });
   }
 
@@ -78,6 +84,8 @@ export default function VehiclesPage() {
       passenger_capacity: Number(form.passenger_capacity) || 4,
       luggage_capacity: Number(form.luggage_capacity) || 2,
       notes: form.notes || null,
+      rego_expiry: form.rego_expiry || null,
+      insurance_expiry: form.insurance_expiry || null,
     });
     setEditingId(null);
     await queryClient.invalidateQueries({ queryKey: ['tenant-vehicles'] });
@@ -96,6 +104,21 @@ export default function VehiclesPage() {
     } finally {
       setDeactivating(false);
       setDeactivateTarget(null);
+    }
+  }
+
+  async function confirmDelete() {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      await api.delete(`/vehicles/${deleteTarget.id}/hard`);
+      await queryClient.invalidateQueries({ queryKey: ['tenant-vehicles'] });
+      setToast({ message: `${deleteTarget.label} deleted`, tone: 'success' });
+    } catch (err: any) {
+      setToast({ message: err?.response?.data?.message ?? 'Failed to delete vehicle', tone: 'error' });
+    } finally {
+      setDeleting(false);
+      setDeleteTarget(null);
     }
   }
 
@@ -147,6 +170,14 @@ export default function VehiclesPage() {
                   <Input placeholder="Passenger Capacity" value={form.passenger_capacity} onChange={(e) => setForm((p) => ({ ...p, passenger_capacity: Number(e.target.value) }))} />
                   <Input placeholder="Luggage Capacity" value={form.luggage_capacity} onChange={(e) => setForm((p) => ({ ...p, luggage_capacity: Number(e.target.value) }))} />
                   <Input placeholder="Notes" value={form.notes} onChange={(e) => setForm((p) => ({ ...p, notes: e.target.value }))} />
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">Rego Expiry</label>
+                    <Input type="date" value={form.rego_expiry} onChange={(e) => setForm((p) => ({ ...p, rego_expiry: e.target.value }))} />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">Insurance Expiry</label>
+                    <Input type="date" value={form.insurance_expiry} onChange={(e) => setForm((p) => ({ ...p, insurance_expiry: e.target.value }))} />
+                  </div>
                 </div>
                 <div className="flex gap-2">
                   <Button onClick={handleUpdate} disabled={formSaving}>{formSaving ? <><InlineSpinner />Saving...</> : 'Save'}</Button>
@@ -154,7 +185,7 @@ export default function VehiclesPage() {
                 </div>
               </div>
             )}
-            <Table headers={['Vehicle', 'Year', 'Colour', 'Plate', 'Capacity', 'Status', '']}>
+            <Table headers={['Vehicle', 'Year', 'Colour', 'Plate', 'Capacity', 'Rego Exp', 'Insurance Exp', 'Status', '']}>
               {vehicles.map((v: any) => (
                 <tr key={v.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4">
@@ -167,29 +198,49 @@ export default function VehiclesPage() {
                     {v.passenger_capacity} pax / {v.luggage_capacity} bags
                   </td>
                   <td className="px-6 py-4 text-sm">
+                    {v.rego_expiry ? (
+                      <span className={new Date(v.rego_expiry) < new Date() ? 'text-red-600 font-medium' : new Date(v.rego_expiry) < new Date(Date.now() + 30*24*60*60*1000) ? 'text-orange-500 font-medium' : 'text-gray-700'}>
+                        {v.rego_expiry.slice(0, 10)}
+                      </span>
+                    ) : <span className="text-gray-300">—</span>}
+                  </td>
+                  <td className="px-6 py-4 text-sm">
+                    {v.insurance_expiry ? (
+                      <span className={new Date(v.insurance_expiry) < new Date() ? 'text-red-600 font-medium' : new Date(v.insurance_expiry) < new Date(Date.now() + 30*24*60*60*1000) ? 'text-orange-500 font-medium' : 'text-gray-700'}>
+                        {v.insurance_expiry.slice(0, 10)}
+                      </span>
+                    ) : <span className="text-gray-300">—</span>}
+                  </td>
+                  <td className="px-6 py-4 text-sm">
                     <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                       v.active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-700'
                     }`}>
                       {v.active ? 'Active' : 'Inactive'}
                     </span>
                   </td>
-                  <td className="px-6 py-4 text-sm text-right space-x-2">
+                  <td className="px-6 py-4 text-sm text-right space-x-3">
                     <button className="text-blue-600 hover:underline" onClick={() => { setEditingId(v.id); loadForm(v); }}>Edit</button>
                     {v.active ? (
                       <button
-                        className="text-red-600 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-1 rounded text-sm"
+                        className="text-orange-600 hover:underline text-sm"
                         onClick={() => setDeactivateTarget({ id: v.id, label: `${v.make} ${v.model}` })}
                       >
                         Deactivate
                       </button>
                     ) : (
                       <button
-                        className="text-blue-600 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1 rounded text-sm"
+                        className="text-blue-600 hover:underline text-sm"
                         onClick={() => reactivateVehicle(v.id, `${v.make} ${v.model}`)}
                       >
                         Reactivate
                       </button>
                     )}
+                    <button
+                      className="text-red-600 hover:underline text-sm"
+                      onClick={() => setDeleteTarget({ id: v.id, label: `${v.make} ${v.model} · ${v.plate}` })}
+                    >
+                      Delete
+                    </button>
                   </td>
                 </tr>
               ))}
@@ -208,6 +259,16 @@ export default function VehiclesPage() {
       confirmText={deactivating ? 'Deactivating…' : 'Yes, deactivate'}
       confirmTone="danger"
       loading={deactivating}
+    />
+
+    <ConfirmModal
+      title="Delete vehicle?"
+      description={`${deleteTarget?.label} will be permanently removed from your fleet. This cannot be undone.`}
+      isOpen={!!deleteTarget}
+      onClose={() => setDeleteTarget(null)}
+      onConfirm={confirmDelete}
+      confirmText={deleting ? 'Deleting…' : 'Yes, delete'}
+      confirmTone="danger"
     />
 
     {toast && (

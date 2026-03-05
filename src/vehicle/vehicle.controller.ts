@@ -36,4 +36,9 @@ export class VehicleController {
   async deactivate(@Param('id') id: string, @Req() req: any) {
     return this.vehicles.deactivateTenantVehicle(req.user.tenant_id, id);
   }
+
+  @Delete(':id/hard')
+  async hardDelete(@Param('id') id: string, @Req() req: any) {
+    return this.vehicles.deleteTenantVehicle(req.user.tenant_id, id);
+  }
 }
