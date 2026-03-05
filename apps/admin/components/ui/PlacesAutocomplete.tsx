@@ -51,7 +51,7 @@ export function PlacesAutocomplete({
   // Debounced autocomplete fetch
   useEffect(() => {
     if (timerRef.current) clearTimeout(timerRef.current);
-    if (!query.trim() || query.trim().length < 3) {
+    if (!query.trim() || query.trim().length < 2) {
       setPredictions([]);
       setOpen(false);
       return;
