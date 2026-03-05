@@ -14,7 +14,12 @@ export function LoginClient() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    const slug = localStorage.getItem('tenant_slug');
+    // Read from cookie (set by middleware from subdomain)
+    const cookieSlug = document.cookie
+      .split('; ')
+      .find(r => r.startsWith('tenant_slug='))
+      ?.split('=')[1];
+    const slug = cookieSlug || localStorage.getItem('tenant_slug') || '';
     if (slug) setTenantSlug(slug);
   }, []);
 
