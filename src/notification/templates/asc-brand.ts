@@ -329,9 +329,12 @@ export function ascFulfilledWithExtrasEmail(vars: Record<string, string>): strin
   if (vars.adjustment_amount)  extraRows.push({ label: 'Adjustment', value: `${cur} ${vars.adjustment_amount}` });
   if (vars.other_extras)       extraRows.push({ label: 'Other', value: `${cur} ${vars.other_extras}` });
 
+  // Extra amount was charged to saved card by Admin — this is a receipt, no CTA needed
+  const chargedOn = vars.charged_at ? `Charged on ${vars.charged_at}` : 'Charged to your saved card on file';
+
   return ascBrandedEmail({
-    title: 'Final Invoice — Additional Charges',
-    introHtml: `Trip <strong>#${vars.booking_reference}</strong> has been completed. Additional charges apply beyond your original quote.`,
+    title: 'Receipt — Additional Charges',
+    introHtml: `Your trip <strong>#${vars.booking_reference}</strong> is complete. An additional amount has been charged to your saved card.`,
     bookingRef: vars.booking_reference,
     sections: [
       {
@@ -345,18 +348,13 @@ export function ascFulfilledWithExtrasEmail(vars: Record<string, string>): strin
       {
         heading: 'CHARGES',
         rows: [
-          { label: 'Original Fare',   value: `${cur} ${vars.prepay_total || vars.original_fare || '—'}` },
+          { label: 'Original Fare', value: `${cur} ${vars.prepay_total || vars.original_fare || '—'}` },
           ...extraRows,
-          { label: 'Total Payable',   value: `${cur} ${vars.actual_total || '—'}` },
-          ...(vars.already_paid && Number(vars.already_paid) > 0
-            ? [{ label: 'Already Paid', value: `${cur} ${vars.already_paid}` }]
-            : []),
-          { label: 'Balance Due',     value: `${cur} ${vars.balance_due || vars.actual_total || '—'}` },
+          { label: 'Total Charged', value: `${cur} ${vars.actual_total || '—'}` },
+          { label: 'Payment',       value: chargedOn },
         ],
       },
     ],
-    ctaLabel: vars.payment_url ? 'Pay Balance Now' : undefined,
-    ctaUrl: vars.payment_url || undefined,
-    footerNote: 'This is your final invoice. Please retain for your records.',
+    footerNote: 'This is your final receipt. Please retain for your records.',
   });
 }

@@ -324,8 +324,7 @@ export class NotificationService {
       prepay_total:         payload.prepay_total_minor        ? NotificationService.formatMinor(payload.prepay_total_minor)        : '',
       actual_total:         payload.actual_total_minor        ? NotificationService.formatMinor(payload.actual_total_minor)        : '',
       already_paid:         payload.already_paid_minor        ? NotificationService.formatMinor(payload.already_paid_minor)        : '0',
-      balance_due:          payload.balance_due_minor         ? NotificationService.formatMinor(payload.balance_due_minor)         : '',
-      payment_url:          payload.payment_url               ?? '',
+      charged_at:           payload.charged_at                 ?? '',
     };
 
     const templateVars = { ...this.buildTemplateVariables(booking), ...extrasVars } as Record<string, string>;
@@ -342,7 +341,7 @@ export class NotificationService {
     if (smsIntegration) {
       const cur = booking.currency || 'AUD';
       const balanceDue = extrasVars.balance_due || extrasVars.actual_total;
-      const body = `ASChauffeured: Trip ${booking.booking_reference} completed. Additional charges apply. Balance due: ${cur} ${balanceDue}.${extrasVars.payment_url ? ` Pay here: ${extrasVars.payment_url}` : ' Please contact us to settle.'}`;
+      const body = `ASChauffeured: Trip ${booking.booking_reference} completed. Additional charges of ${cur} ${extrasVars.actual_total || balanceDue} have been charged to your saved card.`;
       const customerPhone = toE164(booking.customer_phone_country_code, booking.customer_phone_number);
       if (customerPhone) await this.sendSmsWithLog(tenantId, eventType, smsIntegration, customerPhone, body, booking.id).catch(() => {});
     }
