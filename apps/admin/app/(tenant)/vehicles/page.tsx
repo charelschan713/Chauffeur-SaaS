@@ -154,29 +154,47 @@ export default function VehiclesPage() {
             {editingId && (
               <div className="bg-white border rounded p-4 mb-4 space-y-3">
                 <h3 className="text-sm font-semibold">Edit Vehicle</h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                  <Select
-                    value={form.platform_vehicle_id}
-                    onChange={(e) => setForm((p) => ({ ...p, platform_vehicle_id: e.target.value }))}
-                  >
-                    <option value="">Select Platform Vehicle</option>
-                    {(platformVehicles as any[]).map((pv) => (
-                      <option key={pv.id} value={pv.id}>{pv.make} {pv.model}</option>
-                    ))}
-                  </Select>
-                  <Input placeholder="Year" value={form.year} onChange={(e) => setForm((p) => ({ ...p, year: e.target.value }))} />
-                  <Input placeholder="Colour" value={form.colour} onChange={(e) => setForm((p) => ({ ...p, colour: e.target.value }))} />
-                  <Input placeholder="Plate" value={form.plate} onChange={(e) => setForm((p) => ({ ...p, plate: e.target.value }))} />
-                  <Input placeholder="Passenger Capacity" value={form.passenger_capacity} onChange={(e) => setForm((p) => ({ ...p, passenger_capacity: Number(e.target.value) }))} />
-                  <Input placeholder="Luggage Capacity" value={form.luggage_capacity} onChange={(e) => setForm((p) => ({ ...p, luggage_capacity: Number(e.target.value) }))} />
-                  <Input placeholder="Notes" value={form.notes} onChange={(e) => setForm((p) => ({ ...p, notes: e.target.value }))} />
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
-                    <label className="block text-xs text-gray-500 mb-1">Rego Expiry</label>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Vehicle Model *</label>
+                    <Select value={form.platform_vehicle_id} onChange={(e) => setForm((p) => ({ ...p, platform_vehicle_id: e.target.value }))}>
+                      <option value="">Select model…</option>
+                      {(platformVehicles as any[]).map((pv) => (
+                        <option key={pv.id} value={pv.id}>{pv.make} {pv.model}</option>
+                      ))}
+                    </Select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Year</label>
+                    <Input placeholder="e.g. 2024" value={form.year} onChange={(e) => setForm((p) => ({ ...p, year: e.target.value }))} />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Colour</label>
+                    <Input placeholder="e.g. Black" value={form.colour} onChange={(e) => setForm((p) => ({ ...p, colour: e.target.value }))} />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Rego / Plate *</label>
+                    <Input placeholder="e.g. MR13DR" value={form.plate} onChange={(e) => setForm((p) => ({ ...p, plate: e.target.value }))} />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Passenger Capacity</label>
+                    <Input type="number" placeholder="e.g. 4" value={form.passenger_capacity} onChange={(e) => setForm((p) => ({ ...p, passenger_capacity: Number(e.target.value) }))} />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Luggage Capacity</label>
+                    <Input type="number" placeholder="e.g. 3" value={form.luggage_capacity} onChange={(e) => setForm((p) => ({ ...p, luggage_capacity: Number(e.target.value) }))} />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Rego Expiry Date</label>
                     <Input type="date" value={form.rego_expiry} onChange={(e) => setForm((p) => ({ ...p, rego_expiry: e.target.value }))} />
                   </div>
                   <div>
-                    <label className="block text-xs text-gray-500 mb-1">Insurance Expiry</label>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Insurance Expiry Date</label>
                     <Input type="date" value={form.insurance_expiry} onChange={(e) => setForm((p) => ({ ...p, insurance_expiry: e.target.value }))} />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Internal Notes</label>
+                    <Input placeholder="e.g. Airport transfers only" value={form.notes} onChange={(e) => setForm((p) => ({ ...p, notes: e.target.value }))} />
                   </div>
                 </div>
                 <div className="flex gap-2">
@@ -252,7 +270,7 @@ export default function VehiclesPage() {
 
     <ConfirmModal
       title="Deactivate vehicle?"
-      description={`${deactivateTarget?.label} will be removed from active assignments.`}
+      description={`${deactivateTarget?.label} will be hidden from dispatch & assignment selection. Rego/insurance reminders will continue. You can reactivate anytime.`}
       isOpen={!!deactivateTarget}
       onClose={() => setDeactivateTarget(null)}
       onConfirm={confirmDeactivate}
