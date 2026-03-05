@@ -97,6 +97,8 @@ export function PlacesAutocomplete({
   const containerRef = useRef<HTMLDivElement>(null);
   // Session token — reset after each selection (Google billing best practice)
   const sessionTokenRef = useRef<string>(generateToken());
+  // Suppress fetch after user just picked a prediction
+  const justSelectedRef = useRef(false);
 
   useEffect(() => { setMounted(true); setRecentPicks(getRecent()); }, []);
 
@@ -123,6 +125,11 @@ export function PlacesAutocomplete({
       setPredictions([]);
       setOpen(false);
       setHasQueried(false);
+      return;
+    }
+    // If user just selected a prediction, skip this fetch
+    if (justSelectedRef.current) {
+      justSelectedRef.current = false;
       return;
     }
     setLoading(true);
@@ -183,6 +190,7 @@ export function PlacesAutocomplete({
   }, [open, showRecent]);
 
   const selectPrediction = useCallback((p: Prediction) => {
+    justSelectedRef.current = true;
     setQuery(p.description);
     setPredictions([]);
     setOpen(false);
@@ -197,18 +205,22 @@ export function PlacesAutocomplete({
   }, [onChange]);
 
   function selectRecent(r: RecentPick) {
+    justSelectedRef.current = true;
     setQuery(r.description);
     setShowRecent(false);
     setOpen(false);
+    setHasQueried(false);
     sessionTokenRef.current = generateToken();
     onChange(r.description, r.place_id);
   }
 
   function clearInput() {
+    justSelectedRef.current = false;
     setQuery('');
     setPredictions([]);
     setOpen(false);
     setShowRecent(false);
+    setHasQueried(false);
     onChange('', undefined);
     inputRef.current?.focus();
   }
