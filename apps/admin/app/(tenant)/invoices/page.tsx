@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
+import { formatBookingTime } from '@/lib/format-datetime';
 import { Toast } from '@/components/ui/Toast';
 import { ConfirmModal } from '@/components/ui/ConfirmModal';
 import { Button } from '@/components/ui/Button';
@@ -381,11 +382,185 @@ function DriverModal({ invoice, onClose, onSave }: { invoice?: any; onClose: () 
   );
 }
 
+// ── Invoice Preview / Print Modal ────────────────────────────────────────────
+
+function InvoicePreviewModal({ inv, biz, onClose }: { inv: any; biz: any; onClose: () => void }) {
+  const printRef = useRef<HTMLDivElement>(null);
+
+  function handlePrint() {
+    const content = printRef.current?.innerHTML ?? '';
+    const win = window.open('', '_blank');
+    if (!win) return;
+    win.document.write(`<!DOCTYPE html><html><head>
+      <title>Invoice ${inv.invoice_number}</title>
+      <style>
+        body { font-family: -apple-system, sans-serif; color: #111; padding: 40px; max-width: 760px; margin: 0 auto; }
+        table { width: 100%; border-collapse: collapse; }
+        th { background: #f4f4f5; text-align: left; padding: 8px 12px; font-size: 11px; text-transform: uppercase; color: #666; }
+        td { padding: 8px 12px; border-bottom: 1px solid #eee; font-size: 13px; }
+        .text-right { text-align: right; }
+        @media print { body { padding: 0; } }
+      </style>
+    </head><body>${content}</body></html>`);
+    win.document.close();
+    win.focus();
+    setTimeout(() => { win.print(); win.close(); }, 300);
+  }
+
+  const lines: any[] = inv.line_items ?? [];
+  const jobs: any[] = inv.jobs ?? [];
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
+        {/* Modal controls */}
+        <div className="flex items-center justify-between px-6 py-4 border-b shrink-0">
+          <h2 className="font-semibold text-lg">Invoice Preview</h2>
+          <div className="flex gap-2">
+            <button onClick={handlePrint}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg">
+              🖨 Print / Download PDF
+            </button>
+            <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl px-2">✕</button>
+          </div>
+        </div>
+
+        {/* Invoice content */}
+        <div className="flex-1 overflow-y-auto p-6">
+          <div ref={printRef} className="space-y-6">
+            {/* Header */}
+            <div className="flex justify-between items-start">
+              <div>
+                {biz?.logo_url && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={biz.logo_url} alt="logo" className="h-12 object-contain mb-3" />
+                )}
+                <div className="font-bold text-xl text-gray-900">{biz?.business_name ?? biz?.name ?? 'Company'}</div>
+                {biz?.abn && <div className="text-sm text-gray-500">ABN: {biz.abn}</div>}
+                {biz?.address_line1 && <div className="text-sm text-gray-500">{biz.address_line1}{biz.address_line2 ? `, ${biz.address_line2}` : ''}</div>}
+                {(biz?.city || biz?.state) && (
+                  <div className="text-sm text-gray-500">{[biz.city, biz.state, biz.postcode].filter(Boolean).join(' ')}{biz.country ? `, ${biz.country}` : ''}</div>
+                )}
+                {biz?.phone && <div className="text-sm text-gray-500">📞 {biz.phone}</div>}
+                {biz?.email && <div className="text-sm text-gray-500">✉ {biz.email}</div>}
+              </div>
+
+              <div className="text-right">
+                <div className="text-3xl font-black text-gray-800 tracking-tight">INVOICE</div>
+                <div className="font-mono text-lg font-semibold text-gray-900 mt-1">{inv.invoice_number}</div>
+                <div className="text-xs text-gray-500 mt-1">Issue: {fmtDate(inv.issue_date)}</div>
+                {inv.due_date && <div className="text-xs text-gray-500">Due: {fmtDate(inv.due_date)}</div>}
+                <span className={`inline-block mt-2 text-xs px-2.5 py-0.5 rounded font-semibold ${STATUS_CHIP[inv.status] ?? 'bg-gray-100 text-gray-600'}`}>
+                  {inv.status}
+                </span>
+              </div>
+            </div>
+
+            {/* Bill to */}
+            <div className="bg-gray-50 rounded-lg p-4">
+              <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Bill To</div>
+              <div className="font-semibold text-gray-900">{inv.recipient_name}</div>
+              {inv.recipient_email && <div className="text-sm text-gray-600">{inv.recipient_email}</div>}
+            </div>
+
+            {/* Line items */}
+            {lines.length > 0 ? (
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-gray-50">
+                    <th className="text-left px-3 py-2 text-xs font-semibold text-gray-500 uppercase">Description</th>
+                    <th className="text-right px-3 py-2 text-xs font-semibold text-gray-500 uppercase">Qty</th>
+                    <th className="text-right px-3 py-2 text-xs font-semibold text-gray-500 uppercase">Unit</th>
+                    <th className="text-right px-3 py-2 text-xs font-semibold text-gray-500 uppercase">Amount</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {lines.map((l: any, i: number) => (
+                    <tr key={i}>
+                      <td className="px-3 py-2.5">{l.description}</td>
+                      <td className="text-right px-3 py-2.5">{l.qty}</td>
+                      <td className="text-right px-3 py-2.5">${fmt(l.unit_price_minor)}</td>
+                      <td className="text-right px-3 py-2.5 font-medium">${fmt(l.amount_minor)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : jobs.length > 0 ? (
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-gray-50">
+                    <th className="text-left px-3 py-2 text-xs font-semibold text-gray-500 uppercase">Job</th>
+                    <th className="text-right px-3 py-2 text-xs font-semibold text-gray-500 uppercase">Amount</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {jobs.map((j: any, i: number) => (
+                    <tr key={i}>
+                      <td className="px-3 py-2.5">{j.description}</td>
+                      <td className="text-right px-3 py-2.5 font-medium">${fmt(j.amount_minor)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : null}
+
+            {/* Totals */}
+            <div className="flex justify-end">
+              <div className="w-64 space-y-1.5 text-sm">
+                <div className="flex justify-between text-gray-600">
+                  <span>Subtotal</span><span>${fmt(inv.subtotal_minor)}</span>
+                </div>
+                {inv.tax_minor > 0 && (
+                  <div className="flex justify-between text-gray-600">
+                    <span>GST</span><span>${fmt(inv.tax_minor)}</span>
+                  </div>
+                )}
+                {inv.discount_minor > 0 && (
+                  <div className="flex justify-between text-gray-600">
+                    <span>Discount</span><span>-${fmt(inv.discount_minor)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between font-bold text-base border-t pt-2 text-gray-900">
+                  <span>Total {biz?.currency ?? 'AUD'}</span><span>${fmt(inv.total_minor)}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Bank details */}
+            {(biz?.bank_bsb || biz?.bank_account_number) && (
+              <div className="border rounded-lg p-4 bg-blue-50">
+                <div className="text-xs font-semibold text-blue-700 uppercase tracking-wider mb-1">Pay via Bank Transfer (EFT)</div>
+                <div className="text-sm text-gray-700 space-y-0.5">
+                  {biz.bank_name && <div>Bank: {biz.bank_name}</div>}
+                  {biz.bank_account_name && <div>Account Name: {biz.bank_account_name}</div>}
+                  {biz.bank_bsb && <div>BSB: {biz.bank_bsb}</div>}
+                  {biz.bank_account_number && <div>Account No: {biz.bank_account_number}</div>}
+                </div>
+              </div>
+            )}
+
+            {/* Notes */}
+            {inv.notes && (
+              <div className="text-sm text-gray-600 border-t pt-3">{inv.notes}</div>
+            )}
+            {biz?.invoice_notes && (
+              <div className="text-sm text-gray-500 border-t pt-3">{biz.invoice_notes}</div>
+            )}
+            {biz?.invoice_footer && (
+              <div className="text-xs text-gray-400 border-t pt-3 italic">{biz.invoice_footer}</div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Invoice Row ──────────────────────────────────────────────────────────────
 
-function InvoiceRow({ inv, type, onEdit, onMarkPaid, onApprove, onDelete }: {
+function InvoiceRow({ inv, type, onEdit, onView, onMarkPaid, onApprove, onDelete }: {
   inv: any; type: 'CUSTOMER' | 'DRIVER';
-  onEdit: () => void; onMarkPaid: () => void; onApprove?: () => void; onDelete: () => void;
+  onEdit: () => void; onView: () => void; onMarkPaid: () => void; onApprove?: () => void; onDelete: () => void;
 }) {
   return (
     <tr className="hover:bg-gray-50 transition-colors">
@@ -407,6 +582,9 @@ function InvoiceRow({ inv, type, onEdit, onMarkPaid, onApprove, onDelete }: {
       </td>
       <td className="px-4 py-3">
         <div className="flex gap-2 justify-end items-center flex-wrap">
+          {type === 'CUSTOMER' && (
+            <button onClick={onView} className="text-xs text-gray-600 hover:text-gray-800 font-medium">View</button>
+          )}
           {type === 'DRIVER' && inv.status === 'DRAFT' && onApprove && (
             <button onClick={onApprove} className="text-xs text-blue-600 hover:text-blue-700 font-medium">Approve</button>
           )}
@@ -430,6 +608,12 @@ export default function InvoicesPage() {
   const [modal, setModal] = useState<{ mode: 'create' | 'edit'; invoice?: any; type: 'CUSTOMER' | 'DRIVER' } | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState('');
+  const [previewInvoice, setPreviewInvoice] = useState<any | null>(null);
+
+  const { data: bizData } = useQuery({
+    queryKey: ['tenant-business'],
+    queryFn: async () => { const res = await api.get('/tenants/business'); return res.data; },
+  });
 
   const { data, isLoading } = useQuery({
     queryKey: ['invoices', activeTab, statusFilter],
@@ -573,6 +757,7 @@ export default function InvoicesPage() {
                   key={inv.id}
                   inv={inv}
                   type={activeTab}
+                  onView={() => setPreviewInvoice(inv)}
                   onEdit={() => setModal({ mode: 'edit', invoice: inv, type: activeTab })}
                   onMarkPaid={() => markPaidMutation.mutate(inv.id)}
                   onApprove={activeTab === 'DRIVER' ? () => approveMutation.mutate(inv.id) : undefined}
@@ -597,6 +782,14 @@ export default function InvoicesPage() {
           invoice={modal.invoice}
           onClose={() => setModal(null)}
           onSave={d => saveMutation.mutate(d)}
+        />
+      )}
+
+      {previewInvoice && (
+        <InvoicePreviewModal
+          inv={previewInvoice}
+          biz={bizData}
+          onClose={() => setPreviewInvoice(null)}
         />
       )}
 
