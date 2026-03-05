@@ -102,8 +102,16 @@ export function PlacesAutocomplete({
 
   useEffect(() => { setMounted(true); setRecentPicks(getRecent()); }, []);
 
-  // Sync external value (form reset)
-  useEffect(() => { setQuery(value); }, [value]);
+  // Track last programmatic value to avoid retriggering fetch when parent syncs back
+  const lastExternalValueRef = useRef(value);
+  // Sync external value (form reset) — suppress the debounce fetch it would cause
+  useEffect(() => {
+    if (lastExternalValueRef.current !== value) {
+      lastExternalValueRef.current = value;
+      justSelectedRef.current = true;
+      setQuery(value);
+    }
+  }, [value]);
 
   function updateDropdownPosition() {
     const el = inputRef.current;
@@ -127,8 +135,10 @@ export function PlacesAutocomplete({
       setHasQueried(false);
       return;
     }
-    // If user just selected a prediction, skip this fetch
+    // If user just selected a prediction, skip fetches until query changes again manually
     if (justSelectedRef.current) {
+      // Keep blocking until user manually edits (query won't match any prediction description)
+      // Reset only when this is a brand-new manual keystroke (not a programmatic setQuery from value sync)
       justSelectedRef.current = false;
       return;
     }
