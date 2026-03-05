@@ -481,24 +481,55 @@ export default function CreateBookingPage() {
     return true;
   }
 
+  // Step definitions for the progress bar
+  const STEP_LABELS = ['Service', 'Date & Time', 'Route', 'Requirements', 'Car Type', 'Extras'];
+  const STEP_KEYS: typeof SECTIONS[number][] = ['service', 'datetime', 'route', 'requirements', 'car', 'extras'];
+  const currentStepIdx = STEP_KEYS.indexOf(activeSection);
+
   return (
-    <div className="space-y-4">
-      {/* Page header with Clear All */}
+    <div className="space-y-5">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold text-gray-900">New Booking</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Fill in the details below to create a booking</p>
+          <p className="text-sm text-gray-500 mt-0.5">Step {currentStepIdx + 1} of {STEP_LABELS.length} — {STEP_LABELS[currentStepIdx]}</p>
         </div>
-        <button
-          type="button"
-          onClick={clearAll}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-500 hover:text-red-600 hover:bg-red-50 border border-gray-200 hover:border-red-200 rounded-lg transition-colors"
-        >
+        <button type="button" onClick={clearAll}
+          className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-500 hover:text-red-600 hover:bg-red-50 border border-gray-200 hover:border-red-200 rounded-lg transition-colors">
           <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8">
             <path d="M2 4h12M5 4V2h6v2M6 7v5M10 7v5M3 4l1 10h8l1-10" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>
           Clear All
         </button>
+      </div>
+
+      {/* Progress bar */}
+      <div className="flex items-center gap-0">
+        {STEP_LABELS.map((label, i) => {
+          const done = i < currentStepIdx;
+          const active = i === currentStepIdx;
+          return (
+            <div key={label} className="flex items-center flex-1 min-w-0">
+              <button
+                type="button"
+                onClick={() => done && setActiveSection(STEP_KEYS[i])}
+                className={`flex flex-col items-center gap-1 flex-1 min-w-0 ${done ? 'cursor-pointer' : 'cursor-default'}`}
+              >
+                <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-colors shrink-0 ${
+                  done ? 'bg-blue-600 text-white' : active ? 'bg-blue-600 text-white ring-4 ring-blue-100' : 'bg-gray-200 text-gray-500'
+                }`}>
+                  {done ? '✓' : i + 1}
+                </div>
+                <span className={`text-xs truncate max-w-full hidden sm:block ${active ? 'font-semibold text-blue-600' : done ? 'text-gray-500' : 'text-gray-400'}`}>
+                  {label}
+                </span>
+              </button>
+              {i < STEP_LABELS.length - 1 && (
+                <div className={`h-0.5 flex-1 mx-1 transition-colors ${i < currentStepIdx ? 'bg-blue-600' : 'bg-gray-200'}`} />
+              )}
+            </div>
+          );
+        })}
       </div>
 
       {mutation.isError && <ErrorAlert message="Failed to create booking. Please try again." />}
@@ -698,7 +729,8 @@ export default function CreateBookingPage() {
 
         {/* Right Column */}
         <div className="lg:col-span-2 space-y-4">
-          <AccordionCard title="Service" summary={summaries.service} open={activeSection === 'service'}>
+          {activeSection === 'service' && <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+            <h2 className="text-base font-semibold text-gray-900 mb-5">Service</h2>
             <div className="space-y-4">
               <div>
                 <label className="text-sm font-medium text-gray-700">Service City</label>
@@ -740,9 +772,9 @@ export default function CreateBookingPage() {
             <div className="mt-4 flex justify-end">
               <Button onClick={() => goNext('service')}>Next</Button>
             </div>
-          </AccordionCard>
+          </div>}
 
-          <AccordionCard title="Date & Time" summary={summaries.datetime} open={activeSection === 'datetime'}>
+          {activeSection === 'datetime' && <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm"><h2 className="text-base font-semibold text-gray-900 mb-5">Date & Time</h2>
             <div className="space-y-4">
               <DateTimePicker
                 label="Pickup Date & Time"
@@ -776,9 +808,9 @@ export default function CreateBookingPage() {
               <Button variant="secondary" onClick={() => goBack('datetime')}>Back</Button>
               <Button onClick={() => goNext('datetime')}>Next</Button>
             </div>
-          </AccordionCard>
+          </div>}
 
-          <AccordionCard title="Route" summary={summaries.route} open={activeSection === 'route'}>
+          {activeSection === 'route' && <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm"><h2 className="text-base font-semibold text-gray-900 mb-5">Route</h2>
             <div className="space-y-4">
               <Field label="Pickup Address" error={errors.pickup_address_text?.message}>
                 <PlacesAutocomplete
@@ -858,9 +890,9 @@ export default function CreateBookingPage() {
               <Button variant="secondary" onClick={() => goBack('route')}>Back</Button>
               <Button onClick={() => goNext('route')}>Next</Button>
             </div>
-          </AccordionCard>
+          </div>}
 
-          <AccordionCard title="Requirements" summary={summaries.requirements} open={activeSection === 'requirements'}>
+          {activeSection === 'requirements' && <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm"><h2 className="text-base font-semibold text-gray-900 mb-5">Requirements</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <Field label="Passenger Count" error={errors.passenger_count?.message}>
                 <Input type="number" min={1} max={14} {...register('passenger_count', { valueAsNumber: true })} />
@@ -883,28 +915,20 @@ export default function CreateBookingPage() {
               <Button variant="secondary" onClick={() => goBack('requirements')}>Back</Button>
               <Button onClick={() => goNext('requirements')}>Next</Button>
             </div>
-          </AccordionCard>
+          </div>}
 
-          <div className="flex items-center gap-3">
-            <Button
-              onClick={handleGetQuote}
-              disabled={!canQuote}
-            >
-              {quote.status === 'loading' ? 'Calculating...' : 'Get Quote'}
-            </Button>
-            {quote.status === 'success' && (
-              <span className="text-sm text-green-700">{quote.distanceKm.toFixed(1)} km · {quote.durationMinutes} min</span>
-            )}
-          </div>
-
-          {quote.status === 'error' && (
-            <div className="bg-red-50 text-red-600 p-3 rounded text-sm">
-              {quote.message}
+          {activeSection === 'car' && <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+            <h2 className="text-base font-semibold text-gray-900 mb-2">Select Car Type</h2>
+            {/* Get Quote inline */}
+            <div className="flex items-center gap-3 mb-4">
+              <Button onClick={handleGetQuote} disabled={!canQuote}>
+                {quote.status === 'loading' ? 'Calculating…' : quote.status === 'success' ? '↻ Recalculate' : 'Get Quote'}
+              </Button>
+              {quote.status === 'success' && (
+                <span className="text-sm text-green-700 font-medium">✓ {quote.distanceKm.toFixed(1)} km · {quote.durationMinutes} min</span>
+              )}
+              {quote.status === 'error' && <span className="text-sm text-red-600">{quote.message}</span>}
             </div>
-          )}
-
-          {quote.status === 'success' && (
-            <AccordionCard title="Select Car Type" summary={summaries.car} open={activeSection === 'car'}>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {carTypes.map((c: any) => {
                   const price = quote.estimates[c.id] ?? 0;
@@ -929,11 +953,11 @@ export default function CreateBookingPage() {
                 <Button variant="secondary" onClick={() => goBack('car')}>Back</Button>
                 <Button onClick={() => goNext('car')}>Next</Button>
               </div>
-            </AccordionCard>
+            </div>}
           )}
 
-          {quote.status === 'success' && selectedCarType && (
-            <AccordionCard title="Extra Options" summary={summaries.extras} open={activeSection === 'extras'}>
+          {activeSection === 'extras' && <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+            <h2 className="text-base font-semibold text-gray-900 mb-5">Extra Options</h2>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 <Field label={`Infant Seat ($${toDisplay(selectedCarType.infant_seat_minor ?? 0)})`}>
                   <Input type="number" min={0} max={3} {...register('infant_seats', { valueAsNumber: true })} />
@@ -951,8 +975,7 @@ export default function CreateBookingPage() {
                   {mutation.isPending ? 'Creating...' : 'Create Booking'}
                 </Button>
               </div>
-            </AccordionCard>
-          )}
+            </div>}
         </div>
       </div>
     </div>
@@ -969,16 +992,4 @@ function Field({ label, error, children }: { label: string; error?: string; chil
   );
 }
 
-function AccordionCard({ title, summary, open, children }: { title: string; summary: string; open: boolean; children: React.ReactNode }) {
-  return (
-    <div className="bg-white border rounded p-5 transition-all duration-200">
-      <div className="flex items-center justify-between mb-3">
-        <h3 className="font-semibold">{title}</h3>
-        <span className="text-xs text-gray-500">{summary}</span>
-      </div>
-      <div className={`transition-all duration-200 ${open ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0 overflow-hidden'}`}>
-        {children}
-      </div>
-    </div>
-  );
-}
+// AccordionCard kept for backwards compat but no longer used in main flow
