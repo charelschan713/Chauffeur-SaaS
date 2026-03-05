@@ -33,7 +33,9 @@ export class PublicTenantService {
     if (cached) return cached;
 
     const [tenant] = await this.db.query(
-      `SELECT id, name, slug, timezone, currency, status, custom_domain
+      `SELECT id, name, slug,
+              COALESCE(timezone, default_timezone, 'Australia/Sydney') AS timezone,
+              currency, status, custom_domain
        FROM public.tenants
        WHERE slug = $1 AND status = 'active'`,
       [slug],
