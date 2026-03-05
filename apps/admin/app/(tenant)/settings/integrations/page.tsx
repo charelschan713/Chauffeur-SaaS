@@ -115,7 +115,7 @@ export default function IntegrationsPage() {
       const rawKey = config.password || config.api_key || '';
       const maskedPreview = rawKey ? `****${rawKey.slice(-4)}` : null;
       await api.post(`/integrations/${type}`, {
-        config,
+        ...config,
         maskedPreview,
       });
       try {
