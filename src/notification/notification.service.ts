@@ -13,6 +13,7 @@ import {
   ascDriverAcceptedEmail,
   ascJobCompletedEmail,
   ascPaymentLinkEmail,
+  ascFulfilledWithExtrasEmail,
 } from './templates/asc-brand';
 
 const ASC_TENANT_ID = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
@@ -68,6 +69,9 @@ export class NotificationService {
         break;
       case 'JobCompleted':
         await this.onJobCompleted(tenantId, payload);
+        break;
+      case 'JobFulfilledWithExtras':
+        await this.onJobFulfilledWithExtras(tenantId, payload);
         break;
       case 'BookingCancelled':
         await this.onBookingCancelled(tenantId, payload);
@@ -299,6 +303,51 @@ export class NotificationService {
     }
   }
 
+  private async onJobFulfilledWithExtras(tenantId: string, payload: any) {
+    const eventType = 'JobFulfilledWithExtras';
+    const booking = await this.getBooking(payload.booking_id);
+    if (!booking) return;
+
+    const emailIntegration =
+      (await this.integrationResolver.resolve(tenantId, 'resend')) ??
+      (await this.integrationResolver.resolve(tenantId, 'sendgrid')) ??
+      (await this.integrationResolver.resolve(tenantId, 'mailgun'));
+    const smsIntegration = await this.integrationResolver.resolve(tenantId, 'twilio');
+
+    // Build extra charges vars from payload
+    const extrasVars: Record<string, string> = {
+      waiting_time_minutes: String(payload.waiting_time_minutes ?? ''),
+      waiting_time_fee:     payload.waiting_time_fee_minor   ? NotificationService.formatMinor(payload.waiting_time_fee_minor)   : '',
+      extra_toll:           payload.actual_toll_minor         ? NotificationService.formatMinor(payload.actual_toll_minor)         : '',
+      extra_parking:        payload.actual_parking_minor      ? NotificationService.formatMinor(payload.actual_parking_minor)      : '',
+      adjustment_amount:    payload.adjustment_amount_minor   ? NotificationService.formatMinor(payload.adjustment_amount_minor)   : '',
+      prepay_total:         payload.prepay_total_minor        ? NotificationService.formatMinor(payload.prepay_total_minor)        : '',
+      actual_total:         payload.actual_total_minor        ? NotificationService.formatMinor(payload.actual_total_minor)        : '',
+      already_paid:         payload.already_paid_minor        ? NotificationService.formatMinor(payload.already_paid_minor)        : '0',
+      balance_due:          payload.balance_due_minor         ? NotificationService.formatMinor(payload.balance_due_minor)         : '',
+      payment_url:          payload.payment_url               ?? '',
+    };
+
+    const templateVars = { ...this.buildTemplateVariables(booking), ...extrasVars } as Record<string, string>;
+
+    if (emailIntegration && booking.customer_email) {
+      const subject = `Final Invoice — Additional Charges | ${booking.booking_reference}`;
+      await this.sendEmailWithLog(
+        tenantId, eventType, emailIntegration,
+        { to: booking.customer_email, subject, html: '', fromAddress: emailIntegration.config.from_address, fromName: emailIntegration.config.from_name },
+        booking.id, templateVars,
+      ).catch(() => {});
+    }
+
+    if (smsIntegration) {
+      const cur = booking.currency || 'AUD';
+      const balanceDue = extrasVars.balance_due || extrasVars.actual_total;
+      const body = `ASChauffeured: Trip ${booking.booking_reference} completed. Additional charges apply. Balance due: ${cur} ${balanceDue}.${extrasVars.payment_url ? ` Pay here: ${extrasVars.payment_url}` : ' Please contact us to settle.'}`;
+      const customerPhone = toE164(booking.customer_phone_country_code, booking.customer_phone_number);
+      if (customerPhone) await this.sendSmsWithLog(tenantId, eventType, smsIntegration, customerPhone, body, booking.id).catch(() => {});
+    }
+  }
+
   private async onBookingCancelled(tenantId: string, payload: any) {
     const eventType = 'BookingCancelled';
     const booking = await this.getBooking(payload.booking_id);
@@ -479,8 +528,9 @@ export class NotificationService {
       case 'BookingCancelled':        return ascBookingCancelledEmail(vars);
       case 'DriverAcceptedAssignment':return ascDriverAcceptedEmail(vars);
       case 'JobCompleted':            return ascJobCompletedEmail(vars);
-      case 'PaymentLinkSent':         return ascPaymentLinkEmail(vars);
-      default:                        return null;
+      case 'PaymentLinkSent':          return ascPaymentLinkEmail(vars);
+      case 'JobFulfilledWithExtras':   return ascFulfilledWithExtrasEmail(vars);
+      default:                         return null;
     }
   }
 

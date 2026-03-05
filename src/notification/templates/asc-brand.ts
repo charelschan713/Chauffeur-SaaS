@@ -316,3 +316,47 @@ export function ascPaymentLinkEmail(vars: Record<string, string>): string {
     ctaUrl: vars.payment_url || '#',
   });
 }
+
+export function ascFulfilledWithExtrasEmail(vars: Record<string, string>): string {
+  const cur = vars.currency || 'AUD';
+
+  // Build extras rows dynamically — only show lines with a value
+  const extraRows: { label: string; value: string }[] = [];
+  if (vars.waiting_time_fee)   extraRows.push({ label: 'Waiting Time', value: `${cur} ${vars.waiting_time_fee}${vars.waiting_time_minutes ? ` (${vars.waiting_time_minutes} min)` : ''}` });
+  if (vars.extra_toll)         extraRows.push({ label: 'Additional Toll', value: `${cur} ${vars.extra_toll}` });
+  if (vars.extra_parking)      extraRows.push({ label: 'Parking', value: `${cur} ${vars.extra_parking}` });
+  if (vars.extra_stops_fee)    extraRows.push({ label: 'Extra Stops', value: `${cur} ${vars.extra_stops_fee}` });
+  if (vars.adjustment_amount)  extraRows.push({ label: 'Adjustment', value: `${cur} ${vars.adjustment_amount}` });
+  if (vars.other_extras)       extraRows.push({ label: 'Other', value: `${cur} ${vars.other_extras}` });
+
+  return ascBrandedEmail({
+    title: 'Final Invoice — Additional Charges',
+    introHtml: `Trip <strong>#${vars.booking_reference}</strong> has been completed. Additional charges apply beyond your original quote.`,
+    bookingRef: vars.booking_reference,
+    sections: [
+      {
+        heading: 'TRIP SUMMARY',
+        rows: [
+          { label: 'Date & Time', value: vars.pickup_time || '—' },
+          { label: 'Pickup',      value: vars.pickup_address || '—' },
+          { label: 'Drop-off',    value: vars.dropoff_address || '—' },
+        ],
+      },
+      {
+        heading: 'CHARGES',
+        rows: [
+          { label: 'Original Fare',   value: `${cur} ${vars.prepay_total || vars.original_fare || '—'}` },
+          ...extraRows,
+          { label: 'Total Payable',   value: `${cur} ${vars.actual_total || '—'}` },
+          ...(vars.already_paid && Number(vars.already_paid) > 0
+            ? [{ label: 'Already Paid', value: `${cur} ${vars.already_paid}` }]
+            : []),
+          { label: 'Balance Due',     value: `${cur} ${vars.balance_due || vars.actual_total || '—'}` },
+        ],
+      },
+    ],
+    ctaLabel: vars.payment_url ? 'Pay Balance Now' : undefined,
+    ctaUrl: vars.payment_url || undefined,
+    footerNote: 'This is your final invoice. Please retain for your records.',
+  });
+}
