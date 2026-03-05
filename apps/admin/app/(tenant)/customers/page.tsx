@@ -80,8 +80,11 @@ export default function CustomersPage() {
   const [passengerForm, setPassengerForm] = useState({
     first_name: '',
     last_name: '',
+    email: '',
     phone_country_code: '',
     phone_number: '',
+    relationship: 'Other',
+    is_default: false,
     temperature_c: 22,
     music: 'OFF',
     conversation: 'QUIET',
@@ -142,8 +145,11 @@ export default function CustomersPage() {
     setPassengerForm({
       first_name: '',
       last_name: '',
+      email: '',
       phone_country_code: '',
       phone_number: '',
+      relationship: 'Other',
+      is_default: false,
       temperature_c: 22,
       music: 'OFF',
       conversation: 'QUIET',
@@ -159,8 +165,11 @@ export default function CustomersPage() {
     setPassengerForm({
       first_name: p.first_name ?? '',
       last_name: p.last_name ?? '',
+      email: p.email ?? '',
       phone_country_code: p.phone_country_code ?? '',
       phone_number: p.phone_number ?? '',
+      relationship: p.relationship ?? 'Other',
+      is_default: p.is_default ?? false,
       temperature_c: p.preferences?.temperature_c ?? 22,
       music: p.preferences?.music ?? 'OFF',
       conversation: p.preferences?.conversation ?? 'QUIET',
@@ -175,14 +184,17 @@ export default function CustomersPage() {
     const payload = {
       first_name: passengerForm.first_name,
       last_name: passengerForm.last_name,
+      email: passengerForm.email || null,
       phone_country_code: passengerForm.phone_country_code || null,
       phone_number: passengerForm.phone_number || null,
+      relationship: passengerForm.relationship,
+      is_default: passengerForm.is_default,
       preferences: {
         temperature_c: Number(passengerForm.temperature_c),
         music: passengerForm.music,
         conversation: passengerForm.conversation,
         seat: passengerForm.seat,
-        special_notes: passengerForm.special_notes,
+        special_notes: passengerForm.special_notes || null,
       },
     };
     if (editingPassenger) {
@@ -404,17 +416,29 @@ export default function CustomersPage() {
           <div className="bg-white rounded-lg shadow-xl w-full max-w-lg p-6 space-y-4">
             <h3 className="text-lg font-semibold">{editingPassenger ? 'Edit Passenger' : 'Create Passenger'}</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <Input placeholder="First Name" value={passengerForm.first_name} onChange={(e) => setPassengerForm((p) => ({ ...p, first_name: e.target.value }))} />
-              <Input placeholder="Last Name" value={passengerForm.last_name} onChange={(e) => setPassengerForm((p) => ({ ...p, last_name: e.target.value }))} />
+              <Input placeholder="First Name *" value={passengerForm.first_name} onChange={(e) => setPassengerForm((p) => ({ ...p, first_name: e.target.value }))} />
+              <Input placeholder="Last Name *" value={passengerForm.last_name} onChange={(e) => setPassengerForm((p) => ({ ...p, last_name: e.target.value }))} />
+              <Input placeholder="Email" type="email" value={passengerForm.email} onChange={(e) => setPassengerForm((p) => ({ ...p, email: e.target.value }))} />
               <PhoneSplitField
                 countryCode={passengerForm.phone_country_code}
                 number={passengerForm.phone_number}
                 onCountryCodeChange={(v) => setPassengerForm((p) => ({ ...p, phone_country_code: v }))}
                 onNumberChange={(v) => setPassengerForm((p) => ({ ...p, phone_number: v }))}
               />
+              <label className="text-sm">Relationship
+                <Select value={passengerForm.relationship} onChange={(e) => setPassengerForm((p) => ({ ...p, relationship: e.target.value }))}>
+                  {['Self','Family','Colleague','VIP Guest','Other'].map((r) => <option key={r} value={r}>{r}</option>)}
+                </Select>
+              </label>
+              <label className="text-sm flex items-center gap-2 pt-5">
+                <input type="checkbox" checked={passengerForm.is_default} onChange={(e) => setPassengerForm((p) => ({ ...p, is_default: e.target.checked }))} className="h-4 w-4 rounded border-gray-300" />
+                Set as default passenger
+              </label>
             </div>
+            <hr className="border-gray-200" />
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Ride Preferences</p>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <label className="text-sm">Temperature
+              <label className="text-sm">Temperature (°C)
                 <Input type="number" min={16} max={26} value={passengerForm.temperature_c} onChange={(e) => setPassengerForm((p) => ({ ...p, temperature_c: Number(e.target.value) }))} />
               </label>
               <label className="text-sm">Music
@@ -433,7 +457,7 @@ export default function CustomersPage() {
                 </Select>
               </label>
               <label className="text-sm md:col-span-2">Special Notes
-                <textarea className="border rounded px-3 py-2 text-sm w-full" rows={3} value={passengerForm.special_notes} onChange={(e) => setPassengerForm((p) => ({ ...p, special_notes: e.target.value }))} />
+                <textarea className="border rounded px-3 py-2 text-sm w-full" rows={2} value={passengerForm.special_notes} onChange={(e) => setPassengerForm((p) => ({ ...p, special_notes: e.target.value }))} />
               </label>
             </div>
             <div className="flex justify-end gap-2">

@@ -207,21 +207,43 @@ export class CustomerPortalService {
   // ── Passengers ────────────────────────────────────────────────────────────
   async listPassengers(customerId: string) {
     return this.db.query(
-      `SELECT id, first_name, last_name, email, phone_number, relationship, is_default
+      `SELECT id, first_name, last_name, email,
+              phone_country_code, phone_number,
+              relationship, is_default, preferences
        FROM public.customer_passengers
-       WHERE customer_id=$1 AND (deleted_at IS NULL)
+       WHERE customer_id=$1 AND active = true
        ORDER BY is_default DESC, created_at ASC`,
       [customerId],
     );
   }
 
   async addPassenger(customerId: string, tenantId: string, dto: any) {
+    // If new passenger is set as default, clear others first
+    if (dto.is_default) {
+      await this.db.query(
+        `UPDATE public.customer_passengers SET is_default = false
+         WHERE customer_id = $1 AND tenant_id = $2`,
+        [customerId, tenantId],
+      );
+    }
     const [p] = await this.db.query(
       `INSERT INTO public.customer_passengers
-         (customer_id, tenant_id, first_name, last_name, email, phone_number, relationship, created_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, now())
+         (customer_id, tenant_id, first_name, last_name, email,
+          phone_country_code, phone_number, relationship, is_default, preferences, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, now())
        RETURNING *`,
-      [customerId, tenantId, dto.firstName, dto.lastName, dto.email ?? null, dto.phone ?? null, dto.relationship ?? 'Other'],
+      [
+        customerId,
+        tenantId,
+        dto.first_name,
+        dto.last_name,
+        dto.email             ?? null,
+        dto.phone_country_code ?? null,
+        dto.phone_number      ?? null,
+        dto.relationship      ?? 'Other',
+        dto.is_default        ?? false,
+        dto.preferences != null ? JSON.stringify(dto.preferences) : null,
+      ],
     );
     return p;
   }

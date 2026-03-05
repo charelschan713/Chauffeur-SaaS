@@ -1,49 +1,80 @@
 'use client';
 import { createContext, useContext, useEffect, useState } from 'react';
-import api from '@/lib/api';
 
-interface TenantBranding {
+const API_URL =
+  process.env.NEXT_PUBLIC_API_URL ??
+  'https://chauffeur-saas-production.up.railway.app';
+
+export interface TenantTheme {
   id: string;
   name: string;
   slug: string;
   currency: string;
-  primary_color: string;
-  logo_url?: string;
-  company_name?: string;
-  contact_email?: string;
-  contact_phone?: string;
+  timezone: string;
+  logo_url?: string | null;
+  // ── Step B: tenant-specific CSS overrides ──
+  primary_color?: string | null;        // hsl string e.g. "39 46% 60%"
+  primary_foreground?: string | null;   // hsl string
+  font_family?: string | null;          // e.g. "Playfair Display"
+  cancel_window_hours?: number;
 }
 
-const TenantContext = createContext<TenantBranding | null>(null);
+const TenantContext = createContext<TenantTheme | null>(null);
 
 export function useTenant() {
   return useContext(TenantContext);
 }
 
-export function TenantProvider({
-  children,
-  slug,
-}: {
-  children: React.ReactNode;
-  slug?: string;
-}) {
-  const [tenant, setTenant] = useState<TenantBranding | null>(null);
+function getTenantSlugFromCookie(): string | null {
+  if (typeof document === 'undefined') return null;
+  return (
+    document.cookie
+      .split('; ')
+      .find((r) => r.startsWith('tenant_slug='))
+      ?.split('=')[1] ?? null
+  );
+}
+
+function applyTenantTheme(tenant: TenantTheme) {
+  const root = document.documentElement;
+
+  // ── Primary brand color (Step B: tenant overrides platform default) ──
+  if (tenant.primary_color) {
+    root.style.setProperty('--primary', tenant.primary_color);
+    root.style.setProperty('--ring', tenant.primary_color);
+    root.style.setProperty('--gold', tenant.primary_color);
+  }
+  if (tenant.primary_foreground) {
+    root.style.setProperty('--primary-foreground', tenant.primary_foreground);
+  }
+
+  // ── Display font (Step B) ──
+  if (tenant.font_family) {
+    root.style.setProperty('--font-display', `'${tenant.font_family}', Georgia, serif`);
+  }
+}
+
+export function TenantProvider({ children }: { children: React.ReactNode }) {
+  const [tenant, setTenant] = useState<TenantTheme | null>(null);
 
   useEffect(() => {
-    const resolvedSlug = slug ?? (typeof window !== 'undefined' ? localStorage.getItem('tenant_slug') : null);
-    if (!resolvedSlug) return;
+    const slug = getTenantSlugFromCookie();
+    if (!slug) return;
 
-    api
-      .get(`/customer-portal/tenant-info?slug=${resolvedSlug}`)
-      .then((r) => {
-        const t = r.data;
-        setTenant(t);
-        // Apply CSS variables
-        const root = document.documentElement;
-        root.style.setProperty('--color-primary', t.primary_color ?? '#2563eb');
+    fetch(`${API_URL}/public/tenant-info?tenant_slug=${slug}`)
+      .then((r) => r.json())
+      .then((data: TenantTheme) => {
+        if (data?.id) {
+          setTenant(data);
+          applyTenantTheme(data);
+        }
       })
       .catch(() => {});
-  }, [slug]);
+  }, []);
 
-  return <TenantContext.Provider value={tenant}>{children}</TenantContext.Provider>;
+  return (
+    <TenantContext.Provider value={tenant}>
+      {children}
+    </TenantContext.Provider>
+  );
 }

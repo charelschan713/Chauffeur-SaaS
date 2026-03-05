@@ -1,4 +1,12 @@
-import { Body, Controller, Get, Post, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  NotFoundException,
+  Param,
+  Post,
+  Query,
+} from '@nestjs/common';
 import { PublicTenantService } from './public-tenant.service';
 import { PublicMapsService } from './public-maps.service';
 import { PublicPricingService } from './public-pricing.service';
@@ -32,7 +40,7 @@ export class PublicController {
     return this.tenantSvc.getCarTypes(slug, serviceTypeId);
   }
 
-  /** Server-side route calculation (never exposes API key) */
+  /** Server-side route calculation (never exposes Google Maps API key) */
   @Get('maps/route')
   async route(
     @Query('tenant_slug') slug: string,
@@ -42,12 +50,19 @@ export class PublicController {
     return this.mapsSvc.getRoute(slug, origin, destination);
   }
 
-  /** Quote all car types for given trip */
+  /** Quote all car types for given trip — returns quote_id for handoff */
   @Post('pricing/quote')
-  async quote(
-    @Query('tenant_slug') slug: string,
-    @Body() body: any,
-  ) {
+  async quote(@Query('tenant_slug') slug: string, @Body() body: any) {
     return this.pricingSvc.quote(slug, body);
+  }
+
+  /** Retrieve a quote session by ID (for SaaS booking page handoff) */
+  @Get('pricing/quote/:quoteId')
+  async getQuote(@Param('quoteId') quoteId: string) {
+    const session = await this.pricingSvc.getQuoteSession(quoteId);
+    if (!session) {
+      throw new NotFoundException('Quote session not found or expired');
+    }
+    return session;
   }
 }

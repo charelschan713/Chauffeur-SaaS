@@ -69,7 +69,13 @@ export class PublicPricingService {
           returnDistanceKm: dto.return_distance_km,
           returnDurationMinutes: dto.return_duration_minutes,
           waypointsCount: dto.waypoints_count ?? 0,
-          babyseatCount: (dto.infant_seats ?? 0) + (dto.toddler_seats ?? 0) + (dto.booster_seats ?? 0),
+          babyseatCount:
+            (dto.infant_seats ?? 0) +
+            (dto.toddler_seats ?? 0) +
+            (dto.booster_seats ?? 0),
+          infantSeats: dto.infant_seats ?? 0,
+          toddlerSeats: dto.toddler_seats ?? 0,
+          boosterSeats: dto.booster_seats ?? 0,
           requestedAtUtc: new Date(dto.pickup_at_utc),
           currency: tenant.currency,
           customerId: null,
@@ -83,35 +89,79 @@ export class PublicPricingService {
           return {
             service_class_id: ct.id,
             service_class_name: ct.name,
-            estimated_total_minor: snapshot.grand_total_minor ?? snapshot.totalPriceMinor,
+            estimated_total_minor:
+              snapshot.grand_total_minor ?? snapshot.totalPriceMinor,
             distance_km: dto.distance_km,
             duration_minutes: dto.duration_minutes,
             currency: tenant.currency,
             pricing_snapshot_preview: {
-              base_calculated_minor: snapshot.base_calculated_minor ?? snapshot.subtotalMinor,
+              base_calculated_minor:
+                snapshot.base_calculated_minor ?? snapshot.subtotalMinor,
               multiplier_mode: snapshot.multiplier_mode ?? null,
               multiplier_value: snapshot.multiplier_value ?? null,
               surcharge_minor: snapshot.surcharge_minor ?? 0,
               toll_parking_minor: snapshot.toll_parking_minor ?? 0,
               discount_amount_minor: snapshot.discount_amount_minor ?? 0,
-              final_fare_minor: snapshot.final_fare_minor ?? snapshot.totalPriceMinor,
-              grand_total_minor: snapshot.grand_total_minor ?? snapshot.totalPriceMinor,
+              final_fare_minor:
+                snapshot.final_fare_minor ?? snapshot.totalPriceMinor,
+              grand_total_minor:
+                snapshot.grand_total_minor ?? snapshot.totalPriceMinor,
               minimum_applied: snapshot.minimum_applied ?? false,
             },
           };
         } catch {
-          return null; // skip car types with pricing errors
+          return null;
         }
       }),
     );
 
-    return {
+    const validResults = results
+      .filter(Boolean)
+      .sort((a, b) => a!.estimated_total_minor - b!.estimated_total_minor);
+
+    // ── Persist quote session ──────────────────────────────
+    const payload = {
+      slug,
+      tenant_id: tenant.id,
+      request: dto,
+      results: validResults,
       quoted_at: quotedAt.toISOString(),
       expires_at: expiresAt.toISOString(),
       currency: tenant.currency,
-      results: results.filter(Boolean).sort(
-        (a, b) => (a!.estimated_total_minor) - (b!.estimated_total_minor),
-      ),
     };
+
+    const [session] = await this.db.query(
+      `INSERT INTO public.quote_sessions (tenant_id, payload, expires_at)
+       VALUES ($1, $2, $3)
+       RETURNING id`,
+      [tenant.id, JSON.stringify(payload), expiresAt],
+    );
+
+    return {
+      quote_id: session.id,
+      quoted_at: quotedAt.toISOString(),
+      expires_at: expiresAt.toISOString(),
+      currency: tenant.currency,
+      results: validResults,
+    };
+  }
+
+  async getQuoteSession(quoteId: string) {
+    const [session] = await this.db.query(
+      `SELECT id, tenant_id, payload, expires_at, converted, created_at
+       FROM public.quote_sessions
+       WHERE id = $1 AND expires_at > now()`,
+      [quoteId],
+    );
+    return session ?? null;
+  }
+
+  async markConverted(quoteId: string) {
+    await this.db.query(
+      `UPDATE public.quote_sessions
+       SET converted = true
+       WHERE id = $1`,
+      [quoteId],
+    );
   }
 }
