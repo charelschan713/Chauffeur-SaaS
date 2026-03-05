@@ -14,7 +14,15 @@ async function bootstrap() {
       // Always allow public widget + portal origins
       const allowed = [
         ...(process.env.ALLOWED_ORIGINS?.split(',') ?? ['http://localhost:3000']),
+        // ASChauffeured official site
+        'https://aschauffeured.com.au',
+        'https://www.aschauffeured.com.au',
+        // Legacy widget subdomain
         'https://widget.aschauffeured.com.au',
+        // SaaS customer portal (all tenant subdomains)
+        /^https:\/\/[^.]+\.chauffeurssolution\.com$/,
+        // Vercel preview deployments
+        /^https:\/\/.*\.vercel\.app$/,
         /^https:\/\/book\.[^.]+\.aschauffeured\.com\.au$/,
         /^https?:\/\/localhost(:\d+)?$/,
         /^https?:\/\/127\.0\.0\.1(:\d+)?$/,
