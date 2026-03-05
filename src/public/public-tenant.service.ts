@@ -50,30 +50,32 @@ export class PublicTenantService {
 
     // Fetch branding — gracefully handle missing table/row
     let branding: any = null;
+    let brandingError: string | null = null;
     try {
       const [row] = await this.db.query(
-        `SELECT logo_url, primary_color
+        `SELECT logo_url, primary_color, primary_foreground, font_family, cancel_window_hours
          FROM public.tenant_branding
          WHERE tenant_id = $1
          LIMIT 1`,
         [tenant.id],
       );
       branding = row ?? null;
-    } catch {
-      // tenant_branding table may not exist yet — fall through to defaults
+    } catch (err: any) {
+      brandingError = err?.message ?? 'unknown';
     }
 
     return {
       id: tenant.id,
       company_name: tenant.name,
       slug: tenant.slug,
-      currency: tenant.currency,
+      currency: tenant.currency ?? 'AUD',
       timezone: tenant.timezone ?? 'Australia/Sydney',
       logo_url: branding?.logo_url ?? null,
       primary_color: branding?.primary_color ?? null,
       primary_foreground: branding?.primary_foreground ?? null,
       font_family: branding?.font_family ?? null,
       cancel_window_hours: branding?.cancel_window_hours ?? 24,
+      _debug_branding_error: brandingError,
     };
   }
 
