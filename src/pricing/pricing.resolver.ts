@@ -188,7 +188,7 @@ export class PricingResolver {
       `SELECT id, name,
               base_fare_minor, per_km_minor, per_min_driving_minor,
               minimum_fare_minor, waypoint_minor, infant_seat_minor,
-              hourly_rate_minor
+              toddler_seat_minor, booster_seat_minor, hourly_rate_minor
        FROM public.tenant_service_classes
        WHERE tenant_id = $1 AND id = $2`,
       [ctx.tenantId, ctx.serviceClassId],
@@ -196,8 +196,13 @@ export class PricingResolver {
     const carType = classRows[0];
 
     const waypoints = Math.max(0, ctx.waypointsCount ?? 0);
-    const seats = Math.max(0, ctx.babyseatCount ?? 0);
-    const extras = waypoints * (carType.waypoint_minor ?? 0) + seats * (carType.infant_seat_minor ?? 0);
+    const infantSeats  = Math.max(0, (ctx as any).infantSeats  ?? ctx.babyseatCount ?? 0);
+    const toddlerSeats = Math.max(0, (ctx as any).toddlerSeats ?? 0);
+    const boosterSeats = Math.max(0, (ctx as any).boosterSeats ?? 0);
+    const extras = waypoints * (carType.waypoint_minor ?? 0)
+      + infantSeats  * (carType.infant_seat_minor  ?? 0)
+      + toddlerSeats * ((carType as any).toddler_seat_minor ?? 0)
+      + boosterSeats * ((carType as any).booster_seat_minor ?? 0);
 
     let baseMinor = 0;
     let multiplierMode: MultiplierMode = 'PERCENTAGE';

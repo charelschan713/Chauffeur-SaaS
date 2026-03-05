@@ -400,11 +400,19 @@ export default function CreateBookingPage() {
       for (const c of classes) {
         const estimateRes = await api.post('/pricing/estimate', {
           service_class_id: c.id,
+          serviceClassId: c.id,
           service_type_id: values.service_type_id,
+          serviceTypeId: values.service_type_id,
+          distanceKm: routeRes.data.distanceKm,
+          durationMinutes: routeRes.data.durationMinutes,
           distance_km: routeRes.data.distanceKm,
           duration_minutes: routeRes.data.durationMinutes,
           passenger_count: values.passenger_count,
           luggage_count: values.luggage_count ?? 0,
+          waypointsCount: waypoints.filter(Boolean).length,
+          infant_seats: values.infant_seats ?? 0,
+          toddler_seats: values.toddler_seats ?? 0,
+          booster_seats: values.booster_seats ?? 0,
         });
         estimates[c.id] = estimateRes.data?.grand_total_minor ?? estimateRes.data?.total_minor ?? 0;
       }
@@ -824,6 +832,23 @@ export default function CreateBookingPage() {
             </div>
           </div>
 
+          {/* Extra Options — before quote so final price is inclusive */}
+          <div className="bg-white border border-gray-200 rounded-xl p-5">
+            <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">Extra Options</h2>
+            <div className="grid grid-cols-3 gap-4">
+              <Field label="Infant Seat">
+                <Input type="number" min={0} max={3} {...register('infant_seats', { valueAsNumber: true })} />
+              </Field>
+              <Field label="Toddler Seat">
+                <Input type="number" min={0} max={3} {...register('toddler_seats', { valueAsNumber: true })} />
+              </Field>
+              <Field label="Booster Seat">
+                <Input type="number" min={0} max={3} {...register('booster_seats', { valueAsNumber: true })} />
+              </Field>
+            </div>
+            <p className="text-xs text-gray-400 mt-2">Seat surcharge prices are set per car type and will be included in the quote.</p>
+          </div>
+
           {/* Car Type + Quote */}
           <div className="bg-white border border-gray-200 rounded-xl p-5">
             <div className="flex items-center justify-between mb-4">
@@ -856,20 +881,8 @@ export default function CreateBookingPage() {
             {errors.service_class_id && <p className="text-xs text-red-600 mt-2">{errors.service_class_id.message}</p>}
           </div>
 
-          {/* Extras + Submit */}
-          <div className="bg-white border border-gray-200 rounded-xl p-5">
-            <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">Extra Options</h2>
-            <div className="grid grid-cols-3 gap-4 mb-5">
-              <Field label={`Infant Seat${selectedCarType ? ` ($${toDisplay(selectedCarType.infant_seat_minor ?? 0)})` : ''}`}>
-                <Input type="number" min={0} max={3} {...register('infant_seats', { valueAsNumber: true })} />
-              </Field>
-              <Field label={`Toddler Seat${selectedCarType ? ` ($${toDisplay(selectedCarType.toddler_seat_minor ?? 0)})` : ''}`}>
-                <Input type="number" min={0} max={3} {...register('toddler_seats', { valueAsNumber: true })} />
-              </Field>
-              <Field label={`Booster Seat${selectedCarType ? ` ($${toDisplay(selectedCarType.booster_seat_minor ?? 0)})` : ''}`}>
-                <Input type="number" min={0} max={3} {...register('booster_seats', { valueAsNumber: true })} />
-              </Field>
-            </div>
+          {/* Submit */}
+          <div className="pb-4">
             <Button onClick={onSubmit} disabled={mutation.isPending} className="w-full">
               {mutation.isPending ? 'Creating…' : 'Create Booking'}
             </Button>
