@@ -18,12 +18,17 @@ export class AssignmentService {
       vehicle_id: string;
       driver_pay_type: string;
       driver_pay_value: number;
+      toll_minor?: number;
+      parking_minor?: number;
+      /** @deprecated use toll_minor + parking_minor */
       toll_parking_minor?: number;
       leg?: 'A' | 'B';
     },
   ) {
     const leg = dto.leg ?? 'A';
-    const tollParkingMinor = dto.toll_parking_minor ?? 0;
+    const tollMinor = dto.toll_minor ?? Math.round((dto.toll_parking_minor ?? 0) * 0.7);
+    const parkingMinor = dto.parking_minor ?? Math.round((dto.toll_parking_minor ?? 0) * 0.3);
+    const tollParkingMinor = tollMinor + parkingMinor;
     const bookings = await this.dataSource.query(
       `SELECT total_price_minor, pricing_snapshot
        FROM public.bookings
@@ -59,8 +64,9 @@ export class AssignmentService {
       `INSERT INTO public.assignments
         (tenant_id, booking_id, driver_id, vehicle_id, status,
          assignment_method, assigned_by, driver_pay_type, driver_pay_value,
-         driver_pay_minor, platform_fee_minor, toll_parking_minor, offered_at, leg)
-       VALUES ($1,$2,$3,$4,'PENDING','MANUAL',$5,$6,$7,$8,$9,$10,now(),$11)
+         driver_pay_minor, platform_fee_minor, toll_parking_minor,
+         toll_minor, parking_minor, offered_at, leg)
+       VALUES ($1,$2,$3,$4,'PENDING','MANUAL',$5,$6,$7,$8,$9,$10,$11,$12,now(),$13)
        RETURNING id`,
       [
         tenantId,
@@ -73,6 +79,8 @@ export class AssignmentService {
         driverTotalMinor,
         platformFeeMinor,
         tollParkingMinor,
+        tollMinor,
+        parkingMinor,
         leg,
       ],
     );

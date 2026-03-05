@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, NotFoundException, Param, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { JwtGuard } from '../common/guards/jwt.guard';
 import { renderTemplate } from './template.renderer';
@@ -72,5 +72,35 @@ export class NotificationTemplateController {
       [req.user.tenant_id, event, channel],
     );
     return { success: true };
+  }
+
+  // ─── Notification Logs ──────────────────────────────────────────────────────
+
+  @Get('notification-logs')
+  async listLogs(
+    @Req() req: any,
+    @Query('event_type') eventType?: string,
+    @Query('booking_id') bookingId?: string,
+  ) {
+    const tenantId = req.user.tenant_id;
+    let sql = `SELECT id, event_type, channel, recipient_type, recipient_email, recipient_phone,
+                      subject, status, sent_at, booking_id
+               FROM public.notification_log
+               WHERE tenant_id = $1`;
+    const params: any[] = [tenantId];
+    if (eventType) { params.push(eventType); sql += ` AND event_type = $${params.length}`; }
+    if (bookingId) { params.push(bookingId); sql += ` AND booking_id = $${params.length}`; }
+    sql += ` ORDER BY sent_at DESC LIMIT 100`;
+    return this.dataSource.query(sql, params);
+  }
+
+  @Get('notification-logs/:id')
+  async getLog(@Req() req: any, @Param('id') id: string) {
+    const rows = await this.dataSource.query(
+      `SELECT * FROM public.notification_log WHERE id = $1 AND tenant_id = $2`,
+      [id, req.user.tenant_id],
+    );
+    if (!rows.length) throw new NotFoundException('Log not found');
+    return rows[0];
   }
 }

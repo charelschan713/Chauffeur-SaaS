@@ -9,8 +9,11 @@ interface AssignDriverModalProps {
   bookingId: string;
   leg: 'A' | 'B';
   carTypeId: string | null;
-  fareMinor: number;        // base fare (excl. toll)
-  tollParkingMinor: number; // toll/parking
+  fareMinor: number;        // base fare (excl. toll/parking)
+  tollMinor: number;        // toll
+  parkingMinor: number;     // parking
+  /** @deprecated use tollMinor + parkingMinor */
+  tollParkingMinor?: number;
   totalPriceMinor: number;  // grand total
   currency: string;
   onAssigned: () => void;
@@ -27,6 +30,8 @@ export function AssignDriverModal({
   leg,
   carTypeId,
   fareMinor,
+  tollMinor,
+  parkingMinor,
   tollParkingMinor,
   totalPriceMinor,
   currency,
@@ -38,7 +43,9 @@ export function AssignDriverModal({
   const [selectedVehicle, setSelectedVehicle] = useState('');
   const [payType, setPayType] = useState<'PERCENTAGE' | 'FIXED'>('PERCENTAGE');
   const [payValue, setPayValue] = useState(70);
-  const [tollEditable, setTollEditable] = useState(tollParkingMinor / 100);
+  const combinedTollParking = tollMinor + parkingMinor || tollParkingMinor || 0;
+  const [tollEditable, setTollEditable] = useState((tollMinor ?? 0) / 100);
+  const [parkingEditable, setParkingEditable] = useState((parkingMinor ?? 0) / 100);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -50,7 +57,7 @@ export function AssignDriverModal({
     return Math.round(payValue * 100);
   }, [payType, payValue, fareMinor]);
 
-  const driverTotalMinor = driverPayMinor + Math.round(tollEditable * 100);
+  const driverTotalMinor = driverPayMinor + Math.round(tollEditable * 100) + Math.round(parkingEditable * 100);
 
   // Load data when modal opens
   useEffect(() => {
@@ -59,7 +66,8 @@ export function AssignDriverModal({
     setSelectedDriver('');
     setSelectedVehicle('');
     setError(null);
-    setTollEditable(tollParkingMinor / 100);
+    setTollEditable((tollMinor ?? 0) / 100);
+    setParkingEditable((parkingMinor ?? 0) / 100);
 
     // Load all drivers (no status filter)
     api.get('/drivers').then((res) => {
@@ -98,7 +106,8 @@ export function AssignDriverModal({
         vehicle_id: selectedVehicle,
         driver_pay_type: payType,
         driver_pay_value: payValue,
-        toll_parking_minor: Math.round(tollEditable * 100),
+        toll_minor: Math.round(tollEditable * 100),
+        parking_minor: Math.round(parkingEditable * 100),
         leg,
       });
       onAssigned();
@@ -142,8 +151,12 @@ export function AssignDriverModal({
                 <span className="font-medium">{formatMinor(fareMinor, currency)}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-600">Toll / Parking</span>
-                <span className="font-medium">{formatMinor(tollParkingMinor, currency)}</span>
+                <span className="text-gray-600">Toll</span>
+                <span className="font-medium">{formatMinor(tollMinor ?? 0, currency)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">Parking</span>
+                <span className="font-medium">{formatMinor(parkingMinor ?? 0, currency)}</span>
               </div>
               <div className="border-t pt-2 flex justify-between font-semibold">
                 <span>Total Price</span>
@@ -181,7 +194,7 @@ export function AssignDriverModal({
 
               {/* Editable toll */}
               <div className="flex justify-between items-center text-sm">
-                <span className="text-gray-600">Toll / Parking</span>
+                <span className="text-gray-600">Toll</span>
                 <div className="flex items-center gap-1">
                   <span className="text-gray-400 text-xs">{currency}</span>
                   <input
@@ -190,6 +203,22 @@ export function AssignDriverModal({
                     min={0}
                     step={0.01}
                     onChange={(e) => setTollEditable(parseFloat(e.target.value) || 0)}
+                    className="border rounded px-2 py-1 text-sm w-24 text-right focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
+
+              {/* Editable parking */}
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-gray-600">Parking</span>
+                <div className="flex items-center gap-1">
+                  <span className="text-gray-400 text-xs">{currency}</span>
+                  <input
+                    type="number"
+                    value={parkingEditable}
+                    min={0}
+                    step={0.01}
+                    onChange={(e) => setParkingEditable(parseFloat(e.target.value) || 0)}
                     className="border rounded px-2 py-1 text-sm w-24 text-right focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>

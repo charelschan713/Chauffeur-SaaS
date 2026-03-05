@@ -425,7 +425,8 @@ function BookingDetailInner() {
         bookingId={booking?.id ?? ''}
         leg={assignLeg}
         fareMinor={booking?.pricing_snapshot?.final_fare_minor ?? booking?.pricing_snapshot?.base_fare_minor ?? booking?.total_price_minor ?? 0}
-        tollParkingMinor={booking?.pricing_snapshot?.toll_parking_minor ?? 0}
+        tollMinor={booking?.pricing_snapshot?.toll_minor ?? 0}
+        parkingMinor={booking?.pricing_snapshot?.parking_minor ?? 0}
         totalPriceMinor={booking?.total_price_minor ?? 0}
         currency={booking?.currency ?? 'AUD'}
         onAssigned={() => {
@@ -443,7 +444,8 @@ function BookingDetailInner() {
         leg={assignLeg}
         carTypeId={booking?.service_class_id ?? null}
         fareMinor={booking?.pricing_snapshot?.final_fare_minor ?? booking?.pricing_snapshot?.base_fare_minor ?? booking?.total_price_minor ?? 0}
-        tollParkingMinor={booking?.pricing_snapshot?.toll_parking_minor ?? 0}
+        tollMinor={booking?.pricing_snapshot?.toll_minor ?? 0}
+        parkingMinor={booking?.pricing_snapshot?.parking_minor ?? 0}
         totalPriceMinor={booking?.total_price_minor ?? 0}
         currency={booking?.currency ?? 'AUD'}
         onAssigned={() => {

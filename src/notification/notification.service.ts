@@ -5,7 +5,8 @@ import { IntegrationResolver } from '../integration/integration.resolver';
 import { EmailProvider } from './providers/email.provider';
 import { SmsProvider } from './providers/sms.provider';
 import { TemplateResolver } from './template.resolver';
-import { renderTemplate, TemplateVariables } from './template.renderer';
+import { renderTemplate } from './template.renderer';
+import { TemplateVariables } from './notification.types';
 import {
   bookingConfirmedEmail,
   driverAcceptedEmail,
@@ -110,13 +111,13 @@ export class NotificationService {
       );
       const body = renderTemplate(emailTemplate.body || platformTemplate.html, templateVars);
 
-      await this.emailProvider.send(emailIntegration, {
+      await this.sendEmailWithLog(tenantId, 'BookingConfirmed', emailIntegration, {
         to: booking.customer_email,
         subject,
         html: body,
         fromAddress: emailIntegration.config.from_address,
         fromName: emailIntegration.config.from_name,
-      });
+      }, booking.id).catch(() => {});
     }
 
     if (smsIntegration) {
@@ -134,7 +135,7 @@ export class NotificationService {
       const body = renderTemplate(smsTemplate.body || platformBody, templateVars);
 
       const customerPhone = toE164(booking.customer_phone_country_code, booking.customer_phone_number);
-      if (customerPhone) await this.smsProvider.send(smsIntegration, customerPhone, body);
+      if (customerPhone) await this.sendSmsWithLog(tenantId, 'BookingConfirmed', smsIntegration, customerPhone, body, booking.id).catch(() => {});
     }
   }
 
@@ -470,24 +471,143 @@ export class NotificationService {
     if (customerPhone) await this.smsProvider.send(smsIntegration, customerPhone, body);
   }
 
-  private buildTemplateVariables(booking: any, driver?: any): TemplateVariables {
-    return {
+  private static formatMinor(minor: number): string {
+    return (minor / 100).toFixed(2);
+  }
+
+  private buildTemplateVariables(booking: any, driver?: any, assignment?: any): TemplateVariables {
+    const currency = booking.currency ?? 'AUD';
+    const snapshot = booking.pricing_snapshot ?? {};
+
+    const waypointAddrs: string[] = (booking.waypoints ?? [])
+      .map((w: any) => (typeof w === 'string' ? w : (w.address ?? w.name ?? '')))
+      .filter(Boolean);
+    const waypointsStr = waypointAddrs.map((addr, i) => `Stop ${i + 1}: ${addr}`).join('\n');
+
+    const vars: TemplateVariables = {
       booking_reference: booking.booking_reference,
-      customer_first_name: booking.customer_first_name,
-      customer_last_name: booking.customer_last_name,
+      customer_first_name: booking.customer_first_name ?? '',
+      customer_last_name: booking.customer_last_name ?? '',
       customer_name: `${booking.customer_first_name ?? ''} ${booking.customer_last_name ?? ''}`.trim(),
       pickup_address: booking.pickup_address_text,
       dropoff_address: booking.dropoff_address_text,
-      pickup_time: booking.pickup_time_local,
-      driver_name: driver?.full_name,
-      vehicle_make: booking.vehicle_make,
-      vehicle_model: booking.vehicle_model,
-      total_amount: booking.total_amount,
-      total_price: booking.total_amount,
-      currency: booking.currency,
-      passenger_name: booking.passenger_name,
+      pickup_time: booking.pickup_time_local ?? (booking.pickup_at_utc
+        ? new Date(booking.pickup_at_utc).toLocaleString('en-AU', { timeZone: booking.timezone ?? 'Australia/Sydney' })
+        : ''),
+      waypoints: waypointsStr,
+      waypoint_count: waypointAddrs.length,
+      passenger_count: booking.passenger_count,
+      luggage_count: booking.luggage_count,
+      special_requests: booking.special_requests ?? '',
+      flight_number: booking.flight_number ?? '',
+      currency,
+      base_fare: NotificationService.formatMinor(snapshot.subtotalMinor ?? snapshot.totalPriceMinor ?? 0),
+      toll_parking_total: NotificationService.formatMinor(snapshot.toll_parking_minor ?? 0),
+      total_amount: booking.total_amount ?? NotificationService.formatMinor(booking.total_price_minor ?? 0),
+      driver_name: driver?.full_name ?? driver?.name ?? '',
+      vehicle_make: booking.vehicle_make ?? '',
+      vehicle_model: booking.vehicle_model ?? '',
+      vehicle_plate: booking.vehicle_plate ?? '',
+      vehicle_colour: booking.vehicle_colour ?? '',
+      passenger_name: booking.passenger_name ?? [booking.passenger_first_name, booking.passenger_last_name].filter(Boolean).join(' '),
       passenger_phone: toE164(booking.passenger_phone_country_code, booking.passenger_phone_number) ?? undefined,
     };
+
+    // Waypoint slots
+    waypointAddrs.forEach((addr, i) => {
+      if (i < 5) vars[`waypoint_${i + 1}`] = addr;
+    });
+
+    // Assignment / driver pay
+    if (assignment) {
+      vars.driver_pay_amount = NotificationService.formatMinor(assignment.driver_pay_minor ?? 0);
+      vars.driver_toll_parking = NotificationService.formatMinor(assignment.toll_parking_minor ?? 0);
+      vars.driver_total = NotificationService.formatMinor(
+        (assignment.driver_pay_minor ?? 0) + (assignment.toll_parking_minor ?? 0),
+      );
+    }
+
+    return vars;
+  }
+
+  private async logNotification(params: {
+    tenantId: string;
+    eventType: string;
+    channel: 'email' | 'sms';
+    recipientType?: string;
+    recipientEmail?: string;
+    recipientPhone?: string;
+    subject?: string;
+    body?: string;
+    status: 'SENT' | 'FAILED';
+    errorMessage?: string;
+    bookingId?: string;
+  }): Promise<void> {
+    await this.dataSource.query(
+      `INSERT INTO public.notification_log
+       (tenant_id, event_type, channel, recipient_type, recipient_email, recipient_phone,
+        subject, body, status, error_message, booking_id, sent_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,now())`,
+      [
+        params.tenantId,
+        params.eventType,
+        params.channel,
+        params.recipientType ?? null,
+        params.recipientEmail ?? null,
+        params.recipientPhone ?? null,
+        params.subject ?? null,
+        params.body ?? null,
+        params.status,
+        params.errorMessage ?? null,
+        params.bookingId ?? null,
+      ],
+    ).catch((err) => this.logger.warn(`notification_log insert failed: ${err?.message}`));
+  }
+
+  private async sendEmailWithLog(
+    tenantId: string,
+    eventType: string,
+    integration: any,
+    opts: { to: string; subject: string; html: string; fromAddress?: string; fromName?: string },
+    bookingId?: string,
+  ): Promise<void> {
+    try {
+      await this.emailProvider.send(integration, opts);
+      await this.logNotification({
+        tenantId, eventType, channel: 'email', recipientEmail: opts.to,
+        subject: opts.subject, body: opts.html, status: 'SENT', bookingId,
+      });
+    } catch (err: any) {
+      await this.logNotification({
+        tenantId, eventType, channel: 'email', recipientEmail: opts.to,
+        subject: opts.subject, body: opts.html, status: 'FAILED',
+        errorMessage: err?.message, bookingId,
+      });
+      throw err;
+    }
+  }
+
+  private async sendSmsWithLog(
+    tenantId: string,
+    eventType: string,
+    integration: any,
+    phone: string,
+    body: string,
+    bookingId?: string,
+  ): Promise<void> {
+    try {
+      await this.smsProvider.send(integration, phone, body);
+      await this.logNotification({
+        tenantId, eventType, channel: 'sms', recipientPhone: phone,
+        body, status: 'SENT', bookingId,
+      });
+    } catch (err: any) {
+      await this.logNotification({
+        tenantId, eventType, channel: 'sms', recipientPhone: phone,
+        body, status: 'FAILED', errorMessage: err?.message, bookingId,
+      });
+      throw err;
+    }
   }
 
   private async getBooking(id: string) {

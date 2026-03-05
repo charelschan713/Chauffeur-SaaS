@@ -276,7 +276,7 @@ export class BookingService {
         pricing.totalPriceMinor ?? 0,
         pricing.currency ?? 'AUD',
         'PENDING',
-        dto.operational_status ?? 'PENDING',
+        dto.operational_status ?? 'PENDING_CUSTOMER_CONFIRMATION',
         dto.payment_status ?? 'UNPAID',
         dto.estimated_duration_seconds ?? null,
         now,
@@ -306,7 +306,7 @@ export class BookingService {
       `INSERT INTO public.booking_status_history
        (id, tenant_id, booking_id, previous_status, new_status, triggered_by, reason, created_at)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
-      [randomUUID(), tenantId, id, null, dto.operational_status ?? 'PENDING', null, null, now],
+      [randomUUID(), tenantId, id, null, dto.operational_status ?? 'PENDING_CUSTOMER_CONFIRMATION', null, null, now],
     );
 
     return bookingRows[0];
@@ -354,7 +354,7 @@ export class BookingService {
       if (!rows.length) throw new NotFoundException('Booking not found');
       const booking = rows[0];
 
-      if (['CANCELLED', 'COMPLETED'].includes(booking.operational_status)) {
+      if (['CANCELLED', 'COMPLETED', 'FULFILLED'].includes(booking.operational_status)) {
         return { success: true };
       }
 
@@ -363,7 +363,7 @@ export class BookingService {
          SET operational_status = 'CANCELLED',
              updated_at = now()
          WHERE id = $1
-           AND operational_status IN ('DRAFT','PENDING','CONFIRMED','ASSIGNED')
+           AND operational_status NOT IN ('COMPLETED','FULFILLED','CANCELLED')
          RETURNING id`,
         [bookingId],
       );

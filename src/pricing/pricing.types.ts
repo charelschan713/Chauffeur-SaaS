@@ -49,6 +49,8 @@ export interface PricingSnapshot {
   discount_amount_minor?: number;
   final_fare_minor?: number;
   toll_parking_minor?: number;
+  toll_minor?: number;
+  parking_minor?: number;
   grand_total_minor?: number;
   discount_source_customer_id?: string | null;
   base_calculated_minor?: number;

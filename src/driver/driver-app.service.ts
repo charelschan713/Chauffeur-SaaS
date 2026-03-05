@@ -196,6 +196,7 @@ export class DriverAppService {
       on_the_way: ['arrived'],
       arrived: ['passenger_on_board'],
       passenger_on_board: ['job_done'],
+      job_done: ['fulfilled'],
     };
 
     const current = rows[0].driver_execution_status;
@@ -220,13 +221,32 @@ export class DriverAppService {
       params,
     );
 
-    // If job_done, mark booking completed
+    // job_done → booking COMPLETED
     if (newStatus === 'job_done') {
       await this.dataSource.query(
-        `UPDATE bookings SET operational_status = 'JOB_COMPLETED', updated_at = NOW()
+        `UPDATE bookings SET operational_status = 'COMPLETED', updated_at = NOW()
          WHERE id = (SELECT booking_id FROM assignments WHERE id = $1)`,
         [assignmentId],
       );
+    }
+
+    // fulfilled → booking FULFILLED (triggers invoice generation)
+    if (newStatus === 'fulfilled') {
+      const bookingRows = await this.dataSource.query(
+        `UPDATE bookings SET operational_status = 'FULFILLED', settled_at = NOW(), updated_at = NOW()
+         WHERE id = (SELECT booking_id FROM assignments WHERE id = $1)
+         RETURNING id, tenant_id, pricing_snapshot, total_price_minor`,
+        [assignmentId],
+      );
+      // Emit event for invoice auto-generation (no extra = auto)
+      if (bookingRows[0]) {
+        await this.dataSource.query(
+          `INSERT INTO public.booking_status_history
+           (id, tenant_id, booking_id, previous_status, new_status, triggered_by, reason, created_at)
+           VALUES (gen_random_uuid(), $1, $2, 'COMPLETED', 'FULFILLED', 'DRIVER', 'Driver fulfilled', NOW())`,
+          [bookingRows[0].tenant_id, bookingRows[0].id],
+        ).catch(() => {});
+      }
     }
 
     return { success: true, new_status: newStatus };

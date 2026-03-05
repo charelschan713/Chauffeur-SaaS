@@ -9,7 +9,9 @@ interface AssignPartnerModalProps {
   bookingId: string;
   leg: 'A' | 'B';
   fareMinor: number;
-  tollParkingMinor: number;
+  tollMinor?: number;
+  parkingMinor?: number;
+  tollParkingMinor?: number;
   totalPriceMinor: number;
   currency: string;
   onAssigned: () => void;
@@ -25,6 +27,8 @@ export function AssignPartnerModal({
   bookingId,
   leg,
   fareMinor,
+  tollMinor = 0,
+  parkingMinor = 0,
   tollParkingMinor,
   totalPriceMinor,
   currency,
@@ -34,7 +38,9 @@ export function AssignPartnerModal({
   const [selectedPartner, setSelectedPartner] = useState('');
   const [payType, setPayType] = useState<'PERCENTAGE' | 'FIXED'>('PERCENTAGE');
   const [payValue, setPayValue] = useState(70);
-  const [tollEditable, setTollEditable] = useState(tollParkingMinor / 100);
+  const combinedTP = tollMinor + parkingMinor || tollParkingMinor || 0;
+  const [tollEditable, setTollEditable] = useState(tollMinor / 100);
+  const [parkingEditable, setParkingEditable] = useState(parkingMinor / 100);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loadingPartners, setLoadingPartners] = useState(false);
@@ -56,7 +62,8 @@ export function AssignPartnerModal({
     if (!isOpen) return;
     setSelectedPartner('');
     setError(null);
-    setTollEditable(tollParkingMinor / 100);
+    setTollEditable(tollMinor / 100);
+    setParkingEditable(parkingMinor / 100);
     setLoadingPartners(true);
     api.get('/assignments/connections/approved')
       .then((res) => setPartners(Array.isArray(res.data) ? res.data : []))
@@ -67,7 +74,7 @@ export function AssignPartnerModal({
       if (res.data?.default_driver_pay_type) setPayType(res.data.default_driver_pay_type);
       if (res.data?.default_driver_pay_value != null) setPayValue(res.data.default_driver_pay_value);
     });
-  }, [isOpen, tollParkingMinor]);
+  }, [isOpen, tollMinor, parkingMinor]);
 
   async function handleAssign() {
     if (!selectedPartner) return;
@@ -78,7 +85,8 @@ export function AssignPartnerModal({
         partner_tenant_id: selectedPartner,
         partner_pay_type: payType,
         partner_pay_value: payValue,
-        toll_parking_minor: tollMinor,
+        toll_minor: Math.round(tollEditable * 100),
+        parking_minor: Math.round(parkingEditable * 100),
         leg,
       });
       onAssigned();
@@ -127,8 +135,12 @@ export function AssignPartnerModal({
                 <span className="font-medium">{formatMinor(fareMinor, currency)}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-600">Toll / Parking</span>
-                <span className="font-medium">{formatMinor(tollParkingMinor, currency)}</span>
+                <span className="text-gray-600">Toll</span>
+                <span className="font-medium">{formatMinor(tollMinor, currency)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">Parking</span>
+                <span className="font-medium">{formatMinor(parkingMinor, currency)}</span>
               </div>
               <div className="border-t pt-2 flex justify-between font-semibold">
                 <span>Total Price</span>
@@ -166,17 +178,22 @@ export function AssignPartnerModal({
 
               {/* Editable toll */}
               <div className="flex justify-between items-center text-sm">
-                <span className="text-gray-600">Toll / Parking</span>
+                <span className="text-gray-600">Toll</span>
                 <div className="flex items-center gap-1">
                   <span className="text-gray-400 text-xs">{currency}</span>
-                  <input
-                    type="number"
-                    value={tollEditable}
-                    min={0}
-                    step={0.01}
+                  <input type="number" value={tollEditable} min={0} step={0.01}
                     onChange={(e) => setTollEditable(parseFloat(e.target.value) || 0)}
-                    className="border rounded px-2 py-1 text-sm w-24 text-right focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
+                    className="border rounded px-2 py-1 text-sm w-24 text-right focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                </div>
+              </div>
+              {/* Editable parking */}
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-gray-600">Parking</span>
+                <div className="flex items-center gap-1">
+                  <span className="text-gray-400 text-xs">{currency}</span>
+                  <input type="number" value={parkingEditable} min={0} step={0.01}
+                    onChange={(e) => setParkingEditable(parseFloat(e.target.value) || 0)}
+                    className="border rounded px-2 py-1 text-sm w-24 text-right focus:outline-none focus:ring-2 focus:ring-blue-500" />
                 </div>
               </div>
 

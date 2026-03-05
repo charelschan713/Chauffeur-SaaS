@@ -130,6 +130,8 @@ export class PricingResolver {
         discount_amount_minor: discount.discount_amount_minor,
         final_fare_minor: discount.final_fare_minor,
         toll_parking_minor: tollParkingMinor,
+        toll_minor: tollParkingMinor,
+        parking_minor: 0,
         grand_total_minor: grandTotalMinor,
         discount_source_customer_id: ctx.customerId ?? null,
       } as PricingSnapshot;
@@ -167,6 +169,8 @@ export class PricingResolver {
       discount_amount_minor: discount.discount_amount_minor,
       final_fare_minor: discount.final_fare_minor,
       toll_parking_minor: tollParkingMinor,
+        toll_minor: tollParkingMinor,
+        parking_minor: 0,
       grand_total_minor: grandTotalMinor,
       discount_source_customer_id: ctx.customerId ?? null,
     } as PricingSnapshot;
@@ -306,6 +310,8 @@ export class PricingResolver {
       discount_amount_minor: discount.discount_amount_minor,
       final_fare_minor: discount.final_fare_minor,
       toll_parking_minor: tollParkingMinor,
+        toll_minor: tollParkingMinor,
+        parking_minor: 0,
       grand_total_minor: grandTotalMinor,
       discount_source_customer_id: ctx.customerId ?? null,
       base_calculated_minor: ctx.tripType === 'RETURN' ? undefined : baseMinor,
