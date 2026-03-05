@@ -73,10 +73,14 @@ export class DriverAppService {
          b.waypoints,
          COALESCE(b.infant_seats, 0)  AS infant_seats,
          COALESCE(b.toddler_seats, 0) AS toddler_seats,
-         COALESCE(b.booster_seats, 0) AS booster_seats
+         COALESCE(b.booster_seats, 0) AS booster_seats,
+         CONCAT(pv.make, ' ', pv.model) AS vehicle_name,
+         tv.plate                        AS vehicle_plate
        FROM assignments a
        JOIN bookings b ON b.id = a.booking_id
        LEFT JOIN tenant_service_classes sc ON sc.id = b.service_class_id
+       LEFT JOIN tenant_vehicles tv ON tv.id = a.vehicle_id
+       LEFT JOIN platform_vehicles pv ON pv.id = tv.platform_vehicle_id
        WHERE a.driver_id = $1
          AND a.tenant_id = $2
          AND a.driver_execution_status NOT IN ('job_done','cancelled')
@@ -141,6 +145,8 @@ export class DriverAppService {
        FROM assignments a
        JOIN bookings b ON b.id = a.booking_id
        LEFT JOIN tenant_service_classes sc ON sc.id = b.service_class_id
+       LEFT JOIN tenant_vehicles tv ON tv.id = a.vehicle_id
+       LEFT JOIN platform_vehicles pv ON pv.id = tv.platform_vehicle_id
        WHERE a.driver_id = $1 AND a.tenant_id = $2 AND ${statusFilter}
        ORDER BY b.pickup_at_utc DESC
        LIMIT 100`,
@@ -158,6 +164,8 @@ export class DriverAppService {
        FROM assignments a
        JOIN bookings b ON b.id = a.booking_id
        LEFT JOIN tenant_service_classes sc ON sc.id = b.service_class_id
+       LEFT JOIN tenant_vehicles tv ON tv.id = a.vehicle_id
+       LEFT JOIN platform_vehicles pv ON pv.id = tv.platform_vehicle_id
        WHERE a.id = $1 AND a.driver_id = $2 AND a.tenant_id = $3
        LIMIT 1`,
       [assignmentId, me.driver_id, me.tenant_id],
@@ -312,7 +320,9 @@ export class DriverAppService {
     b.passenger_phone_number,
     COALESCE(b.infant_seats, 0)  AS infant_seats,
     COALESCE(b.toddler_seats, 0) AS toddler_seats,
-    COALESCE(b.booster_seats, 0) AS booster_seats
+    COALESCE(b.booster_seats, 0) AS booster_seats,
+    CONCAT(pv.make, ' ', pv.model) AS vehicle_name,
+    tv.plate                        AS vehicle_plate
   `;
 
   private shapeAssignment(row: any) {
@@ -323,7 +333,8 @@ export class DriverAppService {
       pickup_at: row.pickup_at_utc,
       pickup_location: row.pickup_address_text,
       dropoff_location: row.dropoff_address_text,
-      vehicle_name: null,
+      vehicle_name: row.vehicle_name ?? null,
+      vehicle_plate: row.vehicle_plate ?? null,
       driver_execution_status: row.driver_execution_status,
       service_type: row.service_type_name,
       driver_pay_minor: row.driver_pay_minor,
@@ -387,7 +398,12 @@ export class DriverAppService {
         infant_seats:  row.infant_seats  ?? 0,
         toddler_seats: row.toddler_seats ?? 0,
         booster_seats: row.booster_seats ?? 0,
+        vehicle_name:  row.vehicle_name  ?? null,
+        vehicle_plate: row.vehicle_plate ?? null,
       },
+      // Also top-level for DriverActiveJobDTO
+      vehicle_name:  row.vehicle_name  ?? null,
+      vehicle_plate: row.vehicle_plate ?? null,
     };
   }
 }
