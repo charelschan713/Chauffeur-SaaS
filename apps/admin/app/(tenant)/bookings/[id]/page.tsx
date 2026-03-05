@@ -142,10 +142,17 @@ function BookingDetailInner() {
                   )}`}
         description={`Created ${formatBookingTime(booking.created_at, null, null)}`}
         actions={
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <Badge variant={getBookingStatusBadge(booking.operational_status)}>
               {formatStatus(booking.operational_status)}
             </Badge>
+            {/* Driver execution status — shown when assigned and driver has acted */}
+            {booking.assignments?.[0]?.driver_execution_status &&
+             !['assigned'].includes(booking.assignments[0].driver_execution_status) && (
+              <Badge variant={getBookingStatusBadge(booking.assignments[0].driver_execution_status)}>
+                🚗 {formatStatus(booking.assignments[0].driver_execution_status)}
+              </Badge>
+            )}
             <Badge variant={PAY_BADGE[booking.payment_status] ?? 'neutral'}>
               {booking.payment_status ?? '—'}
             </Badge>

@@ -3,20 +3,30 @@
  * e.g. JOB_STARTED → "In Progress", NO_SHOW → "No Show"
  */
 const STATUS_LABELS: Record<string, string> = {
-  // Booking operational
+  // Booking operational statuses
   DRAFT: 'Draft',
   PENDING: 'Pending',
+  PENDING_CUSTOMER_CONFIRMATION: 'Pending Confirmation',
+  PENDING_ADMIN_CONFIRMATION: 'Pending Admin',
   CONFIRMED: 'Confirmed',
   ASSIGNED: 'Assigned',
-  ACCEPTED: 'Accepted',
-  ON_THE_WAY: 'On the Way',
-  ARRIVED: 'Arrived',
-  IN_PROGRESS: 'In Progress',
+  ACCEPTED: 'Driver Accepted',
+  ON_THE_WAY: 'Driver On the Way',
+  IN_PROGRESS: 'Passenger On Board',
   JOB_STARTED: 'In Progress',
   JOB_COMPLETED: 'Completed',
   COMPLETED: 'Completed',
+  FULFILLED: 'Fulfilled',
   CANCELLED: 'Cancelled',
   NO_SHOW: 'No Show',
+  // Driver execution statuses (shown as secondary badge)
+  assigned: 'Assigned',
+  accepted: 'Driver Accepted',
+  on_the_way: 'Driver On the Way',
+  arrived: 'Driver Arrived',
+  passenger_on_board: 'Passenger On Board',
+  job_done: 'Job Done',
+  fulfilled: 'Fulfilled',
   // Payment
   UNPAID: 'Unpaid',
   AUTHORIZED: 'Authorized',

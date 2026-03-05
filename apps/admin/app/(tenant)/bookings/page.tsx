@@ -186,9 +186,17 @@ export default function BookingsPage() {
                 </td>
                 <td className="px-6 py-4 text-sm text-gray-700 whitespace-nowrap">{formatTime(booking.pickup_at_utc, booking.timezone, booking.city_name)}</td>
                 <td className="px-6 py-4 text-sm">
-                  <Badge variant={getBookingStatusBadge(booking.operational_status)}>
-                    {booking.operational_status}
-                  </Badge>
+                  <div className="flex flex-col gap-1">
+                    <Badge variant={getBookingStatusBadge(booking.operational_status)}>
+                      {formatStatus(booking.operational_status)}
+                    </Badge>
+                    {booking.driver_execution_status &&
+                     !['assigned'].includes(booking.driver_execution_status) && (
+                      <Badge variant={getBookingStatusBadge(booking.driver_execution_status)}>
+                        🚗 {formatStatus(booking.driver_execution_status)}
+                      </Badge>
+                    )}
+                  </div>
                 </td>
                 <td className="px-6 py-4 text-sm">
                   <Badge variant={PAY_BADGE[booking.payment_status ?? ''] ?? 'neutral'}>

@@ -73,7 +73,8 @@ export class BookingService {
         b.executor_tenant_id,
         b.transfer_source_tenant_name_snapshot,
         a.driver_id,
-        a.status as assignment_status
+        a.status as assignment_status,
+        a.driver_execution_status
        FROM public.bookings b
        LEFT JOIN public.assignments a
          ON a.booking_id = b.id
