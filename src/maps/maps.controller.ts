@@ -37,7 +37,7 @@ export class MapsController {
     const paramObj: Record<string, string> = {
       input: input.trim(),
       key: integration.config.api_key,
-      types: 'address',
+      types: 'geocode|establishment',
       language: 'en-AU',
       components: 'country:au',
     };

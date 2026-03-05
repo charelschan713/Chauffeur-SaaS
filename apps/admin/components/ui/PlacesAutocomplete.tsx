@@ -87,6 +87,7 @@ export function PlacesAutocomplete({
   const [loading, setLoading] = useState(false);
   const [activeIdx, setActiveIdx] = useState(-1);
   const [showRecent, setShowRecent] = useState(false);
+  const [hasQueried, setHasQueried] = useState(false);
   const [recentPicks, setRecentPicks] = useState<RecentPick[]>([]);
   const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
   const [mounted, setMounted] = useState(false);
@@ -121,6 +122,7 @@ export function PlacesAutocomplete({
     if (!query.trim() || query.trim().length < 2) {
       setPredictions([]);
       setOpen(false);
+      setHasQueried(false);
       return;
     }
     setLoading(true);
@@ -135,17 +137,15 @@ export function PlacesAutocomplete({
         );
         const preds: Prediction[] = res.data?.predictions ?? [];
         setPredictions(preds);
-        if (preds.length > 0) {
-          updateDropdownPosition();
-          setOpen(true);
-          setShowRecent(false);
-        } else {
-          setOpen(preds.length > 0);
-        }
+        setHasQueried(true);
+        updateDropdownPosition();
+        setOpen(true);
+        setShowRecent(false);
         setActiveIdx(-1);
       } catch {
         setPredictions([]);
-        setOpen(false);
+        setHasQueried(true);
+        setOpen(true); // show "no results" panel even on error
       } finally {
         setLoading(false);
       }
@@ -187,6 +187,7 @@ export function PlacesAutocomplete({
     setPredictions([]);
     setOpen(false);
     setShowRecent(false);
+    setHasQueried(false);
     // Reset session token after selection
     sessionTokenRef.current = generateToken();
     // Save to recent
@@ -239,9 +240,10 @@ export function PlacesAutocomplete({
   // Determine what to show in dropdown
   const showRecentPanel = showRecent && recentPicks.length > 0 && !open;
   const showPredictions = open && predictions.length > 0;
-  const showNoResults = open && predictions.length === 0 && !loading && query.trim().length >= 2;
+  const showNoResults = open && predictions.length === 0 && !loading && hasQueried && query.trim().length >= 2;
 
-  const dropdownContent = (showRecentPanel || showPredictions || showNoResults) && (
+  const showLoadingPanel = open && loading && query.trim().length >= 2;
+  const dropdownContent = (showRecentPanel || showPredictions || showNoResults || showLoadingPanel) && (
     <div
       id="places-portal"
       style={dropdownStyle}
@@ -305,10 +307,17 @@ export function PlacesAutocomplete({
         </ul>
       )}
 
+      {/* Loading */}
+      {showLoadingPanel && (
+        <div className="px-4 py-3 text-sm text-gray-400 flex items-center gap-2">
+          <span className="animate-spin text-base">⌛</span> Searching…
+        </div>
+      )}
+
       {/* No results */}
       {showNoResults && (
         <div className="px-4 py-3 text-sm text-gray-400 italic">
-          No results — try a more specific address
+          No results — try a more specific address or type manually
         </div>
       )}
 
