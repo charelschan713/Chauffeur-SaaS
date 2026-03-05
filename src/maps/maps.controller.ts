@@ -41,10 +41,11 @@ export class MapsController {
       components: 'country:au',
     };
     if (sessionToken) paramObj.sessiontoken = sessionToken;
-    // Location bias: prioritise results near the selected city (50km radius)
+    // Location bias: restrict results to within ~100km of the selected city
     if (lat && lng) {
       paramObj.location = `${lat},${lng}`;
-      paramObj.radius = '50000';
+      paramObj.radius = '100000';   // 100km covers greater metro area
+      paramObj.strictbounds = 'true'; // hard-restrict, not just bias
     }
     const params = new URLSearchParams(paramObj);
 
