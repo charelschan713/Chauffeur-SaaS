@@ -127,6 +127,12 @@ export class PricingService {
   }
 
   async linkServiceClassPlatformVehicles(tenantId: string, serviceClassId: string, platformVehicleIds: string[]) {
+    // Replace all: delete existing selections, then insert the new set
+    await this.dataSource.query(
+      `DELETE FROM public.tenant_service_class_platform_vehicles
+       WHERE tenant_id = $1 AND service_class_id = $2`,
+      [tenantId, serviceClassId],
+    );
     for (const pvId of platformVehicleIds) {
       await this.dataSource.query(
         `INSERT INTO public.tenant_service_class_platform_vehicles (tenant_id, service_class_id, platform_vehicle_id)

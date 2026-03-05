@@ -1,5 +1,5 @@
 'use client';
-import { useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { ListPage } from '@/components/patterns/ListPage';
@@ -95,9 +95,21 @@ export default function CarTypesPage() {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; tone: 'success' | 'error' } | null>(null);
   const [selectedPlatformIds, setSelectedPlatformIds] = useState<string[]>([]);
+  const [pvSaving, setPvSaving] = useState(false);
 
   // Filter out blank/ghost rows (name is empty or null)
   const items = (data as ServiceClassRow[]).filter((i) => i?.name?.trim());
+
+  // Load existing platform vehicle selections whenever editing car type changes
+  useEffect(() => {
+    if (!editingId) { setSelectedPlatformIds([]); return; }
+    api.get(`/pricing/service-classes/${editingId}/platform-vehicles`)
+      .then(res => {
+        const ids = (res.data ?? []).map((pv: any) => pv.id ?? pv.platform_vehicle_id);
+        setSelectedPlatformIds(ids);
+      })
+      .catch(() => setSelectedPlatformIds([]));
+  }, [editingId]);
   const editing = useMemo(() => items.find((i) => i.id === editingId) ?? null, [items, editingId]);
 
   function buildPayload() {
@@ -169,10 +181,18 @@ export default function CarTypesPage() {
 
   async function handleSavePlatformVehicles() {
     if (!editingId) return;
-    await api.post('/pricing/service-classes/platform-vehicles', {
-      service_class_id: editingId,
-      platform_vehicle_ids: selectedPlatformIds,
-    });
+    setPvSaving(true);
+    try {
+      await api.post('/pricing/service-classes/platform-vehicles', {
+        service_class_id: editingId,
+        platform_vehicle_ids: selectedPlatformIds,
+      });
+      setToast({ message: `Platform vehicles saved for "${editing?.name}"`, tone: 'success' });
+    } catch {
+      setToast({ message: 'Failed to save platform vehicles', tone: 'error' });
+    } finally {
+      setPvSaving(false);
+    }
   }
 
   if (error) return <ErrorAlert message="Unable to load car types" onRetry={refetch} />;
@@ -402,8 +422,11 @@ export default function CarTypesPage() {
                 </label>
               ))}
             </div>
-            <div className="mt-3">
-              <Button onClick={handleSavePlatformVehicles}>Save Platform Vehicles</Button>
+            <div className="mt-3 flex items-center gap-3">
+              <Button onClick={handleSavePlatformVehicles} disabled={pvSaving}>
+                {pvSaving ? <><InlineSpinner /> Saving…</> : `Save Platform Vehicles (${selectedPlatformIds.length} selected)`}
+              </Button>
+              <span className="text-xs text-gray-400">for {editing?.name}</span>
             </div>
           </div>
         )
