@@ -440,7 +440,7 @@ export default function CreateBookingPage() {
         : `${values.pickup_address_text} → ${values.dropoff_address_text}`
       : 'Enter route',
     requirements: `${values.passenger_count} pax · ${values.luggage_count ?? 0} bags`,
-    car: selectedCarType ? `${selectedCarType.name} · $${toDisplay(quote.status === 'success' ? (quote.estimates[selectedCarType.id] ?? 0) : 0)}` : 'Select a car type',
+    car: selectedCarType ? `${selectedCarType.name}${quote.status === 'success' ? ` · $${toDisplay((quote as Extract<typeof quote, {status:'success'}>).estimates[selectedCarType.id] ?? 0)}` : ''}` : 'Select a car type',
     extras: `Infant ${values.infant_seats} · Toddler ${values.toddler_seats} · Booster ${values.booster_seats}`,
   } as const;
 
@@ -941,7 +941,7 @@ export default function CreateBookingPage() {
             </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {carTypes.map((c: any) => {
-                  const price = quote.estimates[c.id] ?? 0;
+                  const price = quote.status === 'success' ? (quote.estimates[c.id] ?? 0) : 0;
                   const insufficient = (c.passenger_capacity ?? 0) < values.passenger_count || (c.luggage_capacity ?? 0) < (values.luggage_count ?? 0);
                   return (
                     <button
@@ -964,7 +964,6 @@ export default function CreateBookingPage() {
                 <Button onClick={() => goNext('car')}>Next</Button>
               </div>
             </div>}
-          )}
 
           {activeSection === 'extras' && <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
             <h2 className="text-base font-semibold text-gray-900 mb-5">Extra Options</h2>
