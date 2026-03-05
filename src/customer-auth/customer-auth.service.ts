@@ -38,10 +38,11 @@ export class CustomerAuthService {
 
     // Create customer record
     const [customer] = await this.db.query(
-      `INSERT INTO public.customers (tenant_id, email, first_name, last_name, phone, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, $5, now(), now())
+      `INSERT INTO public.customers (tenant_id, email, first_name, last_name, phone_country_code, phone_number, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, now(), now())
        RETURNING id`,
-      [tenant.id, dto.email.toLowerCase(), dto.firstName, dto.lastName, dto.phone ?? null],
+      [tenant.id, dto.email.toLowerCase(), dto.firstName, dto.lastName,
+       dto.phoneCountryCode ?? '+61', dto.phoneNumber ?? null],
     );
 
     await this.db.query(
@@ -81,15 +82,15 @@ export class CustomerAuthService {
     const rows = await this.db.query(
       `SELECT ca.id FROM public.customer_auth ca
        JOIN public.customers c ON c.id = ca.customer_id
-       WHERE ca.tenant_id = $1 AND c.phone = $2`,
+       WHERE ca.tenant_id = $1 AND c.phone_number = $2`,
       [tenant.id, dto.phone],
     );
 
     if (!rows.length) {
       // Create guest customer
       const [customer] = await this.db.query(
-        `INSERT INTO public.customers (tenant_id, phone, first_name, last_name, is_guest, created_at, updated_at)
-         VALUES ($1, $2, 'Guest', '', true, now(), now())
+        `INSERT INTO public.customers (tenant_id, phone_country_code, phone_number, first_name, last_name, is_guest, created_at, updated_at)
+         VALUES ($1, '+61', $2, 'Guest', '', true, now(), now())
          RETURNING id`,
         [tenant.id, dto.phone],
       );

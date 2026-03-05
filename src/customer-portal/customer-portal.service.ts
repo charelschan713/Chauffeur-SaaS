@@ -62,7 +62,7 @@ export class CustomerPortalService {
         [customerId, tenantId],
       ),
       this.db.query(
-        `SELECT first_name, last_name, email, phone FROM public.customers WHERE id=$1`,
+        `SELECT first_name, last_name, email, phone_country_code, phone_number FROM public.customers WHERE id=$1`,
         [customerId],
       ),
     ]);
@@ -128,7 +128,7 @@ export class CustomerPortalService {
           (SELECT email FROM public.customers WHERE id=$2),
           (SELECT first_name FROM public.customers WHERE id=$2),
           (SELECT last_name FROM public.customers WHERE id=$2),
-          (SELECT phone FROM public.customers WHERE id=$2),
+          (SELECT phone_number FROM public.customers WHERE id=$2),
           $3, $4, $5, $6, $7, $8, $9,
           'AWAITING_CONFIRMATION', 'UNPAID', 'CUSTOMER', $10,
           $11, $12, $13, now(), now())
@@ -184,7 +184,7 @@ export class CustomerPortalService {
   // ── Profile ───────────────────────────────────────────────────────────────
   async getProfile(customerId: string) {
     const rows = await this.db.query(
-      `SELECT id, first_name, last_name, email, phone, created_at FROM public.customers WHERE id=$1`,
+      `SELECT id, first_name, last_name, email, phone_country_code, phone_number, created_at FROM public.customers WHERE id=$1`,
       [customerId],
     );
     if (!rows.length) throw new NotFoundException('Customer not found');
@@ -196,7 +196,7 @@ export class CustomerPortalService {
       `UPDATE public.customers
        SET first_name=COALESCE($1, first_name),
            last_name=COALESCE($2, last_name),
-           phone=COALESCE($3, phone),
+           phone_number=COALESCE($3, phone_number),
            updated_at=now()
        WHERE id=$4`,
       [dto.firstName ?? null, dto.lastName ?? null, dto.phone ?? null, customerId],
@@ -207,7 +207,7 @@ export class CustomerPortalService {
   // ── Passengers ────────────────────────────────────────────────────────────
   async listPassengers(customerId: string) {
     return this.db.query(
-      `SELECT id, first_name, last_name, email, phone, relationship, is_default
+      `SELECT id, first_name, last_name, email, phone_number, relationship, is_default
        FROM public.customer_passengers
        WHERE customer_id=$1 AND (deleted_at IS NULL)
        ORDER BY is_default DESC, created_at ASC`,
@@ -218,7 +218,7 @@ export class CustomerPortalService {
   async addPassenger(customerId: string, tenantId: string, dto: any) {
     const [p] = await this.db.query(
       `INSERT INTO public.customer_passengers
-         (customer_id, tenant_id, first_name, last_name, email, phone, relationship, created_at)
+         (customer_id, tenant_id, first_name, last_name, email, phone_number, relationship, created_at)
        VALUES ($1, $2, $3, $4, $5, $6, $7, now())
        RETURNING *`,
       [customerId, tenantId, dto.firstName, dto.lastName, dto.email ?? null, dto.phone ?? null, dto.relationship ?? 'Other'],
@@ -417,7 +417,7 @@ export class CustomerPortalService {
       customerId = existing[0].id;
     } else {
       const [c] = await this.db.query(
-        `INSERT INTO public.customers (tenant_id, email, first_name, last_name, phone, is_guest, created_at, updated_at)
+        `INSERT INTO public.customers (tenant_id, email, first_name, last_name, phone_number, is_guest, created_at, updated_at)
          VALUES ($1,$2,$3,$4,$5,true,now(),now()) RETURNING id`,
         [tenantId, dto.email?.toLowerCase(), dto.firstName, dto.lastName, dto.phone ?? null],
       );
