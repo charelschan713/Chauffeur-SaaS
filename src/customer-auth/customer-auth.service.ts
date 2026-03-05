@@ -24,6 +24,8 @@ export class CustomerAuthService {
     firstName: string;
     lastName: string;
     phone?: string;
+    phoneCountryCode?: string;
+    phoneNumber?: string;
   }) {
     const tenant = await this.getTenantBySlug(dto.tenantSlug);
 
