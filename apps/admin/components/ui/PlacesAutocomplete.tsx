@@ -198,6 +198,15 @@ export function PlacesAutocomplete({
           onFocus={() => {
             if (predictions.length > 0) { updateDropdownPosition(); setOpen(true); }
           }}
+          onBlur={() => {
+            // Auto-resolve: if user typed but didn't pick a prediction, use the top result
+            setTimeout(() => {
+              if (predictions.length > 0 && query.trim() && query !== predictions[0]?.description) {
+                selectPrediction(predictions[0]);
+              }
+              setOpen(false);
+            }, 150);
+          }}
           onKeyDown={handleKeyDown}
           className={[
             'w-full border rounded-md px-3 py-2 text-sm',
