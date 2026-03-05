@@ -31,9 +31,9 @@ export class SmsProvider {
       const fromNumber = config.phone_number ?? config.sender ?? '';
       const senderId = config.sender_id ?? null;
 
-      // Australia doesn't support unregistered alpha sender IDs — always use phone number
+      // Use sender_id (e.g. "ASChauffeur") if set, otherwise fall back to phone number
       const form = new URLSearchParams({ To: to, Body: message });
-      form.append('From', fromNumber || senderId || '');
+      form.append('From', senderId || fromNumber || '');
 
       const res = await fetch(
         `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`,
