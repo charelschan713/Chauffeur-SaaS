@@ -80,6 +80,16 @@ export class BookingController {
     return this.service.sendPaymentLink(tenantId, bookingId);
   }
 
+  @Post(':id/fulfil')
+  fulfil(
+    @Param('id') bookingId: string,
+    @CurrentUser('tenant_id') tenantId: string,
+    @CurrentUser('sub') adminId: string,
+    @Body() body: { extra_amount_minor?: number; note?: string },
+  ) {
+    return this.service.fulfilBooking(tenantId, bookingId, adminId, body);
+  }
+
   @Post(':id/charge')
   chargeNow(
     @Param('id') bookingId: string,

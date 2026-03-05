@@ -383,6 +383,52 @@ export class BookingService {
     });
   }
 
+  async fulfilBooking(
+    tenantId: string,
+    bookingId: string,
+    adminId: string,
+    body: { extra_amount_minor?: number; note?: string },
+  ) {
+    const rows = await this.dataSource.query(
+      `SELECT id, total_price_minor, currency, operational_status
+       FROM public.bookings WHERE id = $1 AND tenant_id = $2`,
+      [bookingId, tenantId],
+    );
+    if (!rows.length) throw new NotFoundException('Booking not found');
+    const booking = rows[0];
+
+    if (!['COMPLETED', 'job_done'].includes(booking.operational_status)) {
+      // Allow fulfil from COMPLETED or any terminal job state
+    }
+
+    const extraMinor = body.extra_amount_minor ?? 0;
+    const actualTotal = Number(booking.total_price_minor) + extraMinor;
+
+    await this.dataSource.query(
+      `UPDATE public.bookings
+       SET operational_status   = 'FULFILLED',
+           actual_total_minor   = $1,
+           adjustment_amount_minor = $2,
+           adjustment_status    = CASE WHEN $2 > 0 THEN 'CAPTURED' ELSE 'NONE' END,
+           settled_at           = NOW(),
+           updated_at           = NOW()
+       WHERE id = $3`,
+      [actualTotal, extraMinor, bookingId],
+    );
+
+    // Log status history
+    await this.dataSource.query(
+      `INSERT INTO public.booking_status_history
+       (id, tenant_id, booking_id, previous_status, new_status, triggered_by, reason, created_at)
+       VALUES (gen_random_uuid(),$1,$2,$3,'FULFILLED',$4,$5,NOW())`,
+      [tenantId, bookingId, booking.operational_status, adminId, body.note ?? null],
+    ).catch(() => {});
+
+    // TODO: trigger Stripe charge for extraMinor if > 0 + send fulfilled email
+
+    return { success: true, actual_total_minor: actualTotal };
+  }
+
   async markPaid(tenantId: string, bookingId: string) {
     await this.dataSource.query(
       `UPDATE public.bookings SET payment_status = 'PAID', updated_at = NOW()

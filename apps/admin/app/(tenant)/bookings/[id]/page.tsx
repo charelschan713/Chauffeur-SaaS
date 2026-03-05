@@ -7,6 +7,7 @@ import { formatBookingTime } from '@/lib/format-datetime';
 import { ConfirmModal } from '@/components/ui/ConfirmModal';
 import { AssignDriverModal } from '@/components/assign-driver-modal';
 import { PaymentModal } from '@/components/payment-modal';
+import { FulfilModal } from '@/components/fulfil-modal';
 import { AssignPartnerModal } from '@/components/assign-partner-modal';
 import { EditDriverPayModal } from '@/components/edit-driver-pay-modal';
 import { ErrorAlert } from '@/components/ui/ErrorAlert';
@@ -67,6 +68,8 @@ function BookingDetailInner() {
   const [partnerActionLoading, setPartnerActionLoading] = useState(false);
   const [editPayOpen, setEditPayOpen] = useState(false);
   const [paymentOpen, setPaymentOpen] = useState(false);
+  const [fulfilOpen, setFulfilOpen] = useState(false);
+  const [driverReport, setDriverReport] = useState<any>(null);
   const [editPayAssignmentId, setEditPayAssignmentId] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; tone: 'success' | 'error' } | null>(null);
 
@@ -149,6 +152,20 @@ function BookingDetailInner() {
             <Button size="sm" variant="outline" onClick={() => setPaymentOpen(true)}>
               💳 Payment
             </Button>
+            {booking.operational_status === 'COMPLETED' && (
+              <Button size="sm" variant="primary" onClick={async () => {
+                try {
+                  const assignment = booking.assignments?.[0];
+                  if (assignment?.id) {
+                    const res = await api.get(`/driver-app/extra-report/${assignment.id}`);
+                    setDriverReport(res.data);
+                  }
+                } catch {}
+                setFulfilOpen(true);
+              }}>
+                ✅ Review & Fulfil
+              </Button>
+            )}
           </div>
         }
       />
@@ -471,6 +488,21 @@ function BookingDetailInner() {
           setEditPayOpen(false);
           setEditPayAssignmentId(null);
           refetch();
+        }}
+      />
+
+      <FulfilModal
+        isOpen={fulfilOpen}
+        onClose={() => setFulfilOpen(false)}
+        bookingId={booking?.id ?? ''}
+        bookingRef={booking?.booking_reference ?? ''}
+        originalMinor={booking?.total_price_minor ?? 0}
+        currency={booking?.currency ?? 'AUD'}
+        driverReport={driverReport}
+        onFulfilled={() => {
+          setFulfilOpen(false);
+          refetch();
+          setToast({ message: 'Booking fulfilled', tone: 'success' });
         }}
       />
 
