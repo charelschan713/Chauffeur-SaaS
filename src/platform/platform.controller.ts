@@ -55,10 +55,11 @@ export class PlatformController {
   async createTenant(@Body() dto: any, @Req() req: Request) {
     this.assertPlatformAdmin(req);
     const rows = await this.dataSource.query(
-      `insert into public.tenants (name, slug, timezone, currency, status)
-         values ($1,$2,$3,$4,'active')
+      `insert into public.tenants (name, slug, timezone, currency, status, booking_ref_prefix)
+         values ($1,$2,$3,$4,'active',$5)
       returning *`,
-      [dto.name, dto.slug, dto.timezone ?? 'UTC', dto.currency ?? 'AUD'],
+      [dto.name, dto.slug, dto.timezone ?? 'UTC', dto.currency ?? 'AUD',
+       dto.booking_ref_prefix ? dto.booking_ref_prefix.trim().toUpperCase() : dto.slug?.slice(0,3).toUpperCase() ?? 'BK'],
     );
     return rows[0];
   }

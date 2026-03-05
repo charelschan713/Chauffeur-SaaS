@@ -43,7 +43,7 @@ export class TenantController {
   @Get('business')
   async getBusiness(@Req() req: any) {
     const rows = await this.dataSource.query(
-      `SELECT id, name, slug, custom_domain, business_name, abn,
+      `SELECT id, name, slug, custom_domain, booking_ref_prefix, business_name, abn,
               address_line1, address_line2, city, state, postcode, country,
               phone, email, website, logo_url,
               invoice_notes, invoice_footer,
@@ -77,8 +77,9 @@ export class TenantController {
               bank_bsb             = COALESCE($17, bank_bsb),
               bank_account_number  = COALESCE($18, bank_account_number),
               custom_domain        = COALESCE($19, custom_domain),
+              booking_ref_prefix   = COALESCE($20, booking_ref_prefix),
               updated_at           = now()
-        WHERE id = $20`,
+        WHERE id = $21`,
       [
         body.business_name ?? null, body.abn ?? null,
         body.address_line1 ?? null, body.address_line2 ?? null,
@@ -88,6 +89,7 @@ export class TenantController {
         body.bank_name ?? null, body.bank_account_name ?? null,
         body.bank_bsb ?? null, body.bank_account_number ?? null,
         body.custom_domain ?? null,
+        body.booking_ref_prefix ? body.booking_ref_prefix.trim().toUpperCase() : null,
         req.user.tenant_id,
       ],
     );

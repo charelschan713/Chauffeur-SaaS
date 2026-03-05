@@ -44,7 +44,7 @@ export default function AdminTenantsPage() {
   const tenants = (Array.isArray(data) ? data : []) as Tenant[];
 
   // Create form
-  const [form, setForm] = useState({ name: '', slug: '', timezone: 'Australia/Sydney' });
+  const [form, setForm] = useState({ name: '', slug: '', timezone: 'Australia/Sydney', booking_ref_prefix: '' });
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
 
@@ -60,7 +60,7 @@ export default function AdminTenantsPage() {
     setCreateError(null);
     try {
       await api.post('/platform/tenants', form);
-      setForm({ name: '', slug: '', timezone: 'Australia/Sydney' });
+      setForm({ name: '', slug: '', timezone: 'Australia/Sydney', booking_ref_prefix: '' });
       await refetch();
       setToast({ message: `Tenant "${form.name}" created`, tone: 'success' });
     } catch {
@@ -112,7 +112,7 @@ export default function AdminTenantsPage() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-neutral-200 text-left text-xs text-neutral-500">
-                      {['Name', 'Slug', 'Status', 'Timezone', 'Currency', 'Created', ''].map((h) => (
+                      {['Name', 'Slug', 'Prefix', 'Status', 'Timezone', 'Currency', 'Created', ''].map((h) => (
                         <th key={h} className="pb-2 pr-4 font-medium">{h}</th>
                       ))}
                     </tr>
@@ -122,6 +122,11 @@ export default function AdminTenantsPage() {
                       <tr key={t.id} className="hover:bg-neutral-50">
                         <td className="py-3 pr-4 font-medium text-gray-900">{t.name}</td>
                         <td className="py-3 pr-4 text-gray-500 font-mono text-xs">{t.slug}</td>
+                        <td className="py-3 pr-4">
+                          <span className="font-mono text-xs bg-gray-100 text-gray-700 px-2 py-0.5 rounded font-semibold">
+                            {(t as any).booking_ref_prefix ?? 'BK'}
+                          </span>
+                        </td>
                         <td className="py-3 pr-4">
                           <Badge variant={statusVariant(t.status)}>{t.status}</Badge>
                         </td>
@@ -176,6 +181,21 @@ export default function AdminTenantsPage() {
                 onChange={(e) => setForm((p) => ({ ...p, timezone: e.target.value }))}
                 placeholder="Australia/Sydney"
               />
+            </div>
+            <div>
+              <label className="text-xs text-gray-500 mb-1 block">
+                Booking Ref Prefix <span className="text-gray-400">(2–5 letters, e.g. ASC, TXI, LUX)</span>
+              </label>
+              <Input
+                value={form.booking_ref_prefix}
+                onChange={(e) => setForm((p) => ({ ...p, booking_ref_prefix: e.target.value.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 5) }))}
+                placeholder="BK"
+              />
+              {form.booking_ref_prefix && (
+                <p className="text-xs text-gray-400 mt-1">
+                  Preview: <span className="font-mono font-semibold text-gray-700">{form.booking_ref_prefix}-A1B2C3D4</span>
+                </p>
+              )}
             </div>
             <p className="text-xs text-gray-400">
               Currency is synced automatically from the tenant's Stripe account after setup.

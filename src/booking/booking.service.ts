@@ -167,6 +167,13 @@ export class BookingService {
     const pickupAtUtc = dto.pickup_at_utc;
     const pickupTimezone = dto.timezone || 'Australia/Sydney';
 
+    // Fetch tenant booking_ref_prefix
+    const tenantRows = await this.dataSource.query(
+      `SELECT booking_ref_prefix FROM public.tenants WHERE id = $1`,
+      [tenantId],
+    );
+    const refPrefix = tenantRows[0]?.booking_ref_prefix?.trim().toUpperCase() || 'BK';
+
     // Fetch toll_enabled flag from service TYPE (not car type)
     let tollEnabled = false;
     if (dto.service_type_id) {
@@ -240,7 +247,7 @@ export class BookingService {
       [
         id,
         tenantId,
-        dto.booking_reference ?? `BK-${Math.random().toString(36).slice(2, 10).toUpperCase()}`,
+        dto.booking_reference ?? `${refPrefix}-${Math.random().toString(36).slice(2, 10).toUpperCase()}`,
         dto.booking_source ?? 'ADMIN',
         dto.customer_first_name,
         dto.customer_last_name,
