@@ -97,4 +97,41 @@ export class BookingController {
   ) {
     return this.service.chargeNow(tenantId, bookingId);
   }
+
+  @Post(':id/confirm-and-charge')
+  confirmAndCharge(
+    @Param('id') bookingId: string,
+    @CurrentUser('tenant_id') tenantId: string,
+  ) {
+    return this.service.confirmAndCharge(tenantId, bookingId);
+  }
+
+  @Post(':id/reject')
+  rejectBooking(
+    @Param('id') bookingId: string,
+    @CurrentUser('tenant_id') tenantId: string,
+    @Body() body: { reason?: string },
+  ) {
+    return this.service.rejectBooking(tenantId, bookingId, body.reason);
+  }
+
+  @Post(':id/finalize')
+  finalizeBooking(
+    @Param('id') bookingId: string,
+    @CurrentUser('tenant_id') tenantId: string,
+    @CurrentUser('sub') adminId: string,
+    @Body() body: any,
+  ) {
+    return this.service.finalizeBooking(tenantId, bookingId, adminId, body);
+  }
+
+  @Post(':id/settle')
+  settleBooking(
+    @Param('id') bookingId: string,
+    @CurrentUser('tenant_id') tenantId: string,
+    @CurrentUser('sub') adminId: string,
+    @Body() body: any,
+  ) {
+    return this.service.settleBooking(tenantId, bookingId, adminId, body);
+  }
 }

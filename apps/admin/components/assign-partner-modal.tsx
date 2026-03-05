@@ -54,8 +54,8 @@ export function AssignPartnerModal({
     return Math.round(payValue * 100);
   }, [payType, payValue, fareMinor]);
 
-  const tollMinor = Math.round(tollEditable * 100);
-  const partnerGetsMinor = partnerPayMinor + tollMinor;
+  const tollMinorCalc = Math.round(tollEditable * 100);
+  const partnerGetsMinor = partnerPayMinor + tollMinorCalc;
   const platformFeeMinor = totalPriceMinor - partnerGetsMinor;
 
   useEffect(() => {

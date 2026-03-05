@@ -644,7 +644,7 @@ export class NotificationService {
     tenantId: string,
     eventType: string,
     integration: any,
-    opts: { to: string; subject: string; html: string; fromAddress?: string; fromName?: string },
+    opts: { to: string; subject: string; html: string; fromAddress?: string | null; fromName?: string | null },
     bookingId?: string,
     templateVars?: Record<string, string>,
   ): Promise<void> {

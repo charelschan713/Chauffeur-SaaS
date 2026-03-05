@@ -1,260 +1,224 @@
 'use client';
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { loadStripe } from '@stripe/stripe-js';
+import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
+import api from '@/lib/api';
 
-import { useEffect, useState } from 'react';
-import { useSearchParams } from 'next/navigation';
-import {
-  parseQuoteFromParams,
-  parseQuoteFromStorage,
-  isQuoteValid,
-  getMinutesRemaining,
-  type QuotePayload,
-} from '@/lib/quote';
+const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? '');
 
-type Step = 'trip' | 'passenger' | 'payment' | 'confirm';
+type Step = 'details' | 'card' | 'done';
 
-function fmt(minor: number, currency: string) {
-  return `${currency} ${(minor / 100).toFixed(2)}`;
+interface BookingForm {
+  pickupAddress: string;
+  dropoffAddress: string;
+  pickupAtUtc: string;
+  passengerCount: number;
+  flightNumber: string;
+  notes: string;
+  serviceTypeId: string;
+  totalPriceMinor: number;
+  currency: string;
+}
+
+function CardStep({
+  onConfirm,
+  loading,
+  error,
+}: {
+  onConfirm: (setupIntentId: string) => void;
+  loading: boolean;
+  error: string;
+}) {
+  const stripe = useStripe();
+  const elements = useElements();
+  const [localLoading, setLocalLoading] = useState(false);
+  const [localError, setLocalError] = useState('');
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!stripe || !elements) return;
+    setLocalLoading(true);
+    setLocalError('');
+
+    try {
+      // Get SetupIntent client_secret from backend
+      const { data: si } = await api.post('/customer-portal/payments/setup-intent');
+
+      const { setupIntent, error: stripeErr } = await stripe.confirmCardSetup(si.clientSecret, {
+        payment_method: { card: elements.getElement(CardElement)! },
+      });
+
+      if (stripeErr) throw stripeErr;
+      if (!setupIntent || setupIntent.status !== 'succeeded') {
+        throw new Error('Card setup did not succeed');
+      }
+
+      onConfirm(setupIntent.id);
+    } catch (err: any) {
+      setLocalError(err.message ?? 'Card setup failed');
+    } finally {
+      setLocalLoading(false);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      {(localError || error) && (
+        <p className="text-sm text-red-600 bg-red-50 rounded p-3">{localError || error}</p>
+      )}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Card details</label>
+        <div className="border border-gray-300 rounded-lg p-3 bg-white">
+          <CardElement options={{ style: { base: { fontSize: '16px' } } }} />
+        </div>
+      </div>
+      <p className="text-xs text-gray-500 bg-amber-50 border border-amber-200 rounded-lg p-3">
+        🔒 Your card will be <strong>saved</strong> but <strong>not charged</strong> now. An admin will review your booking and charge your card when confirmed.
+      </p>
+      <button
+        type="submit"
+        disabled={localLoading || loading || !stripe}
+        className="w-full py-3 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 disabled:opacity-50"
+      >
+        {localLoading || loading ? 'Saving card...' : 'Save card & submit booking'}
+      </button>
+    </form>
+  );
+}
+
+function BookingForm({ onSubmit }: { onSubmit: (booking: any, setupIntentId: string) => void }) {
+  const [step, setStep] = useState<Step>('details');
+  const [booking, setBooking] = useState<BookingForm>({
+    pickupAddress: '',
+    dropoffAddress: '',
+    pickupAtUtc: '',
+    passengerCount: 1,
+    flightNumber: '',
+    notes: '',
+    serviceTypeId: '',
+    totalPriceMinor: 0,
+    currency: 'AUD',
+  });
+  const [createdBooking, setCreatedBooking] = useState<any>(null);
+  const [cardLoading, setCardLoading] = useState(false);
+  const [cardError, setCardError] = useState('');
+
+  const f = (k: keyof BookingForm) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
+    setBooking({ ...booking, [k]: e.target.type === 'number' ? Number(e.target.value) : e.target.value });
+
+  const nextStep = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      // Create booking in AWAITING_CONFIRMATION state
+      const { data } = await api.post('/customer-portal/bookings', booking);
+      setCreatedBooking(data);
+      setStep('card');
+    } catch (err: any) {
+      alert(err.response?.data?.message ?? 'Failed to create booking');
+    }
+  };
+
+  const handleCardConfirm = async (setupIntentId: string) => {
+    setCardLoading(true);
+    setCardError('');
+    try {
+      await api.post('/customer-portal/payments/setup-confirm', {
+        setupIntentId,
+        bookingId: createdBooking?.id,
+      });
+      setStep('done');
+    } catch (err: any) {
+      setCardError(err.response?.data?.message ?? 'Failed to confirm setup');
+    } finally {
+      setCardLoading(false);
+    }
+  };
+
+  if (step === 'done') {
+    return (
+      <div className="text-center py-8">
+        <p className="text-5xl mb-4">🎉</p>
+        <h2 className="text-xl font-bold text-gray-900">Booking submitted!</h2>
+        <p className="text-gray-500 mt-2 text-sm">
+          Your card has been saved. We&apos;ll confirm your booking and charge your card shortly.
+        </p>
+        <p className="mt-3 font-mono text-sm bg-gray-100 rounded px-3 py-2 inline-block">
+          {createdBooking?.booking_reference}
+        </p>
+      </div>
+    );
+  }
+
+  if (step === 'card') {
+    return (
+      <div className="space-y-4">
+        <div className="bg-gray-50 rounded-xl p-4 text-sm space-y-1">
+          <p className="font-medium text-gray-900">{booking.pickupAddress}</p>
+          <p className="text-gray-500">→ {booking.dropoffAddress}</p>
+          <p className="text-gray-400">{new Date(booking.pickupAtUtc).toLocaleString()}</p>
+        </div>
+        <Elements stripe={stripePromise}>
+          <CardStep onConfirm={handleCardConfirm} loading={cardLoading} error={cardError} />
+        </Elements>
+        <button onClick={() => setStep('details')} className="w-full text-sm text-gray-500 hover:text-gray-700">
+          ← Back to details
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <form onSubmit={nextStep} className="space-y-4">
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Pickup address *</label>
+        <input className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" value={booking.pickupAddress} onChange={f('pickupAddress')} required />
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Drop-off address *</label>
+        <input className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" value={booking.dropoffAddress} onChange={f('dropoffAddress')} required />
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Pickup date & time *</label>
+        <input type="datetime-local" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" value={booking.pickupAtUtc} onChange={f('pickupAtUtc')} required />
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Passengers</label>
+          <input type="number" min="1" max="20" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" value={booking.passengerCount} onChange={f('passengerCount')} />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Flight number</label>
+          <input className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" value={booking.flightNumber} onChange={f('flightNumber')} placeholder="Optional" />
+        </div>
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+        <textarea className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" rows={2} value={booking.notes} onChange={f('notes')} placeholder="Any special requests?" />
+      </div>
+      <button type="submit" className="w-full py-3 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700">
+        Continue to payment →
+      </button>
+    </form>
+  );
 }
 
 export function BookPageClient() {
-  const searchParams = useSearchParams();
-  const [quote, setQuote] = useState<QuotePayload | null>(null);
-  const [quoteExpired, setQuoteExpired] = useState(false);
-  const [step, setStep] = useState<Step>('trip');
-  const [minutesLeft, setMinutesLeft] = useState(0);
-
-  // Passenger fields
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
-  const [email, setEmail] = useState('');
-  const [phone, setPhone] = useState('');
-  const [notes, setNotes] = useState('');
-
-  useEffect(() => {
-    // 1. Try URL params first
-    let payload = parseQuoteFromParams(searchParams);
-    // 2. Fallback to sessionStorage
-    if (!payload) payload = parseQuoteFromStorage();
-
-    if (!payload) return;
-
-    if (!isQuoteValid(payload)) {
-      setQuoteExpired(true);
-      setQuote(payload);
-      return;
-    }
-
-    setQuote(payload);
-    setMinutesLeft(getMinutesRemaining(payload));
-    // Skip to passenger step since trip is prefilled
-    setStep('passenger');
-  }, [searchParams]);
-
-  // Countdown ticker
-  useEffect(() => {
-    if (!quote || quoteExpired) return;
-    const t = setInterval(() => {
-      const left = getMinutesRemaining(quote);
-      setMinutesLeft(left);
-      if (left <= 0) {
-        setQuoteExpired(true);
-        clearInterval(t);
-      }
-    }, 30000);
-    return () => clearInterval(t);
-  }, [quote, quoteExpired]);
-
-  const inputCls = 'w-full border border-gray-200 rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500';
-  const labelCls = 'text-sm font-medium text-gray-700 block mb-1';
+  const router = useRouter();
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-lg mx-auto px-4 py-8">
-
-        {/* Header */}
-        <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold text-gray-900">Complete Your Booking</h1>
+      <header className="bg-white border-b border-gray-200 px-4 py-4">
+        <div className="max-w-lg mx-auto flex items-center gap-3">
+          <button onClick={() => router.back()} className="text-gray-400 hover:text-gray-600 text-xl">←</button>
+          <h1 className="text-lg font-semibold text-gray-900">Book a ride</h1>
         </div>
-
-        {/* Quote expired banner */}
-        {quoteExpired && (
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6 flex items-start gap-3">
-            <span className="text-yellow-500 text-lg">⚠️</span>
-            <div>
-              <div className="font-semibold text-yellow-800">Quote Expired</div>
-              <div className="text-sm text-yellow-700 mt-1">
-                Your quoted price has expired. Please{' '}
-                <button
-                  onClick={() => window.history.back()}
-                  className="underline font-medium"
-                >
-                  go back and re-quote
-                </button>{' '}
-                to get a fresh price.
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Price guarantee banner */}
-        {quote && !quoteExpired && (
-          <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="text-blue-600 text-lg">✅</span>
-                <span className="text-sm font-semibold text-blue-800">
-                  Quoted price guaranteed for {minutesLeft} more minute{minutesLeft !== 1 ? 's' : ''}
-                </span>
-              </div>
-              <div className="text-lg font-bold text-blue-700">
-                {fmt(quote.quoted_price_minor, quote.currency)}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Trip Summary (prefilled — read-only) */}
-        {quote && (
-          <div className="bg-white rounded-xl border border-gray-200 p-5 mb-6">
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="font-semibold text-gray-900">Trip Details</h2>
-              {step === 'passenger' && (
-                <button
-                  onClick={() => setStep('trip')}
-                  className="text-sm text-blue-600 hover:underline"
-                >
-                  Edit
-                </button>
-              )}
-            </div>
-            <div className="space-y-2 text-sm text-gray-600">
-              <div className="flex justify-between">
-                <span className="text-gray-500">📍 From</span>
-                <span className="font-medium text-right ml-4 max-w-xs truncate">{quote.pickup_address}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-500">🏁 To</span>
-                <span className="font-medium text-right ml-4 max-w-xs truncate">{quote.dropoff_address}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-500">📅 Date/Time</span>
-                <span className="font-medium">
-                  {new Date(quote.pickup_at_utc).toLocaleString('en-AU', {
-                    timeZone: quote.timezone,
-                    dateStyle: 'medium',
-                    timeStyle: 'short',
-                  })}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-500">👥 Passengers</span>
-                <span className="font-medium">{quote.passenger_count}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-500">🧳 Luggage</span>
-                <span className="font-medium">{quote.luggage_count}</span>
-              </div>
-              <div className="border-t pt-2 flex justify-between font-semibold text-gray-900">
-                <span>Estimated Total</span>
-                <span>{fmt(quote.quoted_price_minor, quote.currency)}</span>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* No quote — manual trip entry */}
-        {!quote && step === 'trip' && (
-          <div className="bg-white rounded-xl border border-gray-200 p-5 mb-6">
-            <h2 className="font-semibold text-gray-900 mb-4">Trip Details</h2>
-            <div className="space-y-4">
-              <div>
-                <label className={labelCls}>Pickup Address</label>
-                <input className={inputCls} placeholder="Enter pickup address" />
-              </div>
-              <div>
-                <label className={labelCls}>Drop-off Address</label>
-                <input className={inputCls} placeholder="Enter destination" />
-              </div>
-              <div>
-                <label className={labelCls}>Date & Time</label>
-                <input type="datetime-local" className={inputCls} />
-              </div>
-              <button
-                onClick={() => setStep('passenger')}
-                className="w-full bg-blue-600 text-white rounded-lg py-3 font-semibold hover:bg-blue-700 transition-colors"
-              >
-                Continue →
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Passenger Details */}
-        {step === 'passenger' && (
-          <div className="bg-white rounded-xl border border-gray-200 p-5 mb-6">
-            <h2 className="font-semibold text-gray-900 mb-4">Passenger Details</h2>
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className={labelCls}>First Name</label>
-                  <input value={firstName} onChange={(e) => setFirstName(e.target.value)} className={inputCls} placeholder="John" />
-                </div>
-                <div>
-                  <label className={labelCls}>Last Name</label>
-                  <input value={lastName} onChange={(e) => setLastName(e.target.value)} className={inputCls} placeholder="Smith" />
-                </div>
-              </div>
-              <div>
-                <label className={labelCls}>Email</label>
-                <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className={inputCls} placeholder="john@example.com" />
-              </div>
-              <div>
-                <label className={labelCls}>Phone</label>
-                <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} className={inputCls} placeholder="+61 4xx xxx xxx" />
-              </div>
-              <div>
-                <label className={labelCls}>Special Requests (optional)</label>
-                <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} className={inputCls} placeholder="Child seat, meet & greet, etc." />
-              </div>
-              <button
-                onClick={() => setStep('payment')}
-                disabled={!firstName || !email || quoteExpired}
-                className="w-full bg-blue-600 text-white rounded-lg py-3 font-semibold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                Continue to Payment →
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Payment step */}
-        {step === 'payment' && (
-          <div className="bg-white rounded-xl border border-gray-200 p-5 mb-6">
-            <h2 className="font-semibold text-gray-900 mb-4">Payment</h2>
-            <div className="bg-gray-50 rounded-lg p-4 text-sm text-gray-500 text-center">
-              Payment integration (Stripe) — coming soon.
-              <br />
-              <button
-                onClick={() => setStep('confirm')}
-                className="mt-3 w-full bg-green-600 text-white rounded-lg py-3 font-semibold hover:bg-green-700 transition-colors"
-              >
-                Confirm Booking →
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Confirmation */}
-        {step === 'confirm' && (
-          <div className="bg-white rounded-xl border border-gray-200 p-8 text-center">
-            <div className="text-5xl mb-4">🎉</div>
-            <h2 className="text-xl font-bold text-gray-900 mb-2">Booking Confirmed!</h2>
-            <p className="text-gray-500 text-sm">
-              A confirmation has been sent to <strong>{email}</strong>.
-            </p>
-          </div>
-        )}
-      </div>
+      </header>
+      <main className="max-w-lg mx-auto px-4 py-6">
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+          <BookingForm onSubmit={() => {}} />
+        </div>
+      </main>
     </div>
   );
 }

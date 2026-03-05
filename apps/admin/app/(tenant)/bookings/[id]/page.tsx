@@ -25,7 +25,7 @@ import { getVerificationBadge, getTransferBadge } from '@/lib/badges/getVerifica
 import { formatStatus } from '@/lib/ui/formatStatus';
 
 // Statuses that allow cancellation
-const CANCELABLE_STATUSES = new Set(['DRAFT', 'PENDING', 'CONFIRMED', 'ASSIGNED']);
+const CANCELABLE_STATUSES = new Set(['DRAFT', 'PENDING', 'CONFIRMED', 'ASSIGNED', 'AWAITING_CONFIRMATION']);
 
 // Statuses where assignment actions make no sense
 const NO_ASSIGN_STATUSES = new Set(['CANCELLED', 'COMPLETED', 'JOB_COMPLETED', 'NO_SHOW']);
@@ -156,11 +156,11 @@ function BookingDetailInner() {
             <Badge variant={PAY_BADGE[booking.payment_status] ?? 'neutral'}>
               {booking.payment_status ?? '—'}
             </Badge>
-            <Button size="sm" variant="outline" onClick={() => setPaymentOpen(true)}>
+            <Button variant="secondary" onClick={() => setPaymentOpen(true)}>
               💳 Payment
             </Button>
             {booking.operational_status === 'COMPLETED' && (
-              <Button size="sm" variant="primary" onClick={async () => {
+              <Button variant="primary" onClick={async () => {
                 try {
                   const assignment = booking.assignments?.[0];
                   if (assignment?.id) {
@@ -178,6 +178,85 @@ function BookingDetailInner() {
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+        {/* ── AWAITING_CONFIRMATION banner ── */}
+        {booking.operational_status === 'AWAITING_CONFIRMATION' && (
+          <div className="lg:col-span-3 bg-amber-50 border border-amber-300 rounded-xl p-4 flex items-start justify-between gap-4">
+            <div>
+              <p className="font-semibold text-amber-900">⏳ Awaiting Confirmation</p>
+              <p className="text-sm text-amber-700 mt-1">
+                Customer submitted this booking and saved their card. Review and confirm to charge their card off-session.
+              </p>
+            </div>
+            <div className="flex gap-2 shrink-0">
+              <button
+                onClick={async () => {
+                  if (!confirm('Confirm and charge the customer\'s saved card?')) return;
+                  try {
+                    const res = await api.post(`/bookings/${booking.id}/confirm-and-charge`);
+                    if (res.data.success) {
+                      setToast({ message: 'Booking confirmed and payment captured!', tone: 'success' });
+                    } else {
+                      setToast({ message: `Charge failed: ${res.data.error}`, tone: 'error' });
+                    }
+                    refetch();
+                  } catch (e: any) {
+                    setToast({ message: e.response?.data?.message ?? 'Failed', tone: 'error' });
+                  }
+                }}
+                className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700"
+              >
+                ✅ Confirm &amp; Charge
+              </button>
+              <button
+                onClick={async () => {
+                  const reason = prompt('Reason for rejection (optional):');
+                  try {
+                    await api.post(`/bookings/${booking.id}/reject`, { reason });
+                    setToast({ message: 'Booking rejected', tone: 'success' });
+                    refetch();
+                  } catch (e: any) {
+                    setToast({ message: e.response?.data?.message ?? 'Failed', tone: 'error' });
+                  }
+                }}
+                className="px-4 py-2 border border-red-300 text-red-600 rounded-lg text-sm font-medium hover:bg-red-50"
+              >
+                ✗ Reject
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ── PAYMENT_FAILED banner ── */}
+        {booking.operational_status === 'PAYMENT_FAILED' && (
+          <div className="lg:col-span-3 bg-red-50 border border-red-300 rounded-xl p-4 flex items-start justify-between gap-4">
+            <div>
+              <p className="font-semibold text-red-900">❌ Payment Failed</p>
+              <p className="text-sm text-red-700 mt-1">
+                The off-session charge failed. You can retry or contact the customer to update their payment method.
+              </p>
+            </div>
+            <button
+              onClick={async () => {
+                if (!confirm('Retry charging the customer\'s saved card?')) return;
+                try {
+                  const res = await api.post(`/bookings/${booking.id}/confirm-and-charge`);
+                  if (res.data.success) {
+                    setToast({ message: 'Payment successful!', tone: 'success' });
+                  } else {
+                    setToast({ message: `Charge failed again: ${res.data.error}`, tone: 'error' });
+                  }
+                  refetch();
+                } catch (e: any) {
+                  setToast({ message: e.response?.data?.message ?? 'Failed', tone: 'error' });
+                }
+              }}
+              className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 shrink-0"
+            >
+              🔄 Retry Charge
+            </button>
+          </div>
+        )}
 
         {/* ── Left column ── */}
         <div className="lg:col-span-2 space-y-6">

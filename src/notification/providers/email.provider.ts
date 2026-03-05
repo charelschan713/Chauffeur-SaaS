@@ -6,8 +6,8 @@ export interface SendEmailParams {
   to: string;
   subject: string;
   html: string;
-  fromAddress: string;
-  fromName: string;
+  fromAddress?: string | null;
+  fromName?: string | null;
 }
 
 @Injectable()

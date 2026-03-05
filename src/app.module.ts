@@ -22,6 +22,9 @@ import { VehicleModule } from './vehicle/vehicle.module';
 import { CityModule } from './city/city.module';
 import { MapsModule } from './maps/maps.module';
 import { CustomerModule } from './customer/customer.module';
+import { CustomerAuthModule } from './customer-auth/customer-auth.module';
+import { CustomerPortalModule } from './customer-portal/customer-portal.module';
+import { TenantBrandingModule } from './tenant-branding/tenant-branding.module';
 import { AssignmentModule } from './assignment/assignment.module';
 import { TenantModule } from './tenant/tenant.module';
 import { TenantContextMiddleware } from './common/middleware/tenant-context.middleware';
@@ -61,6 +64,9 @@ import { TenantContextMiddleware } from './common/middleware/tenant-context.midd
     CityModule,
     MapsModule,
     CustomerModule,
+    CustomerAuthModule,
+    CustomerPortalModule,
+    TenantBrandingModule,
     AssignmentModule,
     TenantModule,
   ],

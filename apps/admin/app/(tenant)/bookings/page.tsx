@@ -31,6 +31,7 @@ interface Booking {
   timezone?: string | null;
   city_name?: string | null;
   operational_status: string;
+  driver_execution_status?: string | null;
   payment_status?: string | null;
   total_price_minor: number;
   currency: string;

@@ -467,8 +467,157 @@ export class BookingService {
   }
 
   async chargeNow(tenantId: string, bookingId: string) {
-    // Stripe charge via saved payment method — Phase 2 (Stripe not yet wired)
-    // For now return actionable message
     throw new BadRequestException('Stripe charge not yet configured. Use "Send Payment Link" or "Mark as Paid".');
+  }
+
+  // ── Confirm and charge off-session (AWAITING_CONFIRMATION → CONFIRMED/PAYMENT_FAILED) ──
+  async confirmAndCharge(tenantId: string, bookingId: string) {
+    const rows = await this.dataSource.query(
+      `SELECT b.*, c.stripe_customer_id
+       FROM public.bookings b
+       JOIN public.customers c ON c.id = b.customer_id
+       WHERE b.id=$1 AND b.tenant_id=$2`,
+      [bookingId, tenantId],
+    );
+    if (!rows.length) throw new NotFoundException('Booking not found');
+    const b = rows[0];
+    if (b.status !== 'AWAITING_CONFIRMATION') {
+      throw new BadRequestException('Booking is not in AWAITING_CONFIRMATION state');
+    }
+    if (!b.stripe_customer_id) {
+      throw new BadRequestException('No Stripe customer on file');
+    }
+
+    const pmRows = await this.dataSource.query(
+      `SELECT stripe_payment_method_id FROM public.saved_payment_methods
+       WHERE customer_id=$1 AND tenant_id=$2 AND is_default=true LIMIT 1`,
+      [b.customer_id, tenantId],
+    );
+    if (!pmRows.length) throw new BadRequestException('No default payment method saved');
+
+    // Get tenant Stripe key
+    const intRows = await this.dataSource.query(
+      `SELECT config FROM public.tenant_integrations WHERE tenant_id=$1 AND type='stripe' LIMIT 1`,
+      [tenantId],
+    );
+    const secretKey = intRows[0]?.config?.secret_key ?? process.env.STRIPE_SECRET_KEY;
+    if (!secretKey) throw new BadRequestException('Stripe not configured');
+
+    const Stripe = (await import('stripe')).default;
+    const stripe = new Stripe(secretKey);
+
+    try {
+      const pi = await stripe.paymentIntents.create({
+        amount: b.total_price_minor,
+        currency: (b.currency ?? 'AUD').toLowerCase(),
+        customer: b.stripe_customer_id,
+        payment_method: pmRows[0].stripe_payment_method_id,
+        confirm: true,
+        off_session: true,
+      });
+
+      await this.dataSource.query(
+        `UPDATE public.bookings
+         SET status='CONFIRMED', payment_status='PAID',
+             stripe_payment_intent_id=$1, payment_captured_at=now(), updated_at=now()
+         WHERE id=$2`,
+        [pi.id, bookingId],
+      );
+      return { success: true, paymentIntentId: pi.id };
+    } catch (err: any) {
+      await this.dataSource.query(
+        `UPDATE public.bookings SET status='PAYMENT_FAILED', updated_at=now() WHERE id=$1`,
+        [bookingId],
+      );
+      return { success: false, error: err.message };
+    }
+  }
+
+  // ── Reject booking (AWAITING_CONFIRMATION → CANCELLED) ────────────────────
+  async rejectBooking(tenantId: string, bookingId: string, reason?: string) {
+    const rows = await this.dataSource.query(
+      `SELECT status FROM public.bookings WHERE id=$1 AND tenant_id=$2`,
+      [bookingId, tenantId],
+    );
+    if (!rows.length) throw new NotFoundException('Booking not found');
+    if (rows[0].status !== 'AWAITING_CONFIRMATION') {
+      throw new BadRequestException('Booking is not in AWAITING_CONFIRMATION state');
+    }
+    await this.dataSource.query(
+      `UPDATE public.bookings
+       SET status='CANCELLED', notes=COALESCE($1, notes), updated_at=now()
+       WHERE id=$2`,
+      [reason ? `Rejected: ${reason}` : null, bookingId],
+    );
+    return { success: true };
+  }
+
+  // ── Finalize (enter actual amounts from driver report) ────────────────────
+  async finalizeBooking(tenantId: string, bookingId: string, adminId: string, body: any) {
+    const rows = await this.dataSource.query(
+      `SELECT * FROM public.bookings WHERE id=$1 AND tenant_id=$2`,
+      [bookingId, tenantId],
+    );
+    if (!rows.length) throw new NotFoundException('Booking not found');
+
+    // Save driver report if provided
+    if (body.driverReport) {
+      const dr = body.driverReport;
+      await this.dataSource.query(
+        `INSERT INTO public.driver_reports
+           (booking_id, driver_id, tenant_id, actual_distance_km, actual_duration_minutes,
+            actual_toll_minor, actual_parking_minor, waiting_time_minutes, notes, reviewed_by, reviewed_at)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,now())
+         ON CONFLICT DO NOTHING`,
+        [
+          bookingId, dr.driverId ?? adminId, tenantId,
+          dr.distanceKm ?? null, dr.durationMinutes ?? null,
+          dr.tollMinor ?? 0, dr.parkingMinor ?? 0,
+          dr.waitingMinutes ?? 0, dr.notes ?? null, adminId,
+        ],
+      );
+    }
+
+    await this.dataSource.query(
+      `UPDATE public.bookings
+       SET actual_base_fare_minor=COALESCE($1, prepay_base_fare_minor),
+           actual_extras_minor=COALESCE($2, prepay_extras_minor),
+           actual_total_minor=COALESCE($3, total_price_minor),
+           updated_at=now()
+       WHERE id=$4`,
+      [
+        body.actualBaseFareMinor ?? null,
+        body.actualExtrasMinor ?? null,
+        body.actualTotalMinor ?? null,
+        bookingId,
+      ],
+    );
+
+    return { success: true };
+  }
+
+  // ── Settle (charge/refund difference after finalize) ──────────────────────
+  async settleBooking(tenantId: string, bookingId: string, adminId: string, body: any) {
+    const rows = await this.dataSource.query(
+      `SELECT b.*, c.stripe_customer_id
+       FROM public.bookings b
+       JOIN public.customers c ON c.id = b.customer_id
+       WHERE b.id=$1 AND b.tenant_id=$2`,
+      [bookingId, tenantId],
+    );
+    if (!rows.length) throw new NotFoundException('Booking not found');
+    const b = rows[0];
+
+    const adjustmentMinor = (b.actual_total_minor ?? 0) - (b.prepay_total_minor ?? 0);
+
+    await this.dataSource.query(
+      `UPDATE public.bookings
+       SET adjustment_amount_minor=$1, adjustment_status='SETTLED',
+           settled_at=now(), updated_at=now()
+       WHERE id=$2`,
+      [adjustmentMinor, bookingId],
+    );
+
+    return { success: true, adjustmentMinor };
   }
 }

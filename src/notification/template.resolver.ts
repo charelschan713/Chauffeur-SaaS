@@ -26,7 +26,7 @@ export class TemplateResolver {
 
     if (rows.length && rows[0].body) {
       return {
-        subject: rows[0].subject ?? PLATFORM_DEFAULT_TEMPLATES[eventType]?.[channel]?.subject ?? '',
+        subject: rows[0].subject ?? (PLATFORM_DEFAULT_TEMPLATES[eventType]?.[channel] as any)?.subject ?? '',
         body: rows[0].body,
         source: 'TENANT',
       };
@@ -35,7 +35,7 @@ export class TemplateResolver {
     const platformTemplate = PLATFORM_DEFAULT_TEMPLATES[eventType]?.[channel];
     if (platformTemplate) {
       return {
-        subject: platformTemplate.subject ?? '',
+        subject: (platformTemplate as any).subject ?? '',
         body: platformTemplate.body,
         source: 'PLATFORM',
       };
