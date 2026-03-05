@@ -24,7 +24,7 @@ const STATUS_LABELS: Record<string, string> = {
   accepted: 'Driver Accepted',
   on_the_way: 'In Progress',
   arrived: 'In Progress',
-  passenger_on_board: 'Passenger On Board',
+  passenger_on_board: 'In Progress',
   job_done: 'Job Done',
   fulfilled: 'Fulfilled',
   // Payment
