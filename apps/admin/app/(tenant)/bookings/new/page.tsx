@@ -822,9 +822,12 @@ export default function CreateBookingPage() {
           <div className="bg-white border border-gray-200 rounded-xl p-5">
             <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">Requirements</h2>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-              <Field label="Passengers" error={errors.passenger_count?.message}>
-                <Input type="number" min={1} max={14} {...register('passenger_count', { valueAsNumber: true })} />
-              </Field>
+              <div>
+                <Field label="Passengers" error={errors.passenger_count?.message}>
+                  <Input type="number" min={1} max={14} {...register('passenger_count', { valueAsNumber: true })} />
+                </Field>
+                <p className="text-xs text-gray-400 mt-1">Include infants & children in total count</p>
+              </div>
               <Field label="Luggage" error={errors.luggage_count?.message}>
                 <Input type="number" min={0} max={20} {...register('luggage_count', { valueAsNumber: true })} />
               </Field>
@@ -858,11 +861,11 @@ export default function CreateBookingPage() {
                   </div>
                   {seatError ? (
                     <p className="text-xs text-red-600 mt-2 font-medium">
-                      ⚠️ Total baby seats ({totalBabySeats}) cannot exceed passenger count - 1 (max {maxBabySeats}). At least 1 adult seat required.
+                      ⚠️ Baby seats ({totalBabySeats}) must be less than total passengers ({values.passenger_count ?? 1}) — at least 1 adult required. Babies are included in the passenger count.
                     </p>
                   ) : totalBabySeats > 0 ? (
                     <p className="text-xs text-green-600 mt-2">
-                      ✓ {totalBabySeats} baby seat{totalBabySeats > 1 ? 's' : ''} · {(values.passenger_count ?? 1) - totalBabySeats} adult seat{(values.passenger_count ?? 1) - totalBabySeats !== 1 ? 's' : ''}
+                      ✓ {totalBabySeats} baby seat{totalBabySeats > 1 ? 's' : ''} + {(values.passenger_count ?? 1) - totalBabySeats} adult{(values.passenger_count ?? 1) - totalBabySeats !== 1 ? 's' : ''} = {values.passenger_count ?? 1} total passengers
                     </p>
                   ) : (
                     <p className="text-xs text-gray-400 mt-2">Seat surcharge prices are set per car type and will be included in the quote.</p>
