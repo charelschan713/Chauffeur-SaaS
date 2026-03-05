@@ -97,8 +97,8 @@ export function PlacesAutocomplete({
   const containerRef = useRef<HTMLDivElement>(null);
   // Session token — reset after each selection (Google billing best practice)
   const sessionTokenRef = useRef<string>(generateToken());
-  // Track last selected description — suppress fetch when query matches a just-selected value
-  const lastSelectedRef = useRef<string>('');
+  // Only fetch when user MANUALLY types — not when query is set programmatically
+  const manualInputRef = useRef(false);
 
   useEffect(() => { setMounted(true); setRecentPicks(getRecent()); }, []);
 
@@ -125,10 +125,12 @@ export function PlacesAutocomplete({
       setPredictions([]);
       setOpen(false);
       setHasQueried(false);
+      manualInputRef.current = false;
       return;
     }
-    // Skip fetch if query exactly matches the last selected prediction (prevents re-opening after selection)
-    if (query === lastSelectedRef.current) return;
+    // Only fetch when triggered by manual keyboard input
+    if (!manualInputRef.current) return;
+    manualInputRef.current = false;
     setLoading(true);
     timerRef.current = setTimeout(async () => {
       try {
@@ -187,7 +189,6 @@ export function PlacesAutocomplete({
   }, [open, showRecent]);
 
   const selectPrediction = useCallback((p: Prediction) => {
-    lastSelectedRef.current = p.description;
     setQuery(p.description);
     setPredictions([]);
     setOpen(false);
@@ -202,7 +203,6 @@ export function PlacesAutocomplete({
   }, [onChange]);
 
   function selectRecent(r: RecentPick) {
-    lastSelectedRef.current = r.description;
     setQuery(r.description);
     setShowRecent(false);
     setOpen(false);
@@ -212,7 +212,6 @@ export function PlacesAutocomplete({
   }
 
   function clearInput() {
-    lastSelectedRef.current = '';
     setQuery('');
     setPredictions([]);
     setOpen(false);
@@ -347,6 +346,7 @@ export function PlacesAutocomplete({
           disabled={disabled}
           placeholder={placeholder}
           onChange={(e) => {
+            manualInputRef.current = true;
             setQuery(e.target.value);
             onChange(e.target.value);
           }}
