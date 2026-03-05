@@ -481,18 +481,13 @@ export default function CreateBookingPage() {
     return true;
   }
 
-  // Step definitions for the progress bar
-  const STEP_LABELS = ['Service', 'Date & Time', 'Route', 'Requirements', 'Car Type', 'Extras'];
-  const STEP_KEYS: typeof SECTIONS[number][] = ['service', 'datetime', 'route', 'requirements', 'car', 'extras'];
-  const currentStepIdx = STEP_KEYS.indexOf(activeSection);
-
   return (
     <div className="space-y-5">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold text-gray-900">New Booking</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Step {currentStepIdx + 1} of {STEP_LABELS.length} — {STEP_LABELS[currentStepIdx]}</p>
+          <p className="text-sm text-gray-500 mt-0.5">Fill in the details below to create a booking</p>
         </div>
         <button type="button" onClick={clearAll}
           className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-500 hover:text-red-600 hover:bg-red-50 border border-gray-200 hover:border-red-200 rounded-lg transition-colors">
@@ -501,35 +496,6 @@ export default function CreateBookingPage() {
           </svg>
           Clear All
         </button>
-      </div>
-
-      {/* Progress bar */}
-      <div className="flex items-center gap-0">
-        {STEP_LABELS.map((label, i) => {
-          const done = i < currentStepIdx;
-          const active = i === currentStepIdx;
-          return (
-            <div key={label} className="flex items-center flex-1 min-w-0">
-              <button
-                type="button"
-                onClick={() => done && setActiveSection(STEP_KEYS[i])}
-                className={`flex flex-col items-center gap-1 flex-1 min-w-0 ${done ? 'cursor-pointer' : 'cursor-default'}`}
-              >
-                <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-colors shrink-0 ${
-                  done ? 'bg-blue-600 text-white' : active ? 'bg-blue-600 text-white ring-4 ring-blue-100' : 'bg-gray-200 text-gray-500'
-                }`}>
-                  {done ? '✓' : i + 1}
-                </div>
-                <span className={`text-xs truncate max-w-full hidden sm:block ${active ? 'font-semibold text-blue-600' : done ? 'text-gray-500' : 'text-gray-400'}`}>
-                  {label}
-                </span>
-              </button>
-              {i < STEP_LABELS.length - 1 && (
-                <div className={`h-0.5 flex-1 mx-1 transition-colors ${i < currentStepIdx ? 'bg-blue-600' : 'bg-gray-200'}`} />
-              )}
-            </div>
-          );
-        })}
       </div>
 
       {mutation.isError && <ErrorAlert message="Failed to create booking. Please try again." />}
@@ -737,254 +703,178 @@ export default function CreateBookingPage() {
           </div>
         </div>
 
-        {/* Right Column */}
+        {/* Right Column — all sections on one page */}
         <div className="lg:col-span-2 space-y-4">
-          {activeSection === 'service' && <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
-            <h2 className="text-base font-semibold text-gray-900 mb-5">Service</h2>
+
+          {/* Service */}
+          <div className="bg-white border border-gray-200 rounded-xl p-5">
+            <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">Service</h2>
             <div className="space-y-4">
               <div>
-                <label className="text-sm font-medium text-gray-700">Service City</label>
-                <Select
-                  value={values.city_id}
-                  onChange={(e) => {
-                    setValue('city_id', e.target.value, { shouldValidate: true });
-                    // Auto-set timezone from city
-                    const city = cities.find((c: any) => c.id === e.target.value);
-                    if (city?.timezone) setValue('timezone', city.timezone);
-                  }}
-                >
+                <label className="text-sm font-medium text-gray-700 block mb-1">City</label>
+                <Select value={values.city_id} onChange={(e) => {
+                  setValue('city_id', e.target.value, { shouldValidate: true });
+                  const city = cities.find((c: any) => c.id === e.target.value);
+                  if (city?.timezone) setValue('timezone', city.timezone);
+                }}>
                   <option value="">Select a city</option>
-                  {cities.map((c: any) => (
-                    <option key={c.id} value={c.id}>{c.name}</option>
-                  ))}
+                  {cities.map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </Select>
                 {errors.city_id && <p className="text-xs text-red-600 mt-1">{errors.city_id.message}</p>}
               </div>
-
               <div>
-                <label className="text-sm font-medium text-gray-700">Service Type</label>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-2">
+                <label className="text-sm font-medium text-gray-700 block mb-2">Service Type</label>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                   {serviceTypes.map((s: any) => (
-                    <button
-                      key={s.id}
-                      type="button"
+                    <button key={s.id} type="button"
                       onClick={() => setValue('service_type_id', s.id, { shouldValidate: true })}
-                      className={`border rounded p-3 text-left ${values.service_type_id === s.id ? 'border-blue-600 bg-blue-50' : 'border-gray-200'}`}
-                    >
-                      <div className="font-medium">{s.display_name ?? s.name}</div>
-                      <div className="text-xs text-gray-500">{s.calculation_type ?? s.calc_type ?? 'PTP'}</div>
+                      className={`border rounded-lg px-3 py-2 text-left text-sm transition-colors ${values.service_type_id === s.id ? 'border-blue-600 bg-blue-50 text-blue-700 font-medium' : 'border-gray-200 hover:border-gray-300'}`}>
+                      {s.display_name ?? s.name}
                     </button>
                   ))}
                 </div>
-                {errors.service_type_id && <p className="text-xs text-red-600 mt-2">{errors.service_type_id.message}</p>}
+                {errors.service_type_id && <p className="text-xs text-red-600 mt-1">{errors.service_type_id.message}</p>}
               </div>
             </div>
-            <div className="mt-4 flex justify-end">
-              <Button onClick={() => goNext('service')}>Next</Button>
-            </div>
-          </div>}
+          </div>
 
-          {activeSection === 'datetime' && <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm"><h2 className="text-base font-semibold text-gray-900 mb-5">Date & Time</h2>
+          {/* Date & Time */}
+          <div className="bg-white border border-gray-200 rounded-xl p-5">
+            <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">Date & Time</h2>
             <div className="space-y-4">
-              <DateTimePicker
-                label="Pickup Date & Time"
-                value={values.pickup_at_utc}
-                onChange={(v) => setValue('pickup_at_utc', v, { shouldValidate: true })}
-                error={errors.pickup_at_utc?.message}
-              />
-              {/* Timezone auto-set from city — hidden from UI */}
               <input type="hidden" {...register('timezone')} />
-              <Field label="Flight Number">
-                <Input
-                  {...register('flight_number')}
-                  placeholder="e.g. QF401"
-                />
-              </Field>
-              <label className="text-sm font-medium text-gray-700 space-y-1">
-                <span>Is Return Trip?</span>
-                <input type="checkbox" {...register('is_return_trip')} className="h-4 w-4" />
-              </label>
+              <DateTimePicker label="Pickup Date & Time" value={values.pickup_at_utc}
+                onChange={(v) => setValue('pickup_at_utc', v, { shouldValidate: true })}
+                error={errors.pickup_at_utc?.message} />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Field label="Flight Number">
+                  <Input {...register('flight_number')} placeholder="e.g. QF401" />
+                </Field>
+                <div className="flex items-center gap-2 pt-5">
+                  <input type="checkbox" id="return_trip" {...register('is_return_trip')} className="h-4 w-4 rounded border-gray-300 text-blue-600" />
+                  <label htmlFor="return_trip" className="text-sm font-medium text-gray-700 cursor-pointer">Return Trip</label>
+                </div>
+              </div>
               {values.is_return_trip && (
-                <DateTimePicker
-                  label="Return Date & Time"
-                  value={values.return_pickup_at_utc ?? ''}
+                <DateTimePicker label="Return Date & Time" value={values.return_pickup_at_utc ?? ''}
                   onChange={(v) => setValue('return_pickup_at_utc', v, { shouldValidate: true })}
                   error={errors.return_pickup_at_utc?.message}
-                  minDate={values.pickup_at_utc || undefined}
-                />
+                  minDate={values.pickup_at_utc || undefined} />
               )}
             </div>
-            <div className="mt-4 flex justify-between">
-              <Button variant="secondary" onClick={() => goBack('datetime')}>Back</Button>
-              <Button onClick={() => goNext('datetime')}>Next</Button>
-            </div>
-          </div>}
+          </div>
 
-          {activeSection === 'route' && <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm"><h2 className="text-base font-semibold text-gray-900 mb-5">Route</h2>
-            <div className="space-y-4">
+          {/* Route */}
+          <div className="bg-white border border-gray-200 rounded-xl p-5">
+            <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">Route</h2>
+            <div className="space-y-3">
               <Field label="Pickup Address" error={errors.pickup_address_text?.message}>
-                <PlacesAutocomplete
-                  value={values.pickup_address_text ?? ''}
-                  onChange={(val, placeId) => {
-                    setValue('pickup_address_text', val, { shouldValidate: true });
-                    setPickupPlaceId(placeId ?? '');
-                  }}
-                  placeholder="123 George St, Sydney"
-                  error={errors.pickup_address_text?.message}
-                  cityLat={selectedCity?.lat ?? null}
-                  cityLng={selectedCity?.lng ?? null}
-                  cityName={selectedCity?.name ?? null}
-                />
+                <PlacesAutocomplete value={values.pickup_address_text ?? ''}
+                  onChange={(val, placeId) => { setValue('pickup_address_text', val, { shouldValidate: true }); setPickupPlaceId(placeId ?? ''); }}
+                  placeholder="123 George St, Sydney" error={errors.pickup_address_text?.message}
+                  cityLat={selectedCity?.lat ?? null} cityLng={selectedCity?.lng ?? null} cityName={selectedCity?.name ?? null} />
               </Field>
 
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <label className="text-sm font-medium text-gray-700">Waypoints</label>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (waypoints.length < 5) {
-                        setWaypoints((prev) => [...prev, '']);
-                      }
-                    }}
-                    className="text-sm text-blue-600"
-                  >
-                    + Add Stop
-                  </button>
-                </div>
-                {waypoints.map((wp, idx) => (
-                  <div key={idx} className="space-y-2">
-                    <div className="flex items-center gap-2">
-                      <PlacesAutocomplete
-                        value={wp}
-                        onChange={(val) => {
-                          const next = [...waypoints];
-                          next[idx] = val;
-                          setWaypoints(next);
-                        }}
-                        placeholder={`Stop ${idx + 1} address`}
-                        className="flex-1"
-                        cityLat={selectedCity?.lat ?? null}
-                        cityLng={selectedCity?.lng ?? null}
-                  cityName={selectedCity?.name ?? null}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setWaypoints((prev) => prev.filter((_, i) => i !== idx))}
-                        className="text-gray-500"
-                      >
-                        ×
-                      </button>
-                    </div>
-                    {idx < waypoints.length - 1 && <div className="text-center text-gray-400">↓</div>}
+              {waypoints.map((wp, idx) => (
+                <div key={idx} className="flex items-center gap-2">
+                  <div className="flex-1">
+                    <PlacesAutocomplete value={wp}
+                      onChange={(val) => { const next = [...waypoints]; next[idx] = val; setWaypoints(next); }}
+                      placeholder={`Stop ${idx + 1}`}
+                      cityLat={selectedCity?.lat ?? null} cityLng={selectedCity?.lng ?? null} cityName={selectedCity?.name ?? null} />
                   </div>
-                ))}
-              </div>
+                  <button type="button" onClick={() => setWaypoints((prev) => prev.filter((_, i) => i !== idx))}
+                    className="text-gray-400 hover:text-red-500 text-lg leading-none">×</button>
+                </div>
+              ))}
 
               <Field label="Dropoff Address" error={errors.dropoff_address_text?.message}>
-                <PlacesAutocomplete
-                  value={values.dropoff_address_text ?? ''}
-                  onChange={(val, placeId) => {
-                    setValue('dropoff_address_text', val, { shouldValidate: true });
-                    setDropoffPlaceId(placeId ?? '');
-                  }}
-                  placeholder="Airport or destination"
-                  error={errors.dropoff_address_text?.message}
-                  cityLat={selectedCity?.lat ?? null}
-                  cityLng={selectedCity?.lng ?? null}
-                  cityName={selectedCity?.name ?? null}
-                />
+                <PlacesAutocomplete value={values.dropoff_address_text ?? ''}
+                  onChange={(val, placeId) => { setValue('dropoff_address_text', val, { shouldValidate: true }); setDropoffPlaceId(placeId ?? ''); }}
+                  placeholder="Airport or destination" error={errors.dropoff_address_text?.message}
+                  cityLat={selectedCity?.lat ?? null} cityLng={selectedCity?.lng ?? null} cityName={selectedCity?.name ?? null} />
               </Field>
-            </div>
-            <div className="mt-4 flex justify-between">
-              <Button variant="secondary" onClick={() => goBack('route')}>Back</Button>
-              <Button onClick={() => goNext('route')}>Next</Button>
-            </div>
-          </div>}
 
-          {activeSection === 'requirements' && <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm"><h2 className="text-base font-semibold text-gray-900 mb-5">Requirements</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <Field label="Passenger Count" error={errors.passenger_count?.message}>
+              {waypoints.length < 5 && (
+                <button type="button" onClick={() => setWaypoints((prev) => [...prev, ''])}
+                  className="text-sm text-blue-600 hover:text-blue-700 font-medium">
+                  + Add Stop
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Requirements */}
+          <div className="bg-white border border-gray-200 rounded-xl p-5">
+            <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">Requirements</h2>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+              <Field label="Passengers" error={errors.passenger_count?.message}>
                 <Input type="number" min={1} max={14} {...register('passenger_count', { valueAsNumber: true })} />
               </Field>
-              <Field label="Luggage Count" error={errors.luggage_count?.message}>
+              <Field label="Luggage" error={errors.luggage_count?.message}>
                 <Input type="number" min={0} max={20} {...register('luggage_count', { valueAsNumber: true })} />
               </Field>
-              <div className="md:col-span-2">
-                <Field label="Special Requests" error={errors.special_requests?.message}>
-                  <textarea
-                    {...register('special_requests')}
-                    rows={4}
-                    className="w-full border rounded px-3 py-2 text-sm"
-                    placeholder="Optional notes for the driver"
-                  />
+              <div className="col-span-2 md:col-span-3">
+                <Field label="Special Requests">
+                  <textarea {...register('special_requests')} rows={2}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Optional notes for the driver" />
                 </Field>
               </div>
             </div>
-            <div className="mt-4 flex justify-between">
-              <Button variant="secondary" onClick={() => goBack('requirements')}>Back</Button>
-              <Button onClick={() => goNext('requirements')}>Next</Button>
-            </div>
-          </div>}
+          </div>
 
-          {activeSection === 'car' && <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
-            <h2 className="text-base font-semibold text-gray-900 mb-2">Select Car Type</h2>
-            {/* Get Quote inline */}
-            <div className="flex items-center gap-3 mb-4">
-              <Button onClick={handleGetQuote} disabled={!canQuote}>
-                {quote.status === 'loading' ? 'Calculating…' : quote.status === 'success' ? '↻ Recalculate' : 'Get Quote'}
-              </Button>
-              {quote.status === 'success' && (
-                <span className="text-sm text-green-700 font-medium">✓ {quote.distanceKm.toFixed(1)} km · {quote.durationMinutes} min</span>
-              )}
-              {quote.status === 'error' && <span className="text-sm text-red-600">{quote.message}</span>}
-            </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {carTypes.map((c: any) => {
-                  const price = quote.status === 'success' ? (quote.estimates[c.id] ?? 0) : 0;
-                  const insufficient = (c.passenger_capacity ?? 0) < values.passenger_count || (c.luggage_capacity ?? 0) < (values.luggage_count ?? 0);
-                  return (
-                    <button
-                      key={c.id}
-                      type="button"
-                      disabled={insufficient}
-                      onClick={() => setValue('service_class_id', c.id, { shouldValidate: true })}
-                      className={`border rounded p-3 text-left ${values.service_class_id === c.id ? 'border-blue-600 bg-blue-50' : 'border-gray-200'} ${insufficient ? 'opacity-50' : ''}`}
-                    >
-                      <div className="font-medium">{c.name}</div>
-                      <div className="text-sm text-gray-700">${toDisplay(price)}</div>
-                      <div className="text-xs text-gray-500">🧍 {c.passenger_capacity ?? 0} · 🧳 {c.luggage_capacity ?? 0}</div>
-                    </button>
-                  );
-                })}
-              </div>
-              {errors.service_class_id && <p className="text-xs text-red-600 mt-2">{errors.service_class_id.message}</p>}
-              <div className="mt-4 flex justify-between">
-                <Button variant="secondary" onClick={() => goBack('car')}>Back</Button>
-                <Button onClick={() => goNext('car')}>Next</Button>
-              </div>
-            </div>}
-
-          {activeSection === 'extras' && <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
-            <h2 className="text-base font-semibold text-gray-900 mb-5">Extra Options</h2>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                <Field label={`Infant Seat ($${toDisplay(selectedCarType.infant_seat_minor ?? 0)})`}>
-                  <Input type="number" min={0} max={3} {...register('infant_seats', { valueAsNumber: true })} />
-                </Field>
-                <Field label={`Toddler Seat ($${toDisplay(selectedCarType.toddler_seat_minor ?? 0)})`}>
-                  <Input type="number" min={0} max={3} {...register('toddler_seats', { valueAsNumber: true })} />
-                </Field>
-                <Field label={`Booster Seat ($${toDisplay(selectedCarType.booster_seat_minor ?? 0)})`}>
-                  <Input type="number" min={0} max={3} {...register('booster_seats', { valueAsNumber: true })} />
-                </Field>
-              </div>
-              <div className="mt-4 flex justify-between">
-                <Button variant="secondary" onClick={() => goBack('extras')}>Back</Button>
-                <Button onClick={onSubmit} disabled={mutation.isPending}>
-                  {mutation.isPending ? 'Creating...' : 'Create Booking'}
+          {/* Car Type + Quote */}
+          <div className="bg-white border border-gray-200 rounded-xl p-5">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Car Type</h2>
+              <div className="flex items-center gap-3">
+                <Button onClick={handleGetQuote} disabled={!canQuote}>
+                  {quote.status === 'loading' ? 'Calculating…' : quote.status === 'success' ? '↻ Recalculate' : 'Get Quote'}
                 </Button>
+                {quote.status === 'success' && (
+                  <span className="text-sm text-green-700 font-medium">✓ {quote.distanceKm.toFixed(1)} km · {quote.durationMinutes} min</span>
+                )}
               </div>
-            </div>}
+            </div>
+            {quote.status === 'error' && <p className="text-sm text-red-600 mb-3">{quote.message}</p>}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {carTypes.map((c: any) => {
+                const price = quote.status === 'success' ? (quote.estimates[c.id] ?? 0) : 0;
+                const insufficient = (c.passenger_capacity ?? 0) < values.passenger_count || (c.luggage_capacity ?? 0) < (values.luggage_count ?? 0);
+                return (
+                  <button key={c.id} type="button" disabled={insufficient}
+                    onClick={() => setValue('service_class_id', c.id, { shouldValidate: true })}
+                    className={`border rounded-lg p-3 text-left transition-colors ${values.service_class_id === c.id ? 'border-blue-600 bg-blue-50' : 'border-gray-200 hover:border-gray-300'} ${insufficient ? 'opacity-40 cursor-not-allowed' : ''}`}>
+                    <div className="font-medium text-gray-900">{c.name}</div>
+                    {quote.status === 'success' && <div className="text-blue-600 font-semibold text-sm mt-0.5">${toDisplay(price)}</div>}
+                    <div className="text-xs text-gray-500 mt-1">🧍 {c.passenger_capacity ?? 0} · 🧳 {c.luggage_capacity ?? 0}</div>
+                  </button>
+                );
+              })}
+            </div>
+            {errors.service_class_id && <p className="text-xs text-red-600 mt-2">{errors.service_class_id.message}</p>}
+          </div>
+
+          {/* Extras + Submit */}
+          <div className="bg-white border border-gray-200 rounded-xl p-5">
+            <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">Extra Options</h2>
+            <div className="grid grid-cols-3 gap-4 mb-5">
+              <Field label={`Infant Seat${selectedCarType ? ` ($${toDisplay(selectedCarType.infant_seat_minor ?? 0)})` : ''}`}>
+                <Input type="number" min={0} max={3} {...register('infant_seats', { valueAsNumber: true })} />
+              </Field>
+              <Field label={`Toddler Seat${selectedCarType ? ` ($${toDisplay(selectedCarType.toddler_seat_minor ?? 0)})` : ''}`}>
+                <Input type="number" min={0} max={3} {...register('toddler_seats', { valueAsNumber: true })} />
+              </Field>
+              <Field label={`Booster Seat${selectedCarType ? ` ($${toDisplay(selectedCarType.booster_seat_minor ?? 0)})` : ''}`}>
+                <Input type="number" min={0} max={3} {...register('booster_seats', { valueAsNumber: true })} />
+              </Field>
+            </div>
+            <Button onClick={onSubmit} disabled={mutation.isPending} className="w-full">
+              {mutation.isPending ? 'Creating…' : 'Create Booking'}
+            </Button>
+          </div>
+
         </div>
       </div>
     </div>
