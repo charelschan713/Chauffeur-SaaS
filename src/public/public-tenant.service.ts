@@ -50,7 +50,7 @@ export class PublicTenantService {
     let branding: any = null;
     try {
       const [row] = await this.db.query(
-        `SELECT logo_url, primary_color, primary_foreground, font_family, cancel_window_hours
+        `SELECT logo_url, primary_color
          FROM public.tenant_branding
          WHERE tenant_id = $1
          LIMIT 1`,
