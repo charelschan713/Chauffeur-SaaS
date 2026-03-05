@@ -143,7 +143,9 @@ function DispatchBoardInner() {
   }, [vehicles, searchVehicle]);
 
   const selectedBooking = bookings.find((b) => b.id === selectedBookingId) ?? null;
-  const selectedDriver = drivers.find((d) => d.id === selectedDriverId) ?? null;
+  // Drivers may return either `id` or `driver_id` depending on endpoint
+  const driverId = (d: Driver) => d.driver_id ?? d.id;
+  const selectedDriver = drivers.find((d) => driverId(d) === selectedDriverId) ?? null;
   const selectedVehicle = vehicles.find((v) => v.id === selectedVehicleId) ?? null;
 
   const offerMutation = useMutation({
@@ -289,10 +291,10 @@ function DispatchBoardInner() {
                   : 'neutral';
                 return (
                   <button
-                    key={d.id ?? d.driver_id}
-                    onClick={() => setSelectedDriverId(d.id ?? d.driver_id)}
+                    key={driverId(d)}
+                    onClick={() => setSelectedDriverId(driverId(d) ?? null)}
                     className={`w-full text-left border rounded p-3 transition ${
-                      selectedDriverId === (d.id ?? d.driver_id) ? 'ring-2 ring-blue-600 bg-blue-50' : 'hover:bg-gray-50'
+                      selectedDriverId === driverId(d) ? 'ring-2 ring-blue-600 bg-blue-50' : 'hover:bg-gray-50'
                     }`}
                   >
                     <div className="flex items-center justify-between">
