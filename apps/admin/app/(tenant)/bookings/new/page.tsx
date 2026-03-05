@@ -700,10 +700,20 @@ export default function CreateBookingPage() {
               {/* Route */}
               <div className="flex gap-2 items-start">
                 <span className="text-gray-400 w-5 shrink-0 mt-0.5">📍</span>
-                <span className={values.pickup_address_text ? 'text-gray-900' : 'text-gray-300'}>
-                  {values.pickup_address_text
-                    ? <><span className="block truncate">{values.pickup_address_text}</span><span className="block text-gray-400">↓</span><span className="block truncate">{values.dropoff_address_text || '—'}</span></>
-                    : 'No route'}
+                <span className={values.pickup_address_text ? 'text-gray-900' : 'text-gray-300 text-sm'}>
+                  {values.pickup_address_text ? (
+                    <span className="block space-y-0.5">
+                      <span className="block truncate">{values.pickup_address_text}</span>
+                      {waypoints.filter(Boolean).map((wp, i) => (
+                        <span key={i} className="block">
+                          <span className="text-gray-400 text-xs">↓ stop {i + 1}</span>
+                          <span className="block truncate text-gray-700">{wp}</span>
+                        </span>
+                      ))}
+                      <span className="block text-gray-400 text-xs">↓</span>
+                      <span className="block truncate">{values.dropoff_address_text || '—'}</span>
+                    </span>
+                  ) : 'No route'}
                 </span>
               </div>
               {/* Car type + price */}
