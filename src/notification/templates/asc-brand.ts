@@ -320,14 +320,22 @@ export function ascPaymentLinkEmail(vars: Record<string, string>): string {
 export function ascFulfilledWithExtrasEmail(vars: Record<string, string>): string {
   const cur = vars.currency || 'AUD';
 
-  // Build extras rows dynamically — only show lines with a value
+  // Build prepay breakdown (what was originally charged)
+  const prepayRows: { label: string; value: string }[] = [];
+  if (vars.prepay_base_fare)    prepayRows.push({ label: 'Base Fare',  value: `${cur} ${vars.prepay_base_fare}` });
+  if (vars.prepay_toll)         prepayRows.push({ label: 'Toll',       value: `${cur} ${vars.prepay_toll}` });
+  if (vars.prepay_parking)      prepayRows.push({ label: 'Parking',    value: `${cur} ${vars.prepay_parking}` });
+  if (vars.prepay_waypoints)    prepayRows.push({ label: 'Waypoints',  value: `${cur} ${vars.prepay_waypoints}` });
+
+  // Extra rows = DELTA only (actual - prepay), never double-count prepaid items
+  // Backend must compute deltas before emitting this event
   const extraRows: { label: string; value: string }[] = [];
-  if (vars.waiting_time_fee)   extraRows.push({ label: 'Waiting Time', value: `${cur} ${vars.waiting_time_fee}${vars.waiting_time_minutes ? ` (${vars.waiting_time_minutes} min)` : ''}` });
-  if (vars.extra_toll)         extraRows.push({ label: 'Additional Toll', value: `${cur} ${vars.extra_toll}` });
-  if (vars.extra_parking)      extraRows.push({ label: 'Parking', value: `${cur} ${vars.extra_parking}` });
-  if (vars.extra_stops_fee)    extraRows.push({ label: 'Extra Stops', value: `${cur} ${vars.extra_stops_fee}` });
-  if (vars.adjustment_amount)  extraRows.push({ label: 'Adjustment', value: `${cur} ${vars.adjustment_amount}` });
-  if (vars.other_extras)       extraRows.push({ label: 'Other', value: `${cur} ${vars.other_extras}` });
+  if (vars.waiting_time_fee)    extraRows.push({ label: 'Waiting Time',     value: `${cur} ${vars.waiting_time_fee}${vars.waiting_time_minutes ? ` (${vars.waiting_time_minutes} min)` : ''}` });
+  if (vars.toll_delta)          extraRows.push({ label: 'Toll Difference',  value: `${cur} ${vars.toll_delta}` });
+  if (vars.parking_delta)       extraRows.push({ label: 'Parking Diff.',    value: `${cur} ${vars.parking_delta}` });
+  if (vars.extra_stops_fee)     extraRows.push({ label: 'Extra Stops',      value: `${cur} ${vars.extra_stops_fee}` });
+  if (vars.adjustment_amount)   extraRows.push({ label: 'Adjustment',       value: `${cur} ${vars.adjustment_amount}` });
+  if (vars.other_extras)        extraRows.push({ label: 'Other',            value: `${cur} ${vars.other_extras}` });
 
   const cardNote = vars.card_last4
     ? `charged on ${vars.charged_at || 'completion'} to card ending ${vars.card_last4}`
@@ -347,13 +355,25 @@ export function ascFulfilledWithExtrasEmail(vars: Record<string, string>): strin
         ],
       },
       {
-        heading: 'CHARGES',
+        heading: 'PRE-CHARGED',
         rows: [
-          { label: 'Pre-charged',      value: `${cur} ${vars.prepay_total || vars.original_fare || '—'}` },
+          // Show breakdown if available, else just the total
+          ...(prepayRows.length > 0 ? prepayRows : []),
+          { label: 'Pre-charged Total', value: `${cur} ${vars.prepay_total || vars.original_fare || '—'}` },
+        ],
+      },
+      ...(extraRows.length > 0 ? [{
+        heading: 'EXTRA CHARGED',
+        rows: [
           ...extraRows,
-          { label: 'Extra Charged',    value: `${cur} ${vars.balance_due || vars.extra_total || '—'}` },
-          { label: 'Charged to',       value: cardNote },
-          { label: 'Total',            value: `${cur} ${vars.actual_total || '—'}` },
+          { label: 'Extra Total',  value: `${cur} ${vars.balance_due || vars.extra_total || '—'}` },
+          { label: 'Charged to',   value: cardNote },
+        ],
+      }] : []),
+      {
+        heading: 'SUMMARY',
+        rows: [
+          { label: 'Total Charged', value: `${cur} ${vars.actual_total || '—'}` },
         ],
       },
     ],

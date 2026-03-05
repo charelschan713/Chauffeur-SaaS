@@ -315,19 +315,29 @@ export class NotificationService {
     const smsIntegration = await this.integrationResolver.resolve(tenantId, 'twilio');
 
     // Build extra charges vars from payload
+    // Compute toll/parking deltas (actual - prepay) — only show if > 0
+    const tollDeltaMinor    = Math.max(0, (payload.actual_toll_minor    ?? 0) - (payload.prepay_toll_minor    ?? 0));
+    const parkingDeltaMinor = Math.max(0, (payload.actual_parking_minor ?? 0) - (payload.prepay_parking_minor ?? 0));
+
     const extrasVars: Record<string, string> = {
-      waiting_time_minutes: String(payload.waiting_time_minutes ?? ''),
-      waiting_time_fee:     payload.waiting_time_fee_minor   ? NotificationService.formatMinor(payload.waiting_time_fee_minor)   : '',
-      extra_toll:           payload.actual_toll_minor         ? NotificationService.formatMinor(payload.actual_toll_minor)         : '',
-      extra_parking:        payload.actual_parking_minor      ? NotificationService.formatMinor(payload.actual_parking_minor)      : '',
-      adjustment_amount:    payload.adjustment_amount_minor   ? NotificationService.formatMinor(payload.adjustment_amount_minor)   : '',
+      // Prepay breakdown
       prepay_total:         payload.prepay_total_minor        ? NotificationService.formatMinor(payload.prepay_total_minor)        : '',
+      prepay_base_fare:     payload.prepay_base_fare_minor    ? NotificationService.formatMinor(payload.prepay_base_fare_minor)    : '',
+      prepay_toll:          payload.prepay_toll_minor         ? NotificationService.formatMinor(payload.prepay_toll_minor)         : '',
+      prepay_parking:       payload.prepay_parking_minor      ? NotificationService.formatMinor(payload.prepay_parking_minor)      : '',
+      prepay_waypoints:     payload.prepay_waypoints_minor    ? NotificationService.formatMinor(payload.prepay_waypoints_minor)    : '',
+      // Extra delta only
+      waiting_time_minutes: String(payload.waiting_time_minutes ?? ''),
+      waiting_time_fee:     payload.waiting_time_fee_minor    ? NotificationService.formatMinor(payload.waiting_time_fee_minor)    : '',
+      toll_delta:           tollDeltaMinor    > 0             ? NotificationService.formatMinor(tollDeltaMinor)                    : '',
+      parking_delta:        parkingDeltaMinor > 0             ? NotificationService.formatMinor(parkingDeltaMinor)                 : '',
+      adjustment_amount:    payload.adjustment_amount_minor   ? NotificationService.formatMinor(payload.adjustment_amount_minor)   : '',
+      // Totals
       actual_total:         payload.actual_total_minor        ? NotificationService.formatMinor(payload.actual_total_minor)        : '',
-      already_paid:         payload.already_paid_minor        ? NotificationService.formatMinor(payload.already_paid_minor)        : '0',
-      charged_at:           payload.charged_at                 ?? '',
-      card_last4:           payload.card_last4                 ?? '',
-      balance_due:          payload.balance_due_minor          ? NotificationService.formatMinor(payload.balance_due_minor) : '',
-      extra_total:          payload.extra_total_minor          ? NotificationService.formatMinor(payload.extra_total_minor)  : '',
+      balance_due:          payload.balance_due_minor         ? NotificationService.formatMinor(payload.balance_due_minor)         : '',
+      // Card info
+      charged_at:           payload.charged_at               ?? '',
+      card_last4:           payload.card_last4               ?? '',
     };
 
     const templateVars = { ...this.buildTemplateVariables(booking), ...extrasVars } as Record<string, string>;
