@@ -46,6 +46,7 @@ const NAV_SECTIONS = [
     items: [
       { href: '/pricing/car-types', label: 'Car Types', icon: Tag },
       { href: '/pricing/service-types', label: 'Service Types', icon: Layers },
+      { href: '/pricing/surcharges', label: 'Surcharges', icon: BadgePercent },
     ],
   },
   {

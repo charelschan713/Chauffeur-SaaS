@@ -14,6 +14,8 @@ export interface PricingContext {
   toddlerSeats?: number;
   boosterSeats?: number;
   requestedAtUtc: Date;
+  pickupAtUtc?: Date | string | null;  // actual pickup time (for surcharge resolution)
+  timezone?: string | null;            // booking city timezone
   currency: string;
   customerId?: string | null;
   serviceTypeId?: string | null;
@@ -61,4 +63,6 @@ export interface PricingSnapshot {
   multiplier_value?: number | null;
   surcharge_minor?: number;
   minimum_applied?: boolean;
+  time_surcharge_minor?: number;
+  surcharge_labels?: string[];
 }

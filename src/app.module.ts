@@ -26,6 +26,7 @@ import { CustomerAuthModule } from './customer-auth/customer-auth.module';
 import { CustomerPortalModule } from './customer-portal/customer-portal.module';
 import { TenantBrandingModule } from './tenant-branding/tenant-branding.module';
 import { DiscountModule } from './discount/discount.module';
+import { SurchargeModule } from './surcharge/surcharge.module';
 import { AssignmentModule } from './assignment/assignment.module';
 import { TenantModule } from './tenant/tenant.module';
 import { TenantContextMiddleware } from './common/middleware/tenant-context.middleware';
@@ -69,6 +70,7 @@ import { TenantContextMiddleware } from './common/middleware/tenant-context.midd
     CustomerPortalModule,
     TenantBrandingModule,
     DiscountModule,
+    SurchargeModule,
     AssignmentModule,
     TenantModule,
   ],

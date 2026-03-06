@@ -8,6 +8,7 @@ import { AdjustmentResolver } from './resolvers/adjustment.resolver';
 import { buildSnapshot } from './snapshot.builder';
 import { PricingContext, PricingSnapshot } from './pricing.types';
 import { DiscountResolver } from '../customer/discount.resolver';
+import { SurchargeService } from '../surcharge/surcharge.service';
 
 type MultiplierMode = 'PERCENTAGE' | 'FIXED_SURCHARGE';
 
@@ -31,6 +32,7 @@ export class PricingResolver {
     private readonly adjustmentResolver: AdjustmentResolver,
     private readonly discountResolver: DiscountResolver,
     private readonly mapsService: GoogleMapsService,
+    private readonly surchargeService: SurchargeService,
   ) {}
 
   // Estimate toll from route distance (Sydney CityLink rates)
@@ -287,10 +289,27 @@ export class PricingResolver {
     }
 
     const tollParkingMinor = await this.resolveToll(ctx);
+
+    // ── Time/Holiday surcharges ──────────────────────────────────────
+    let timeSurchargeMinor = 0;
+    let surchargeLabels: string[] = [];
+    if (ctx.pickupAtUtc) {
+      const surchargeResult = await this.surchargeService.resolve(
+        ctx.tenantId,
+        ctx.pickupAtUtc,
+        baseMinor,
+        ctx.timezone ?? 'Australia/Sydney',
+      );
+      timeSurchargeMinor = surchargeResult.total_surcharge_minor;
+      surchargeLabels = surchargeResult.surcharges.map(s => s.label);
+    }
+
+    const fareWithSurcharge = baseMinor + timeSurchargeMinor;
+
     const discount = await this.discountResolver.resolve(
       ctx.tenantId,
       ctx.customerId ?? null,
-      baseMinor,
+      fareWithSurcharge,
     );
     const grandTotalMinor = discount.final_fare_minor + tollParkingMinor;
 
@@ -312,8 +331,8 @@ export class PricingResolver {
       discount_amount_minor: discount.discount_amount_minor,
       final_fare_minor: discount.final_fare_minor,
       toll_parking_minor: tollParkingMinor,
-        toll_minor: tollParkingMinor,
-        parking_minor: 0,
+      toll_minor: tollParkingMinor,
+      parking_minor: 0,
       grand_total_minor: grandTotalMinor,
       discount_source_customer_id: ctx.customerId ?? null,
       base_calculated_minor: ctx.tripType === 'RETURN' ? undefined : baseMinor,
@@ -324,6 +343,8 @@ export class PricingResolver {
       multiplier_value: multiplierValue,
       surcharge_minor: surchargeMinor,
       minimum_applied: minimumApplied,
+      time_surcharge_minor: timeSurchargeMinor,
+      surcharge_labels: surchargeLabels,
     };
   }
 }

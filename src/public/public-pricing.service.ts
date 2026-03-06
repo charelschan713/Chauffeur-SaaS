@@ -80,6 +80,8 @@ export class PublicPricingService {
           toddlerSeats: dto.toddler_seats ?? 0,
           boosterSeats: dto.booster_seats ?? 0,
           requestedAtUtc: new Date(dto.pickup_at_utc),
+          pickupAtUtc: new Date(dto.pickup_at_utc),
+          timezone: dto.timezone ?? 'Australia/Sydney',
           currency: tenant.currency,
           customerId: null,
           tollEnabled,
