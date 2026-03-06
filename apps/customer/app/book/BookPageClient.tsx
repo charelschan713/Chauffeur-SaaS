@@ -421,12 +421,35 @@ export function BookPageClient() {
   }, [createdBooking, quoteId]);
 
   // ── Render helpers ──
+  const [cityName, setCityName]           = useState('');
+  const [serviceTypeName, setServiceTypeName] = useState('');
+
+  useEffect(() => {
+    if (!session) return;
+    const req = session.payload.request;
+    const slug = session.payload.slug || localStorage.getItem('tenant_slug') || '';
+    // resolve city name
+    fetch(`${API_URL}/public/cities?tenant_slug=${slug}`)
+      .then(r => r.json()).then((cities: any[]) => {
+        const c = cities.find(x => x.id === req.city_id);
+        if (c) setCityName(c.name);
+      }).catch(() => {});
+    // resolve service type name
+    fetch(`${API_URL}/public/service-types?tenant_slug=${slug}`)
+      .then(r => r.json()).then((types: any[]) => {
+        const t = types.find(x => x.id === req.service_type_id);
+        if (t) setServiceTypeName(t.name);
+      }).catch(() => {});
+  }, [session]);
+
   const renderQuoteSummary = () => {
     if (!session || !selectedResult) return null;
     const req     = session.payload.request;
     const preview = selectedResult.pricing_snapshot_preview;
     const pickupDate = new Date(req.pickup_at_utc).toLocaleString('en-AU', {
-      dateStyle: 'medium', timeStyle: 'short', timeZone: req.timezone,
+      weekday: 'short', day: 'numeric', month: 'short', year: 'numeric',
+      hour: 'numeric', minute: '2-digit', hour12: true,
+      timeZone: req.timezone,
     });
 
     return (
@@ -499,26 +522,82 @@ export function BookPageClient() {
             </div>
           </div>
 
-          {/* Route */}
-          <div className="space-y-1.5 text-xs text-[hsl(var(--muted-foreground))]">
-            <div className="flex items-start gap-2">
-              <MapPin className="h-3.5 w-3.5 mt-0.5 text-[hsl(var(--success))] shrink-0" />
-              <span>{req.pickup_address}</span>
-            </div>
-            {req.dropoff_address && req.dropoff_address !== req.pickup_address && (
-              <div className="flex items-start gap-2">
-                <MapPin className="h-3.5 w-3.5 mt-0.5 text-[hsl(var(--primary))] shrink-0" />
-                <span>{req.dropoff_address}</span>
-              </div>
-            )}
-            <div className="flex items-center gap-2">
-              <Clock className="h-3.5 w-3.5 shrink-0" />
-              <span>{pickupDate}</span>
-              {req.trip_mode === 'RETURN' && (
-                <span className="px-1.5 py-0.5 rounded bg-[hsl(var(--primary)/0.15)] text-[hsl(var(--primary))] font-medium">
-                  Return
+          {/* Trip details */}
+          <div className="space-y-2.5 text-xs">
+            {/* City + Service row */}
+            <div className="flex items-center gap-3 flex-wrap">
+              {cityName && (
+                <span className="flex items-center gap-1 text-[hsl(var(--muted-foreground))]">
+                  <svg className="w-3 h-3 shrink-0 text-[hsl(var(--primary)/0.7)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                  <span className="font-medium text-[hsl(var(--foreground)/0.8)]">{cityName}</span>
                 </span>
               )}
+              {serviceTypeName && (
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold tracking-wide uppercase bg-[hsl(var(--primary)/0.12)] text-[hsl(var(--primary)/0.9)] border border-[hsl(var(--primary)/0.2)]">
+                  {serviceTypeName}
+                </span>
+              )}
+              {req.trip_mode === 'RETURN' && (
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold tracking-wide uppercase bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))] border border-[hsl(var(--border))]">
+                  Return Trip
+                </span>
+              )}
+            </div>
+
+            {/* Pickup datetime */}
+            <div className="flex items-start gap-2 text-[hsl(var(--muted-foreground))]">
+              <Clock className="h-3.5 w-3.5 mt-0.5 shrink-0 text-[hsl(var(--primary)/0.7)]" />
+              <span className="font-medium text-[hsl(var(--foreground)/0.9)]">{pickupDate}</span>
+            </div>
+
+            {/* Pickup → Dropoff route */}
+            <div className="relative pl-5">
+              {/* vertical line */}
+              <div className="absolute left-[6px] top-2 bottom-2 w-px bg-[hsl(var(--border))]" />
+
+              {/* Pickup */}
+              <div className="relative flex items-start gap-2 mb-3">
+                <div className="absolute -left-5 mt-1 w-3 h-3 rounded-full bg-emerald-500/80 border-2 border-[hsl(var(--background))] shrink-0" />
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-widest text-[hsl(var(--muted-foreground)/0.6)] mb-0.5">Pickup</p>
+                  <p className="text-[hsl(var(--foreground)/0.85)] leading-snug">{req.pickup_address}</p>
+                </div>
+              </div>
+
+              {/* Dropoff */}
+              {req.dropoff_address && req.dropoff_address !== req.pickup_address && (
+                <div className="relative flex items-start gap-2">
+                  <div className="absolute -left-5 mt-1 w-3 h-3 rounded-full bg-[hsl(var(--primary)/0.8)] border-2 border-[hsl(var(--background))] shrink-0" />
+                  <div>
+                    <p className="text-[10px] font-semibold uppercase tracking-widest text-[hsl(var(--muted-foreground)/0.6)] mb-0.5">Drop-off</p>
+                    <p className="text-[hsl(var(--foreground)/0.85)] leading-snug">{req.dropoff_address}</p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Pax / luggage / seats */}
+            <div className="flex flex-wrap gap-3 text-[hsl(var(--muted-foreground))] pt-1 border-t border-[hsl(var(--border)/0.5)]">
+              <span className="flex items-center gap-1">
+                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                {req.passenger_count} passenger{req.passenger_count !== 1 ? 's' : ''}
+              </span>
+              {(req.luggage_count ?? 0) > 0 && (
+                <span className="flex items-center gap-1">
+                  <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                  </svg>
+                  {req.luggage_count} bags
+                </span>
+              )}
+              {(req.infant_seats ?? 0) > 0 && <span>🧷 {req.infant_seats} infant</span>}
+              {(req.toddler_seats ?? 0) > 0 && <span>🪑 {req.toddler_seats} toddler</span>}
+              {(req.booster_seats ?? 0) > 0 && <span>💺 {req.booster_seats} booster</span>}
             </div>
           </div>
 
