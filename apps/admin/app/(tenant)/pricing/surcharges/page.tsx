@@ -34,6 +34,7 @@ export default function SurchargesPage() {
   const [timeForm, setTimeForm] = useState<Partial<TimeSurcharge>>(emptyTime());
   const [holidayForm, setHolidayForm] = useState<Partial<Holiday>>(emptyHoliday());
   const [saving, setSaving] = useState(false);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<{id: string; type: 'time'|'holiday'} | null>(null);
 
   const loadTime = useCallback(async () => {
     const r = await api.get("/surcharges/time");
@@ -60,8 +61,8 @@ export default function SurchargesPage() {
   };
 
   const deleteTime = async (id: string) => {
-    if (!confirm("Delete this time surcharge?")) return;
     await api.delete(`/surcharges/time/${id}`);
+    setConfirmDeleteId(null);
     loadTime();
   };
 
@@ -83,8 +84,8 @@ export default function SurchargesPage() {
   };
 
   const deleteHoliday = async (id: string) => {
-    if (!confirm("Delete this holiday?")) return;
     await api.delete(`/surcharges/holidays/${id}`);
+    setConfirmDeleteId(null);
     loadHolidays();
   };
 
@@ -199,7 +200,7 @@ export default function SurchargesPage() {
                   </td>
                   <td className="px-4 py-3 text-right space-x-2">
                     <button onClick={() => { setEditingTime(s); setTimeForm({...s}); setShowTimeForm(true); }} className="text-xs text-primary hover:text-primary/80 transition-colors">Edit</button>
-                    <button onClick={() => deleteTime(s.id)} className="text-xs text-destructive hover:text-destructive/80 transition-colors">Delete</button>
+                    <button onClick={() => setConfirmDeleteId({id: s.id, type: 'time'})} className="text-xs text-destructive hover:text-destructive/80 transition-colors">Delete</button>
                   </td>
                 </tr>
               ))}
@@ -289,7 +290,7 @@ export default function SurchargesPage() {
                   </td>
                   <td className="px-4 py-3 text-right space-x-2">
                     <button onClick={() => { setEditingHoliday(h); setHolidayForm({...h}); setShowHolidayForm(true); }} className="text-xs text-primary hover:text-primary/80 transition-colors">Edit</button>
-                    <button onClick={() => deleteHoliday(h.id)} className="text-xs text-destructive hover:text-destructive/80 transition-colors">Delete</button>
+                    <button onClick={() => setConfirmDeleteId({id: h.id, type: 'holiday'})} className="text-xs text-destructive hover:text-destructive/80 transition-colors">Delete</button>
                   </td>
                 </tr>
               ))}
@@ -298,6 +299,35 @@ export default function SurchargesPage() {
         </div>
         <p className="text-xs text-gray-400 mt-2">💡 Recurring holidays match by month/day each year. Non-recurring apply once on the exact date.</p>
       </div>
+
+      {/* Inline delete confirm */}
+      {confirmDeleteId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
+          <div className="bg-white rounded-xl shadow-xl p-6 w-80 space-y-4">
+            <h3 className="text-sm font-semibold text-gray-900">Confirm Delete</h3>
+            <p className="text-sm text-gray-600">
+              Are you sure you want to delete this {confirmDeleteId.type === 'time' ? 'time surcharge' : 'holiday'}? This cannot be undone.
+            </p>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => setConfirmDeleteId(null)}
+                className="px-4 py-2 text-sm rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => confirmDeleteId.type === 'time'
+                  ? deleteTime(confirmDeleteId.id)
+                  : deleteHoliday(confirmDeleteId.id)
+                }
+                className="px-4 py-2 text-sm rounded-lg bg-red-600 text-white hover:bg-red-700"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -64,7 +64,7 @@ export default function ParkingPage() {
   }
 
   async function remove(id: string) {
-    if (!confirm("Delete this parking rule?")) return;
+    
     await api.delete(`/surcharges/parking/${id}`);
     await load();
   }
