@@ -112,6 +112,9 @@ export class DiscountService {
   }
 
   // ── Core: resolve discount for a booking ─────────────────────────────────
+  // Stacking logic:
+  //   combined_rate = base_discount_rate + customer.discount_rate
+  //   discount_minor = min(fare * combined_rate, max_discount_minor)
   async resolveDiscount(
     tenantId: string,
     baseFareMinor: number,
@@ -124,12 +127,10 @@ export class DiscountService {
   ): Promise<DiscountResult | null> {
     const now = new Date();
 
-    // Find matching discount
-    // Priority: code-based > auto-apply
+    // ── 1. Find base tenant discount ──────────────────────────────────────
     let discount: any = null;
 
     if (opts.code) {
-      // Explicit promo code
       const [row] = await this.db.query(
         `SELECT * FROM public.tenant_discounts
          WHERE tenant_id = $1
@@ -144,7 +145,6 @@ export class DiscountService {
       );
       discount = row;
     } else {
-      // Auto-apply: find best active discount (highest value)
       const applies_to_filter = opts.isNewCustomer
         ? `applies_to IN ('ALL', 'NEW_CLIENTS')`
         : `applies_to = 'ALL'`;
@@ -167,48 +167,73 @@ export class DiscountService {
       discount = rows[0];
     }
 
-    if (!discount) return null;
+    // ── 2. Fetch customer's personal discount rate ────────────────────────
+    let customerDiscountRate = 0;
+    if (opts.customerId) {
+      const [cust] = await this.db.query(
+        `SELECT discount_rate FROM public.customers WHERE id = $1 AND tenant_id = $2 LIMIT 1`,
+        [opts.customerId, tenantId],
+      );
+      customerDiscountRate = Number(cust?.discount_rate ?? 0);
+    }
 
-    // Service type restriction check (for code-based too)
+    // No discount at all — nothing to apply
+    if (!discount && customerDiscountRate === 0) return null;
+
+    // Service type restriction check
     if (
+      discount &&
       opts.serviceTypeId &&
       discount.service_type_ids?.length > 0 &&
       !discount.service_type_ids.includes(opts.serviceTypeId)
     ) {
-      return null;
+      discount = null; // base discount doesn't apply
     }
 
     // Per-customer usage check
-    if (opts.customerId && discount.max_uses_per_customer != null) {
+    if (discount && opts.customerId && discount.max_uses_per_customer != null) {
       const [usageRow] = await this.db.query(
         `SELECT COUNT(*) AS cnt FROM public.tenant_discount_uses
          WHERE discount_id = $1 AND customer_id = $2`,
         [discount.id, opts.customerId],
       );
       if (parseInt(usageRow?.cnt ?? '0') >= discount.max_uses_per_customer) {
-        return null;
+        discount = null;
       }
     }
 
-    // Calculate discount amount
-    let rawDiscountMinor: number;
-    if (discount.type === 'PERCENTAGE') {
-      rawDiscountMinor = Math.round(baseFareMinor * (Number(discount.value) / 100));
-    } else {
-      rawDiscountMinor = Number(discount.value); // already in minor units
+    // ── 3. Stack rates ────────────────────────────────────────────────────
+    // Base rate: only PERCENTAGE discounts stack; FIXED_AMOUNT applied separately
+    let baseRatePct    = 0;
+    let fixedMinor     = 0;
+    const maxCap       = discount?.max_discount_minor ?? null;
+
+    if (discount?.type === 'PERCENTAGE') {
+      baseRatePct = Number(discount.value);
+    } else if (discount?.type === 'FIXED_AMOUNT') {
+      fixedMinor = Number(discount.value);
     }
 
-    // Apply cap
-    const maxCap = discount.max_discount_minor;
-    const cappedByMax = maxCap != null && rawDiscountMinor > maxCap;
-    const discountMinor = cappedByMax ? maxCap : rawDiscountMinor;
-    const finalFareMinor = Math.max(0, baseFareMinor - discountMinor);
+    // Combined percentage (base + customer), then apply cap
+    const combinedRatePct   = baseRatePct + customerDiscountRate;
+    const fromPct           = Math.round(baseFareMinor * combinedRatePct / 100);
+    const rawDiscountMinor  = fromPct + fixedMinor;
+
+    const cappedByMax        = maxCap != null && rawDiscountMinor > maxCap;
+    const discountMinor      = cappedByMax ? maxCap : rawDiscountMinor;
+    const finalFareMinor     = Math.max(0, baseFareMinor - discountMinor);
+
+    // Build a meaningful name
+    const nameParts: string[] = [];
+    if (discount)              nameParts.push(discount.name);
+    if (customerDiscountRate)  nameParts.push(`+${customerDiscountRate}% loyalty`);
+    const name = nameParts.join(' · ') || 'Discount';
 
     return {
-      discountId:       discount.id,
-      name:             discount.name,
-      type:             discount.type,
-      value:            Number(discount.value),
+      discountId:       discount?.id ?? 'customer-loyalty',
+      name,
+      type:             'PERCENTAGE',
+      value:            combinedRatePct,
       discountMinor,
       finalFareMinor,
       maxDiscountMinor: maxCap ?? null,

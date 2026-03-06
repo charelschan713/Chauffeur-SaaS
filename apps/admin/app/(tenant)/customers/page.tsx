@@ -73,6 +73,7 @@ export default function CustomersPage() {
     phone_country_code: '',
     phone_number: '',
     tier: 'STANDARD',
+    discount_rate: '0',
     custom_discount_type: '',
     custom_discount_value: '',
   });
@@ -116,6 +117,7 @@ export default function CustomersPage() {
       phone_country_code: c.phone_country_code ?? '',
       phone_number: c.phone_number ?? '',
       tier: c.tier ?? 'STANDARD',
+      discount_rate: String(c.discount_rate ?? '0'),
       custom_discount_type: c.custom_discount_type ?? '',
       custom_discount_value: c.custom_discount_value ? String(c.custom_discount_value) : '',
     });
@@ -125,6 +127,7 @@ export default function CustomersPage() {
   async function saveCustomer() {
     const payload = {
       ...customerForm,
+      discount_rate: Number((customerForm as any).discount_rate ?? 0),
       custom_discount_type: customerForm.tier === 'CUSTOM' ? customerForm.custom_discount_type : null,
       custom_discount_value: customerForm.tier === 'CUSTOM' && customerForm.custom_discount_value
         ? Number(customerForm.custom_discount_value)
@@ -275,6 +278,9 @@ export default function CustomersPage() {
                 <td className="px-4 py-3">
                   <span className={`px-2 py-1 rounded text-xs ${TIER_COLORS[c.tier ?? 'STANDARD'] ?? 'bg-gray-100 text-gray-700'}`}>
                     {c.tier ?? 'STANDARD'}
+                    {Number(c.discount_rate) > 0 && (
+                      <span className="ml-1 text-green-600">+{c.discount_rate}%</span>
+                    )}
                   </span>
                 </td>
                 <td className="px-4 py-3 text-gray-500">{c.created_at ? new Date(c.created_at).toLocaleDateString() : '—'}</td>
@@ -356,6 +362,38 @@ export default function CustomersPage() {
                   <option key={t} value={t}>{t}</option>
                 ))}
               </Select>
+
+              {/* Personal discount rate — stacks with base tenant discount, capped at max */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Personal Discount Rate (%)
+                  <span className="ml-1 text-xs text-gray-400 font-normal">stacks with base discount, capped at max</span>
+                </label>
+                <div className="relative">
+                  <Input
+                    type="number"
+                    min={0}
+                    max={100}
+                    step={0.5}
+                    placeholder="0"
+                    value={(customerForm as any).discount_rate ?? '0'}
+                    onChange={(e) => setCustomerForm((p) => ({ ...p, discount_rate: e.target.value }))}
+                    className="pr-8"
+                  />
+                  <span className="absolute right-3 top-2.5 text-gray-400 text-sm">%</span>
+                </div>
+                {(() => {
+                  const rate = Number((customerForm as any).discount_rate ?? 0);
+                  if (rate > 0) return (
+                    <p className="text-xs text-blue-600 mt-1">
+                      e.g. if base discount is 10%, this customer gets {Math.min(10 + rate, 20)}%
+                      {10 + rate > 20 ? ' (capped at 20%)' : ''}
+                    </p>
+                  );
+                  return null;
+                })()}
+              </div>
+
               {customerForm.tier === 'CUSTOM' && (
                 <>
                   <Select value={customerForm.custom_discount_type} onChange={(e) => setCustomerForm((p) => ({ ...p, custom_discount_type: e.target.value }))}>
