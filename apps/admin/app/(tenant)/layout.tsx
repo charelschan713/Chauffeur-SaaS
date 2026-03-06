@@ -18,6 +18,7 @@ import {
   LogOut,
   ChevronRight,
   FileText,
+  BadgePercent,
   UserCircle,
 } from 'lucide-react';
 
@@ -30,6 +31,7 @@ const NAV_SECTIONS = [
       { href: '/dispatch', label: 'Dispatch', icon: MapPin },
       { href: '/customers', label: 'Customers', icon: Users },
       { href: '/invoices', label: 'Invoices', icon: FileText },
+      { href: '/discounts', label: 'Discounts', icon: BadgePercent },
     ],
   },
   {
