@@ -206,7 +206,10 @@ export class DiscountService {
     // Base rate: only PERCENTAGE discounts stack; FIXED_AMOUNT applied separately
     let baseRatePct    = 0;
     let fixedMinor     = 0;
-    const maxCap       = discount?.max_discount_minor ?? null;
+    // 0 means no cap (unlimited); only apply cap when max_discount_minor > 0
+    const maxCap = (discount?.max_discount_minor != null && Number(discount.max_discount_minor) > 0)
+      ? Number(discount.max_discount_minor)
+      : null;
 
     if (discount?.type === 'PERCENTAGE') {
       baseRatePct = Number(discount.value);
