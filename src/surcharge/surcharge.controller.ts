@@ -1,10 +1,10 @@
 import { Controller, Get, Post, Put, Delete, Body, Param, Req, UseGuards } from '@nestjs/common';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { JwtGuard } from '../common/guards/jwt.guard';
 import { TenantRoleGuard } from '../common/guards/tenant-role.guard';
 import { SurchargeService } from './surcharge.service';
 
 @Controller('surcharges')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtGuard)
 export class SurchargeController {
   constructor(private readonly svc: SurchargeService) {}
 
