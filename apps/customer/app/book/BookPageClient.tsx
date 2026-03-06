@@ -17,9 +17,7 @@ import {
   AlertCircle, CheckCircle2, Timer, ArrowLeft,
 } from 'lucide-react';
 
-// Stripe publishable key loaded dynamically from tenant settings
-// Falls back to env var for local dev
-let stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? '');
+
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'https://chauffeur-saas-production.up.railway.app';
 
@@ -255,6 +253,13 @@ export function BookPageClient() {
   const [step, setStep]             = useState<Step>('loading');
   const [session, setSession]       = useState<QuoteSession | null>(null);
 
+  // Stripe promise as state so <Elements> re-renders when key loads
+  const [stripePromise, setStripePromise] = useState<ReturnType<typeof loadStripe> | null>(
+    process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
+      ? loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY)
+      : null
+  );
+
   // Load tenant Stripe publishable key dynamically
   useEffect(() => {
     if (!session?.tenant_id) return;
@@ -262,7 +267,7 @@ export function BookPageClient() {
       .then(r => r.json())
       .then(data => {
         if (data?.publishableKey) {
-          stripePromise = loadStripe(data.publishableKey);
+          setStripePromise(loadStripe(data.publishableKey));
         }
       })
       .catch(() => {});
