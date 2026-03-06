@@ -508,10 +508,10 @@ export class CustomerPortalService {
   async listInvoices(customerId: string, tenantId: string) {
     return this.db.query(
       `SELECT id, invoice_number, status, total_minor, currency,
-              COALESCE(issued_at, issue_date) AS issued_at, due_date, paid_at
+              issue_date AS issued_at, due_date, paid_at
        FROM public.invoices
        WHERE customer_id=$1 AND tenant_id=$2
-       ORDER BY COALESCE(issued_at, issue_date) DESC NULLS LAST`,
+       ORDER BY issue_date DESC NULLS LAST`,
       [customerId, tenantId],
     );
   }
