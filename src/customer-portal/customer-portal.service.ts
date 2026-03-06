@@ -184,29 +184,36 @@ export class CustomerPortalService {
     const ref = `BK-${Date.now().toString(36).toUpperCase()}`;
     const [booking] = await this.db.query(
       `INSERT INTO public.bookings
-         (tenant_id, customer_id, customer_email, customer_first_name, customer_last_name,
+         (tenant_id, customer_id, booking_reference,
+          customer_email, customer_first_name, customer_last_name,
           customer_phone_country_code, customer_phone_number,
           pickup_address_text, dropoff_address_text, pickup_at_utc,
-          service_type_id, service_class_id, total_price_minor, currency,
-          booking_status, payment_status, booked_by, booking_reference,
-          flight_number, passenger_count, notes, created_at, updated_at)
+          timezone,
+          service_type_id, service_class_id,
+          total_price_minor, currency,
+          operational_status, payment_status, booking_source,
+          flight_number, passenger_count, special_requests,
+          created_at, updated_at)
        VALUES
-         ($1, $2,
+         ($1, $2, $3,
           (SELECT email FROM public.customers WHERE id=$2),
           (SELECT first_name FROM public.customers WHERE id=$2),
           (SELECT last_name FROM public.customers WHERE id=$2),
           (SELECT phone_country_code FROM public.customers WHERE id=$2),
           (SELECT phone_number FROM public.customers WHERE id=$2),
-          $3, $4, $5, $6, $7, $8, $9,
-          'AWAITING_CONFIRMATION', 'UNPAID', 'CUSTOMER', $10,
-          $11, $12, $13, now(), now())
+          $4, $5, $6,
+          'Australia/Sydney',
+          $7, $8,
+          $9, $10,
+          'PENDING', 'UNPAID', 'WIDGET',
+          $11, $12, $13,
+          now(), now())
        RETURNING *`,
       [
-        tenantId, customerId,
+        tenantId, customerId, ref,
         pickupAddress, dropoffAddress, pickupAtUtc,
         serviceTypeId, vehicleClassId,
         totalPriceMinor, currency,
-        ref,
         flightNumber,
         passengerCount,
         notes,
