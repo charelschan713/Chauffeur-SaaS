@@ -61,8 +61,14 @@ export class PublicController {
     @Query('tenant_slug') slug: string,
     @Query('input') input: string,
     @Query('sessiontoken') sessionToken: string,
+    @Query('lat') lat: string,
+    @Query('lng') lng: string,
   ) {
-    return this.mapsSvc.autocomplete(slug, input, sessionToken);
+    return this.mapsSvc.autocomplete(
+      slug, input, sessionToken,
+      lat ? parseFloat(lat) : undefined,
+      lng ? parseFloat(lng) : undefined,
+    );
   }
 
   /** Quote all car types for given trip — returns quote_id for handoff */

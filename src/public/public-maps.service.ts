@@ -21,7 +21,13 @@ export class PublicMapsService {
     };
   }
 
-  async autocomplete(slug: string, input: string, sessionToken?: string) {
+  async autocomplete(
+    slug: string,
+    input: string,
+    sessionToken?: string,
+    lat?: number,
+    lng?: number,
+  ) {
     if (!input?.trim()) return { predictions: [] };
     const tenant = await this.tenantSvc.resolveTenantBySlug(slug);
     const integration = await this.maps['integrationResolver'].resolve(tenant.id, 'google_maps');
@@ -35,6 +41,11 @@ export class PublicMapsService {
       components: 'country:au',
     });
     if (sessionToken) params.set('sessiontoken', sessionToken);
+    // Location bias: soft-bias toward selected city (50km radius, not strict — inter-city routes still work)
+    if (lat != null && lng != null) {
+      params.set('location', `${lat},${lng}`);
+      params.set('radius', '50000');
+    }
 
     const res = await fetch(
       `https://maps.googleapis.com/maps/api/place/autocomplete/json?${params}`,
