@@ -152,7 +152,7 @@ export class PublicTenantService {
 
   /** Returns the first active auto-apply (no code) discount for widget banner */
   async getAutoDiscount(tenantSlug: string) {
-    const tenant = await this.resolveTenant(tenantSlug);
+    const tenant = await this.resolveTenantBySlug(tenantSlug);
     const [row] = await this.db.query(
       `SELECT name, discount_type, discount_value
        FROM public.tenant_discounts
