@@ -4,6 +4,7 @@ import { Playfair_Display } from 'next/font/google';
 import './globals.css';
 import { QueryProvider } from '@/components/QueryProvider';
 import { TenantProvider } from '@/components/TenantProvider';
+import { BottomNav } from '@/components/BottomNav';
 
 const geist = Geist({
   variable: '--font-geist-sans',
@@ -26,7 +27,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en">
       <body className={`${geist.variable} ${playfair.variable} antialiased`}>
         <QueryProvider>
-          <TenantProvider>{children}</TenantProvider>
+          <TenantProvider>
+            {children}
+            <BottomNav />
+          </TenantProvider>
         </QueryProvider>
       </body>
     </html>
