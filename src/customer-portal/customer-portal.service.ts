@@ -138,6 +138,49 @@ export class CustomerPortalService {
 
   // ── Create booking (customer self-booking) ────────────────────────────────
   async createBooking(customerId: string, tenantId: string, dto: any) {
+    // If quoteId provided, hydrate trip details from quote session
+    let pickupAddress   = dto.pickupAddress;
+    let dropoffAddress  = dto.dropoffAddress;
+    let pickupAtUtc     = dto.pickupAtUtc;
+    let serviceTypeId   = dto.serviceTypeId ?? null;
+    let vehicleClassId  = dto.vehicleClassId ?? dto.quoteId ? null : null;
+    let totalPriceMinor = dto.totalPriceMinor ?? 0;
+    let currency        = dto.currency ?? 'AUD';
+    let passengerCount  = dto.passengerCount ?? 1;
+    let flightNumber    = dto.flightNumber ?? null;
+    let notes           = dto.notes ?? dto.specialRequests ?? null;
+    let quoteSessionId  = null;
+
+    if (dto.quoteId) {
+      const [session] = await this.db.query(
+        `SELECT id, payload FROM public.quote_sessions
+         WHERE id = $1 AND tenant_id = $2 AND expires_at > now() LIMIT 1`,
+        [dto.quoteId, tenantId],
+      );
+      if (!session) throw new BadRequestException('Quote expired or not found');
+
+      const payload = session.payload;
+      const req     = payload.request ?? {};
+
+      pickupAddress   = pickupAddress   ?? req.pickup_address;
+      dropoffAddress  = dropoffAddress  ?? req.dropoff_address;
+      pickupAtUtc     = pickupAtUtc     ?? req.pickup_at_utc ?? req.pickup_at;
+      serviceTypeId   = serviceTypeId   ?? req.service_type_id ?? null;
+      vehicleClassId  = dto.vehicleClassId ?? null;
+      currency        = currency        ?? payload.currency ?? 'AUD';
+      passengerCount  = passengerCount  ?? req.passenger_count ?? 1;
+      quoteSessionId  = session.id;
+
+      // Get final price from quote result for requested car type
+      if (dto.vehicleClassId && payload.results?.length) {
+        const result = payload.results.find((r: any) => r.service_class_id === dto.vehicleClassId)
+          ?? payload.results[0];
+        if (result) {
+          totalPriceMinor = dto.totalPriceMinor ?? result.estimated_total_minor;
+        }
+      }
+    }
+
     const ref = `BK-${Date.now().toString(36).toUpperCase()}`;
     const [booking] = await this.db.query(
       `INSERT INTO public.bookings
@@ -158,15 +201,24 @@ export class CustomerPortalService {
        RETURNING *`,
       [
         tenantId, customerId,
-        dto.pickupAddress, dto.dropoffAddress, dto.pickupAtUtc,
-        dto.serviceTypeId ?? null, dto.vehicleClassId ?? null,
-        dto.totalPriceMinor ?? 0, dto.currency ?? 'AUD',
+        pickupAddress, dropoffAddress, pickupAtUtc,
+        serviceTypeId, vehicleClassId,
+        totalPriceMinor, currency,
         ref,
-        dto.flightNumber ?? null,
-        dto.passengerCount ?? 1,
-        dto.notes ?? null,
+        flightNumber,
+        passengerCount,
+        notes,
       ],
     );
+
+    // Mark quote as converted
+    if (quoteSessionId) {
+      await this.db.query(
+        `UPDATE public.quote_sessions SET converted_at = now() WHERE id = $1`,
+        [quoteSessionId],
+      ).catch(() => {});
+    }
+
     return booking;
   }
 
