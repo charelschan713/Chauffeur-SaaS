@@ -32,7 +32,7 @@ export class InvoiceController {
     const [rows, count] = await Promise.all([
       this.db.query(
         `SELECT i.*,
-                u.first_name || ' ' || u.last_name as driver_full_name
+                u.full_name as driver_full_name
            FROM public.invoices i
            LEFT JOIN public.users u ON u.id = i.submitted_by_driver_id
           WHERE ${where}
@@ -49,7 +49,7 @@ export class InvoiceController {
   async get(@Param('id') id: string, @Req() req: any) {
     const [rows, jobs] = await Promise.all([
       this.db.query(
-        `SELECT i.*, u.first_name || ' ' || u.last_name as driver_full_name
+        `SELECT i.*, u.full_name as driver_full_name
            FROM public.invoices i
            LEFT JOIN public.users u ON u.id = i.submitted_by_driver_id
           WHERE i.id = $1 AND i.tenant_id = $2 AND i.deleted_at IS NULL`,
@@ -200,7 +200,7 @@ export class InvoiceController {
               b.pickup_address_text, b.dropoff_address_text,
               b.total_price_minor, b.currency,
               a.driver_pay_minor,
-              u.first_name || ' ' || u.last_name as driver_name,
+              u.full_name as driver_name,
               a.driver_id
          FROM public.assignments a
          JOIN public.bookings b ON b.id = a.booking_id

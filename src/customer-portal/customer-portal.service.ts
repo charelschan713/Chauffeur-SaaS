@@ -107,9 +107,10 @@ export class CustomerPortalService {
     }
     const [rows, cnt] = await Promise.all([
       this.db.query(
-        `SELECT b.id, b.booking_reference, b.status, b.pickup_at_utc,
-                b.pickup_address, b.dropoff_address, b.total_price_minor,
-                b.currency, b.payment_status, b.booked_by
+        `SELECT b.id, b.booking_reference, b.operational_status AS status,
+                b.pickup_at_utc, b.pickup_address_text AS pickup_address,
+                b.dropoff_address_text AS dropoff_address, b.total_price_minor,
+                b.currency, b.payment_status, b.booking_source AS booked_by
          FROM public.bookings b ${where}
          ORDER BY b.pickup_at_utc DESC
          LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
