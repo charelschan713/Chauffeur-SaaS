@@ -58,6 +58,9 @@ interface QuoteSession {
         minimum_applied: boolean;
         discount_amount_minor?: number;
         pre_discount_total_minor?: number;
+        extras_minor?: number;
+        waypoints_minor?: number;
+        baby_seats_minor?: number;
       };
     }>;
     currency: string;
@@ -691,6 +694,18 @@ export function BookPageClient() {
                 <div className="flex justify-between text-[hsl(var(--muted-foreground))]">
                   <span>Base fare</span>
                   <span>{fmtMoney(preview.base_calculated_minor, selectedResult.currency)}</span>
+                </div>
+              )}
+              {(preview.waypoints_minor ?? 0) > 0 && (
+                <div className="flex justify-between text-[hsl(var(--muted-foreground))]">
+                  <span>+ Waypoint stops</span>
+                  <span>+{fmtMoney(preview.waypoints_minor!, selectedResult.currency)}</span>
+                </div>
+              )}
+              {(preview.baby_seats_minor ?? 0) > 0 && (
+                <div className="flex justify-between text-[hsl(var(--muted-foreground))]">
+                  <span>+ Baby seats</span>
+                  <span>+{fmtMoney(preview.baby_seats_minor!, selectedResult.currency)}</span>
                 </div>
               )}
               {preview.surcharge_minor > 0 && (

@@ -269,10 +269,10 @@ export class PricingResolver {
           Number(serviceType?.return_value ?? 100),
           surchargeMinor,
         );
-        const afterExtras = afterMultiplier + extras;
-        const final = Math.max(afterExtras, carType.minimum_fare_minor ?? 0);
-        minimumApplied = final === (carType.minimum_fare_minor ?? 0);
-        baseMinor = final;
+        // Apply minimum to base BEFORE extras — extras always add on top
+        const afterMin = Math.max(afterMultiplier, carType.minimum_fare_minor ?? 0);
+        minimumApplied = afterMultiplier < (carType.minimum_fare_minor ?? 0);
+        baseMinor = afterMin + extras;
       } else {
         multiplierMode = serviceType?.one_way_type ?? 'PERCENTAGE';
         multiplierValue =
@@ -284,10 +284,10 @@ export class PricingResolver {
           Number(serviceType?.one_way_value ?? 100),
           surchargeMinor,
         );
-        const afterExtras = afterMultiplier + extras;
-        const final = Math.max(afterExtras, carType.minimum_fare_minor ?? 0);
-        minimumApplied = final === (carType.minimum_fare_minor ?? 0);
-        baseMinor = final;
+        // Apply minimum to base BEFORE extras — extras always add on top
+        const afterMin = Math.max(afterMultiplier, carType.minimum_fare_minor ?? 0);
+        minimumApplied = afterMultiplier < (carType.minimum_fare_minor ?? 0);
+        baseMinor = afterMin + extras;
       }
     }
 
@@ -352,6 +352,11 @@ export class PricingResolver {
       parking_minor: parkingMinor,
       grand_total_minor: grandTotalMinor,
       discount_source_customer_id: ctx.customerId ?? null,
+      extras_minor: extras,
+      waypoints_minor: waypoints * (carType.waypoint_minor ?? 0),
+      baby_seats_minor: (infantSeats * (carType.infant_seat_minor ?? 0))
+        + (toddlerSeats * (carType.toddler_seat_minor ?? 0))
+        + (boosterSeats * (carType.booster_seat_minor ?? 0)),
       base_calculated_minor: ctx.tripType === 'RETURN' ? undefined : baseMinor,
       leg1_minor: leg1Minor,
       leg2_minor: leg2Minor,
