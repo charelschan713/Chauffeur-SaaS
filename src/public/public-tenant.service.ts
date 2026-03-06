@@ -104,16 +104,30 @@ export class PublicTenantService {
     const cached = this.cacheGet<any[]>(cacheKey);
     if (cached) return cached;
 
-    const rows = await this.db.query(
-      `SELECT tsc.id, tsc.name, tsc.description, tsc.image_url,
-              tsc.display_order, tsc.active,
-              tsc.base_fare_minor, tsc.minimum_fare_minor,
-              tsc.max_passengers, tsc.luggage_capacity, tsc.vehicle_class
-       FROM public.tenant_service_classes tsc
-       WHERE tsc.tenant_id = $1 AND tsc.active = true AND tsc.name IS NOT NULL AND tsc.name != ''
-       ORDER BY tsc.display_order ASC NULLS LAST, tsc.name ASC`,
-      [tenant.id],
-    );
+    let rows: any[];
+    try {
+      rows = await this.db.query(
+        `SELECT tsc.id, tsc.name, tsc.description, tsc.image_url,
+                tsc.display_order, tsc.active,
+                tsc.base_fare_minor, tsc.minimum_fare_minor,
+                tsc.max_passengers, tsc.luggage_capacity, tsc.vehicle_class
+         FROM public.tenant_service_classes tsc
+         WHERE tsc.tenant_id = $1 AND tsc.active = true AND tsc.name IS NOT NULL AND tsc.name != ''
+         ORDER BY tsc.display_order ASC NULLS LAST, tsc.name ASC`,
+        [tenant.id],
+      );
+    } catch {
+      // Fallback: migration may not have run yet — query without optional columns
+      rows = await this.db.query(
+        `SELECT tsc.id, tsc.name, tsc.description, tsc.image_url,
+                tsc.display_order, tsc.active,
+                tsc.base_fare_minor, tsc.minimum_fare_minor
+         FROM public.tenant_service_classes tsc
+         WHERE tsc.tenant_id = $1 AND tsc.active = true AND tsc.name IS NOT NULL AND tsc.name != ''
+         ORDER BY tsc.display_order ASC NULLS LAST, tsc.name ASC`,
+        [tenant.id],
+      );
+    }
     this.cacheSet(cacheKey, rows);
     return rows;
   }
