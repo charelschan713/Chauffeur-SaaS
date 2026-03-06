@@ -51,7 +51,7 @@ const emptyForm = (): Partial<Discount> & { maxDiscountDollars: string; minFareD
 
 function fmtDiscount(d: Discount) {
   if (d.type === 'PERCENTAGE') {
-    const max = d.max_discount_minor ? ` (max $${(d.max_discount_minor / 100).toFixed(0)})` : '';
+    const max = d.max_discount_minor ? ` (max $${(d.max_discount_minor / 100).toFixed(2)})` : '';
     return `${d.value}%${max}`;
   }
   return `$${(d.value / 100).toFixed(2)} off`;

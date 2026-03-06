@@ -261,7 +261,7 @@ function DispatchBoardInner() {
                     <div className="text-xs text-gray-500">{formatTime(b.pickup_at_utc)}</div>
                     <div className="text-sm text-gray-700">{shortAddress(b.pickup_address_text)} → {shortAddress(b.dropoff_address_text)}</div>
                     <div className="text-xs text-gray-500">{customer || '—'}</div>
-                    <div className="text-xs text-gray-500">{b.currency} {(b.total_price_minor ?? 0) / 100}</div>
+                    <div className="text-xs text-gray-500">{b.currency} {((b.total_price_minor ?? 0) / 100).toFixed(2)}</div>
                   </button>
                 );
               })}
