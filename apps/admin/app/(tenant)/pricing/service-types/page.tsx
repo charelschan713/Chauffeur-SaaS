@@ -310,7 +310,9 @@ export default function ServiceTypesPage() {
                 <td className="px-6 py-4 font-medium text-gray-900">{row.display_name}</td>
                 <td className="px-6 py-4 text-sm">{row.calculation_type}</td>
                 <td className="px-6 py-4 text-sm">{row.one_way_type} {row.one_way_value}</td>
-                <td className="px-6 py-4 text-sm">{row.return_type} {row.return_value}</td>
+                <td className="px-6 py-4 text-sm text-gray-400">
+                  {row.calculation_type === 'HOURLY_CHARTER' ? '—' : `${row.return_type} ${row.return_value}`}
+                </td>
                 <td className="px-6 py-4 text-sm">{row.minimum_hours}</td>
                 <td className="px-6 py-4 text-sm">
                   {row.toll_enabled && (

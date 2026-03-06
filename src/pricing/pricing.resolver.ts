@@ -218,6 +218,7 @@ export class PricingResolver {
     let combinedBefore: number | undefined;
 
     if (serviceType?.calculation_type === 'HOURLY_CHARTER' || ctx.bookedHours) {
+      // Hourly charter: no return trip concept — price covers the full charter period
       const bookedHours = ctx.bookedHours ?? 0;
       const actualHours = Math.max(bookedHours, serviceType?.minimum_hours ?? 2);
       const includedKm = actualHours * (serviceType?.km_per_hour_included ?? 0);
@@ -237,6 +238,7 @@ export class PricingResolver {
         surchargeMinor,
       );
       baseMinor = baseMinor + extras;
+      // Skip return logic entirely for hourly charter — fall through to discount+toll resolution below
     } else {
       const leg =
         (carType.base_fare_minor ?? 0) +
