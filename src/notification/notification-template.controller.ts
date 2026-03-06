@@ -1,11 +1,12 @@
 import { Body, Controller, Delete, Get, NotFoundException, Param, Patch, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { JwtGuard } from '../common/guards/jwt.guard';
+import { TenantRoleGuard, TenantRoles } from '../common/guards/tenant-role.guard';
 import { renderTemplate } from './template.renderer';
 import { PLATFORM_DEFAULT_TEMPLATES } from './templates/default-templates';
 
 @Controller('notification-templates')
-@UseGuards(JwtGuard)
+@UseGuards(JwtGuard, TenantRoleGuard)
 export class NotificationTemplateController {
   constructor(private readonly dataSource: DataSource) {}
 
@@ -29,7 +30,7 @@ export class NotificationTemplateController {
   async get(@Req() req: any, @Param('event') event: string, @Param('channel') channel: string) {
     const rows = await this.dataSource.query(
       `SELECT * FROM public.tenant_notification_templates
-       WHERE tenant_id = $1 AND event_type = $2 AND channel = $3 AND active = true
+       WHERE tenant_id = $1 AND event_type = $2 AND channel = $3
        LIMIT 1`,
       [req.user.tenant_id, event, channel],
     );
@@ -37,6 +38,7 @@ export class NotificationTemplateController {
   }
 
   @Post()
+  @TenantRoles('tenant_admin')
   async upsert(@Req() req: any, @Body() body: any) {
     await this.dataSource.query(
       `INSERT INTO public.tenant_notification_templates
@@ -51,6 +53,7 @@ export class NotificationTemplateController {
 
   /** PATCH :event/:channel — update active and/or recipients without touching body */
   @Patch(':event/:channel')
+  @TenantRoles('tenant_admin')
   async patch(@Req() req: any, @Param('event') event: string, @Param('channel') channel: string, @Body() body: any) {
     const setClauses: string[] = [];
     const params: any[] = [req.user.tenant_id, event, channel];
@@ -91,6 +94,7 @@ export class NotificationTemplateController {
   }
 
   @Delete(':event/:channel')
+  @TenantRoles('tenant_admin')
   async reset(@Req() req: any, @Param('event') event: string, @Param('channel') channel: string) {
     await this.dataSource.query(
       `UPDATE public.tenant_notification_templates

@@ -5,11 +5,13 @@ import { SmsProvider } from './providers/sms.provider';
 import { IntegrationModule } from '../integration/integration.module';
 import { TemplateResolver } from './template.resolver';
 import { NotificationTemplateController } from './notification-template.controller';
+import { Reflector } from '@nestjs/core';
+import { TenantRoleGuard } from '../common/guards/tenant-role.guard';
 
 @Module({
   imports: [IntegrationModule],
   controllers: [NotificationTemplateController],
-  providers: [NotificationService, EmailProvider, SmsProvider, TemplateResolver],
+  providers: [NotificationService, EmailProvider, SmsProvider, TemplateResolver, Reflector, TenantRoleGuard],
   exports: [NotificationService],
 })
 export class NotificationModule {}
