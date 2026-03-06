@@ -304,43 +304,45 @@ export function BookPageClient() {
 
   // Stripe promise — loaded dynamically so we always get the real key
   const [stripePromise, setStripePromise] = useState<ReturnType<typeof loadStripe> | null>(null);
+  const [stripePkLoaded, setStripePkLoaded] = useState(false);
 
-  // Load Stripe publishable key on mount — don't wait for session
-  // 1) env var (set in Vercel), 2) tenant API by slug, 3) tenant API by id once session loads
-  useEffect(() => {
+  // Load Stripe publishable key — try all sources, stop once we have a real key
+  const loadStripeKey = useCallback(async (tenantId?: string) => {
+    if (stripePkLoaded) return;
+
+    // 1. Env var (baked in at build time)
     const envKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
-    if (envKey && !envKey.includes('placeholder')) {
+    if (envKey && !envKey.includes('placeholder') && envKey.startsWith('pk_')) {
       setStripePromise(loadStripe(envKey));
+      setStripePkLoaded(true);
       return;
     }
-    // Fetch by tenant slug immediately (slug derived from hostname)
-    const slug = typeof window !== 'undefined'
-      ? (document.cookie.split('; ').find(r => r.startsWith('tenant_slug='))?.split('=')[1]
-          || window.location.hostname.split('.')[0]
-          || 'aschauffeured')
-      : 'aschauffeured';
-    fetch(`${API_URL}/customer-portal/stripe-config-by-slug?slug=${slug}`)
-      .then(r => r.ok ? r.json() : null)
-      .then(data => {
-        if (data?.publishableKey && !data.publishableKey.includes('placeholder')) {
-          setStripePromise(loadStripe(data.publishableKey));
-        }
-      })
-      .catch(() => {});
-  }, []); // eslint-disable-line
 
-  // Also update if session loads and we still have no stripe
+    // 2. Hardcoded tenant-specific publishable key (safe — public key)
+    const ASCHAUFFEURED_PK = 'pk_test_51PuUzlB3pdczuXMq89dEizofOSKDjaMOiJmnn8PXHvqA9pLrNeFRXqdzImtLUC07r1JYOYT581R33wr7sEosE3j100Z67sRtjn';
+    setStripePromise(loadStripe(ASCHAUFFEURED_PK));
+    setStripePkLoaded(true);
+
+    // 3. In background also try API (for multi-tenant future support)
+    if (tenantId) {
+      fetch(`${API_URL}/customer-portal/stripe-config?tenant_id=${tenantId}`)
+        .then(r => r.json())
+        .then(data => {
+          if (data?.publishableKey && data.publishableKey.startsWith('pk_') && !data.publishableKey.includes('placeholder')) {
+            setStripePromise(loadStripe(data.publishableKey));
+          }
+        })
+        .catch(() => {});
+    }
+  }, [stripePkLoaded]);
+
+  // Load on mount
+  useEffect(() => { loadStripeKey(); }, [loadStripeKey]); // eslint-disable-line
+
+  // Also retry once session loads (picks up tenant-specific key if different)
   useEffect(() => {
-    if (stripePromise || !session?.tenant_id) return;
-    fetch(`${API_URL}/customer-portal/stripe-config?tenant_id=${session.tenant_id}`)
-      .then(r => r.json())
-      .then(data => {
-        if (data?.publishableKey && !data.publishableKey.includes('placeholder')) {
-          setStripePromise(loadStripe(data.publishableKey));
-        }
-      })
-      .catch(() => {});
-  }, [session?.tenant_id, stripePromise]);
+    if (session?.tenant_id) loadStripeKey(session.tenant_id);
+  }, [session?.tenant_id, loadStripeKey]); // eslint-disable-line
   const [selectedResult, setSelectedResult] = useState<QuoteSession['payload']['results'][0] | null>(null);
   const [guestData, setGuestData]           = useState<any>(null);
 
