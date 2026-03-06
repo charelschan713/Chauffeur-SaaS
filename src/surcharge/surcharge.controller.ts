@@ -2,11 +2,15 @@ import { Controller, Get, Post, Put, Delete, Body, Param, Req, UseGuards } from 
 import { JwtGuard } from '../common/guards/jwt.guard';
 import { TenantRoleGuard } from '../common/guards/tenant-role.guard';
 import { SurchargeService } from './surcharge.service';
+import { AirportParkingService } from './airport-parking.service';
 
 @Controller('surcharges')
 @UseGuards(JwtGuard)
 export class SurchargeController {
-  constructor(private readonly svc: SurchargeService) {}
+  constructor(
+    private readonly svc: SurchargeService,
+    private readonly parking: AirportParkingService,
+  ) {}
 
   private tenantId(req: any): string {
     return req.user?.tenantId ?? req.user?.tenant_id;
@@ -60,5 +64,29 @@ export class SurchargeController {
   @UseGuards(TenantRoleGuard)
   deleteHoliday(@Req() req: any, @Param('id') id: string) {
     return this.svc.deleteHoliday(this.tenantId(req), id);
+  }
+
+  // ── Airport Parking ───────────────────────────────────────────────────────
+  @Get('parking')
+  listParking(@Req() req: any) {
+    return this.parking.list(this.tenantId(req));
+  }
+
+  @Post('parking')
+  @UseGuards(TenantRoleGuard)
+  createParking(@Req() req: any, @Body() body: any) {
+    return this.parking.create(this.tenantId(req), body);
+  }
+
+  @Put('parking/:id')
+  @UseGuards(TenantRoleGuard)
+  updateParking(@Req() req: any, @Param('id') id: string, @Body() body: any) {
+    return this.parking.update(this.tenantId(req), id, body);
+  }
+
+  @Delete('parking/:id')
+  @UseGuards(TenantRoleGuard)
+  deleteParking(@Req() req: any, @Param('id') id: string) {
+    return this.parking.remove(this.tenantId(req), id);
   }
 }

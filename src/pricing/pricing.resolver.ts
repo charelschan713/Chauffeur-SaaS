@@ -9,6 +9,7 @@ import { buildSnapshot } from './snapshot.builder';
 import { PricingContext, PricingSnapshot } from './pricing.types';
 import { DiscountResolver } from '../customer/discount.resolver';
 import { SurchargeService } from '../surcharge/surcharge.service';
+import { AirportParkingService } from '../surcharge/airport-parking.service';
 
 type MultiplierMode = 'PERCENTAGE' | 'FIXED_SURCHARGE';
 
@@ -33,6 +34,7 @@ export class PricingResolver {
     private readonly discountResolver: DiscountResolver,
     private readonly mapsService: GoogleMapsService,
     private readonly surchargeService: SurchargeService,
+    private readonly airportParkingService: AirportParkingService,
   ) {}
 
   // Estimate toll from route distance (Sydney CityLink rates)
@@ -288,7 +290,20 @@ export class PricingResolver {
       }
     }
 
-    const tollParkingMinor = await this.resolveToll(ctx);
+    const tollMinor = await this.resolveToll(ctx);
+
+    // ── Airport parking fee ──────────────────────────────────────────
+    let parkingMinor = 0;
+    let parkingLabel: string | null = null;
+    if (ctx.pickupAddress) {
+      const parkingResult = await this.airportParkingService.resolveParking(
+        ctx.tenantId,
+        ctx.pickupAddress,
+      );
+      parkingMinor = parkingResult.fee_minor;
+      parkingLabel = parkingResult.label;
+    }
+    const tollParkingMinor = tollMinor + parkingMinor;
 
     // ── Time/Holiday surcharges ──────────────────────────────────────
     let timeSurchargeMinor = 0;
@@ -303,6 +318,7 @@ export class PricingResolver {
       timeSurchargeMinor = surchargeResult.total_surcharge_minor;
       surchargeLabels = surchargeResult.surcharges.map(s => s.label);
     }
+    if (parkingLabel) surchargeLabels = [...surchargeLabels, `${parkingLabel} parking`];
 
     const fareWithSurcharge = baseMinor + timeSurchargeMinor;
 
@@ -331,8 +347,8 @@ export class PricingResolver {
       discount_amount_minor: discount.discount_amount_minor,
       final_fare_minor: discount.final_fare_minor,
       toll_parking_minor: tollParkingMinor,
-      toll_minor: tollParkingMinor,
-      parking_minor: 0,
+      toll_minor: tollMinor,
+      parking_minor: parkingMinor,
       grand_total_minor: grandTotalMinor,
       discount_source_customer_id: ctx.customerId ?? null,
       base_calculated_minor: ctx.tripType === 'RETURN' ? undefined : baseMinor,
