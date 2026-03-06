@@ -11,9 +11,9 @@ export class PublicMapsService {
     private readonly tenantSvc: PublicTenantService,
   ) {}
 
-  async getRoute(slug: string, origin: string, destination: string) {
+  async getRoute(slug: string, origin: string, destination: string, pickupAt?: string | null) {
     const tenant = await this.tenantSvc.resolveTenantBySlug(slug);
-    const route = await this.maps.getRoute(tenant.id, origin, destination);
+    const route = await this.maps.getRoute(tenant.id, origin, destination, pickupAt);
     if (!route) return { distance_km: 0, duration_minutes: 0 };
     return {
       distance_km: route.distanceKm,

@@ -47,8 +47,9 @@ export class PublicController {
     @Query('tenant_slug') slug: string,
     @Query('origin') origin: string,
     @Query('destination') destination: string,
+    @Query('pickup_at') pickupAt?: string,
   ) {
-    return this.mapsSvc.getRoute(slug, origin, destination);
+    return this.mapsSvc.getRoute(slug, origin, destination, pickupAt ?? null);
   }
 
   @Get('cities')

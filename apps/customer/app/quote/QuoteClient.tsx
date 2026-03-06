@@ -347,7 +347,8 @@ export function QuoteClient() {
 
     try {
       const effectiveDropoff = dropoff || pickup;
-      const routeParams = new URLSearchParams({ tenant_slug: slug, origin: pickup, destination: effectiveDropoff });
+      const pickupAtUtcStr = new Date(`${date}T${time}:00`).toISOString();
+      const routeParams = new URLSearchParams({ tenant_slug: slug, origin: pickup, destination: effectiveDropoff, pickup_at: pickupAtUtcStr });
       const route = await fetch(`${API_URL}/public/maps/route?${routeParams}`).then(r => { if (!r.ok) throw new Error('Route failed'); return r.json(); });
 
       const body: Record<string, any> = {
@@ -356,7 +357,7 @@ export function QuoteClient() {
         trip_mode: isHourly(selectedServiceType) ? 'ONE_WAY' : tripType,
         pickup_address: pickup,
         dropoff_address: effectiveDropoff,
-        pickup_at_utc: new Date(`${date}T${time}:00`).toISOString(),
+        pickup_at_utc: pickupAtUtcStr,
         timezone: tz,
         passenger_count: Number(passengers),
         luggage_count: Number(luggage),

@@ -51,6 +51,7 @@ export class PricingResolver {
         ctx.pickupAddress,
         ctx.dropoffAddress,
         ctx.currency,
+        ctx.pickupAtUtc ?? null,
       );
       if (!route) return 0;
       return route.tollAmountMinor;
