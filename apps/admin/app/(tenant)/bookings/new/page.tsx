@@ -39,7 +39,7 @@ const formSchema = z
     passenger_phone_country_code: z.string().default('+61'),
     passenger_phone_number: z.string().trim().optional(),
     pickup_address_text: z.string().trim().min(2, 'Pickup address must be at least 2 characters'),
-    dropoff_address_text: z.string().trim().min(2, 'Dropoff address must be at least 2 characters'),
+    dropoff_address_text: z.string().trim().optional(),
     waypoints: z.array(z.string()).default([]),
     pickup_at_utc: z.string().min(1, 'Pickup time is required'),
     is_return_trip: z.boolean().default(false),
@@ -761,12 +761,8 @@ export default function CreateBookingPage() {
                 onChange={(v) => setValue('pickup_at_utc', v, { shouldValidate: true })}
                 error={errors.pickup_at_utc?.message} />
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {selectedServiceType?.code === 'POINT_TO_POINT' && (
-                  <Field label="Flight Number">
-                    <Input {...register('flight_number')} placeholder="e.g. QF401 (optional)" />
-                  </Field>
-                )}
-                {selectedServiceType?.calculation_type === 'POINT_TO_POINT' && (
+                {/* P2P / Event / Wedding — Trip Type */}
+                {selectedServiceType?.calculation_type !== 'HOURLY_CHARTER' && (
                   <div>
                     <label className="text-sm font-medium text-gray-700 block mb-1">Trip Type</label>
                     <Select
@@ -778,16 +774,27 @@ export default function CreateBookingPage() {
                     </Select>
                   </div>
                 )}
+                {/* Hourly — Duration Hours */}
                 {selectedServiceType?.calculation_type === 'HOURLY_CHARTER' && (
                   <div>
                     <label className="text-sm font-medium text-gray-700 block mb-1">Duration (hours)</label>
-                    <Select value={String(values.passenger_count)} onChange={(e) => setValue('passenger_count', Number(e.target.value))}>
+                    <Select
+                      value={String(values.luggage_count ?? 2)}
+                      onChange={(e) => setValue('luggage_count', Number(e.target.value))}
+                    >
                       {[2,3,4,5,6,7,8,9,10,12].map(h => <option key={h} value={h}>{h} hours</option>)}
                     </Select>
                   </div>
                 )}
+                {/* P2P only — Flight Number */}
+                {selectedServiceType?.code === 'POINT_TO_POINT' && (
+                  <Field label="Flight Number (optional)">
+                    <Input {...register('flight_number')} placeholder="e.g. QF401" />
+                  </Field>
+                )}
               </div>
-              {values.is_return_trip && selectedServiceType?.calculation_type === 'POINT_TO_POINT' && (
+              {/* Return fields */}
+              {values.is_return_trip && selectedServiceType?.calculation_type !== 'HOURLY_CHARTER' && (
                 <DateTimePicker label="Return Date & Time" value={values.return_pickup_at_utc ?? ''}
                   onChange={(v) => setValue('return_pickup_at_utc', v, { shouldValidate: true })}
                   error={errors.return_pickup_at_utc?.message}
