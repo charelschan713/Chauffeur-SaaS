@@ -66,21 +66,26 @@ export class CustomerPortalService {
   async getDashboard(customerId: string, tenantId: string) {
     const [upcomingRows, pastRows, customer] = await Promise.all([
       this.db.query(
-        `SELECT id, booking_reference, status, pickup_at_utc, pickup_address,
-                dropoff_address, total_price_minor, currency, booked_by
+        `SELECT id, booking_reference, operational_status as status,
+                pickup_at_utc, pickup_address_text as pickup_address,
+                dropoff_address_text as dropoff_address,
+                total_price_minor, currency, booking_source as booked_by,
+                service_class_id, special_requests
          FROM public.bookings
          WHERE customer_id=$1 AND tenant_id=$2
-           AND status NOT IN ('CANCELLED','COMPLETED','NO_SHOW')
+           AND operational_status NOT IN ('CANCELLED','COMPLETED','NO_SHOW')
            AND pickup_at_utc > now()
          ORDER BY pickup_at_utc ASC LIMIT 5`,
         [customerId, tenantId],
       ),
       this.db.query(
-        `SELECT id, booking_reference, status, pickup_at_utc, pickup_address,
-                dropoff_address, total_price_minor, currency
+        `SELECT id, booking_reference, operational_status as status,
+                pickup_at_utc, pickup_address_text as pickup_address,
+                dropoff_address_text as dropoff_address,
+                total_price_minor, currency
          FROM public.bookings
          WHERE customer_id=$1 AND tenant_id=$2
-           AND (status IN ('COMPLETED','CANCELLED','NO_SHOW') OR pickup_at_utc <= now())
+           AND (operational_status IN ('COMPLETED','CANCELLED','NO_SHOW') OR pickup_at_utc <= now())
          ORDER BY pickup_at_utc DESC LIMIT 5`,
         [customerId, tenantId],
       ),
