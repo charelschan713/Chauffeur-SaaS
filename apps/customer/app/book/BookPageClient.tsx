@@ -285,6 +285,11 @@ export function BookPageClient() {
     currency: string;
   } | null>(null);
 
+  // Passenger details (pre-filled from profile or guest form)
+  const [passengerDetails, setPassengerDetails] = useState({
+    firstName: '', lastName: '', email: '', phone: '',
+  });
+
   // Extra booking details
   const [flightNumber, setFlightNumber]       = useState('');
   const [specialRequests, setSpecialRequests] = useState('');
@@ -354,6 +359,27 @@ export function BookPageClient() {
     }
   }, [token, selectedResult, step, fetchLoyaltyDiscount]);
 
+  // Pre-fill passenger details from profile (logged-in) or guestData
+  useEffect(() => {
+    if (guestData) {
+      setPassengerDetails({
+        firstName: guestData.firstName ?? '',
+        lastName:  guestData.lastName  ?? '',
+        email:     guestData.email     ?? '',
+        phone:     guestData.phone     ?? '',
+      });
+    } else if (token) {
+      api.get('/customer-portal/profile').then(({ data }) => {
+        setPassengerDetails({
+          firstName: data.first_name   ?? '',
+          lastName:  data.last_name    ?? '',
+          email:     data.email        ?? '',
+          phone:     data.phone_number ?? '',
+        });
+      }).catch(() => {});
+    }
+  }, [token, guestData]);
+
   // ── Submit booking details ──
   const handleDetailsSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
@@ -381,12 +407,16 @@ export function BookPageClient() {
         toddlerSeats: req.toddler_seats ?? 0,
         boosterSeats: req.booster_seats ?? 0,
         quoteId: session.id,
+        // Passenger details (from form — may differ from account holder)
+        passengerFirstName: passengerDetails.firstName || undefined,
+        passengerLastName:  passengerDetails.lastName  || undefined,
+        passengerPhone:     passengerDetails.phone     || undefined,
         ...(guestData && {
           guestCheckout: true,
-          firstName: guestData.firstName,
-          lastName: guestData.lastName,
-          email: guestData.email,
-          phone: guestData.phone,
+          firstName: passengerDetails.firstName || guestData.firstName,
+          lastName:  passengerDetails.lastName  || guestData.lastName,
+          email:     passengerDetails.email     || guestData.email,
+          phone:     passengerDetails.phone     || guestData.phone,
         }),
       };
 
@@ -761,8 +791,8 @@ export function BookPageClient() {
 
             {/* Booking details */}
             {step === 'details' && (
-              <form onSubmit={handleDetailsSubmit} className="space-y-4">
-                <h2 className="font-semibold text-[hsl(var(--foreground))]">Booking Details</h2>
+              <form onSubmit={handleDetailsSubmit} className="space-y-5">
+                <h2 className="font-semibold text-[hsl(var(--foreground))]">Passenger Details</h2>
 
                 {submitError && (
                   <div className="flex items-start gap-2 p-3 rounded-lg bg-[hsl(var(--destructive)/0.1)] border border-[hsl(var(--destructive)/0.3)] text-sm text-[hsl(var(--destructive))]">
@@ -771,22 +801,70 @@ export function BookPageClient() {
                   </div>
                 )}
 
-                {/* Flight number — shown for all (optional) */}
-                <div className="space-y-1.5">
-                  <Label>Flight Number <span className="text-[hsl(var(--muted-foreground))] font-normal normal-case">(optional)</span></Label>
-                  <Input value={flightNumber} onChange={e => setFlightNumber(e.target.value)}
-                    placeholder="e.g. QF401" />
+                {/* Passenger name */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label>First Name *</Label>
+                    <Input
+                      value={passengerDetails.firstName}
+                      onChange={e => setPassengerDetails(p => ({ ...p, firstName: e.target.value }))}
+                      placeholder="John"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Last Name *</Label>
+                    <Input
+                      value={passengerDetails.lastName}
+                      onChange={e => setPassengerDetails(p => ({ ...p, lastName: e.target.value }))}
+                      placeholder="Smith"
+                      required
+                    />
+                  </div>
                 </div>
 
-                {/* Special requests */}
+                {/* Email — shown for logged-in too (read-only hint) */}
                 <div className="space-y-1.5">
-                  <Label>Special Requests <span className="text-[hsl(var(--muted-foreground))] font-normal normal-case">(optional)</span></Label>
-                  <textarea
-                    className="w-full h-20 rounded-[--radius] border border-[hsl(var(--input-border))] bg-[hsl(var(--input))] px-3 py-2.5 text-sm text-[hsl(var(--foreground))] placeholder:text-[hsl(var(--muted-foreground))] resize-none focus:outline-none focus:border-[hsl(var(--primary))] focus:ring-2 focus:ring-[hsl(var(--primary)/0.15)] transition-colors"
-                    placeholder="Any special requirements for your journey..."
-                    value={specialRequests}
-                    onChange={e => setSpecialRequests(e.target.value)}
+                  <Label>Email *</Label>
+                  <Input
+                    type="email"
+                    value={passengerDetails.email}
+                    onChange={e => setPassengerDetails(p => ({ ...p, email: e.target.value }))}
+                    placeholder="passenger@email.com"
+                    required={!!guestData}
+                    readOnly={!!token && !guestData}
+                    className={token && !guestData ? 'opacity-60 cursor-default' : ''}
                   />
+                </div>
+
+                {/* Phone */}
+                <div className="space-y-1.5">
+                  <Label>Phone <span className="text-[hsl(var(--muted-foreground))] font-normal normal-case">(optional)</span></Label>
+                  <Input
+                    type="tel"
+                    value={passengerDetails.phone}
+                    onChange={e => setPassengerDetails(p => ({ ...p, phone: e.target.value }))}
+                    placeholder="+61 400 000 000"
+                  />
+                </div>
+
+                <div className="border-t border-[hsl(var(--border))] pt-4 space-y-4">
+                  {/* Flight number */}
+                  <div className="space-y-1.5">
+                    <Label>Flight Number <span className="text-[hsl(var(--muted-foreground))] font-normal normal-case">(optional)</span></Label>
+                    <Input value={flightNumber} onChange={e => setFlightNumber(e.target.value)} placeholder="e.g. QF401" />
+                  </div>
+
+                  {/* Special requests */}
+                  <div className="space-y-1.5">
+                    <Label>Special Requests <span className="text-[hsl(var(--muted-foreground))] font-normal normal-case">(optional)</span></Label>
+                    <textarea
+                      className="w-full h-20 rounded-[--radius] border border-[hsl(var(--input-border))] bg-[hsl(var(--input))] px-3 py-2.5 text-sm text-[hsl(var(--foreground))] placeholder:text-[hsl(var(--muted-foreground))] resize-none focus:outline-none focus:border-[hsl(var(--primary))] focus:ring-2 focus:ring-[hsl(var(--primary)/0.15)] transition-colors"
+                      placeholder="Preferred temperature, music, special requirements..."
+                      value={specialRequests}
+                      onChange={e => setSpecialRequests(e.target.value)}
+                    />
+                  </div>
                 </div>
 
                 <Button type="submit" size="lg" className="w-full" disabled={submitting}>
