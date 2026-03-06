@@ -1,12 +1,21 @@
 'use client';
-import { useEffect, useState, useCallback, useRef } from 'react';
+/**
+ * QuoteClient — 1:1 replica of the official ASChauffeured booking widget
+ * Ported for the Customer Portal (Next.js, dark luxury theme, same API calls)
+ *
+ * Flow:
+ *  1. Load cities + service-types + car-types on mount
+ *  2. User fills fields → Get Quote → POST /public/maps/route + /public/pricing/quote
+ *  3. Car type cards appear → Book Now → /book?quote_id=...&car_type_id=...
+ */
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/lib/auth-store';
-import { useTenant } from '@/components/TenantProvider';
-import { cn, fmtMoney } from '@/lib/utils';
+import { cn } from '@/lib/utils';
 import {
-  MapPin, Clock, Users, Luggage, ArrowRight, ArrowLeft,
-  ChevronDown, Plane, RotateCcw, Car, AlertCircle, CheckCircle2,
+  Loader2, MapPin, Plus, X, ChevronRight, ArrowRight,
+  CalendarIcon, Clock,
 } from 'lucide-react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'https://chauffeur-saas-production.up.railway.app';
@@ -14,68 +23,216 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'https://chauffeur-saas-produ
 function getTenantSlug() {
   if (typeof document === 'undefined') return 'aschauffeured';
   const fromCookie = document.cookie.split('; ').find(r => r.startsWith('tenant_slug='))?.split('=')[1];
-  const fromHost = window.location.hostname.split('.')[0];
+  const fromHost   = typeof window !== 'undefined' ? window.location.hostname.split('.')[0] : '';
   return fromCookie || fromHost || 'aschauffeured';
 }
 
 // ── Types ──────────────────────────────────────────────────────────────────
-type City        = { id: string; name: string; timezone: string };
-type ServiceType = { id: string; name: string; code: string; calculation_type: string };
-type CarType     = {
-  id: string; name: string; vehicle_class: string; max_passengers: number;
-  luggage_capacity: number; base_price_minor: number; currency: string;
-  estimated_total_minor?: number; pre_discount_total_minor?: number;
-  discount_amount_minor?: number; surcharge_labels?: string[];
-  toll_parking_minor?: number;
+type City        = { id: string; name: string; timezone: string; lat?: number; lng?: number };
+type ServiceType = { id: string; code: string; name: string; calculation_type: string; minimum_hours?: number | null; surge_multiplier?: number | null };
+type CarType     = { id: string; name: string; description: string | null; max_passengers?: number | null; luggage_capacity?: number | null; vehicle_class?: string | null };
+type QuoteResult = {
+  service_class_id: string; service_class_name: string;
+  estimated_total_minor: number; currency: string;
+  discount?: { name: string; type: string; value: number; discount_minor: number; capped_by_max: boolean } | null;
+  pricing_snapshot_preview: {
+    base_calculated_minor: number; toll_parking_minor: number;
+    surcharge_labels?: string[]; pre_discount_total_minor?: number;
+    discount_amount_minor: number; grand_total_minor: number; minimum_applied: boolean;
+  };
 };
-type QuoteResult = CarType & { service_class_id: string };
 
-// ── Address Autocomplete ───────────────────────────────────────────────────
-function AddressInput({
-  value, onChange, placeholder, cityId,
-}: {
-  value: string; onChange: (v: string) => void; placeholder: string; cityId?: string;
+// ── Helpers ────────────────────────────────────────────────────────────────
+function fmtMoney(minor: number, currency = 'AUD') {
+  return new Intl.NumberFormat('en-AU', { style: 'currency', currency, minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(minor / 100);
+}
+const todayISO = () => new Date().toISOString().slice(0, 10);
+const isHourly  = (st?: ServiceType) => st?.calculation_type === 'HOURLY_CHARTER';
+const isP2P     = (st?: ServiceType) => st?.code === 'POINT_TO_POINT';
+
+// ── LuxDateTimePicker ─────────────────────────────────────────────────────
+const DAYS   = ['SU','MO','TU','WE','TH','FR','SA'];
+const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+function isoToDate(s: string) { if (!s) return null; const [y,m,d] = s.split('-').map(Number); return new Date(y,m-1,d); }
+function dateToIso(d: Date)   { return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
+function fmtDisplayDate(s: string) {
+  const d = isoToDate(s); if (!d) return '';
+  return `${DAYS[d.getDay()][0]+DAYS[d.getDay()].slice(1).toLowerCase()}, ${d.getDate()} ${MONTHS[d.getMonth()].slice(0,3)} ${d.getFullYear()}`;
+}
+function fmtDisplayTime(s: string) {
+  if (!s) return '';
+  const [h24,m] = s.split(':').map(Number);
+  const period = h24>=12?'PM':'AM'; const h12 = h24%12===0?12:h24%12;
+  return `${String(h12).padStart(2,'0')}:${String(m).padStart(2,'0')} ${period}`;
+}
+
+function CalendarPicker({ value, onChange, minDate }: { value: string; onChange: (v: string) => void; minDate?: string }) {
+  const today = new Date(); today.setHours(0,0,0,0);
+  const minD  = minDate ? isoToDate(minDate) : today;
+  const selected = isoToDate(value);
+  const initMonth = selected ?? minD ?? today;
+  const [view, setView] = useState(new Date(initMonth.getFullYear(), initMonth.getMonth(), 1));
+  const year = view.getFullYear(); const month = view.getMonth();
+  const firstDow = new Date(year,month,1).getDay();
+  const daysInMonth = new Date(year,month+1,0).getDate();
+  const cells: (number|null)[] = [...Array(firstDow).fill(null), ...Array.from({length:daysInMonth},(_,i)=>i+1)];
+  while (cells.length%7!==0) cells.push(null);
+  return (
+    <div className="select-none" style={{width:264}}>
+      <div className="flex items-center justify-between px-3 py-2">
+        <button type="button" onClick={()=>setView(v=>new Date(v.getFullYear(),v.getMonth()-1,1))} className="p-1 rounded hover:bg-white/10 text-white/40 hover:text-white transition-colors">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M15 18l-6-6 6-6"/></svg>
+        </button>
+        <span className="text-sm font-semibold text-white">{MONTHS[month]} {year}</span>
+        <button type="button" onClick={()=>setView(v=>new Date(v.getFullYear(),v.getMonth()+1,1))} className="p-1 rounded hover:bg-white/10 text-white/40 hover:text-white transition-colors">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 18l6-6-6-6"/></svg>
+        </button>
+      </div>
+      <div className="grid grid-cols-7 mb-1">{DAYS.map(d=><div key={d} className="text-center text-[11px] font-medium text-white/30 py-1">{d}</div>)}</div>
+      <div className="grid grid-cols-7 gap-y-0.5 px-2 pb-3">
+        {cells.map((day,i)=>{
+          if(!day) return <div key={i}/>;
+          const cellDate=new Date(year,month,day); const iso=dateToIso(cellDate);
+          const isDisabled=minD?cellDate<minD:false; const isSelected=value===iso; const isToday=dateToIso(today)===iso;
+          return <button type="button" key={i} disabled={isDisabled} onMouseDown={e=>e.preventDefault()} onClick={()=>!isDisabled&&onChange(iso)}
+            className={cn('mx-auto flex h-8 w-8 items-center justify-center rounded-full text-sm transition-colors',
+              isDisabled&&'text-white/20 cursor-not-allowed',
+              !isDisabled&&!isSelected&&'hover:bg-white/10 text-white cursor-pointer',
+              isSelected&&'bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] font-semibold',
+              isToday&&!isSelected&&'ring-1 ring-[hsl(var(--primary)/0.6)] text-[hsl(var(--primary))]')}>{day}</button>;
+        })}
+      </div>
+    </div>
+  );
+}
+
+function TimePicker({ value, onChange, onConfirm }: { value: string; onChange: (v: string) => void; onConfirm: () => void }) {
+  const initH24 = value ? parseInt(value.split(':')[0]) : 9;
+  const initM   = value ? Math.round(parseInt(value.split(':')[1])/5)*5 : 0;
+  const initP   = initH24>=12?'PM':'AM'; const initH12 = initH24%12===0?12:initH24%12;
+  const [hour,setHour]=useState(initH12); const [minute,setMinute]=useState(initM); const [period,setPeriod]=useState<'AM'|'PM'>(initP);
+  const hours=[...Array(12)].map((_,i)=>i+1); const minutes=[...Array(12)].map((_,i)=>i*5);
+  const commit=(h:number,m:number,p:'AM'|'PM')=>{let h24=p==='AM'?(h===12?0:h):(h===12?12:h+12);onChange(`${String(h24).padStart(2,'0')}:${String(m).padStart(2,'0')}`);};
+  const colCls='overflow-y-auto h-40 scroll-smooth'; const itemCls=(sel:boolean)=>cn('px-3 py-2 text-center text-sm cursor-pointer rounded transition-colors',sel?'bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] font-semibold':'text-white/50 hover:text-white hover:bg-white/8');
+  return (
+    <div style={{width:200}}>
+      <div className="flex border-b border-white/10 pb-1 mb-1">
+        {['Hour','Min','Period'].map(l=><div key={l} className="flex-1 text-center text-xs text-white/30 font-medium py-1">{l}</div>)}
+      </div>
+      <div className="flex">
+        <div className={cn(colCls,'flex-1')}>{hours.map(h=><div key={h} data-selected={h===hour} className={itemCls(h===hour)} onMouseDown={e=>e.preventDefault()} onClick={()=>{setHour(h);commit(h,minute,period);}}>{String(h).padStart(2,'0')}</div>)}</div>
+        <div className={cn(colCls,'flex-1')}>{minutes.map(m=><div key={m} data-selected={m===minute} className={itemCls(m===minute)} onMouseDown={e=>e.preventDefault()} onClick={()=>{setMinute(m);commit(hour,m,period);}}>{String(m).padStart(2,'0')}</div>)}</div>
+        <div className={cn(colCls,'flex-1')}>{(['AM','PM'] as const).map(p=><div key={p} data-selected={p===period} className={itemCls(p===period)} onMouseDown={e=>e.preventDefault()} onClick={()=>{setPeriod(p);commit(hour,minute,p);}}>{p}</div>)}</div>
+      </div>
+      <div className="px-3 pt-3 pb-2"><button type="button" onClick={onConfirm} className="w-full py-2 rounded-lg bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] text-sm font-semibold">Confirm</button></div>
+    </div>
+  );
+}
+
+function DropdownPortal({ anchor, onClose, children }: { anchor: React.RefObject<HTMLElement | null>; onClose: () => void; children: React.ReactNode }) {
+  const [pos, setPos] = useState({top:0,left:0}); const panelRef = useRef<HTMLDivElement>(null);
+  const updatePos = useCallback(()=>{ const el=anchor.current; if(!el) return; const r=el.getBoundingClientRect(); setPos({top:r.bottom+6,left:r.left}); },[anchor]);
+  useEffect(()=>{ updatePos(); window.addEventListener('scroll',updatePos,true); window.addEventListener('resize',updatePos); return()=>{ window.removeEventListener('scroll',updatePos,true); window.removeEventListener('resize',updatePos); }; },[updatePos]);
+  useEffect(()=>{ const h=(e:MouseEvent)=>{ if(!anchor.current?.contains(e.target as Node)&&!panelRef.current?.contains(e.target as Node)) onClose(); }; document.addEventListener('mousedown',h,true); return()=>document.removeEventListener('mousedown',h,true); },[anchor,onClose]);
+  if (typeof document === 'undefined') return null;
+  return createPortal(
+    <div ref={panelRef} style={{position:'fixed',top:pos.top,left:pos.left,zIndex:9999}} className="rounded-xl border border-white/10 bg-[hsl(228,10%,8%)] shadow-2xl overflow-hidden" onMouseDown={e=>{e.stopPropagation();e.nativeEvent.stopImmediatePropagation();}}>
+      {children}
+    </div>, document.body
+  );
+}
+
+function LuxDateTimePicker({ dateValue, timeValue, onDateChange, onTimeChange, minDate }: { dateValue:string; timeValue:string; onDateChange:(v:string)=>void; onTimeChange:(v:string)=>void; minDate?:string }) {
+  const [openDate, setOpenDate] = useState(false); const [openTime, setOpenTime] = useState(false);
+  const dateRef = useRef<HTMLButtonElement>(null); const timeRef = useRef<HTMLButtonElement>(null);
+  const triggerCls = 'flex items-center gap-2 w-full px-3 py-2.5 rounded-lg border text-sm transition-colors text-left bg-[hsl(228,10%,8%)] border-white/12 hover:border-white/25';
+  return (
+    <div className="grid grid-cols-2 gap-3">
+      <div>
+        <button ref={dateRef} type="button" className={triggerCls} onClick={()=>{setOpenDate(v=>!v);setOpenTime(false);}}>
+          <CalendarIcon className="h-4 w-4 text-white/40 shrink-0"/>
+          <span className={dateValue?'text-white':'text-white/30'}>{dateValue?fmtDisplayDate(dateValue):'Select date'}</span>
+        </button>
+        {openDate && <DropdownPortal anchor={dateRef} onClose={()=>setOpenDate(false)}><CalendarPicker value={dateValue} onChange={v=>{onDateChange(v);setOpenDate(false);}} minDate={minDate}/></DropdownPortal>}
+      </div>
+      <div>
+        <button ref={timeRef} type="button" className={triggerCls} onClick={()=>{setOpenTime(v=>!v);setOpenDate(false);}}>
+          <Clock className="h-4 w-4 text-white/40 shrink-0"/>
+          <span className={timeValue?'text-white':'text-white/30'}>{timeValue?fmtDisplayTime(timeValue):'Select time'}</span>
+        </button>
+        {openTime && <DropdownPortal anchor={timeRef} onClose={()=>setOpenTime(false)}><TimePicker value={timeValue} onChange={onTimeChange} onConfirm={()=>setOpenTime(false)}/></DropdownPortal>}
+      </div>
+    </div>
+  );
+}
+
+// ── PlacesAutocomplete ─────────────────────────────────────────────────────
+function useDebounce<T>(value: T, delay: number): T {
+  const [deb, setDeb] = useState(value);
+  useEffect(() => { const t = setTimeout(()=>setDeb(value), delay); return ()=>clearTimeout(t); }, [value, delay]);
+  return deb;
+}
+
+function PlacesAutocomplete({ value='', onChange, placeholder='Enter a location', cityBias, pinColor='muted' }: {
+  value?: string; onChange?: (v: string) => void; placeholder?: string;
+  cityBias?: { lat: number; lng: number }; pinColor?: 'green'|'gold'|'muted';
 }) {
-  const [suggestions, setSuggestions] = useState<any[]>([]);
-  const [open, setOpen] = useState(false);
+  const PIN = { green:'text-emerald-400', gold:'text-amber-400', muted:'text-white/30' };
+  const [inputValue, setInputValue] = useState(value);
+  const [predictions, setPredictions] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
-  const debounce = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const [open, setOpen] = useState(false);
+  const [activeIdx, setActiveIdx] = useState(-1);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const inputRef     = useRef<HTMLInputElement>(null);
+  const fetchIdRef   = useRef(0);
+  const justSelectedRef = useRef(false);
+  const cityKey = cityBias ? `${cityBias.lat},${cityBias.lng}` : '';
+  const debouncedInput = useDebounce(inputValue, 280);
 
-  const search = useCallback(async (q: string) => {
-    if (q.length < 3) { setSuggestions([]); setOpen(false); return; }
-    setLoading(true);
-    try {
-      const params = new URLSearchParams({ input: q, tenant_slug: getTenantSlug() });
-      if (cityId) params.set('city_id', cityId);
-      const res = await fetch(`${API_URL}/public/maps/autocomplete?${params}`);
-      const data = await res.json();
-      setSuggestions(data?.predictions ?? []);
-      setOpen(true);
-    } catch { setSuggestions([]); }
-    finally { setLoading(false); }
-  }, [cityId]);
+  useEffect(() => { if (!justSelectedRef.current && value !== inputValue) setInputValue(value); }, [value]); // eslint-disable-line
+
+  useEffect(() => {
+    if (justSelectedRef.current) { justSelectedRef.current = false; setPredictions([]); setOpen(false); return; }
+    if (!debouncedInput.trim() || debouncedInput.length < 2) { setPredictions([]); setOpen(false); return; }
+    const id = ++fetchIdRef.current; setLoading(true);
+    const params = new URLSearchParams({ tenant_slug: getTenantSlug(), input: debouncedInput, sessiontoken: Math.random().toString(36).slice(2) });
+    if (cityBias) { params.set('lat', String(cityBias.lat)); params.set('lng', String(cityBias.lng)); }
+    fetch(`${API_URL}/public/maps/autocomplete?${params}`)
+      .then(r=>r.json()).then(data=>{ if(id!==fetchIdRef.current) return; const p=data.predictions??[]; setPredictions(p); setOpen(p.length>0); setActiveIdx(-1); })
+      .catch(()=>{ if(id!==fetchIdRef.current) return; setPredictions([]); setOpen(false); })
+      .finally(()=>{ if(id===fetchIdRef.current) setLoading(false); });
+  }, [debouncedInput, cityKey]); // eslint-disable-line
+
+  useEffect(() => { const h=(e:MouseEvent)=>{ if(containerRef.current&&!containerRef.current.contains(e.target as Node)){ setOpen(false); setActiveIdx(-1); } }; document.addEventListener('mousedown',h); return()=>document.removeEventListener('mousedown',h); }, []);
+
+  const select = useCallback((pred: any) => {
+    const val = pred.description || pred.main_text;
+    justSelectedRef.current = true; setInputValue(val); setPredictions([]); setOpen(false); setActiveIdx(-1); onChange?.(val); inputRef.current?.blur();
+  }, [onChange]);
 
   return (
-    <div className="relative">
-      <input
-        className="w-full h-11 px-4 rounded-xl bg-white/5 border border-white/10 text-sm text-white placeholder:text-white/40 focus:outline-none focus:border-[hsl(var(--primary)/0.6)] focus:bg-white/8 transition-all"
-        placeholder={placeholder}
-        value={value}
-        onChange={e => {
-          onChange(e.target.value);
-          clearTimeout(debounce.current);
-          debounce.current = setTimeout(() => search(e.target.value), 350);
-        }}
-        onBlur={() => setTimeout(() => setOpen(false), 150)}
-      />
-      {loading && <div className="absolute right-3 top-3 w-4 h-4 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />}
-      {open && suggestions.length > 0 && (
-        <ul className="absolute z-50 w-full mt-1 bg-[hsl(228,12%,12%)] border border-white/10 rounded-xl shadow-xl overflow-hidden max-h-48 overflow-y-auto">
-          {suggestions.map((s, i) => (
-            <li key={i}
-              className="px-4 py-2.5 text-sm text-white/80 hover:bg-white/8 cursor-pointer border-b border-white/5 last:border-0 transition-colors"
-              onMouseDown={() => { onChange(s.description); setOpen(false); setSuggestions([]); }}>
-              <span className="text-white/40 mr-2">📍</span>{s.description}
+    <div ref={containerRef} className="relative">
+      <div className="relative group">
+        <MapPin className={`absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 pointer-events-none ${PIN[pinColor]}`}/>
+        <input ref={inputRef} type="text" autoComplete="off" autoCorrect="off" spellCheck={false}
+          value={inputValue} placeholder={placeholder}
+          onChange={e=>{ setInputValue(e.target.value); if(!e.target.value) onChange?.(''); }}
+          onKeyDown={e=>{ if(!open||!predictions.length) return; if(e.key==='ArrowDown'){e.preventDefault();setActiveIdx(i=>Math.min(i+1,predictions.length-1));} else if(e.key==='ArrowUp'){e.preventDefault();setActiveIdx(i=>Math.max(i-1,0));} else if(e.key==='Enter'&&activeIdx>=0){e.preventDefault();select(predictions[activeIdx]);} else if(e.key==='Escape'){setOpen(false);setActiveIdx(-1);} }}
+          onFocus={()=>{ if(predictions.length>0) setOpen(true); }}
+          className="w-full h-12 pl-9 pr-9 rounded-xl text-sm bg-white/5 border border-white/10 text-white placeholder:text-white/30 focus:outline-none focus:border-amber-400/50 focus:bg-white/8 focus:ring-2 focus:ring-amber-400/10 transition-all"/>
+        <div className="absolute right-3 top-1/2 -translate-y-1/2">
+          {loading ? <Loader2 className="h-4 w-4 text-white/30 animate-spin"/> : inputValue ? <button type="button" onClick={()=>{setInputValue('');setPredictions([]);setOpen(false);onChange?.('');inputRef.current?.focus();}} className="text-white/30 hover:text-white/70 transition-colors p-0.5 rounded"><X className="h-3.5 w-3.5"/></button> : null}
+        </div>
+      </div>
+      {open && predictions.length>0 && (
+        <ul className="absolute z-[200] mt-1.5 w-full bg-[#0f1117] border border-white/10 rounded-xl shadow-2xl overflow-hidden py-1">
+          {predictions.map((pred,idx)=>(
+            <li key={pred.place_id} onMouseDown={e=>{e.preventDefault();select(pred);}} onMouseEnter={()=>setActiveIdx(idx)}
+              className={cn('flex items-start gap-3 px-3 py-2.5 cursor-pointer transition-colors',idx===activeIdx?'bg-amber-400/10':'hover:bg-white/5')}>
+              <MapPin className={`h-4 w-4 mt-0.5 shrink-0 ${idx===activeIdx?'text-amber-400':'text-white/25'}`}/>
+              <p className="text-sm text-white leading-tight">{pred.description||pred.main_text}</p>
             </li>
           ))}
         </ul>
@@ -84,93 +241,90 @@ function AddressInput({
   );
 }
 
-// ── Stepper ────────────────────────────────────────────────────────────────
-function Stepper({ label, value, onChange, min = 0, max = 20 }: {
-  label: string; value: number; onChange: (v: number) => void; min?: number; max?: number;
-}) {
+// ── LuxSelect ──────────────────────────────────────────────────────────────
+function LuxSelect({ value, onChange, children, placeholder }: { value: string; onChange: (v: string) => void; children: React.ReactNode; placeholder?: string }) {
   return (
-    <div className="flex items-center justify-between">
-      <span className="text-sm text-white/60">{label}</span>
-      <div className="flex items-center gap-3">
-        <button onClick={() => onChange(Math.max(min, value - 1))}
-          className="w-7 h-7 rounded-full border border-white/20 text-white/60 hover:border-white/40 hover:text-white flex items-center justify-center text-base leading-none transition-colors">−</button>
-        <span className="w-5 text-center text-sm font-medium text-white">{value}</span>
-        <button onClick={() => onChange(Math.min(max, value + 1))}
-          className="w-7 h-7 rounded-full border border-white/20 text-white/60 hover:border-white/40 hover:text-white flex items-center justify-center text-base leading-none transition-colors">+</button>
-      </div>
+    <div className="relative">
+      <select value={value} onChange={e=>onChange(e.target.value)}
+        className="w-full h-12 pl-4 pr-9 rounded-xl bg-white/5 border border-white/10 text-white text-sm appearance-none focus:outline-none focus:border-amber-400/50 transition-colors cursor-pointer">
+        {placeholder && <option value="" disabled className="bg-gray-900">{placeholder}</option>}
+        {children}
+      </select>
+      <ChevronRight className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/30 pointer-events-none rotate-90"/>
     </div>
   );
+}
+
+// ── Field Label ────────────────────────────────────────────────────────────
+function FL({ children }: { children: React.ReactNode }) {
+  return <p className="text-xs font-semibold uppercase tracking-widest text-white/40 flex items-center gap-1.5 mb-2">{children}</p>;
 }
 
 // ── Main Component ─────────────────────────────────────────────────────────
 export function QuoteClient() {
   const router = useRouter();
   const { token } = useAuthStore();
-  const tenant = useTenant();
 
-  // Config
-  const [cities, setCities]               = useState<City[]>([]);
-  const [serviceTypes, setServiceTypes]   = useState<ServiceType[]>([]);
-  const [loading, setLoading]             = useState(true);
-  const [loadError, setLoadError]         = useState(false);
+  const [cities, setCities]             = useState<City[]>([]);
+  const [serviceTypes, setServiceTypes] = useState<ServiceType[]>([]);
+  const [carTypes, setCarTypes]         = useState<CarType[]>([]);
+  const [loadingConfig, setLoadingConfig] = useState(true);
+  const [configError, setConfigError]   = useState(false);
 
-  // Form
-  const [cityId, setCityId]               = useState('');
+  const [cityId, setCityId]             = useState('');
   const [serviceTypeId, setServiceTypeId] = useState('');
-  const [tripType, setTripType]           = useState<'ONE_WAY'|'RETURN'>('ONE_WAY');
-  const [pickup, setPickup]               = useState('');
-  const [dropoff, setDropoff]             = useState('');
-  const [date, setDate]                   = useState('');
-  const [time, setTime]                   = useState('');
-  const [returnDate, setReturnDate]       = useState('');
-  const [returnTime, setReturnTime]       = useState('');
-  const [passengers, setPassengers]       = useState(1);
-  const [luggage, setLuggage]             = useState(0);
-  const [infantSeats, setInfantSeats]     = useState(0);
-  const [toddlerSeats, setToddlerSeats]   = useState(0);
-  const [boosterSeats, setBoosterSeats]   = useState(0);
-  const [flightNumber, setFlightNumber]   = useState('');
-  const [durationHours, setDurationHours] = useState(2);
+  const [tripType, setTripType]         = useState<'ONE_WAY'|'RETURN'>('ONE_WAY');
+  const [pickup, setPickup]             = useState('');
+  const [dropoff, setDropoff]           = useState('');
+  const [waypoints, setWaypoints]       = useState<string[]>([]);
+  const [date, setDate]                 = useState('');
+  const [time, setTime]                 = useState('');
+  const [returnDate, setReturnDate]     = useState('');
+  const [returnTime, setReturnTime]     = useState('');
+  const [durationHours, setDurationHours] = useState('2');
+  const [passengers, setPassengers]     = useState('1');
+  const [luggage, setLuggage]           = useState('0');
+  const [infantSeats, setInfantSeats]   = useState('0');
+  const [toddlerSeats, setToddlerSeats] = useState('0');
+  const [boosterSeats, setBoosterSeats] = useState('0');
 
-  // Quote
-  const [quoting, setQuoting]             = useState(false);
-  const [results, setResults]             = useState<QuoteResult[]>([]);
-  const [selected, setSelected]           = useState<QuoteResult | null>(null);
-  const [quoteError, setQuoteError]       = useState('');
-  const [autoDiscount, setAutoDiscount]   = useState<{ name: string; rate: number } | null>(null);
+  const [autoDiscount, setAutoDiscount] = useState<{ name: string; rate: number } | null>(null);
+  const [showUrgentModal, setShowUrgentModal] = useState(false);
 
-  const selectedCity = cities.find(c => c.id === cityId);
-  const selectedST   = serviceTypes.find(s => s.id === serviceTypeId);
-  const isHourly     = selectedST?.calculation_type === 'HOURLY_CHARTER';
-  const isP2P        = selectedST?.code === 'POINT_TO_POINT';
+  const [quoting, setQuoting]           = useState(false);
+  const [quoteId, setQuoteId]           = useState<string | null>(null);
+  const [quoteResults, setQuoteResults] = useState<QuoteResult[]>([]);
+  const [selectedCarTypeId, setSelectedCarTypeId] = useState<string | null>(null);
+  const [currency, setCurrency]         = useState('AUD');
 
-  // Generate time options (5-min intervals)
-  const timeOptions = Array.from({ length: 288 }, (_, i) => {
-    const h = Math.floor(i / 12);
-    const m = (i % 12) * 5;
-    const hh = String(h).padStart(2, '0');
-    const mm = String(m).padStart(2, '0');
-    const ampm = h < 12 ? 'AM' : 'PM';
-    const h12  = h === 0 ? 12 : h > 12 ? h - 12 : h;
-    return { value: `${hh}:${mm}`, label: `${h12}:${mm} ${ampm}` };
-  });
+  const resultsRef = useRef<HTMLDivElement>(null);
+
+  const selectedServiceType = serviceTypes.find(s => s.id === serviceTypeId);
+  const selectedCity        = cities.find(c => c.id === cityId);
+  const isWedding           = selectedServiceType?.code === 'WEDDING_HIRE';
+  const minHours            = selectedServiceType?.minimum_hours ?? (isHourly(selectedServiceType) ? 2 : null);
+  const hasSurge            = (selectedServiceType?.surge_multiplier ?? 1) > 1;
+  const surgePercent        = hasSurge ? Math.round(((selectedServiceType!.surge_multiplier! - 1) * 100)) : 0;
+
+  const clearQuote = useCallback(() => { setQuoteId(null); setQuoteResults([]); setSelectedCarTypeId(null); }, []);
 
   // Load config
   useEffect(() => {
     const slug = getTenantSlug();
-    setLoading(true);
+    setLoadingConfig(true); setConfigError(false);
     Promise.all([
       fetch(`${API_URL}/public/cities?tenant_slug=${slug}`).then(r => r.json()),
       fetch(`${API_URL}/public/service-types?tenant_slug=${slug}`).then(r => r.json()),
-    ]).then(([c, s]) => {
+      fetch(`${API_URL}/public/car-types?tenant_slug=${slug}`).then(r => r.json()),
+    ]).then(([c, s, ct]) => {
       const vc = Array.isArray(c) ? c : [];
-      const vs = Array.isArray(s) ? s.filter((x: any) => x.name) : [];
-      setCities(vc);
-      setServiceTypes(vs);
+      const vs = (Array.isArray(s) ? s : []).filter((x: any) => x.name);
+      const vct = (Array.isArray(ct) ? ct : []).filter((x: any) => x.name);
+      setCities(vc); setServiceTypes(vs); setCarTypes(vct);
       if (vc.length) setCityId(vc[0].id);
       if (vs.length) setServiceTypeId(vs[0].id);
-    }).catch(() => setLoadError(true))
-      .finally(() => setLoading(false));
+    }).catch(() => setConfigError(true))
+      .finally(() => setLoadingConfig(false));
     // Auto-discount (non-blocking)
     fetch(`${API_URL}/public/discounts/auto?tenant_slug=${slug}`)
       .then(r => r.ok ? r.json() : null)
@@ -180,408 +334,336 @@ export function QuoteClient() {
 
   // Get Quote
   const handleGetQuote = useCallback(async () => {
-    if (!pickup || !date || !time) { setQuoteError('Please fill pickup address, date and time.'); return; }
-    if (!isHourly && !dropoff) { setQuoteError('Please fill dropoff address.'); return; }
+    if (!pickup || !date || !time) return;
+    const pickupMs = new Date(`${date}T${time}:00`).getTime();
+    if (pickupMs - Date.now() < 12 * 3600 * 1000) { setShowUrgentModal(true); return; }
+    if (tripType === 'RETURN' && (!returnDate || !returnTime)) return;
+    const totalSeats = Number(infantSeats)+Number(toddlerSeats)+Number(boosterSeats);
+    if (totalSeats > 0 && totalSeats >= Number(passengers)) return;
 
-    // 12-hour advance check
-    const slug = getTenantSlug();
-    const tz   = selectedCity?.timezone ?? 'Australia/Sydney';
-    const dtMs = new Date(`${date}T${time}:00`).getTime();
-    if (dtMs - Date.now() < 12 * 3600 * 1000) {
-      setQuoteError('Bookings require at least 12 hours advance notice.');
-      return;
-    }
-
-    setQuoteError('');
-    setQuoting(true);
-    setResults([]);
-    setSelected(null);
-
-    try {
-      const body: any = {
-        tenant_slug: slug,
-        city_id: cityId,
-        service_type_id: serviceTypeId,
-        trip_type: tripType,
-        pickup_address: pickup,
-        dropoff_address: isHourly ? '' : dropoff,
-        pickup_date: date,
-        pickup_time: time,
-        timezone: tz,
-        passenger_count: passengers,
-        luggage_count: luggage,
-        infant_seats: infantSeats,
-        toddler_seats: toddlerSeats,
-        booster_seats: boosterSeats,
-        flight_number: flightNumber || null,
-        duration_hours: isHourly ? durationHours : undefined,
-      };
-      if (tripType === 'RETURN') {
-        body.return_date = returnDate;
-        body.return_time = returnTime;
-      }
-      if (token) {
-        body.customer_id_hint = 'me'; // backend resolves from token
-      }
-
-      const res = await fetch(`${API_URL}/public/pricing/quote?tenant_slug=${slug}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify(body),
-      });
-
-      if (!res.ok) throw new Error('Quote failed');
-      const data = await res.json();
-      const r: QuoteResult[] = (data.results ?? []).map((r: any) => ({
-        ...r,
-        id: r.service_class_id,
-        name: r.service_class_name ?? r.name,
-      }));
-      setResults(r);
-      if (r.length) setSelected(r[0]);
-    } catch {
-      setQuoteError('Failed to get a quote. Please try again.');
-    } finally {
-      setQuoting(false);
-    }
-  }, [pickup, dropoff, date, time, returnDate, returnTime, cityId, serviceTypeId,
-      tripType, passengers, luggage, infantSeats, toddlerSeats, boosterSeats,
-      flightNumber, durationHours, isHourly, selectedCity, token]);
-
-  // Book Now
-  const handleBook = useCallback(() => {
-    if (!selected) return;
-    // Find the quote_id from the most recent quote fetch
-    // We need to re-use the quote session — store it in state
-    if (!quoteId) return;
-    router.push(`/book?quote_id=${quoteId}&car_type_id=${selected.service_class_id}`);
-  }, [selected, router]);
-
-  const [quoteId, setQuoteId] = useState<string | null>(null);
-
-  // Re-do quote to also capture session id
-  const handleGetQuoteWithSession = useCallback(async () => {
-    if (!pickup || !date || !time) { setQuoteError('Please fill pickup address, date and time.'); return; }
-    if (!isHourly && !dropoff) { setQuoteError('Please fill dropoff address.'); return; }
-
-    const dtMs = new Date(`${date}T${time}:00`).getTime();
-    if (dtMs - Date.now() < 12 * 3600 * 1000) {
-      setQuoteError('Bookings require at least 12 hours advance notice.');
-      return;
-    }
-
-    setQuoteError('');
-    setQuoting(true);
-    setResults([]);
-    setSelected(null);
-    setQuoteId(null);
-
+    setQuoting(true); clearQuote();
     const slug = getTenantSlug();
     const tz   = selectedCity?.timezone ?? 'Australia/Sydney';
 
     try {
-      const body: any = {
-        tenant_slug: slug,
-        city_id: cityId,
+      const effectiveDropoff = dropoff || pickup;
+      const routeParams = new URLSearchParams({ tenant_slug: slug, origin: pickup, destination: effectiveDropoff });
+      const route = await fetch(`${API_URL}/public/maps/route?${routeParams}`).then(r => { if (!r.ok) throw new Error('Route failed'); return r.json(); });
+
+      const body: Record<string, any> = {
         service_type_id: serviceTypeId,
-        trip_type: tripType,
+        city_id: cityId || undefined,
+        trip_mode: isHourly(selectedServiceType) ? 'ONE_WAY' : tripType,
         pickup_address: pickup,
-        dropoff_address: isHourly ? '' : dropoff,
-        pickup_date: date,
-        pickup_time: time,
+        dropoff_address: effectiveDropoff,
+        pickup_at_utc: new Date(`${date}T${time}:00`).toISOString(),
         timezone: tz,
-        passenger_count: passengers,
-        luggage_count: luggage,
-        infant_seats: infantSeats,
-        toddler_seats: toddlerSeats,
-        booster_seats: boosterSeats,
-        flight_number: flightNumber || null,
-        duration_hours: isHourly ? durationHours : undefined,
+        passenger_count: Number(passengers),
+        luggage_count: Number(luggage),
+        distance_km: route.distance_km,
+        duration_minutes: route.duration_minutes,
+        waypoints_count: waypoints.filter(Boolean).length,
+        infant_seats: Number(infantSeats),
+        toddler_seats: Number(toddlerSeats),
+        booster_seats: Number(boosterSeats),
       };
-      if (tripType === 'RETURN') {
-        body.return_date = returnDate;
-        body.return_time = returnTime;
-      }
+      if (isHourly(selectedServiceType)) body.duration_hours = Number(durationHours);
+      if (tripType === 'RETURN') { body.return_distance_km = route.distance_km; body.return_duration_minutes = route.duration_minutes; body.return_date = returnDate; body.return_time = returnTime; }
 
-      const res = await fetch(`${API_URL}/public/pricing/quote?tenant_slug=${slug}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
+      const quote = await fetch(`${API_URL}/public/pricing/quote?tenant_slug=${slug}`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
         body: JSON.stringify(body),
-      });
+      }).then(r => { if (!r.ok) throw new Error('Quote failed'); return r.json(); });
 
-      if (!res.ok) throw new Error('Quote failed');
-      const data = await res.json();
-      setQuoteId(data.quote_id ?? data.id ?? null);
-      const r: QuoteResult[] = (data.results ?? []).map((r: any) => ({
-        ...r,
-        id: r.service_class_id,
-        name: r.service_class_name ?? r.name,
-      }));
-      setResults(r);
-      if (r.length) setSelected(r[0]);
+      setQuoteId(quote.quote_id);
+      setQuoteResults(quote.results ?? []);
+      setCurrency(quote.currency ?? 'AUD');
+      if (quote.results?.length > 0) setSelectedCarTypeId(quote.results[0].service_class_id);
+      setTimeout(() => resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
     } catch {
-      setQuoteError('Failed to get a quote. Please try again.');
+      // silent — could add toast
     } finally {
       setQuoting(false);
     }
-  }, [pickup, dropoff, date, time, returnDate, returnTime, cityId, serviceTypeId,
-      tripType, passengers, luggage, infantSeats, toddlerSeats, boosterSeats,
-      flightNumber, durationHours, isHourly, selectedCity, token]);
+  }, [pickup, dropoff, date, time, returnDate, returnTime, serviceTypeId, tripType, cityId,
+      passengers, luggage, infantSeats, toddlerSeats, boosterSeats, durationHours,
+      waypoints, selectedServiceType, selectedCity, clearQuote, token]);
 
-  const fmtFee = (m?: number) => m ? ` + ${fmtMoney(m, 'AUD')} tolls/parking` : '';
+  const totalSeats = Number(infantSeats)+Number(toddlerSeats)+Number(boosterSeats);
+  const seatError  = totalSeats > 0 && totalSeats >= Number(passengers);
 
-  if (loading) return (
+  if (loadingConfig) return (
     <div className="min-h-screen flex items-center justify-center">
-      <div className="w-8 h-8 border-2 border-white/20 border-t-[hsl(var(--primary))] rounded-full animate-spin" />
+      <Loader2 className="h-8 w-8 animate-spin text-[hsl(var(--primary))]"/>
     </div>
   );
 
-  if (loadError) return (
+  if (configError) return (
     <div className="min-h-screen flex items-center justify-center px-4">
-      <div className="text-center space-y-3">
-        <AlertCircle className="h-10 w-10 text-red-400 mx-auto" />
-        <p className="text-white/70">Unable to load booking options.</p>
-        <button onClick={() => window.location.reload()} className="text-sm text-[hsl(var(--primary))] underline">Try again</button>
+      <div className="text-center space-y-4 max-w-sm">
+        <p className="text-white/50 text-sm">Unable to load booking options.</p>
+        <button onClick={() => window.location.reload()}
+          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] text-sm font-medium">
+          <Loader2 className="h-4 w-4"/> Retry
+        </button>
       </div>
     </div>
   );
 
   return (
-    <div className="min-h-screen pb-20">
+    <>
+    <div className="min-h-screen pb-28">
       {/* Header */}
-      <div className="sticky top-0 z-20 bg-[hsl(228,12%,8%)] border-b border-white/8 px-4 py-3 flex items-center gap-3">
-        <button onClick={() => router.back()} className="text-white/60 hover:text-white transition-colors">
-          <ArrowLeft className="h-5 w-5" />
+      <div className="sticky top-0 z-20 bg-[hsl(228,12%,8%)] border-b border-white/8 px-4 py-4 flex items-center gap-3">
+        <button onClick={() => router.back()} className="text-white/50 hover:text-white transition-colors">
+          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7"/></svg>
         </button>
         <h1 className="font-semibold text-white">Get a Quote</h1>
       </div>
 
-      <div className="max-w-lg mx-auto px-4 pt-6 space-y-5">
+      <div className="max-w-2xl mx-auto px-4 pt-6 pb-8">
+        <div className="rounded-xl border border-white/10 bg-white/2 shadow-2xl p-5 sm:p-8 space-y-6">
 
-        {/* Auto-discount banner */}
-        {autoDiscount && (
-          <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-emerald-400/8 border border-emerald-400/20">
-            <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
+          {/* Row 1 — City + Service Type */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
             <div>
-              <p className="text-sm font-medium text-emerald-300">{autoDiscount.rate}% {autoDiscount.name}</p>
-              <p className="text-[11px] text-emerald-400/70 mt-0.5">Applied automatically — no code needed</p>
+              <FL>City</FL>
+              <LuxSelect value={cityId} onChange={v=>{setCityId(v);clearQuote();}}>
+                {cities.map(c=><option key={c.id} value={c.id} className="bg-gray-900">{c.name}</option>)}
+              </LuxSelect>
+            </div>
+            <div>
+              <FL>Service Type</FL>
+              <LuxSelect value={serviceTypeId} onChange={v=>{setServiceTypeId(v);setTripType('ONE_WAY');clearQuote();}}>
+                {serviceTypes.map(s=><option key={s.id} value={s.id} className="bg-gray-900">{s.name}</option>)}
+              </LuxSelect>
             </div>
           </div>
-        )}
 
-        {/* City + Service Type */}
-        <div className="space-y-3">
-          <div>
-            <label className="block text-xs text-white/50 mb-1.5 font-medium uppercase tracking-wide">City</label>
-            <select value={cityId} onChange={e => setCityId(e.target.value)}
-              className="w-full h-11 px-4 rounded-xl bg-white/5 border border-white/10 text-sm text-white appearance-none focus:outline-none focus:border-[hsl(var(--primary)/0.6)] transition-colors">
-              {cities.map(c => <option key={c.id} value={c.id} className="bg-gray-900">{c.name}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs text-white/50 mb-1.5 font-medium uppercase tracking-wide">Service Type</label>
-            <select value={serviceTypeId} onChange={e => setServiceTypeId(e.target.value)}
-              className="w-full h-11 px-4 rounded-xl bg-white/5 border border-white/10 text-sm text-white appearance-none focus:outline-none focus:border-[hsl(var(--primary)/0.6)] transition-colors">
-              {serviceTypes.map(s => <option key={s.id} value={s.id} className="bg-gray-900">{s.name}</option>)}
-            </select>
-          </div>
-        </div>
-
-        {/* Trip Type (P2P only) */}
-        {isP2P && (
-          <div className="flex rounded-xl overflow-hidden border border-white/10">
-            {(['ONE_WAY', 'RETURN'] as const).map(t => (
-              <button key={t} onClick={() => setTripType(t)}
-                className={cn('flex-1 py-2.5 text-sm font-medium transition-all',
-                  tripType === t
-                    ? 'bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]'
-                    : 'text-white/50 hover:text-white/80')}>
-                {t === 'ONE_WAY' ? 'One Way' : '⇄ Return'}
-              </button>
-            ))}
-          </div>
-        )}
-
-        {/* Addresses */}
-        <div className="space-y-3">
-          <div>
-            <label className="block text-xs text-white/50 mb-1.5 font-medium uppercase tracking-wide flex items-center gap-1.5">
-              <MapPin className="h-3 w-3" /> Pickup Address
-            </label>
-            <AddressInput value={pickup} onChange={setPickup} placeholder="Enter pickup location" cityId={cityId} />
-          </div>
-          {!isHourly && (
-            <div>
-              <label className="block text-xs text-white/50 mb-1.5 font-medium uppercase tracking-wide flex items-center gap-1.5">
-                <MapPin className="h-3 w-3" /> Dropoff Address
-              </label>
-              <AddressInput value={dropoff} onChange={setDropoff} placeholder="Enter dropoff location" cityId={cityId} />
+          {/* Service notice */}
+          {(isWedding || (isHourly(selectedServiceType) && minHours)) && (
+            <div className="flex items-start gap-2.5 px-3.5 py-3 rounded-xl bg-amber-400/8 border border-amber-400/20 text-xs text-amber-300/80">
+              <span className="text-amber-400 mt-0.5 shrink-0">✦</span>
+              <span>{isWedding ? `Wedding Hire requires a minimum of ${minHours ?? 4} hours${hasSurge ? ` and includes a ${surgePercent}% special occasion surcharge` : ''}.` : `Hourly Charter minimum is ${minHours} hours.`}</span>
             </div>
           )}
-        </div>
 
-        {/* Date & Time */}
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="block text-xs text-white/50 mb-1.5 font-medium uppercase tracking-wide">Date</label>
-            <input type="date" value={date} onChange={e => setDate(e.target.value)}
-              min={new Date(Date.now() + 12 * 3600 * 1000).toISOString().split('T')[0]}
-              className="w-full h-11 px-3 rounded-xl bg-white/5 border border-white/10 text-sm text-white focus:outline-none focus:border-[hsl(var(--primary)/0.6)] transition-colors [color-scheme:dark]" />
-          </div>
-          <div>
-            <label className="block text-xs text-white/50 mb-1.5 font-medium uppercase tracking-wide">Time</label>
-            <select value={time} onChange={e => setTime(e.target.value)}
-              className="w-full h-11 px-3 rounded-xl bg-white/5 border border-white/10 text-sm text-white appearance-none focus:outline-none focus:border-[hsl(var(--primary)/0.6)] transition-colors">
-              <option value="" className="bg-gray-900">Select time</option>
-              {timeOptions.map(o => <option key={o.value} value={o.value} className="bg-gray-900">{o.label}</option>)}
-            </select>
-          </div>
-        </div>
-
-        {/* Return date/time */}
-        {tripType === 'RETURN' && (
-          <div className="grid grid-cols-2 gap-3">
+          {/* Trip Type / Duration */}
+          {isHourly(selectedServiceType) ? (
             <div>
-              <label className="block text-xs text-white/50 mb-1.5 font-medium uppercase tracking-wide">Return Date</label>
-              <input type="date" value={returnDate} onChange={e => setReturnDate(e.target.value)}
-                min={date || new Date().toISOString().split('T')[0]}
-                className="w-full h-11 px-3 rounded-xl bg-white/5 border border-white/10 text-sm text-white focus:outline-none focus:border-[hsl(var(--primary)/0.6)] transition-colors [color-scheme:dark]" />
+              <FL>Duration (hours)</FL>
+              <LuxSelect value={durationHours} onChange={v=>{setDurationHours(v);clearQuote();}}>
+                {[2,3,4,5,6,7,8,9,10,12].filter(h=>h>=(minHours??2)).map(h=>(
+                  <option key={h} value={String(h)} className="bg-gray-900">{h} hours{h===minHours?' (minimum)':''}</option>
+                ))}
+              </LuxSelect>
             </div>
+          ) : (
             <div>
-              <label className="block text-xs text-white/50 mb-1.5 font-medium uppercase tracking-wide">Return Time</label>
-              <select value={returnTime} onChange={e => setReturnTime(e.target.value)}
-                className="w-full h-11 px-3 rounded-xl bg-white/5 border border-white/10 text-sm text-white appearance-none focus:outline-none focus:border-[hsl(var(--primary)/0.6)] transition-colors">
-                <option value="" className="bg-gray-900">Select time</option>
-                {timeOptions.map(o => <option key={o.value} value={o.value} className="bg-gray-900">{o.label}</option>)}
-              </select>
+              <FL>Trip Type</FL>
+              <LuxSelect value={tripType} onChange={v=>{setTripType(v as 'ONE_WAY'|'RETURN');clearQuote();}}>
+                <option value="ONE_WAY" className="bg-gray-900">One Way</option>
+                <option value="RETURN" className="bg-gray-900">Return</option>
+              </LuxSelect>
+            </div>
+          )}
+
+          {/* Pickup Date & Time */}
+          <div>
+            <FL>Pickup Date & Time</FL>
+            <LuxDateTimePicker dateValue={date} timeValue={time} onDateChange={v=>{setDate(v);clearQuote();}} onTimeChange={v=>{setTime(v);clearQuote();}} minDate={todayISO()}/>
+          </div>
+
+          {/* Addresses */}
+          <div className="space-y-4">
+            <div>
+              <FL><MapPin className="h-3 w-3 text-emerald-400"/> Pickup Location</FL>
+              <PlacesAutocomplete value={pickup} onChange={v=>{setPickup(v);clearQuote();}} placeholder="Airport, hotel or address..." pinColor="green" cityBias={selectedCity?.lat&&selectedCity?.lng?{lat:selectedCity.lat,lng:selectedCity.lng}:undefined}/>
+            </div>
+
+            {/* Waypoints */}
+            {waypoints.map((wp,idx)=>(
+              <div key={idx} className="flex gap-2">
+                <div className="flex-1">
+                  <FL><MapPin className="h-3 w-3"/> Stop {idx+1}</FL>
+                  <PlacesAutocomplete value={wp} onChange={v=>{const next=[...waypoints];next[idx]=v;setWaypoints(next);clearQuote();}} placeholder="Intermediate stop..." cityBias={selectedCity?.lat&&selectedCity?.lng?{lat:selectedCity.lat,lng:selectedCity.lng}:undefined}/>
+                </div>
+                <button type="button" onClick={()=>{setWaypoints(w=>w.filter((_,i)=>i!==idx));clearQuote();}} className="mt-7 p-2 text-white/30 hover:text-red-400 transition-colors"><X className="h-4 w-4"/></button>
+              </div>
+            ))}
+            {waypoints.length < 5 && (
+              <button type="button" onClick={()=>setWaypoints(w=>[...w,''])} className="flex items-center gap-1.5 text-xs text-[hsl(var(--primary))] hover:opacity-80 font-medium transition-colors">
+                <Plus className="h-3.5 w-3.5"/> Add Stop
+              </button>
+            )}
+
+            <div>
+              <FL><MapPin className="h-3 w-3 text-[hsl(var(--primary))]"/> Drop-off Location <span className="normal-case text-white/30 font-normal ml-1">(optional)</span></FL>
+              <PlacesAutocomplete value={dropoff} onChange={v=>{setDropoff(v);clearQuote();}} placeholder="Airport, hotel or destination..." pinColor="gold" cityBias={selectedCity?.lat&&selectedCity?.lng?{lat:selectedCity.lat,lng:selectedCity.lng}:undefined}/>
             </div>
           </div>
-        )}
 
-        {/* Duration (Hourly) */}
-        {isHourly && (
-          <div>
-            <label className="block text-xs text-white/50 mb-1.5 font-medium uppercase tracking-wide">Duration (hours)</label>
-            <select value={String(durationHours)} onChange={e => setDurationHours(Number(e.target.value))}
-              className="w-full h-11 px-3 rounded-xl bg-white/5 border border-white/10 text-sm text-white appearance-none focus:outline-none focus:border-[hsl(var(--primary)/0.6)] transition-colors">
-              {[2,3,4,5,6,7,8,9,10].map(h => <option key={h} value={h} className="bg-gray-900">{h} hours</option>)}
-            </select>
-          </div>
-        )}
+          {/* Return datetime */}
+          {tripType === 'RETURN' && !isHourly(selectedServiceType) && (
+            <div className="space-y-3 pt-2 border-t border-white/10">
+              <p className="text-xs font-semibold uppercase tracking-widest text-[hsl(var(--primary))]">Return Trip</p>
+              <LuxDateTimePicker dateValue={returnDate} timeValue={returnTime} onDateChange={v=>{setReturnDate(v);clearQuote();}} onTimeChange={v=>{setReturnTime(v);clearQuote();}} minDate={date||todayISO()}/>
+              <p className="text-xs text-white/30">Return pickup from drop-off location.</p>
+            </div>
+          )}
 
-        {/* Passengers & Luggage */}
-        <div className="rounded-xl bg-white/4 border border-white/8 px-4 py-4 space-y-3">
-          <Stepper label="Passengers" value={passengers} onChange={setPassengers} min={1} max={20} />
-          <Stepper label="Luggage" value={luggage} onChange={setLuggage} max={20} />
-          <div className="border-t border-white/8 pt-3 space-y-2">
-            <p className="text-xs text-white/40 font-medium uppercase tracking-wide">Baby Seats</p>
-            <Stepper label="Infant (0–6m)" value={infantSeats} onChange={setInfantSeats} />
-            <Stepper label="Toddler (0–4yrs)" value={toddlerSeats} onChange={setToddlerSeats} />
-            <Stepper label="Booster (4–8yrs)" value={boosterSeats} onChange={setBoosterSeats} />
+          {/* Passengers + Luggage */}
+          <div className="grid grid-cols-2 gap-4">
+            {[
+              { label:'Passengers', value:passengers, set:setPassengers, min:1, max:50, suffix:(n:number)=>n===1?'passenger':'passengers' },
+              { label:'Luggage',    value:luggage,    set:setLuggage,    min:0, max:50, suffix:(n:number)=>n===1?'bag':'bags' },
+            ].map(({label,value,set,min,max,suffix})=>(
+              <div key={label}>
+                <FL>{label}</FL>
+                <div className="flex items-center h-12 rounded-xl border border-white/10 bg-white/5 overflow-hidden">
+                  <button type="button" onClick={()=>{const v=Math.max(min,Number(value)-1);set(String(v));clearQuote();}} className="h-full w-11 flex items-center justify-center text-white/50 hover:text-white hover:bg-white/8 transition-colors text-lg font-light shrink-0">−</button>
+                  <div className="flex-1 flex items-center justify-center gap-1.5">
+                    <input type="number" min={min} max={max} value={value} onChange={e=>{const n=Math.max(min,Math.min(max,parseInt(e.target.value)||min));set(String(n));clearQuote();}} className="w-8 bg-transparent text-center text-white text-sm font-semibold focus:outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none"/>
+                    <span className="text-white/40 text-xs">{suffix(Number(value))}</span>
+                  </div>
+                  <button type="button" onClick={()=>{const v=Math.min(max,Number(value)+1);set(String(v));clearQuote();}} className="h-full w-11 flex items-center justify-center text-white/50 hover:text-white hover:bg-white/8 transition-colors text-lg font-light shrink-0">+</button>
+                </div>
+              </div>
+            ))}
           </div>
+
+          {/* Baby Seats */}
+          <div className="space-y-2">
+            <p className="text-xs font-semibold uppercase tracking-widest text-white/40">Baby Seats <span className="normal-case font-normal">(optional)</span></p>
+            <div className="grid grid-cols-3 gap-3">
+              {[
+                { label:'Infant',  sub:'Rear-facing · 0–6 months',   value:infantSeats,  set:setInfantSeats },
+                { label:'Toddler', sub:'Forward-facing · 0–4 yrs',   value:toddlerSeats, set:setToddlerSeats },
+                { label:'Booster', sub:'4–8 years old',               value:boosterSeats, set:setBoosterSeats },
+              ].map(({label,sub,value,set})=>(
+                <div key={label}>
+                  <p className="text-[11px] font-medium text-white/70 mb-0.5">{label}</p>
+                  <p className="text-[10px] text-white/30 mb-1.5 leading-tight">{sub}</p>
+                  <LuxSelect value={value} onChange={v=>{set(v);clearQuote();}}>
+                    {[0,1,2,3].map(n=><option key={n} value={String(n)} className="bg-gray-900">{n}</option>)}
+                  </LuxSelect>
+                </div>
+              ))}
+            </div>
+            {seatError && <p className="text-xs text-red-400">Baby seats ({totalSeats}) must be less than total passengers ({passengers}) — at least 1 adult required.</p>}
+          </div>
+
+          {/* Auto-discount banner */}
+          {autoDiscount && (
+            <div className="flex items-center gap-3 px-4 py-3 rounded-lg bg-emerald-400/8 border border-emerald-400/20">
+              <div className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-400/15 shrink-0">
+                <svg className="h-3.5 w-3.5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/></svg>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-emerald-300">{autoDiscount.rate}% {autoDiscount.name}</p>
+                <p className="text-[11px] text-emerald-400/70 mt-0.5">Applied automatically — no code needed</p>
+              </div>
+            </div>
+          )}
+
+          {/* Get Quote CTA */}
+          <button onClick={handleGetQuote} disabled={quoting||seatError||!pickup||!date||!time}
+            className={cn('w-full h-12 rounded-lg font-semibold text-base tracking-wide transition-all duration-300 flex items-center justify-center gap-2',
+              'bg-gradient-to-r from-[hsl(var(--primary))] to-[hsl(var(--primary)/0.8)] text-[hsl(var(--primary-foreground))]',
+              'hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed')}>
+            {quoting ? <><Loader2 className="h-4 w-4 animate-spin"/> Calculating...</> : <>{quoteResults.length>0?'↻ Recalculate':'Get Instant Quote'} <ChevronRight className="h-4 w-4"/></>}
+          </button>
         </div>
-
-        {/* Flight Number */}
-        <div>
-          <label className="block text-xs text-white/50 mb-1.5 font-medium uppercase tracking-wide flex items-center gap-1.5">
-            <Plane className="h-3 w-3" /> Flight Number <span className="normal-case text-white/30">(optional)</span>
-          </label>
-          <input value={flightNumber} onChange={e => setFlightNumber(e.target.value)}
-            placeholder="e.g. QF 401"
-            className="w-full h-11 px-4 rounded-xl bg-white/5 border border-white/10 text-sm text-white placeholder:text-white/40 focus:outline-none focus:border-[hsl(var(--primary)/0.6)] transition-colors" />
-        </div>
-
-        {/* Error */}
-        {quoteError && (
-          <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/20 text-sm text-red-300">
-            <AlertCircle className="h-4 w-4 shrink-0" />{quoteError}
-          </div>
-        )}
-
-        {/* Get Quote Button */}
-        <button onClick={handleGetQuoteWithSession} disabled={quoting}
-          className={cn(
-            'w-full h-12 rounded-xl font-semibold text-sm tracking-wide transition-all duration-300',
-            'bg-gradient-to-r from-[hsl(var(--primary))] to-[hsl(var(--primary)/0.8)] text-[hsl(var(--primary-foreground))]',
-            'hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed',
-            quoting && 'animate-pulse',
-          )}>
-          {quoting ? 'Getting Quote…' : 'Get Quote →'}
-        </button>
 
         {/* Car Type Cards */}
-        {results.length > 0 && (
-          <div className="space-y-3 pt-2">
-            <p className="text-xs text-white/40 font-medium uppercase tracking-wide">Select Your Vehicle</p>
-            {results.map(r => {
-              const isSelected = selected?.service_class_id === r.service_class_id;
-              const hasDiscount = r.discount_amount_minor && r.discount_amount_minor > 0;
-              return (
-                <div key={r.service_class_id}
-                  onClick={() => setSelected(r)}
-                  className={cn(
-                    'rounded-xl border cursor-pointer transition-all p-4 space-y-3',
-                    isSelected
-                      ? 'border-[hsl(var(--primary)/0.6)] bg-[hsl(var(--primary)/0.06)]'
-                      : 'border-white/8 bg-white/3 hover:border-white/20',
-                  )}>
-                  {/* Top row */}
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      {r.vehicle_class && (
-                        <span className="inline-block text-[10px] font-semibold tracking-widest uppercase text-[hsl(var(--primary))] bg-[hsl(var(--primary)/0.1)] border border-[hsl(var(--primary)/0.2)] rounded-full px-2 py-0.5 mb-1.5">
-                          {r.vehicle_class}
-                        </span>
-                      )}
-                      <p className="font-semibold text-white text-sm">{r.name}</p>
-                    </div>
-                    <div className="text-right shrink-0">
-                      {hasDiscount && (
-                        <p className="text-xs text-white/30 line-through">{fmtMoney(r.pre_discount_total_minor ?? 0, r.currency ?? 'AUD')}</p>
-                      )}
-                      <p className="text-lg font-bold text-[hsl(var(--primary))]">{fmtMoney(r.estimated_total_minor ?? 0, r.currency ?? 'AUD')}</p>
-                      {hasDiscount && (
-                        <p className="text-[10px] text-emerald-400">−{fmtMoney(r.discount_amount_minor ?? 0, r.currency ?? 'AUD')} saved</p>
-                      )}
-                      {/* Radio */}
-                      <div className={cn('w-4 h-4 rounded-full border-2 ml-auto mt-1.5 transition-all',
-                        isSelected ? 'border-[hsl(var(--primary))] bg-[hsl(var(--primary))]' : 'border-white/30')}>
-                        {isSelected && <div className="w-1.5 h-1.5 bg-[hsl(var(--primary-foreground))] rounded-full m-auto mt-0.5" />}
+        {quoteResults.length > 0 && (
+          <div ref={resultsRef} className="mt-6 space-y-4">
+            <p className="text-xs font-semibold uppercase tracking-widest text-white/40 text-center">Select Your Vehicle</p>
+            <div className="space-y-3">
+              {quoteResults.map(result => {
+                const carType   = carTypes.find(c => c.id === result.service_class_id);
+                const isSelected = selectedCarTypeId === result.service_class_id;
+                const preview   = result.pricing_snapshot_preview;
+                const hasDiscount = (result.discount?.discount_minor ?? 0) > 0;
+                return (
+                  <div key={result.service_class_id} onClick={()=>setSelectedCarTypeId(result.service_class_id)}
+                    className={cn('cursor-pointer rounded-2xl border transition-all duration-200 overflow-hidden',
+                      isSelected ? 'border-[hsl(var(--primary)/0.7)] bg-[hsl(39,46%,60%,0.06)] shadow-[0_0_0_1px_hsl(var(--primary)/0.5),0_8px_24px_rgba(200,169,107,0.12)]'
+                                 : 'border-white/10 bg-white/2 hover:border-[hsl(var(--primary)/0.3)] hover:bg-white/4')}>
+                    <div className="p-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0 flex-1">
+                          {carType?.vehicle_class && <span className="inline-block mb-1 text-[9px] font-semibold tracking-widest uppercase text-[hsl(var(--primary)/0.6)] border border-[hsl(var(--primary)/0.2)] rounded px-1.5 py-0.5">{carType.vehicle_class}</span>}
+                          <p className="font-serif font-semibold text-white text-[15px] leading-snug">{result.service_class_name}</p>
+                        </div>
+                        <div className="flex items-start gap-2.5 shrink-0">
+                          <div className="text-right">
+                            {hasDiscount && <p className="text-[11px] text-white/30 line-through leading-none mb-0.5">{fmtMoney((preview.pre_discount_total_minor??result.estimated_total_minor+(result.discount?.discount_minor??0)),currency)}</p>}
+                            <p className={cn('text-xl font-bold leading-none', isSelected?'text-gradient-gold':'text-white')}>{fmtMoney(result.estimated_total_minor,currency)}</p>
+                            {hasDiscount ? <p className="text-[10px] text-emerald-400 font-semibold mt-0.5">-{fmtMoney(result.discount!.discount_minor,currency)} off</p> : <p className="text-[10px] text-white/30 mt-0.5">{currency} incl. GST</p>}
+                          </div>
+                          <div className={cn('w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 mt-0.5 transition-all',isSelected?'border-[hsl(var(--primary))] bg-[hsl(var(--primary))]':'border-white/30')}>
+                            {isSelected && <svg className="w-3 h-3 text-[hsl(var(--primary-foreground))]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/></svg>}
+                          </div>
+                        </div>
                       </div>
+                      {/* Specs row */}
+                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-3 text-[11px] text-white/40">
+                        {(carType?.max_passengers??0)>0 && <span className="flex items-center gap-1"><svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>Up to {carType!.max_passengers} passengers</span>}
+                        {(carType?.luggage_capacity??0)>0 && <span className="flex items-center gap-1"><svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>{carType!.luggage_capacity} bags</span>}
+                        {preview.toll_parking_minor>0 && <span>Incl. {fmtMoney(preview.toll_parking_minor,currency)} tolls</span>}
+                        {(preview.surcharge_labels?.length??0)>0 && <span className="flex items-center gap-1 text-amber-400/80"><svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>{preview.surcharge_labels!.join(', ')} surcharge incl.</span>}
+                      </div>
+                      {carType?.description && <p className="mt-2 text-[11px] text-white/30 line-clamp-1">{carType.description}</p>}
                     </div>
+                    {isSelected && <div className="h-px bg-gradient-to-r from-transparent via-[hsl(var(--primary)/0.6)] to-transparent"/>}
                   </div>
-                  {/* Specs row */}
-                  <div className="flex items-center gap-3 text-[11px] text-white/40">
-                    <span className="flex items-center gap-1"><Users className="h-3 w-3" />{r.max_passengers ?? '—'}</span>
-                    <span className="flex items-center gap-1"><Luggage className="h-3 w-3" />{r.luggage_capacity ?? '—'}</span>
-                    {r.toll_parking_minor ? <span className="flex items-center gap-1"><Car className="h-3 w-3" />Incl. {fmtMoney(r.toll_parking_minor, r.currency ?? 'AUD')} tolls</span> : null}
-                    {r.surcharge_labels?.map((l, i) => (
-                      <span key={i} className="flex items-center gap-1 text-amber-400/70"><Clock className="h-3 w-3" />{l}</span>
-                    ))}
-                  </div>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
 
             {/* Book Now */}
-            <button
-              onClick={() => {
-                if (!selected || !quoteId) return;
-                router.push(`/book?quote_id=${quoteId}&car_type_id=${selected.service_class_id}`);
-              }}
-              disabled={!selected || !quoteId}
-              className="w-full h-12 rounded-xl font-semibold text-sm tracking-wide bg-gradient-to-r from-[hsl(var(--primary))] to-[hsl(var(--primary)/0.8)] text-[hsl(var(--primary-foreground))] hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-all">
-              Book Now — {selected ? fmtMoney(selected.estimated_total_minor ?? 0, selected.currency ?? 'AUD') : ''}
+            <button disabled={!selectedCarTypeId||!quoteId}
+              onClick={()=>{ if(!selectedCarTypeId||!quoteId) return; router.push(`/book?quote_id=${quoteId}&car_type_id=${selectedCarTypeId}`); }}
+              className={cn('w-full rounded-xl font-semibold text-base tracking-wide transition-all duration-300 flex items-center justify-center gap-2 py-3.5',
+                'bg-gradient-to-r from-[hsl(var(--primary))] to-[hsl(var(--primary)/0.8)] text-[hsl(var(--primary-foreground))]',
+                'hover:opacity-90 hover:shadow-[0_8px_24px_rgba(200,169,107,0.25)]',
+                'disabled:opacity-40 disabled:cursor-not-allowed')}>
+              {selectedCarTypeId ? (()=>{
+                const r=quoteResults.find(q=>q.service_class_id===selectedCarTypeId);
+                if(!r) return 'Book Now';
+                const hasD=(r.discount?.discount_minor??0)>0;
+                const pre=r.pricing_snapshot_preview?.pre_discount_total_minor;
+                return <>Book Now — <span className="flex items-center gap-1.5">{hasD&&pre&&<span className="line-through opacity-60 text-sm font-normal">{fmtMoney(pre,currency)}</span>}<span className={hasD?'text-emerald-300':''}>{fmtMoney(r.estimated_total_minor,currency)}</span></span><ArrowRight className="h-4 w-4 ml-1"/></>;
+              })() : 'Select a vehicle to continue'}
             </button>
+
+            <p className="text-center text-xs text-white/30 leading-relaxed">
+              Fare is an estimate. Final price confirmed at booking.{' '}
+              <span className="text-[hsl(var(--primary)/0.7)]">Quote valid for 30 minutes.</span>
+            </p>
           </div>
         )}
       </div>
     </div>
+
+    {/* Urgent Booking Modal */}
+    {showUrgentModal && (
+      <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4" onClick={()=>setShowUrgentModal(false)}>
+        <div className="relative w-full max-w-sm rounded-2xl border border-white/10 bg-[hsl(228,10%,8%)] p-7 shadow-2xl text-center" onClick={e=>e.stopPropagation()}>
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-[hsl(var(--primary)/0.15)] border border-[hsl(var(--primary)/0.3)]">
+            <svg className="h-7 w-7 text-[hsl(var(--primary))]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5"><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 01-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 00-1.091-.852H4.5A2.25 2.25 0 002.25 4.5v2.25z"/></svg>
+          </div>
+          <h3 className="text-lg font-semibold text-white mb-2">Short Notice Booking</h3>
+          <p className="text-sm text-white/50 mb-6 leading-relaxed">Bookings require at least <strong className="text-white">12 hours' notice</strong> for online reservations. For urgent requests, please call us directly.</p>
+          <a href="tel:+61280091008" className="flex items-center justify-center gap-2 w-full py-3 rounded-xl bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] font-semibold text-sm hover:opacity-90 transition-all mb-3">
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 01-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 00-1.091-.852H4.5A2.25 2.25 0 002.25 4.5v2.25z"/></svg>
+            Call Now: +61 2 8009 1008
+          </a>
+          <button onClick={()=>setShowUrgentModal(false)} className="w-full py-2.5 rounded-xl border border-white/10 text-sm text-white/40 hover:text-white hover:border-white/20 transition-colors">Change Date & Time</button>
+        </div>
+      </div>
+    )}
+    </>
   );
 }
