@@ -185,7 +185,8 @@ export class CustomerPortalService {
     const [booking] = await this.db.query(
       `INSERT INTO public.bookings
          (tenant_id, customer_id, customer_email, customer_first_name, customer_last_name,
-          customer_phone, pickup_address, dropoff_address, pickup_at_utc,
+          customer_phone_country_code, customer_phone_number,
+          pickup_address, dropoff_address, pickup_at_utc,
           service_type_id, vehicle_class_id, total_price_minor, currency,
           status, payment_status, booked_by, booking_reference,
           flight_number, passenger_count, notes, created_at, updated_at)
@@ -194,6 +195,7 @@ export class CustomerPortalService {
           (SELECT email FROM public.customers WHERE id=$2),
           (SELECT first_name FROM public.customers WHERE id=$2),
           (SELECT last_name FROM public.customers WHERE id=$2),
+          (SELECT phone_country_code FROM public.customers WHERE id=$2),
           (SELECT phone_number FROM public.customers WHERE id=$2),
           $3, $4, $5, $6, $7, $8, $9,
           'AWAITING_CONFIRMATION', 'UNPAID', 'CUSTOMER', $10,
