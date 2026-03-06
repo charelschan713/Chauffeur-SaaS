@@ -148,4 +148,22 @@ export class PublicTenantService {
     this.cacheSet(cacheKey, rows);
     return rows;
   }
+
+  /** Returns the first active auto-apply (no code) discount for widget banner */
+  async getAutoDiscount(tenantSlug: string) {
+    const tenant = await this.resolveTenant(tenantSlug);
+    const [row] = await this.db.query(
+      `SELECT name, discount_type, discount_value
+       FROM public.tenant_discounts
+       WHERE tenant_id = $1
+         AND is_active = true
+         AND (code IS NULL OR code = '')
+         AND (valid_from IS NULL OR valid_from <= now())
+         AND (valid_until IS NULL OR valid_until >= now())
+       ORDER BY created_at ASC
+       LIMIT 1`,
+      [tenant.id],
+    );
+    return row ?? null;
+  }
 }

@@ -93,4 +93,10 @@ export class PublicController {
     await this.pricingSvc.markConverted(quoteId);
     return { success: true };
   }
+
+  /** Returns the first active auto-apply discount for the widget banner */
+  @Get('discounts/auto')
+  async getAutoDiscount(@Query('tenant_slug') tenantSlug: string) {
+    return this.tenantSvc.getAutoDiscount(tenantSlug);
+  }
 }

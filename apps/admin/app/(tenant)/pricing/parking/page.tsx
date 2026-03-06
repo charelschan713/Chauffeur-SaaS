@@ -81,7 +81,7 @@ export default function ParkingPage() {
 
       {/* Info banner */}
       <div className="rounded-lg bg-blue-50 border border-blue-200 px-4 py-3 text-sm text-blue-700">
-        💡 Parking fee is detected by matching keywords in the pickup address. For <strong>return trips</strong>, the fee is applied <strong>once only</strong> (on the outbound leg).
+        💡 Parking fee applies when the <strong>pickup address</strong> matches a terminal keyword. For example: City→T3 does <em>not</em> trigger (city pickup); T3→City <em>does</em> trigger (airport pickup). Return trips charge <strong>once</strong> — only on the leg where driver picks up from the airport.
       </div>
 
       {/* Form */}
