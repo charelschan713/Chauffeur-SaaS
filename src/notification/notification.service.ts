@@ -731,6 +731,8 @@ export class NotificationService {
           b.pickup_address_text,
           b.dropoff_address_text,
           b.pickup_time_local,
+          b.pickup_at_utc,
+          b.timezone,
           b.customer_first_name,
           b.customer_last_name,
           b.customer_email,
@@ -738,13 +740,16 @@ export class NotificationService {
           b.customer_phone_number,
           b.currency,
           b.total_amount,
+          b.total_price_minor,
           b.passenger_name,
           b.passenger_phone_country_code,
           b.passenger_phone_number,
           v.make as vehicle_make,
-          v.model as vehicle_model
+          v.model as vehicle_model,
+          c.name as city_name
        FROM public.bookings b
        LEFT JOIN public.vehicles v ON v.id = b.vehicle_id
+       LEFT JOIN public.cities c ON c.id = b.city_id
        WHERE b.id = $1
        LIMIT 1`,
       [id],
@@ -1178,7 +1183,7 @@ export class NotificationService {
       vehicle_make:       b.vehicle_make ?? '',
       vehicle_model:      b.vehicle_model ?? '',
       total_price:        b.total_price_minor ? `$${(b.total_price_minor / 100).toFixed(2)}` : (b.total_amount ?? ''),
-      timezone:           tz,
+      city:               b.city_name ?? '',
     };
   }
 }

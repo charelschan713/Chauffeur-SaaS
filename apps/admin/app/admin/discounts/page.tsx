@@ -1,4 +1,5 @@
 'use client';
+// NOTE: This file is intentionally identical to app/(tenant)/discounts/page.tsx
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';

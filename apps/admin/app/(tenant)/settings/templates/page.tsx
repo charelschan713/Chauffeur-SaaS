@@ -80,6 +80,7 @@ const VARIABLES = [
   'invoice_url', 'card_last4', 'payment_link', 'doc_type', 'expiry_date',
   'days_remaining', 'reject_reason', 'driver_pay', 'partner_name',
   'source_tenant', 'transfer_price', 'tenant_name', 'review_status', 'settlement_result',
+  'city',
 ];
 
 interface TemplateRow {
