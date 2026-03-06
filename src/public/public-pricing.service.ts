@@ -3,6 +3,7 @@ import { DataSource } from 'typeorm';
 import { PricingResolver } from '../pricing/pricing.resolver';
 import { PublicTenantService } from './public-tenant.service';
 import { PricingContext } from '../pricing/pricing.types';
+import { DiscountService } from '../discount/discount.service';
 
 interface QuoteRequest {
   service_type_id: string;
@@ -22,6 +23,7 @@ interface QuoteRequest {
   booster_seats?: number;
   return_distance_km?: number;
   return_duration_minutes?: number;
+  promo_code?: string;              // optional promo code from widget
 }
 
 @Injectable()
@@ -30,6 +32,7 @@ export class PublicPricingService {
     private readonly db: DataSource,
     private readonly pricing: PricingResolver,
     private readonly tenantSvc: PublicTenantService,
+    private readonly discountSvc: DiscountService,
   ) {}
 
   async quote(slug: string, dto: QuoteRequest) {
@@ -86,14 +89,40 @@ export class PublicPricingService {
 
         try {
           const snapshot = await this.pricing.resolve(ctx);
+          const baseFare = snapshot.grand_total_minor ?? snapshot.totalPriceMinor;
+
+          // ── Apply discount (auto-apply or promo code) ──
+          const discountResult = await this.discountSvc.resolveDiscount(
+            tenant.id,
+            baseFare,
+            {
+              code:          dto.promo_code,
+              serviceTypeId: dto.service_type_id,
+              customerId:    null,    // guest at quote time
+              isNewCustomer: false,
+            },
+          );
+
+          const discountMinor  = discountResult?.discountMinor ?? 0;
+          const finalTotal     = discountResult?.finalFareMinor ?? baseFare;
+
           return {
             service_class_id: ct.id,
             service_class_name: ct.name,
-            estimated_total_minor:
-              snapshot.grand_total_minor ?? snapshot.totalPriceMinor,
+            estimated_total_minor: finalTotal,
             distance_km: dto.distance_km,
             duration_minutes: dto.duration_minutes,
             currency: tenant.currency,
+            // discount info for display
+            discount: discountResult ? {
+              id:             discountResult.discountId,
+              name:           discountResult.name,
+              type:           discountResult.type,
+              value:          discountResult.value,
+              discount_minor: discountMinor,
+              capped_by_max:  discountResult.cappedByMax,
+              max_discount_minor: discountResult.maxDiscountMinor,
+            } : null,
             pricing_snapshot_preview: {
               base_calculated_minor:
                 snapshot.base_calculated_minor ?? snapshot.subtotalMinor,
@@ -101,11 +130,10 @@ export class PublicPricingService {
               multiplier_value: snapshot.multiplier_value ?? null,
               surcharge_minor: snapshot.surcharge_minor ?? 0,
               toll_parking_minor: snapshot.toll_parking_minor ?? 0,
-              discount_amount_minor: snapshot.discount_amount_minor ?? 0,
-              final_fare_minor:
-                snapshot.final_fare_minor ?? snapshot.totalPriceMinor,
-              grand_total_minor:
-                snapshot.grand_total_minor ?? snapshot.totalPriceMinor,
+              pre_discount_total_minor: baseFare,
+              discount_amount_minor: discountMinor,
+              final_fare_minor: finalTotal,
+              grand_total_minor: finalTotal,
               minimum_applied: snapshot.minimum_applied ?? false,
             },
           };
