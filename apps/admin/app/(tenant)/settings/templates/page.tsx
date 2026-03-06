@@ -115,8 +115,11 @@ export default function TemplatesPage() {
   const [savingKey, setSavingKey] = useState<string | null>(null);
   const [defaults, setDefaults] = useState<Record<string, any>>({});
   const [sources, setSources] = useState<Record<string, 'TENANT' | 'PLATFORM'>>({});
-  // Per-event (not per-channel) settings: active + recipients
-  const [eventActive, setEventActive] = useState<Record<string, boolean>>({});
+  // Per-channel active state: key = "EventType:email" | "EventType:sms"
+  const [channelActive, setChannelActive] = useState<Record<string, boolean>>({});
+  // Event is "active" if at least one channel is active
+  const isEventActive = (eventKey: string) =>
+    (channelActive[`${eventKey}:email`] ?? true) || (channelActive[`${eventKey}:sms`] ?? true);
   const [eventRecipients, setEventRecipients] = useState<Record<string, string[]>>({});
 
   const { data: templates = [], isLoading, refetch } = useQuery({
@@ -146,13 +149,12 @@ export default function TemplatesPage() {
       });
       return next;
     });
-    // Seed active + recipients from the email channel row (authoritative)
-    setEventActive((prev) => {
+    // Seed per-channel active from DB
+    setChannelActive((prev) => {
       const next = { ...prev };
       (templates as TemplateRow[]).forEach((t) => {
-        if (t.channel === 'email' && !(t.event_type in next)) {
-          next[t.event_type] = t.active ?? true;
-        }
+        const k = `${t.event_type}:${t.channel}`;
+        if (!(k in next)) next[k] = t.active ?? true;
       });
       return next;
     });
@@ -251,13 +253,11 @@ export default function TemplatesPage() {
     setSavingKey(null);
   }
 
-  async function handleToggleActive(eventType: string) {
-    const newVal = !eventActive[eventType];
-    setEventActive((prev) => ({ ...prev, [eventType]: newVal }));
-    // Update both channels
-    for (const ch of ['email', 'sms'] as const) {
-      await api.patch(`/notification-templates/${eventType}/${ch}`, { active: newVal }).catch(() => {});
-    }
+  async function handleToggleChannelActive(eventType: string, channel: 'email' | 'sms') {
+    const k = `${eventType}:${channel}`;
+    const newVal = !(channelActive[k] ?? true);
+    setChannelActive((prev) => ({ ...prev, [k]: newVal }));
+    await api.patch(`/notification-templates/${eventType}/${channel}`, { active: newVal }).catch(() => {});
   }
 
   async function handleSaveRecipients(eventType: string, newRecipients: string[]) {
@@ -344,24 +344,12 @@ export default function TemplatesPage() {
               )}
               <div className="space-y-3">
           {group.events.map((event) => (
-            <div key={event.key} className={`bg-white border rounded p-4 space-y-4 ${eventActive[event.key] === false ? 'opacity-50' : ''}`}>
+            <div key={event.key} className={`bg-white border rounded p-4 space-y-4 ${!isEventActive(event.key) ? 'opacity-50' : ''}`}>
               <div className="flex items-center justify-between flex-wrap gap-3">
                 <div className="flex items-center gap-3">
-                  {/* Active toggle */}
-                  <button
-                    onClick={() => handleToggleActive(event.key)}
-                    title={eventActive[event.key] === false ? 'Enable event' : 'Disable event'}
-                    className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none ${
-                      eventActive[event.key] === false ? 'bg-gray-300' : 'bg-green-500'
-                    }`}
-                  >
-                    <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${
-                      eventActive[event.key] === false ? 'translate-x-0.5' : 'translate-x-4'
-                    }`} />
-                  </button>
                   <div className="text-sm font-semibold text-gray-800">{event.label}</div>
-                  {eventActive[event.key] === false && (
-                    <span className="text-[10px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded">Disabled</span>
+                  {!isEventActive(event.key) && (
+                    <span className="text-[10px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded">All channels off</span>
                   )}
                 </div>
                 {/* Recipients */}
@@ -402,6 +390,10 @@ export default function TemplatesPage() {
                       {sources[keyFor(event.key, ch)] === 'TENANT' && (
                         <span className="ml-1.5 inline-block w-1.5 h-1.5 rounded-full bg-green-500 align-middle" />
                       )}
+                      {/* Per-channel active indicator */}
+                      {!(channelActive[`${event.key}:${ch}`] ?? true) && (
+                        <span className="ml-1.5 text-[9px] bg-red-100 text-red-500 px-1 rounded">OFF</span>
+                      )}
                     </button>
                   ))}
                 </div>
@@ -413,12 +405,33 @@ export default function TemplatesPage() {
                   const pKey = keyFor(event.key, ch);
                   return (
                     <div key={ch} className="space-y-3">
-                      <div className="flex items-center gap-2">
-                        <span className={`text-[10px] px-2 py-1 rounded ${
-                          sources[pKey] === 'TENANT' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'
-                        }`}>
-                          {sources[pKey] === 'TENANT' ? 'Custom' : 'Platform Default'}
-                        </span>
+                      <div className="flex items-center justify-between gap-2 flex-wrap">
+                        <div className="flex items-center gap-2">
+                          <span className={`text-[10px] px-2 py-1 rounded ${
+                            sources[pKey] === 'TENANT' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'
+                          }`}>
+                            {sources[pKey] === 'TENANT' ? 'Custom' : 'Platform Default'}
+                          </span>
+                        </div>
+                        {/* Per-channel active toggle */}
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] text-gray-400">{ch === 'email' ? 'Email' : 'SMS'} notifications:</span>
+                          <button
+                            type="button"
+                            onClick={() => handleToggleChannelActive(event.key, ch)}
+                            className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none ${
+                              (channelActive[`${event.key}:${ch}`] ?? true) ? 'bg-green-500' : 'bg-gray-300'
+                            }`}
+                            title={`Toggle ${ch} notifications`}
+                          >
+                            <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${
+                              (channelActive[`${event.key}:${ch}`] ?? true) ? 'translate-x-4' : 'translate-x-0.5'
+                            }`} />
+                          </button>
+                          <span className={`text-[10px] font-medium ${(channelActive[`${event.key}:${ch}`] ?? true) ? 'text-green-600' : 'text-gray-400'}`}>
+                            {(channelActive[`${event.key}:${ch}`] ?? true) ? 'ON' : 'OFF'}
+                          </span>
+                        </div>
                       </div>
 
                       {isEmail && (
