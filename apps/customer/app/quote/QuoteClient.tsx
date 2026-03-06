@@ -126,7 +126,7 @@ function TimePicker({ value, onChange, onConfirm }: { value: string; onChange: (
         <div className={cn(colCls,'flex-1')}>{minutes.map(m=><div key={m} data-selected={m===minute} className={itemCls(m===minute)} onMouseDown={e=>e.preventDefault()} onClick={()=>{setMinute(m);commit(hour,m,period);}}>{String(m).padStart(2,'0')}</div>)}</div>
         <div className={cn(colCls,'flex-1')}>{(['AM','PM'] as const).map(p=><div key={p} data-selected={p===period} className={itemCls(p===period)} onMouseDown={e=>e.preventDefault()} onClick={()=>{setPeriod(p);commit(hour,minute,p);}}>{p}</div>)}</div>
       </div>
-      <div className="px-3 pt-3 pb-2"><button type="button" onClick={onConfirm} className="w-full py-2 rounded-lg bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] text-sm font-semibold">Confirm</button></div>
+      <div className="px-3 pt-3 pb-2"><button type="button" onClick={()=>{commit(hour,minute,period);onConfirm();}} className="w-full py-2 rounded-lg bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] text-sm font-semibold">Confirm</button></div>
     </div>
   );
 }
