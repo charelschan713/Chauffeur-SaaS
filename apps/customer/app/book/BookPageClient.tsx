@@ -40,6 +40,9 @@ interface QuoteSession {
       infant_seats?: number;
       toddler_seats?: number;
       booster_seats?: number;
+      return_date?: string;
+      return_time?: string;
+      return_pickup_at_utc?: string;
     };
     results: Array<{
       service_class_id: string;
@@ -601,6 +604,42 @@ export function BookPageClient() {
                 </div>
               )}
             </div>
+
+            {/* Return leg */}
+            {req.trip_mode === 'RETURN' && (req.return_date || req.return_pickup_at_utc) && (
+              <div className="border-t border-[hsl(var(--border)/0.5)] pt-3 space-y-2">
+                <div className="flex items-center gap-2 text-[hsl(var(--muted-foreground))]">
+                  <Clock className="h-3.5 w-3.5 shrink-0 text-[hsl(var(--primary)/0.7)]" />
+                  <span className="font-medium text-[hsl(var(--foreground)/0.9)]">
+                    {req.return_pickup_at_utc
+                      ? new Date(req.return_pickup_at_utc).toLocaleString('en-AU', {
+                          weekday: 'short', day: 'numeric', month: 'short', year: 'numeric',
+                          hour: 'numeric', minute: '2-digit', hour12: true,
+                          timeZone: req.timezone,
+                        })
+                      : `${req.return_date ?? ''} ${req.return_time ?? ''}`}
+                  </span>
+                  <span className="text-[10px] text-[hsl(var(--muted-foreground)/0.6)] uppercase tracking-wide">Return</span>
+                </div>
+                <div className="relative pl-5">
+                  <div className="absolute left-[6px] top-2 bottom-2 w-px bg-[hsl(var(--border))]" />
+                  <div className="relative flex items-start gap-2 mb-3">
+                    <div className="absolute -left-5 mt-1 w-3 h-3 rounded-full bg-[hsl(var(--primary)/0.8)] border-2 border-[hsl(var(--background))] shrink-0" />
+                    <div>
+                      <p className="text-[10px] font-semibold uppercase tracking-widest text-[hsl(var(--muted-foreground)/0.6)] mb-0.5">Pickup</p>
+                      <p className="text-[hsl(var(--foreground)/0.85)] leading-snug">{req.dropoff_address ?? req.pickup_address}</p>
+                    </div>
+                  </div>
+                  <div className="relative flex items-start gap-2">
+                    <div className="absolute -left-5 mt-1 w-3 h-3 rounded-full bg-emerald-500/80 border-2 border-[hsl(var(--background))] shrink-0" />
+                    <div>
+                      <p className="text-[10px] font-semibold uppercase tracking-widest text-[hsl(var(--muted-foreground)/0.6)] mb-0.5">Drop-off</p>
+                      <p className="text-[hsl(var(--foreground)/0.85)] leading-snug">{req.pickup_address}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Pax / luggage / seats */}
             <div className="flex flex-wrap gap-3 text-[hsl(var(--muted-foreground))] pt-1 border-t border-[hsl(var(--border)/0.5)]">
