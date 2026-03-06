@@ -332,21 +332,21 @@ export default function CarTypesPage() {
           <div>
             <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Child Seat Surcharges</p>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-              <Field label="Infant Seat ($)">
+              <Field label="Infant Seat 0–6 months ($)">
                 <Input
                   type="number" min="0" step="0.01"
                   value={form.infant_seat_minor}
                   onChange={(e) => setForm((prev) => ({ ...prev, infant_seat_minor: e.target.value }))}
                 />
               </Field>
-              <Field label="Toddler Seat ($)">
+              <Field label="Toddler Seat 0–4 yrs ($)">
                 <Input
                   type="number" min="0" step="0.01"
                   value={form.toddler_seat_minor}
                   onChange={(e) => setForm((prev) => ({ ...prev, toddler_seat_minor: e.target.value }))}
                 />
               </Field>
-              <Field label="Booster Seat ($)">
+              <Field label="Booster Seat 4–8 yrs ($)">
                 <Input
                   type="number" min="0" step="0.01"
                   value={form.booster_seat_minor}

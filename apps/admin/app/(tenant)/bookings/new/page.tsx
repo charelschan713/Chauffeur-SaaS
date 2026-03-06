@@ -455,7 +455,7 @@ export default function CreateBookingPage() {
       : 'Enter route',
     requirements: `${values.passenger_count} pax · ${values.luggage_count ?? 0} bags`,
     car: selectedCarType ? `${selectedCarType.name}${quote.status === 'success' ? ` · $${toDisplay((quote as Extract<typeof quote, {status:'success'}>).estimates[selectedCarType.id] ?? 0)}` : ''}` : 'Select a car type',
-    extras: `Infant ${values.infant_seats} · Toddler ${values.toddler_seats} · Booster ${values.booster_seats}`,
+    extras: `Infant (0–6m) ${values.infant_seats} · Toddler (0–4y) ${values.toddler_seats} · Booster (4–8y) ${values.booster_seats}`,
   } as const;
 
   async function goNext(current: typeof SECTIONS[number]) {
@@ -889,9 +889,9 @@ export default function CreateBookingPage() {
                 <>
                   <div className="grid grid-cols-3 gap-4">
                     {[
-                      { label: 'Infant Seat', field: 'infant_seats' as const },
-                      { label: 'Toddler Seat', field: 'toddler_seats' as const },
-                      { label: 'Booster Seat', field: 'booster_seats' as const },
+                      { label: 'Infant Seat (0–6 months)', field: 'infant_seats' as const },
+                      { label: 'Toddler Seat (0–4 yrs)', field: 'toddler_seats' as const },
+                      { label: 'Booster Seat (4–8 yrs)', field: 'booster_seats' as const },
                     ].map(({ label, field }) => (
                       <div key={field}>
                         <label className="text-sm font-medium text-gray-700 block mb-1">{label}</label>
