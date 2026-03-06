@@ -737,16 +737,16 @@ export default function CreateBookingPage() {
                 {errors.city_id && <p className="text-xs text-red-600 mt-1">{errors.city_id.message}</p>}
               </div>
               <div>
-                <label className="text-sm font-medium text-gray-700 block mb-2">Service Type</label>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                <label className="text-sm font-medium text-gray-700 block mb-1">Service Type</label>
+                <Select
+                  value={values.service_type_id}
+                  onChange={(e) => setValue('service_type_id', e.target.value, { shouldValidate: true })}
+                >
+                  <option value="">Select service type...</option>
                   {serviceTypes.map((s: any) => (
-                    <button key={s.id} type="button"
-                      onClick={() => setValue('service_type_id', s.id, { shouldValidate: true })}
-                      className={`border rounded-lg px-3 py-2 text-left text-sm transition-colors ${values.service_type_id === s.id ? 'border-blue-600 bg-blue-50 text-blue-700 font-medium' : 'border-gray-200 hover:border-gray-300'}`}>
-                      {s.display_name ?? s.name}
-                    </button>
+                    <option key={s.id} value={s.id}>{s.display_name ?? s.name}</option>
                   ))}
-                </div>
+                </Select>
                 {errors.service_type_id && <p className="text-xs text-red-600 mt-1">{errors.service_type_id.message}</p>}
               </div>
             </div>
@@ -761,15 +761,33 @@ export default function CreateBookingPage() {
                 onChange={(v) => setValue('pickup_at_utc', v, { shouldValidate: true })}
                 error={errors.pickup_at_utc?.message} />
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Field label="Flight Number">
-                  <Input {...register('flight_number')} placeholder="e.g. QF401" />
-                </Field>
-                <div className="flex items-center gap-2 pt-5">
-                  <input type="checkbox" id="return_trip" {...register('is_return_trip')} className="h-4 w-4 rounded border-gray-300 text-blue-600" />
-                  <label htmlFor="return_trip" className="text-sm font-medium text-gray-700 cursor-pointer">Return Trip</label>
-                </div>
+                {selectedServiceType?.code === 'POINT_TO_POINT' && (
+                  <Field label="Flight Number">
+                    <Input {...register('flight_number')} placeholder="e.g. QF401 (optional)" />
+                  </Field>
+                )}
+                {selectedServiceType?.calculation_type === 'POINT_TO_POINT' && (
+                  <div>
+                    <label className="text-sm font-medium text-gray-700 block mb-1">Trip Type</label>
+                    <Select
+                      value={values.is_return_trip ? 'RETURN' : 'ONE_WAY'}
+                      onChange={(e) => setValue('is_return_trip', e.target.value === 'RETURN', { shouldValidate: true })}
+                    >
+                      <option value="ONE_WAY">One Way</option>
+                      <option value="RETURN">Return</option>
+                    </Select>
+                  </div>
+                )}
+                {selectedServiceType?.calculation_type === 'HOURLY_CHARTER' && (
+                  <div>
+                    <label className="text-sm font-medium text-gray-700 block mb-1">Duration (hours)</label>
+                    <Select value={String(values.passenger_count)} onChange={(e) => setValue('passenger_count', Number(e.target.value))}>
+                      {[2,3,4,5,6,7,8,9,10,12].map(h => <option key={h} value={h}>{h} hours</option>)}
+                    </Select>
+                  </div>
+                )}
               </div>
-              {values.is_return_trip && (
+              {values.is_return_trip && selectedServiceType?.calculation_type === 'POINT_TO_POINT' && (
                 <DateTimePicker label="Return Date & Time" value={values.return_pickup_at_utc ?? ''}
                   onChange={(v) => setValue('return_pickup_at_utc', v, { shouldValidate: true })}
                   error={errors.return_pickup_at_utc?.message}
@@ -823,14 +841,25 @@ export default function CreateBookingPage() {
             <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">Requirements</h2>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
               <div>
-                <Field label="Passengers" error={errors.passenger_count?.message}>
-                  <Input type="number" min={1} max={14} {...register('passenger_count', { valueAsNumber: true })} />
-                </Field>
-                <p className="text-xs text-gray-400 mt-1">Include infants & children in total count</p>
+                <label className="text-sm font-medium text-gray-700 block mb-1">Passengers</label>
+                <Select value={String(values.passenger_count)}
+                  onChange={(e) => setValue('passenger_count', Number(e.target.value), { shouldValidate: true })}>
+                  {Array.from({length: 14}, (_, i) => i + 1).map(n => (
+                    <option key={n} value={n}>{n} passenger{n > 1 ? 's' : ''}</option>
+                  ))}
+                </Select>
+                {errors.passenger_count && <p className="text-xs text-red-600 mt-1">{errors.passenger_count.message}</p>}
+                <p className="text-xs text-gray-400 mt-1">Include infants & children</p>
               </div>
-              <Field label="Luggage" error={errors.luggage_count?.message}>
-                <Input type="number" min={0} max={20} {...register('luggage_count', { valueAsNumber: true })} />
-              </Field>
+              <div>
+                <label className="text-sm font-medium text-gray-700 block mb-1">Luggage</label>
+                <Select value={String(values.luggage_count ?? 0)}
+                  onChange={(e) => setValue('luggage_count', Number(e.target.value), { shouldValidate: true })}>
+                  {Array.from({length: 21}, (_, i) => i).map(n => (
+                    <option key={n} value={n}>{n} bag{n !== 1 ? 's' : ''}</option>
+                  ))}
+                </Select>
+              </div>
               <div className="col-span-2 md:col-span-3">
                 <Field label="Special Requests">
                   <textarea {...register('special_requests')} rows={2}
@@ -849,15 +878,19 @@ export default function CreateBookingPage() {
               return (
                 <>
                   <div className="grid grid-cols-3 gap-4">
-                    <Field label="Infant Seat">
-                      <Input type="number" min={0} max={values.passenger_count} {...register('infant_seats', { valueAsNumber: true })} />
-                    </Field>
-                    <Field label="Toddler Seat">
-                      <Input type="number" min={0} max={values.passenger_count} {...register('toddler_seats', { valueAsNumber: true })} />
-                    </Field>
-                    <Field label="Booster Seat">
-                      <Input type="number" min={0} max={values.passenger_count} {...register('booster_seats', { valueAsNumber: true })} />
-                    </Field>
+                    {[
+                      { label: 'Infant Seat', field: 'infant_seats' as const },
+                      { label: 'Toddler Seat', field: 'toddler_seats' as const },
+                      { label: 'Booster Seat', field: 'booster_seats' as const },
+                    ].map(({ label, field }) => (
+                      <div key={field}>
+                        <label className="text-sm font-medium text-gray-700 block mb-1">{label}</label>
+                        <Select value={String(values[field] ?? 0)}
+                          onChange={(e) => setValue(field, Number(e.target.value), { shouldValidate: true })}>
+                          {[0,1,2,3].map(n => <option key={n} value={n}>{n}</option>)}
+                        </Select>
+                      </div>
+                    ))}
                   </div>
                   {seatError ? (
                     <p className="text-xs text-red-600 mt-2 font-medium">
