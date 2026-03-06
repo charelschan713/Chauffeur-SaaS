@@ -44,7 +44,7 @@ type QuoteResult = {
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 function fmtMoney(minor: number, currency = 'AUD') {
-  return new Intl.NumberFormat('en-AU', { style: 'currency', currency, minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(minor / 100);
+  return new Intl.NumberFormat('en-AU', { style: 'currency', currency, minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(minor / 100);
 }
 const todayISO = () => new Date().toISOString().slice(0, 10);
 const isHourly  = (st?: ServiceType) => st?.calculation_type === 'HOURLY_CHARTER';
