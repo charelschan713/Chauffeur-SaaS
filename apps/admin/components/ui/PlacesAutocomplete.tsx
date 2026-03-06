@@ -76,8 +76,14 @@ export function PlacesAutocomplete({
 
   useEffect(() => { setMounted(true); }, []);
 
-  // Sync external value (form reset)
-  useEffect(() => { setQuery(value); }, [value]);
+  // Guard: skip syncing back the value we just set ourselves after selection
+  const justSelectedRef = useRef(false);
+
+  // Sync external value (form reset / programmatic clear)
+  useEffect(() => {
+    if (justSelectedRef.current) { justSelectedRef.current = false; return; }
+    setQuery(value);
+  }, [value]);
 
   function updateDropdownPosition() {
     const el = inputRef.current;
@@ -161,6 +167,7 @@ export function PlacesAutocomplete({
   }, [open]);
 
   const selectPrediction = useCallback((p: Prediction) => {
+    justSelectedRef.current = true; // prevent value sync re-fetch
     setQuery(p.description);
     setPredictions([]);
     setOpen(false);
