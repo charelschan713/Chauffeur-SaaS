@@ -257,20 +257,22 @@ export function BookPageClient() {
   const [step, setStep]             = useState<Step>('loading');
   const [session, setSession]       = useState<QuoteSession | null>(null);
 
-  // Stripe promise as state so <Elements> re-renders when key loads
-  const [stripePromise, setStripePromise] = useState<ReturnType<typeof loadStripe> | null>(
-    process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
-      ? loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY)
-      : null
-  );
+  // Stripe promise — loaded dynamically so we always get the real key
+  const [stripePromise, setStripePromise] = useState<ReturnType<typeof loadStripe> | null>(null);
 
-  // Load tenant Stripe publishable key dynamically
+  // Load Stripe publishable key: env var first (real key), then tenant API
   useEffect(() => {
+    const envKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
+    if (envKey && !envKey.includes('placeholder')) {
+      setStripePromise(loadStripe(envKey));
+      return;
+    }
+    // Fallback: fetch from tenant API once session loads
     if (!session?.tenant_id) return;
     fetch(`${API_URL}/customer-portal/stripe-config?tenant_id=${session.tenant_id}`)
       .then(r => r.json())
       .then(data => {
-        if (data?.publishableKey) {
+        if (data?.publishableKey && !data.publishableKey.includes('placeholder')) {
           setStripePromise(loadStripe(data.publishableKey));
         }
       })
