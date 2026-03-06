@@ -13,14 +13,37 @@ export class CustomerPortalService {
 
   // ── Stripe helper ─────────────────────────────────────────────────────────
   private async getStripe(tenantId: string): Promise<Stripe> {
-    const rows = await this.db.query(
+    // 1. Check tenant_integrations (legacy path)
+    const intRows = await this.db.query(
       `SELECT config FROM public.tenant_integrations
-       WHERE tenant_id=$1 AND type='stripe' LIMIT 1`,
+       WHERE tenant_id=$1 AND integration_type='stripe' AND active=true LIMIT 1`,
       [tenantId],
     );
-    const secretKey = rows[0]?.config?.secret_key ?? process.env.STRIPE_SECRET_KEY;
+    let secretKey: string | undefined = intRows[0]?.config?.secret_key;
+
+    // 2. Fall back to tenant_settings.stripe_secret_key
+    if (!secretKey) {
+      const settingRows = await this.db.query(
+        `SELECT stripe_secret_key FROM public.tenant_settings
+         WHERE tenant_id=$1 LIMIT 1`,
+        [tenantId],
+      );
+      secretKey = settingRows[0]?.stripe_secret_key;
+    }
+
+    // 3. Fall back to platform-level env var
+    if (!secretKey) secretKey = process.env.STRIPE_SECRET_KEY;
+
     if (!secretKey) throw new BadRequestException('Stripe not configured for this tenant');
     return new Stripe(secretKey);
+  }
+
+  async getStripePublishableKey(tenantId: string): Promise<string> {
+    const rows = await this.db.query(
+      `SELECT stripe_publishable_key FROM public.tenant_settings WHERE tenant_id=$1 LIMIT 1`,
+      [tenantId],
+    );
+    return rows[0]?.stripe_publishable_key ?? process.env.STRIPE_PUBLISHABLE_KEY ?? '';
   }
 
   // ── Tenant info (public) ──────────────────────────────────────────────────

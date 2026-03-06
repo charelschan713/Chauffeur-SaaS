@@ -27,6 +27,14 @@ export class CustomerPortalController {
   ) {}
 
   // ── PUBLIC ─────────────────────────────────────────────────────────────────
+
+  /** Returns Stripe publishable key for the tenant (safe to expose) */
+  @Get('stripe-config')
+  async stripeConfig(@Query('tenant_id') tenantId: string) {
+    const pk = await this.svc.getStripePublishableKey(tenantId);
+    return { publishableKey: pk };
+  }
+
   @Get('tenant-info')
   getTenantInfo(@Query('slug') slug: string) {
     return this.svc.getTenantInfo(slug);

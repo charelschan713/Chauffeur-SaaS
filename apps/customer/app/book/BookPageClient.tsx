@@ -17,7 +17,9 @@ import {
   AlertCircle, CheckCircle2, Timer, ArrowLeft,
 } from 'lucide-react';
 
-const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? '');
+// Stripe publishable key loaded dynamically from tenant settings
+// Falls back to env var for local dev
+let stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? '');
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'https://chauffeur-saas-production.up.railway.app';
 
@@ -247,6 +249,19 @@ export function BookPageClient() {
 
   const quoteId    = searchParams.get('quote_id');
   const carTypeId  = searchParams.get('car_type_id');
+
+  // Load tenant Stripe publishable key dynamically
+  useEffect(() => {
+    if (!session?.tenant_id) return;
+    fetch(`${API_URL}/customer-portal/stripe-config?tenant_id=${session.tenant_id}`)
+      .then(r => r.json())
+      .then(data => {
+        if (data?.publishableKey) {
+          stripePromise = loadStripe(data.publishableKey);
+        }
+      })
+      .catch(() => {});
+  }, [session?.tenant_id]);
 
   const [step, setStep]             = useState<Step>('loading');
   const [session, setSession]       = useState<QuoteSession | null>(null);
