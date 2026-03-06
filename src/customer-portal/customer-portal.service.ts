@@ -13,25 +13,19 @@ export class CustomerPortalService {
 
   // ── Stripe helper ─────────────────────────────────────────────────────────
   private async getStripe(tenantId: string): Promise<Stripe> {
-    // 1. Check tenant_integrations (legacy path)
-    const intRows = await this.db.query(
-      `SELECT config FROM public.tenant_integrations
-       WHERE tenant_id=$1 AND integration_type='stripe' AND active=true LIMIT 1`,
-      [tenantId],
-    );
-    let secretKey: string | undefined = intRows[0]?.config?.secret_key;
-
-    // 2. Fall back to tenant_settings.stripe_secret_key
-    if (!secretKey) {
+    // 1. Check tenant_settings.stripe_secret_key (per-tenant override)
+    let secretKey: string | undefined;
+    try {
       const settingRows = await this.db.query(
-        `SELECT stripe_secret_key FROM public.tenant_settings
-         WHERE tenant_id=$1 LIMIT 1`,
+        `SELECT stripe_secret_key FROM public.tenant_settings WHERE tenant_id=$1 LIMIT 1`,
         [tenantId],
       );
       secretKey = settingRows[0]?.stripe_secret_key;
+    } catch {
+      // tenant_settings may not exist — fall through
     }
 
-    // 3. Fall back to platform-level env var
+    // 2. Fall back to platform-level env var
     if (!secretKey) secretKey = process.env.STRIPE_SECRET_KEY;
 
     if (!secretKey) throw new BadRequestException('Stripe not configured for this tenant');
