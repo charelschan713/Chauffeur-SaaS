@@ -7,15 +7,17 @@ export class PricingService {
 
   async listServiceClasses(tenantId: string) {
     return this.dataSource.query(
-      `SELECT id, name, description, display_order, surge_multiplier, currency, active, created_at,
-              base_fare_minor, per_km_minor, per_min_driving_minor, per_min_waiting_minor,
-              minimum_fare_minor, waypoint_minor, infant_seat_minor, toddler_seat_minor,
-              booster_seat_minor, hourly_rate_minor,
-              COALESCE(passenger_capacity, 0) AS passenger_capacity,
-              COALESCE(luggage_capacity, 0)   AS luggage_capacity
-       FROM public.tenant_service_classes
-       WHERE tenant_id = $1 AND active = true
-       ORDER BY display_order ASC, created_at ASC`,
+      `SELECT sc.id, sc.name, sc.description, sc.display_order, sc.surge_multiplier, sc.currency, sc.active, sc.created_at,
+              sc.base_fare_minor, sc.per_km_minor, sc.per_min_driving_minor, sc.per_min_waiting_minor,
+              sc.minimum_fare_minor, sc.waypoint_minor, sc.infant_seat_minor, sc.toddler_seat_minor,
+              sc.booster_seat_minor, sc.hourly_rate_minor,
+              COALESCE(sc.passenger_capacity, 0) AS passenger_capacity,
+              COALESCE(sc.luggage_capacity, 0)   AS luggage_capacity,
+              (SELECT COUNT(*) FROM public.tenant_service_class_platform_vehicles v
+               WHERE v.service_class_id = sc.id AND v.tenant_id = $1) AS vehicle_count
+       FROM public.tenant_service_classes sc
+       WHERE sc.tenant_id = $1 AND sc.active = true
+       ORDER BY sc.display_order ASC, sc.created_at ASC`,
       [tenantId],
     );
   }

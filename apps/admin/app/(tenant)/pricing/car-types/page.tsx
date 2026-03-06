@@ -377,7 +377,7 @@ export default function CarTypesPage() {
         ) : items.length === 0 ? (
           <EmptyState title="No car types yet" description="Create your first car type to get started." />
         ) : (
-          <Table headers={['Name', 'Pax', 'Bags', 'Base Fare', 'Per Km', 'Minimum', 'Active', '']}>
+          <Table headers={['Name', 'Pax', 'Bags', 'Base Fare', 'Per Km', 'Minimum', 'Active', 'Vehicles', '']}>
             {items.map((item) => (
               <tr key={item.id} className="hover:bg-gray-50">
                 <td className="px-6 py-4 font-medium text-gray-900">{item.name}</td>
@@ -390,6 +390,17 @@ export default function CarTypesPage() {
                   <span className={`px-2 py-1 rounded text-xs ${item.active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-700'}`}>
                     {item.active ? 'Active' : 'Inactive'}
                   </span>
+                </td>
+                <td className="px-6 py-4">
+                  {Number((item as any).vehicle_count) > 0 ? (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200">
+                      🚗 {(item as any).vehicle_count} linked
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs text-gray-400 bg-gray-50 border border-gray-200">
+                      No vehicles
+                    </span>
+                  )}
                 </td>
                 <td className="px-6 py-4 text-sm text-right space-x-2">
                   <button
@@ -433,10 +444,18 @@ export default function CarTypesPage() {
       footer={
         editing && (
           <div className="bg-white border rounded p-4">
-            <h3 className="text-sm font-semibold mb-2">Platform Vehicles</h3>
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <h3 className="text-sm font-semibold">Platform Vehicles</h3>
+                <p className="text-xs text-gray-400">for <span className="font-medium text-gray-600">{editing?.name}</span></p>
+              </div>
+              <Button onClick={handleSavePlatformVehicles} disabled={pvSaving} size="sm">
+                {pvSaving ? <><InlineSpinner /> Saving…</> : `Save (${selectedPlatformIds.length} selected)`}
+              </Button>
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
               {(platformVehicles as PlatformVehicle[]).map((pv) => (
-                <label key={pv.id} className="flex items-center gap-2 text-sm">
+                <label key={pv.id} className="flex items-center gap-2 text-sm cursor-pointer hover:text-blue-600">
                   <input
                     type="checkbox"
                     checked={selectedPlatformIds.includes(pv.id)}
@@ -451,12 +470,6 @@ export default function CarTypesPage() {
                   {pv.make} {pv.model}
                 </label>
               ))}
-            </div>
-            <div className="mt-3 flex items-center gap-3">
-              <Button onClick={handleSavePlatformVehicles} disabled={pvSaving}>
-                {pvSaving ? <><InlineSpinner /> Saving…</> : `Save Platform Vehicles (${selectedPlatformIds.length} selected)`}
-              </Button>
-              <span className="text-xs text-gray-400">for {editing?.name}</span>
             </div>
           </div>
         )
