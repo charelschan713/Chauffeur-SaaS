@@ -294,17 +294,54 @@ export default function TemplatesPage() {
 
   const variableTokens = useMemo(() => VARIABLES.map((v) => `{{${v}}}`), []);
 
+  // ── Tab definitions ────────────────────────────────────────────────────────
+  const TABS = [
+    { id: 'customer', label: '👤 Customer', groups: [EVENT_GROUPS[0]] },
+    { id: 'driver',   label: '🚗 Driver',   groups: [EVENT_GROUPS[1]] },
+    { id: 'admin',    label: '🏢 Admin',    groups: [EVENT_GROUPS[2], EVENT_GROUPS[3]] },
+  ];
+  const [activeTab, setActiveTab] = useState('customer');
+  // Per-event: which channel sub-tab is open (email | sms)
+  const [channelTab, setChannelTab] = useState<Record<string, 'email' | 'sms'>>({});
+  function getChannelTab(eventKey: string): 'email' | 'sms' {
+    return channelTab[eventKey] ?? 'email';
+  }
+
+  const currentGroups = TABS.find((t) => t.id === activeTab)?.groups ?? [];
+
   return (
     <ListPage
-      title="Templates"
-      subtitle="Manage notification templates for your tenant"
+      title="Notification Templates"
+      subtitle="Manage what gets sent, to whom, and what it says"
       table={
-        <div className="space-y-6">
-          {isLoading && <div className="text-sm text-gray-500">Loading...</div>}
-          {EVENT_GROUPS.map((group) => (
+        <div className="space-y-0">
+          {isLoading && <div className="text-sm text-gray-500 p-4">Loading...</div>}
+
+          {/* ── Top Tabs ───────────────────────────────────────────────── */}
+          <div className="flex border-b mb-6">
+            {TABS.map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`px-5 py-3 text-sm font-medium border-b-2 transition-colors ${
+                  activeTab === tab.id
+                    ? 'border-indigo-600 text-indigo-700'
+                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
+          {/* ── Event list for active tab ──────────────────────────────── */}
+          <div className="space-y-4">
+          {currentGroups.map((group) => (
             <div key={group.group}>
-              <h3 className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3 mt-2">{group.group}</h3>
-              <div className="space-y-4">
+              {currentGroups.length > 1 && (
+                <h3 className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-3 mt-2 px-1">{group.group}</h3>
+              )}
+              <div className="space-y-3">
           {group.events.map((event) => (
             <div key={event.key} className={`bg-white border rounded p-4 space-y-4 ${eventActive[event.key] === false ? 'opacity-50' : ''}`}>
               <div className="flex items-center justify-between flex-wrap gap-3">
@@ -347,149 +384,135 @@ export default function TemplatesPage() {
                   })}
                 </div>
               </div>
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                <div className="border rounded p-4 space-y-3">
-                  <div className="flex items-center gap-2">
-                    <div className="text-sm font-medium text-gray-700">Email</div>
-                    <span className={`text-[10px] px-2 py-1 rounded ${
-                      sources[keyFor(event.key, 'email')] === 'TENANT'
-                        ? 'bg-green-100 text-green-700'
-                        : 'bg-gray-100 text-gray-600'
-                    }`}>
-                      {sources[keyFor(event.key, 'email')] === 'TENANT' ? 'Custom' : 'Platform Default'}
-                    </span>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">Subject</label>
-                    <input
-                      value={getState(event.key, 'email').subject}
-                      onChange={(e) => updateState(event.key, 'email', { subject: e.target.value })}
-                      className="w-full border rounded px-3 py-2 text-sm"
-                      placeholder="Subject"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">Body</label>
-                    <textarea
-                      value={getState(event.key, 'email').body}
-                      onChange={(e) => updateState(event.key, 'email', { body: e.target.value })}
-                      className="w-full border rounded px-3 py-2 text-sm h-40"
-                    />
-                  </div>
-                  <div className="text-xs text-gray-500">
-                    Variables: {variableTokens.join(' ')}
-                  </div>
-                  <div className="flex gap-2">
+              {/* ── Channel sub-tabs: Email / SMS ─────────────────────── */}
+              <div className="border-t pt-3">
+                <div className="flex gap-0 mb-3">
+                  {(['email', 'sms'] as const).map((ch) => (
                     <button
-                      onClick={() => handlePreview(event.key, 'email')}
-                      className="px-3 py-2 text-xs rounded bg-gray-100 hover:bg-gray-200"
+                      key={ch}
+                      onClick={() => setChannelTab((prev) => ({ ...prev, [event.key]: ch }))}
+                      className={`px-4 py-1.5 text-xs font-medium rounded-t border transition-colors ${
+                        getChannelTab(event.key) === ch
+                          ? 'bg-white border-gray-300 border-b-white text-gray-800 -mb-px relative z-10'
+                          : 'bg-gray-50 border-transparent text-gray-400 hover:text-gray-600'
+                      }`}
                     >
-                      Preview
-                    </button>
-                    <button
-                      onClick={() => handleSave(event.key, 'email')}
-                      disabled={savingKey === keyFor(event.key, 'email')}
-                      className="px-3 py-2 text-xs rounded bg-blue-600 text-white disabled:opacity-60"
-                    >
-                      Save
-                    </button>
-                    <button
-                      onClick={() => handleUseDefault(event.key, 'email')}
-                      className="px-3 py-2 text-xs rounded bg-gray-100 hover:bg-gray-200"
-                    >
-                      Use Default
-                    </button>
-                    <button
-                      onClick={() => handleReset(event.key, 'email')}
-                      disabled={savingKey === keyFor(event.key, 'email')}
-                      className="px-3 py-2 text-xs rounded bg-red-600 text-white disabled:opacity-60"
-                    >
-                      Reset to Default
-                    </button>
-                  </div>
-                  {previewState[keyFor(event.key, 'email')]?.body && (
-                    <div className="border rounded p-3 bg-gray-50 text-xs">
-                      {previewState[keyFor(event.key, 'email')]?.subject && (
-                        <div className="mb-2">
-                          <div className="text-[10px] text-gray-500">Subject</div>
-                          <div className="font-medium">{previewState[keyFor(event.key, 'email')]?.subject}</div>
-                        </div>
+                      {ch === 'email' ? '✉️ Email' : '💬 SMS'}
+                      {sources[keyFor(event.key, ch)] === 'TENANT' && (
+                        <span className="ml-1.5 inline-block w-1.5 h-1.5 rounded-full bg-green-500 align-middle" />
                       )}
-                      <div className="text-[10px] text-gray-500">Preview</div>
-                      <iframe
-                        srcDoc={previewState[keyFor(event.key, 'email')]?.body}
-                        sandbox=""
-                        className="w-full rounded border bg-white"
-                        style={{ minHeight: 320, height: 400 }}
-                        title="Email preview"
-                      />
-                    </div>
-                  )}
+                    </button>
+                  ))}
                 </div>
 
-                <div className="border rounded p-4 space-y-3">
-                  <div className="flex items-center gap-2">
-                    <div className="text-sm font-medium text-gray-700">SMS</div>
-                    <span className={`text-[10px] px-2 py-1 rounded ${
-                      sources[keyFor(event.key, 'sms')] === 'TENANT'
-                        ? 'bg-green-100 text-green-700'
-                        : 'bg-gray-100 text-gray-600'
-                    }`}>
-                      {sources[keyFor(event.key, 'sms')] === 'TENANT' ? 'Custom' : 'Platform Default'}
-                    </span>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">Body</label>
-                    <textarea
-                      value={getState(event.key, 'sms').body}
-                      onChange={(e) => updateState(event.key, 'sms', { body: e.target.value })}
-                      className="w-full border rounded px-3 py-2 text-sm h-40"
-                    />
-                  </div>
-                  <div className="text-xs text-gray-500">
-                    Variables: {variableTokens.join(' ')}
-                  </div>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => handlePreview(event.key, 'sms')}
-                      className="px-3 py-2 text-xs rounded bg-gray-100 hover:bg-gray-200"
-                    >
-                      Preview
-                    </button>
-                    <button
-                      onClick={() => handleSave(event.key, 'sms')}
-                      disabled={savingKey === keyFor(event.key, 'sms')}
-                      className="px-3 py-2 text-xs rounded bg-blue-600 text-white disabled:opacity-60"
-                    >
-                      Save
-                    </button>
-                    <button
-                      onClick={() => handleUseDefault(event.key, 'sms')}
-                      className="px-3 py-2 text-xs rounded bg-gray-100 hover:bg-gray-200"
-                    >
-                      Use Default
-                    </button>
-                    <button
-                      onClick={() => handleReset(event.key, 'sms')}
-                      disabled={savingKey === keyFor(event.key, 'sms')}
-                      className="px-3 py-2 text-xs rounded bg-red-600 text-white disabled:opacity-60"
-                    >
-                      Reset to Default
-                    </button>
-                  </div>
-                  {previewState[keyFor(event.key, 'sms')]?.body && (
-                    <div className="border rounded p-3 bg-gray-50 text-xs">
-                      <div className="text-[10px] text-gray-500">Preview</div>
-                      <div className="whitespace-pre-wrap">{previewState[keyFor(event.key, 'sms')]?.body}</div>
+                {/* Panel */}
+                {(['email', 'sms'] as const).map((ch) => {
+                  if (getChannelTab(event.key) !== ch) return null;
+                  const isEmail = ch === 'email';
+                  const pKey = keyFor(event.key, ch);
+                  return (
+                    <div key={ch} className="space-y-3">
+                      <div className="flex items-center gap-2">
+                        <span className={`text-[10px] px-2 py-1 rounded ${
+                          sources[pKey] === 'TENANT' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'
+                        }`}>
+                          {sources[pKey] === 'TENANT' ? 'Custom' : 'Platform Default'}
+                        </span>
+                      </div>
+
+                      {isEmail && (
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 mb-1">Subject</label>
+                          <input
+                            value={getState(event.key, 'email').subject}
+                            onChange={(e) => updateState(event.key, 'email', { subject: e.target.value })}
+                            className="w-full border rounded px-3 py-2 text-sm"
+                            placeholder="Email subject"
+                          />
+                        </div>
+                      )}
+
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Body</label>
+                        <textarea
+                          value={getState(event.key, ch).body}
+                          onChange={(e) => updateState(event.key, ch, { body: e.target.value })}
+                          className="w-full border rounded px-3 py-2 text-sm font-mono"
+                          style={{ height: isEmail ? 200 : 100 }}
+                          placeholder={isEmail ? 'HTML body…' : 'SMS text (max 160 chars recommended)'}
+                        />
+                        {!isEmail && (
+                          <p className="text-[11px] text-gray-400 mt-1">
+                            {getState(event.key, 'sms').body.length} chars
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="text-[11px] text-gray-400 leading-relaxed">
+                        Variables: {variableTokens.join(' ')}
+                      </div>
+
+                      <div className="flex flex-wrap gap-2">
+                        <button onClick={() => handlePreview(event.key, ch)} className="px-3 py-1.5 text-xs rounded bg-gray-100 hover:bg-gray-200">
+                          Preview
+                        </button>
+                        <button
+                          onClick={() => handleSave(event.key, ch)}
+                          disabled={savingKey === pKey}
+                          className="px-3 py-1.5 text-xs rounded bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-60"
+                        >
+                          {savingKey === pKey ? 'Saving…' : 'Save'}
+                        </button>
+                        <button onClick={() => handleUseDefault(event.key, ch)} className="px-3 py-1.5 text-xs rounded bg-gray-100 hover:bg-gray-200">
+                          Use Default
+                        </button>
+                        <button
+                          onClick={() => handleReset(event.key, ch)}
+                          disabled={savingKey === pKey}
+                          className="px-3 py-1.5 text-xs rounded border border-red-200 text-red-600 hover:bg-red-50 disabled:opacity-60"
+                        >
+                          Reset
+                        </button>
+                      </div>
+
+                      {/* Preview panel */}
+                      {previewState[pKey]?.body && (
+                        <div className="border rounded p-3 bg-gray-50 text-xs">
+                          {isEmail ? (
+                            <>
+                              {previewState[pKey]?.subject && (
+                                <div className="mb-2">
+                                  <div className="text-[10px] text-gray-500">Subject</div>
+                                  <div className="font-medium">{previewState[pKey]?.subject}</div>
+                                </div>
+                              )}
+                              <div className="text-[10px] text-gray-500 mb-1">HTML Preview</div>
+                              <iframe
+                                srcDoc={previewState[pKey]?.body}
+                                sandbox=""
+                                className="w-full rounded border bg-white"
+                                style={{ minHeight: 320, height: 400 }}
+                                title="Email preview"
+                              />
+                            </>
+                          ) : (
+                            <>
+                              <div className="text-[10px] text-gray-500 mb-1">SMS Preview</div>
+                              <div className="whitespace-pre-wrap bg-white border rounded p-3">{previewState[pKey]?.body}</div>
+                            </>
+                          )}
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
+                  );
+                })}
               </div>
             </div>
           ))}
               </div>
             </div>
           ))}
+          </div>
         </div>
       }
     />
