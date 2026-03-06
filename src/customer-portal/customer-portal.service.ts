@@ -162,8 +162,8 @@ export class CustomerPortalService {
       const payload = session.payload;
       const req     = payload.request ?? {};
 
-      pickupAddress   = pickupAddress   ?? req.pickup_address;
-      dropoffAddress  = dropoffAddress  ?? req.dropoff_address;
+      pickupAddress   = pickupAddress   ?? req.pickup_address ?? req.pickup_address_text;
+      dropoffAddress  = dropoffAddress  ?? req.dropoff_address ?? req.dropoff_address_text;
       pickupAtUtc     = pickupAtUtc     ?? req.pickup_at_utc ?? req.pickup_at;
       serviceTypeId   = serviceTypeId   ?? req.service_type_id ?? null;
       vehicleClassId  = dto.vehicleClassId ?? null;
@@ -186,9 +186,9 @@ export class CustomerPortalService {
       `INSERT INTO public.bookings
          (tenant_id, customer_id, customer_email, customer_first_name, customer_last_name,
           customer_phone_country_code, customer_phone_number,
-          pickup_address, dropoff_address, pickup_at_utc,
-          service_type_id, vehicle_class_id, total_price_minor, currency,
-          status, payment_status, booked_by, booking_reference,
+          pickup_address_text, dropoff_address_text, pickup_at_utc,
+          service_type_id, service_class_id, total_price_minor, currency,
+          booking_status, payment_status, booked_by, booking_reference,
           flight_number, passenger_count, notes, created_at, updated_at)
        VALUES
          ($1, $2,
