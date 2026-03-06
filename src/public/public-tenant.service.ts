@@ -87,7 +87,8 @@ export class PublicTenantService {
 
     const rows = await this.db.query(
       `SELECT id, code, display_name AS name, calculation_type, booking_flow, active,
-              minimum_hours, surge_multiplier
+              COALESCE(minimum_hours, 2)      AS minimum_hours,
+              COALESCE(surge_multiplier, 1.0) AS surge_multiplier
        FROM public.tenant_service_types
        WHERE tenant_id = $1 AND active = true
        ORDER BY created_at ASC`,
