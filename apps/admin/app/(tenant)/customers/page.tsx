@@ -102,6 +102,7 @@ export default function CustomersPage() {
       phone_country_code: '',
       phone_number: '',
       tier: 'STANDARD',
+      discount_rate: '0',
       custom_discount_type: '',
       custom_discount_value: '',
     });

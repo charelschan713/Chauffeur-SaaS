@@ -449,7 +449,7 @@ export default function CarTypesPage() {
                 <h3 className="text-sm font-semibold">Platform Vehicles</h3>
                 <p className="text-xs text-gray-400">for <span className="font-medium text-gray-600">{editing?.name}</span></p>
               </div>
-              <Button onClick={handleSavePlatformVehicles} disabled={pvSaving} size="sm">
+              <Button onClick={handleSavePlatformVehicles} disabled={pvSaving}>
                 {pvSaving ? <><InlineSpinner /> Saving…</> : `Save (${selectedPlatformIds.length} selected)`}
               </Button>
             </div>

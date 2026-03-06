@@ -147,7 +147,7 @@ export default function DiscountsPage() {
       <PageHeader
         title="Discounts & Promos"
         description="Create discount rules and promo codes for your customers"
-        action={
+        actions={
           <Button onClick={() => { setShowForm(true); setEditing(null); setForm(emptyForm()); }}>
             + New Discount
           </Button>
@@ -371,7 +371,7 @@ export default function DiscountsPage() {
                     </td>
                     <td className="py-3 pr-4">
                       <button onClick={() => toggleMut.mutate(d)}>
-                        <Badge tone={d.active ? 'success' : 'neutral'}>
+                        <Badge variant={d.active ? 'success' : 'neutral'}>
                           {d.active ? 'Active' : 'Inactive'}
                         </Badge>
                       </button>
