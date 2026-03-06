@@ -787,6 +787,20 @@ export function BookPageClient() {
               <form onSubmit={handleDetailsSubmit} className="space-y-5">
                 <h2 className="font-semibold text-[hsl(var(--foreground))]">Contact Details</h2>
 
+                {/* Login reminder for guest users */}
+                {!token && (
+                  <div className="flex items-center justify-between gap-3 px-4 py-3 rounded-lg bg-[hsl(var(--primary)/0.08)] border border-[hsl(var(--primary)/0.2)] text-sm">
+                    <span className="text-[hsl(var(--muted-foreground))]">Already have an account? Get your loyalty discount.</span>
+                    <button
+                      type="button"
+                      onClick={() => setStep('auth')}
+                      className="shrink-0 font-semibold text-[hsl(var(--primary))] hover:underline"
+                    >
+                      Sign In
+                    </button>
+                  </div>
+                )}
+
                 {submitError && (
                   <div className="flex items-start gap-2 p-3 rounded-lg bg-[hsl(var(--destructive)/0.1)] border border-[hsl(var(--destructive)/0.3)] text-sm text-[hsl(var(--destructive))]">
                     <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
