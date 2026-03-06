@@ -55,6 +55,7 @@ const emptyForm = {
   hourly_rate_minor: '0',
   passenger_capacity: '4',
   luggage_capacity: '2',
+  vehicle_class: '',
 };
 
 function toMinor(value: string) {
@@ -132,6 +133,7 @@ export default function CarTypesPage() {
       hourly_rate_minor: toMinor(form.hourly_rate_minor),
       passenger_capacity: Number(form.passenger_capacity) || 0,
       luggage_capacity: Number(form.luggage_capacity) || 0,
+      vehicle_class: form.vehicle_class || null,
     };
   }
 
@@ -325,6 +327,14 @@ export default function CarTypesPage() {
                   onChange={(e) => setForm((prev) => ({ ...prev, luggage_capacity: e.target.value }))}
                 />
               </Field>
+              <Field label="Vehicle Class Badge">
+                <Input
+                  placeholder="e.g. Luxury SUV, Luxury Sedan, Minibus, VIP Van"
+                  value={form.vehicle_class}
+                  onChange={(e) => setForm((prev) => ({ ...prev, vehicle_class: e.target.value }))}
+                />
+                <p className="text-xs text-gray-400 mt-1">Shown as a label badge on the car type card. Leave blank to hide.</p>
+              </Field>
             </div>
           </div>
 
@@ -424,6 +434,7 @@ export default function CarTypesPage() {
                         hourly_rate_minor: toMoney(item.hourly_rate_minor),
                         passenger_capacity: String(item.passenger_capacity ?? 4),
                         luggage_capacity: String(item.luggage_capacity ?? 2),
+                        vehicle_class: (item as any).vehicle_class ?? '',
                       });
                     }}
                   >

@@ -95,8 +95,9 @@ export class PricingService {
            hourly_rate_minor = COALESCE($16, hourly_rate_minor),
            passenger_capacity = COALESCE($17, passenger_capacity),
            luggage_capacity = COALESCE($18, luggage_capacity),
+           vehicle_class = COALESCE($19, vehicle_class),
            updated_at = now()
-       WHERE tenant_id = $19 AND id = $20
+       WHERE tenant_id = $20 AND id = $21
        RETURNING *`,
       [
         body.name ?? null,
@@ -117,6 +118,7 @@ export class PricingService {
         body.hourly_rate_minor ?? null,
         body.passenger_capacity ?? null,
         body.luggage_capacity ?? null,
+        body.vehicle_class ?? null,
         tenantId,
         id,
       ],
