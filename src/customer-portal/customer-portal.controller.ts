@@ -35,6 +35,13 @@ export class CustomerPortalController {
     return { publishableKey: pk };
   }
 
+  /** Returns Stripe publishable key by tenant slug (safe to expose, no auth required) */
+  @Get('stripe-config-by-slug')
+  async stripeConfigBySlug(@Query('slug') slug: string) {
+    const pk = await this.svc.getStripePublishableKeyBySlug(slug);
+    return { publishableKey: pk };
+  }
+
   @Get('tenant-info')
   getTenantInfo(@Query('slug') slug: string) {
     return this.svc.getTenantInfo(slug);

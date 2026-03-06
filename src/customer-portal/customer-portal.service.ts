@@ -40,6 +40,17 @@ export class CustomerPortalService {
     return rows[0]?.stripe_publishable_key ?? process.env.STRIPE_PUBLISHABLE_KEY ?? '';
   }
 
+  async getStripePublishableKeyBySlug(slug: string): Promise<string> {
+    const rows = await this.db.query(
+      `SELECT ts.stripe_publishable_key
+       FROM public.tenant_settings ts
+       JOIN public.tenants t ON t.id = ts.tenant_id
+       WHERE t.slug = $1 LIMIT 1`,
+      [slug],
+    );
+    return rows[0]?.stripe_publishable_key ?? process.env.STRIPE_PUBLISHABLE_KEY ?? '';
+  }
+
   // ── Tenant info (public) ──────────────────────────────────────────────────
   async getTenantInfo(slug: string) {
     const rows = await this.db.query(

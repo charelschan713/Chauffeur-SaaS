@@ -261,15 +261,33 @@ export function BookPageClient() {
   // Stripe promise — loaded dynamically so we always get the real key
   const [stripePromise, setStripePromise] = useState<ReturnType<typeof loadStripe> | null>(null);
 
-  // Load Stripe publishable key: env var first (real key), then tenant API
+  // Load Stripe publishable key on mount — don't wait for session
+  // 1) env var (set in Vercel), 2) tenant API by slug, 3) tenant API by id once session loads
   useEffect(() => {
     const envKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
     if (envKey && !envKey.includes('placeholder')) {
       setStripePromise(loadStripe(envKey));
       return;
     }
-    // Fallback: fetch from tenant API once session loads
-    if (!session?.tenant_id) return;
+    // Fetch by tenant slug immediately (slug derived from hostname)
+    const slug = typeof window !== 'undefined'
+      ? (document.cookie.split('; ').find(r => r.startsWith('tenant_slug='))?.split('=')[1]
+          || window.location.hostname.split('.')[0]
+          || 'aschauffeured')
+      : 'aschauffeured';
+    fetch(`${API_URL}/customer-portal/stripe-config-by-slug?slug=${slug}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (data?.publishableKey && !data.publishableKey.includes('placeholder')) {
+          setStripePromise(loadStripe(data.publishableKey));
+        }
+      })
+      .catch(() => {});
+  }, []); // eslint-disable-line
+
+  // Also update if session loads and we still have no stripe
+  useEffect(() => {
+    if (stripePromise || !session?.tenant_id) return;
     fetch(`${API_URL}/customer-portal/stripe-config?tenant_id=${session.tenant_id}`)
       .then(r => r.json())
       .then(data => {
@@ -278,7 +296,7 @@ export function BookPageClient() {
         }
       })
       .catch(() => {});
-  }, [session?.tenant_id]);
+  }, [session?.tenant_id, stripePromise]);
   const [selectedResult, setSelectedResult] = useState<QuoteSession['payload']['results'][0] | null>(null);
   const [guestData, setGuestData]           = useState<any>(null);
 
