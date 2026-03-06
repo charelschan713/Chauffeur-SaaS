@@ -1158,16 +1158,27 @@ export class NotificationService {
 
   // ── Helper: extract booking vars ─────────────────────────────────────────
   private bookingVars(b: any): Record<string, string> {
+    // Use booking's own timezone (stored at creation time); fall back to Sydney only if missing.
+    const tz = b.timezone ?? 'Australia/Sydney';
+    const pickupTime = b.pickup_time_local
+      ?? (b.pickup_at_utc
+        ? new Date(b.pickup_at_utc).toLocaleString('en-AU', {
+            timeZone: tz,
+            year: 'numeric', month: 'short', day: 'numeric',
+            hour: '2-digit', minute: '2-digit', hour12: true,
+          })
+        : '');
     return {
       booking_reference:  b.booking_reference ?? '',
       customer_name:      `${b.customer_first_name ?? ''} ${b.customer_last_name ?? ''}`.trim(),
       pickup_address:     b.pickup_address_text ?? b.pickup_address ?? '',
       dropoff_address:    b.dropoff_address_text ?? b.dropoff_address ?? '',
-      pickup_time:        b.pickup_at_utc ? new Date(b.pickup_at_utc).toLocaleString('en-AU', { timeZone: 'Australia/Sydney' }) : '',
+      pickup_time:        pickupTime,
       driver_name:        b.driver_name ?? '',
       vehicle_make:       b.vehicle_make ?? '',
       vehicle_model:      b.vehicle_model ?? '',
       total_price:        b.total_price_minor ? `$${(b.total_price_minor / 100).toFixed(2)}` : (b.total_amount ?? ''),
+      timezone:           tz,
     };
   }
 }
