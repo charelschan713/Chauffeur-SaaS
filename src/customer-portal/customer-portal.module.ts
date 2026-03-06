@@ -3,9 +3,10 @@ import { JwtModule } from '@nestjs/jwt';
 import { CustomerPortalController } from './customer-portal.controller';
 import { CustomerPortalService } from './customer-portal.service';
 import { CustomerAuthModule } from '../customer-auth/customer-auth.module';
+import { DiscountModule } from '../discount/discount.module';
 
 @Module({
-  imports: [JwtModule.register({}), CustomerAuthModule],
+  imports: [JwtModule.register({}), CustomerAuthModule, DiscountModule],
   controllers: [CustomerPortalController],
   providers: [CustomerPortalService],
 })

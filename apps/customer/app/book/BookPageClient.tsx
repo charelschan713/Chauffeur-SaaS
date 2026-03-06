@@ -251,7 +251,17 @@ export function BookPageClient() {
   const [step, setStep]             = useState<Step>('loading');
   const [session, setSession]       = useState<QuoteSession | null>(null);
   const [selectedResult, setSelectedResult] = useState<QuoteSession['payload']['results'][0] | null>(null);
-  const [guestData, setGuestData]   = useState<any>(null);
+  const [guestData, setGuestData]           = useState<any>(null);
+
+  // Logged-in customer discount (may be higher than base quote discount)
+  const [loyaltyDiscount, setLoyaltyDiscount] = useState<{
+    finalFareMinor: number;
+    discountMinor: number;
+    discountName: string | null;
+    discountRate: number;
+    cappedByMax: boolean;
+    currency: string;
+  } | null>(null);
 
   // Extra booking details
   const [flightNumber, setFlightNumber]       = useState('');
@@ -279,9 +289,9 @@ export function BookPageClient() {
         const result = data.payload.results.find((r: any) => r.service_class_id === carTypeId)
           ?? data.payload.results[0];
         setSelectedResult(result);
-        // Determine next step
-        if (token) setStep('details');
-        else setStep('auth');
+        if (token) {
+          setStep('details');
+        } else setStep('auth');
       })
       .catch(() => setStep('expired'));
   }, [quoteId, carTypeId, token]);
@@ -292,6 +302,35 @@ export function BookPageClient() {
       setStep('expired');
     }
   }, [countdown.expired, step]);
+
+  // Fetch loyalty discount once logged in and result is available
+  useEffect(() => {
+    if (token && selectedResult && (step === 'details' || step === 'card')) {
+      fetchLoyaltyDiscount();
+    }
+  }, [token, selectedResult, step, fetchLoyaltyDiscount]);
+
+  // ── Fetch loyalty discount after login ──
+  const fetchLoyaltyDiscount = useCallback(async () => {
+    if (!quoteId || !selectedResult) return;
+    try {
+      const { data } = await api.get('/customer-portal/discount-preview', {
+        params: { quote_id: quoteId, car_type_id: selectedResult.service_class_id },
+      });
+      if (data && !data.error) {
+        setLoyaltyDiscount({
+          finalFareMinor: data.final_fare_minor,
+          discountMinor:  data.discount_minor,
+          discountName:   data.discount_name,
+          discountRate:   data.discount_rate,
+          cappedByMax:    data.capped_by_max,
+          currency:       data.currency,
+        });
+      }
+    } catch {
+      // Non-critical — proceed without loyalty adjustment
+    }
+  }, [quoteId, selectedResult]);
 
   // ── Submit booking details ──
   const handleDetailsSubmit = useCallback(async (e: React.FormEvent) => {
@@ -308,7 +347,8 @@ export function BookPageClient() {
         pickupAtUtc: req.pickup_at_utc,
         serviceTypeId: req.service_type_id,
         vehicleClassId: selectedResult.service_class_id,
-        totalPriceMinor: selectedResult.estimated_total_minor,
+        totalPriceMinor: loyaltyDiscount?.finalFareMinor ?? selectedResult.estimated_total_minor,
+        discountMinor:   loyaltyDiscount?.discountMinor ?? 0,
         currency: selectedResult.currency,
         passengerCount: req.passenger_count,
         luggageCount: req.luggage_count ?? 0,
@@ -397,9 +437,23 @@ export function BookPageClient() {
               </p>
             </div>
             <div className="text-right shrink-0">
+              {/* Show original quote price struck out if loyalty discount improved it */}
+              {loyaltyDiscount && loyaltyDiscount.finalFareMinor < selectedResult.estimated_total_minor && (
+                <p className="text-xs text-[hsl(var(--muted-foreground))] line-through">
+                  {fmtMoney(selectedResult.estimated_total_minor, selectedResult.currency)}
+                </p>
+              )}
               <p className="text-lg font-bold text-gradient-gold">
-                {fmtMoney(selectedResult.estimated_total_minor, selectedResult.currency)}
+                {fmtMoney(
+                  loyaltyDiscount ? loyaltyDiscount.finalFareMinor : selectedResult.estimated_total_minor,
+                  selectedResult.currency,
+                )}
               </p>
+              {loyaltyDiscount && loyaltyDiscount.discountMinor > 0 && (
+                <p className="text-[11px] text-[hsl(var(--success))] font-medium">
+                  -{fmtMoney(loyaltyDiscount.discountMinor, selectedResult.currency)} off
+                </p>
+              )}
               <p className="text-[10px] text-[hsl(var(--muted-foreground))]">{selectedResult.currency} incl. GST</p>
             </div>
           </div>
@@ -448,9 +502,19 @@ export function BookPageClient() {
                   <span>{fmtMoney(preview.toll_parking_minor, selectedResult.currency)}</span>
                 </div>
               )}
+              {/* Loyalty discount row */}
+              {loyaltyDiscount && loyaltyDiscount.discountMinor > 0 && (
+                <div className="flex justify-between text-[hsl(var(--success))]">
+                  <span>{loyaltyDiscount.discountName ?? 'Discount'} ({loyaltyDiscount.discountRate}%{loyaltyDiscount.cappedByMax ? ' capped' : ''})</span>
+                  <span>-{fmtMoney(loyaltyDiscount.discountMinor, selectedResult.currency)}</span>
+                </div>
+              )}
               <div className="flex justify-between font-semibold text-[hsl(var(--foreground))] pt-1 border-t border-[hsl(var(--border))]">
                 <span>Total</span>
-                <span>{fmtMoney(selectedResult.estimated_total_minor, selectedResult.currency)}</span>
+                <span>{fmtMoney(
+                  loyaltyDiscount ? loyaltyDiscount.finalFareMinor : selectedResult.estimated_total_minor,
+                  selectedResult.currency,
+                )}</span>
               </div>
             </div>
           )}
@@ -557,7 +621,7 @@ export function BookPageClient() {
             {/* Inline login */}
             {step === 'login' && (
               <InlineLoginForm
-                onSuccess={() => setStep('details')}
+                onSuccess={() => { setStep('details'); fetchLoyaltyDiscount(); }}
                 onBack={() => setStep('auth')}
               />
             )}

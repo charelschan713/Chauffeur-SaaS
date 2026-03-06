@@ -13,12 +13,17 @@ import {
 import { CustomerPortalService } from './customer-portal.service';
 import { CustomerAuthGuard } from '../customer-auth/customer-auth.guard';
 import { JwtService } from '@nestjs/jwt';
+import { DiscountService } from '../discount/discount.service';
+import { InjectDataSource } from '@nestjs/typeorm';
+import { DataSource } from 'typeorm';
 
 @Controller('customer-portal')
 export class CustomerPortalController {
   constructor(
     private readonly svc: CustomerPortalService,
     private readonly jwt: JwtService,
+    private readonly discountSvc: DiscountService,
+    @InjectDataSource() private readonly db: DataSource,
   ) {}
 
   // ── PUBLIC ─────────────────────────────────────────────────────────────────
@@ -83,6 +88,58 @@ export class CustomerPortalController {
   @UseGuards(CustomerAuthGuard)
   updateProfile(@Req() req: any, @Body() body: any) {
     return this.svc.updateProfile(req.customer.sub, body);
+  }
+
+  /**
+   * After login on /book page: re-calculate discount with customer's personal rate stacked on top
+   * of any base discount. Returns adjusted price breakdown.
+   *
+   * Only the displayed price changes on the frontend — the actual charge happens at booking submit.
+   */
+  @Get('discount-preview')
+  @UseGuards(CustomerAuthGuard)
+  async discountPreview(
+    @Req() req: any,
+    @Query('quote_id') quoteId: string,
+    @Query('car_type_id') carTypeId: string,
+  ) {
+    // Load quote session
+    const now = new Date();
+    const [session] = await this.db.query(
+      `SELECT * FROM public.quote_sessions WHERE id = $1 AND expires_at > $2 LIMIT 1`,
+      [quoteId, now],
+    );
+    if (!session) return { error: 'Quote expired or not found' };
+
+    const payload = session.payload;
+    const result = (payload.results ?? []).find((r: any) => r.service_class_id === carTypeId)
+      ?? payload.results?.[0];
+    if (!result) return { error: 'Car type not found in quote' };
+
+    // Pre-discount fare (base fare before any discount)
+    const baseFare = result.pricing_snapshot_preview?.pre_discount_total_minor
+      ?? result.estimated_total_minor;
+
+    // Re-resolve discount with customer ID (stacks customer loyalty rate)
+    const discount = await this.discountSvc.resolveDiscount(
+      session.tenant_id,
+      baseFare,
+      {
+        serviceTypeId: payload.request?.service_type_id,
+        customerId:    req.customer.sub,
+        isNewCustomer: false,
+      },
+    );
+
+    return {
+      base_fare_minor:          baseFare,
+      discount_minor:           discount?.discountMinor ?? 0,
+      final_fare_minor:         discount?.finalFareMinor ?? baseFare,
+      discount_name:            discount?.name ?? null,
+      discount_rate:            discount?.value ?? 0,
+      capped_by_max:            discount?.cappedByMax ?? false,
+      currency:                 payload.currency ?? 'AUD',
+    };
   }
 
   @Get('passengers')
