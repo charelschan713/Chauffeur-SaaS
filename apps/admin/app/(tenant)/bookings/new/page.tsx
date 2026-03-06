@@ -793,12 +793,15 @@ export default function CreateBookingPage() {
                   </Field>
                 )}
               </div>
-              {/* Return fields */}
+              {/* Return — time only, pickup = dropoff address */}
               {values.is_return_trip && selectedServiceType?.calculation_type !== 'HOURLY_CHARTER' && (
-                <DateTimePicker label="Return Date & Time" value={values.return_pickup_at_utc ?? ''}
-                  onChange={(v) => setValue('return_pickup_at_utc', v, { shouldValidate: true })}
-                  error={errors.return_pickup_at_utc?.message}
-                  minDate={values.pickup_at_utc || undefined} />
+                <div className="space-y-2">
+                  <DateTimePicker label="Return Date & Time" value={values.return_pickup_at_utc ?? ''}
+                    onChange={(v) => setValue('return_pickup_at_utc', v, { shouldValidate: true })}
+                    error={errors.return_pickup_at_utc?.message}
+                    minDate={values.pickup_at_utc || undefined} />
+                  <p className="text-xs text-gray-400">Return pickup from drop-off location.</p>
+                </div>
               )}
             </div>
           </div>
