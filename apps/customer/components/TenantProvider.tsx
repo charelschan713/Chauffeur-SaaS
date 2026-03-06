@@ -17,6 +17,7 @@ export interface TenantTheme {
   primary_foreground?: string | null;   // hsl string
   font_family?: string | null;          // e.g. "Playfair Display"
   cancel_window_hours?: number;
+  website_url?: string | null;
 }
 
 const TenantContext = createContext<TenantTheme | null>(null);

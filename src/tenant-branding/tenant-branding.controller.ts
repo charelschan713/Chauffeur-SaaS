@@ -23,8 +23,8 @@ export class TenantBrandingController {
       `INSERT INTO public.tenant_branding
          (tenant_id, logo_url, primary_color, primary_foreground, font_family,
           company_name, contact_email, contact_phone, custom_domain,
-          cancel_window_hours, updated_at)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,now())
+          cancel_window_hours, website_url, updated_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,now())
        ON CONFLICT (tenant_id) DO UPDATE
          SET logo_url              = EXCLUDED.logo_url,
              primary_color         = EXCLUDED.primary_color,
@@ -35,6 +35,7 @@ export class TenantBrandingController {
              contact_phone         = EXCLUDED.contact_phone,
              custom_domain         = EXCLUDED.custom_domain,
              cancel_window_hours   = EXCLUDED.cancel_window_hours,
+             website_url           = EXCLUDED.website_url,
              updated_at            = now()
        RETURNING *`,
       [
@@ -48,6 +49,7 @@ export class TenantBrandingController {
         body.contactPhone       ?? null,
         body.customDomain       ?? null,
         body.cancelWindowHours  ?? null,
+        body.websiteUrl         ?? null,
       ],
     );
     return row;

@@ -62,6 +62,7 @@ export default function BrandingPage() {
     contactPhone: '',
     customDomain: '',
     cancelWindowHours: 24,
+    websiteUrl: '',
   });
   const [toast, setToast] = useState<{ message: string; tone: 'success' | 'error' } | null>(null);
 
@@ -82,6 +83,7 @@ export default function BrandingPage() {
         contactPhone:        branding.contact_phone        ?? '',
         customDomain:        branding.custom_domain        ?? '',
         cancelWindowHours:   branding.cancel_window_hours  ?? 24,
+        websiteUrl:          branding.website_url          ?? '',
       });
     }
   }, [branding]);
@@ -133,6 +135,11 @@ export default function BrandingPage() {
             <label className="block text-sm font-medium text-gray-700 mb-1">Custom Domain</label>
             <input className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" value={form.customDomain} onChange={f('customDomain')} placeholder="book.yourdomain.com" />
             <p className="text-xs text-gray-400 mt-1">Set a CNAME pointing to the customer portal host</p>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Website / Booking Widget URL</label>
+            <input type="url" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" value={form.websiteUrl} onChange={f('websiteUrl')} placeholder="https://yoursite.com/#book" />
+            <p className="text-xs text-gray-400 mt-1">"Book a Ride" on the customer portal links here. Leave blank to stay within the portal.</p>
           </div>
         </div>
       </Card>

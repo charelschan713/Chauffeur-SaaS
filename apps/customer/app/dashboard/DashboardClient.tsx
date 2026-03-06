@@ -135,7 +135,9 @@ export function DashboardClient() {
       <main className="max-w-lg mx-auto px-4 py-6 space-y-6">
 
         {/* Book CTA */}
-        <Link href="/book"
+        <Link href={tenant?.website_url ?? '/book'}
+          target={tenant?.website_url ? '_blank' : undefined}
+          rel={tenant?.website_url ? 'noopener noreferrer' : undefined}
           className="flex items-center justify-between w-full px-5 py-4 rounded-2xl bg-gradient-to-r from-[hsl(var(--primary))] to-[hsl(var(--primary)/0.8)] text-[hsl(var(--primary-foreground))] font-semibold hover:opacity-90 transition-opacity shadow-[0_8px_24px_hsl(var(--primary)/0.25)]">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-full bg-black/20 flex items-center justify-center">

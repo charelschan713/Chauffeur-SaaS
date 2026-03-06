@@ -53,7 +53,7 @@ export class PublicTenantService {
     let brandingError: string | null = null;
     try {
       const [row] = await this.db.query(
-        `SELECT logo_url, primary_color, primary_foreground, font_family, cancel_window_hours
+        `SELECT logo_url, primary_color, primary_foreground, font_family, cancel_window_hours, website_url
          FROM public.tenant_branding
          WHERE tenant_id = $1
          LIMIT 1`,
@@ -75,6 +75,7 @@ export class PublicTenantService {
       primary_foreground: branding?.primary_foreground ?? null,
       font_family: branding?.font_family ?? null,
       cancel_window_hours: branding?.cancel_window_hours ?? 24,
+      website_url: branding?.website_url ?? null,
       _debug_branding_error: brandingError,
     };
   }
