@@ -124,10 +124,10 @@ export class PublicTenantService {
     if (cached) return cached;
 
     const rows = await this.db.query(
-      `SELECT id, name, timezone, lat, lng
+      `SELECT id, name, timezone, lat, lng, display_order
        FROM public.tenant_service_cities
        WHERE tenant_id = $1 AND active = true
-       ORDER BY name ASC`,
+       ORDER BY display_order ASC, name ASC`,
       [tenant.id],
     );
     this.cacheSet(cacheKey, rows);

@@ -62,6 +62,15 @@ export default function CitiesPage() {
     await refetch();
   }
 
+  async function move(index: number, dir: -1 | 1) {
+    const newOrder = [...cities];
+    const target = index + dir;
+    if (target < 0 || target >= newOrder.length) return;
+    [newOrder[index], newOrder[target]] = [newOrder[target], newOrder[index]];
+    await api.post('/cities/reorder', { ids: newOrder.map((c) => c.id) });
+    await refetch();
+  }
+
   return (
     <ListPage
       title="Cities"
@@ -120,7 +129,7 @@ export default function CitiesPage() {
           <table className="w-full">
             <thead className="bg-gray-50">
               <tr>
-                {['Name', 'Timezone', 'Status', ''].map((h) => (
+                {['Order', 'Name', 'Timezone', 'Status', ''].map((h) => (
                   <th
                     key={h}
                     className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase"
@@ -131,8 +140,16 @@ export default function CitiesPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {cities.map((city) => (
+              {cities.map((city, idx) => (
                 <tr key={city.id} className="hover:bg-gray-50">
+                  <td className="px-4 py-4 text-sm">
+                    <div className="flex flex-col gap-0.5">
+                      <button onClick={() => move(idx, -1)} disabled={idx === 0}
+                        className="px-1.5 text-gray-400 hover:text-gray-700 disabled:opacity-20 text-xs leading-none">▲</button>
+                      <button onClick={() => move(idx, 1)} disabled={idx === cities.length - 1}
+                        className="px-1.5 text-gray-400 hover:text-gray-700 disabled:opacity-20 text-xs leading-none">▼</button>
+                    </div>
+                  </td>
                   <td className="px-6 py-4 text-sm font-medium text-gray-900">{city.name}</td>
                   <td className="px-6 py-4 text-sm text-gray-700">{city.timezone}</td>
                   <td className="px-6 py-4 text-sm">
@@ -156,7 +173,7 @@ export default function CitiesPage() {
               ))}
               {cities.length === 0 && (
                 <tr>
-                  <td colSpan={4} className="text-center py-10 text-gray-500">
+                  <td colSpan={5} className="text-center py-10 text-gray-500">
                     No cities configured yet
                   </td>
                 </tr>

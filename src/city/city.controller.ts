@@ -21,12 +21,24 @@ export class CityController {
   @Get()
   async list(@Req() req: any) {
     return this.dataSource.query(
-      `SELECT id, name, timezone, active, lat, lng
+      `SELECT id, name, timezone, active, lat, lng, display_order
        FROM public.tenant_service_cities
        WHERE tenant_id = $1
-       ORDER BY name ASC`,
+       ORDER BY display_order ASC, name ASC`,
       [req.user.tenant_id],
     );
+  }
+
+  @Post('reorder')
+  async reorder(@Body() body: { ids: string[] }, @Req() req: any) {
+    // body.ids = ordered array of city IDs
+    for (let i = 0; i < body.ids.length; i++) {
+      await this.dataSource.query(
+        `UPDATE public.tenant_service_cities SET display_order = $1 WHERE id = $2 AND tenant_id = $3`,
+        [i, body.ids[i], req.user.tenant_id],
+      );
+    }
+    return { success: true };
   }
 
   @Post()
