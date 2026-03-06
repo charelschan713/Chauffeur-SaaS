@@ -182,40 +182,51 @@ export class CustomerPortalService {
     }
 
     const ref = `BK-${Date.now().toString(36).toUpperCase()}`;
+
+    // Load customer info for passenger fields
+    const [customer] = await this.db.query(
+      `SELECT first_name, last_name, email, phone_country_code, phone_number
+       FROM public.customers WHERE id=$1 LIMIT 1`,
+      [customerId],
+    );
+
     const [booking] = await this.db.query(
       `INSERT INTO public.bookings
-         (tenant_id, customer_id, booking_reference,
+         (tenant_id, customer_id, booking_reference, booking_source,
           customer_email, customer_first_name, customer_last_name,
           customer_phone_country_code, customer_phone_number,
+          passenger_first_name, passenger_last_name,
+          passenger_phone_country_code, passenger_phone_number,
+          passenger_is_customer,
           pickup_address_text, dropoff_address_text, pickup_at_utc,
           timezone,
           service_type_id, service_class_id,
           total_price_minor, currency,
-          operational_status, payment_status, booking_source,
-          flight_number, passenger_count, special_requests,
+          operational_status, payment_status,
+          flight_number, passenger_count, luggage_count, special_requests,
           created_at, updated_at)
        VALUES
-         ($1, $2, $3,
-          (SELECT email FROM public.customers WHERE id=$2),
-          (SELECT first_name FROM public.customers WHERE id=$2),
-          (SELECT last_name FROM public.customers WHERE id=$2),
-          (SELECT phone_country_code FROM public.customers WHERE id=$2),
-          (SELECT phone_number FROM public.customers WHERE id=$2),
-          $4, $5, $6,
+         ($1, $2, $3, 'WIDGET',
+          $4, $5, $6, $7, $8,
+          $5, $6, $7, $8, true,
+          $9, $10, $11,
           'Australia/Sydney',
-          $7, $8,
-          $9, $10,
-          'PENDING', 'UNPAID', 'WIDGET',
-          $11, $12, $13,
+          $12, $13,
+          $14, $15,
+          'PENDING_CUSTOMER_CONFIRMATION', 'UNPAID',
+          $16, $17, $18, $19,
           now(), now())
        RETURNING *`,
       [
         tenantId, customerId, ref,
+        customer?.email, customer?.first_name, customer?.last_name,
+        customer?.phone_country_code, customer?.phone_number,
         pickupAddress, dropoffAddress, pickupAtUtc,
         serviceTypeId, vehicleClassId,
         totalPriceMinor, currency,
         flightNumber,
         passengerCount,
+        dto.luggageCount ?? 0,
         notes,
       ],
     );
