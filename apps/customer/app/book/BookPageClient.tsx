@@ -437,23 +437,42 @@ export function BookPageClient() {
               </p>
             </div>
             <div className="text-right shrink-0">
-              {/* Show original quote price struck out if loyalty discount improved it */}
-              {loyaltyDiscount && loyaltyDiscount.finalFareMinor < selectedResult.estimated_total_minor && (
-                <p className="text-xs text-[hsl(var(--muted-foreground))] line-through">
-                  {fmtMoney(selectedResult.estimated_total_minor, selectedResult.currency)}
-                </p>
-              )}
-              <p className="text-lg font-bold text-gradient-gold">
-                {fmtMoney(
-                  loyaltyDiscount ? loyaltyDiscount.finalFareMinor : selectedResult.estimated_total_minor,
-                  selectedResult.currency,
-                )}
-              </p>
-              {loyaltyDiscount && loyaltyDiscount.discountMinor > 0 && (
-                <p className="text-[11px] text-[hsl(var(--success))] font-medium">
-                  -{fmtMoney(loyaltyDiscount.discountMinor, selectedResult.currency)} off
-                </p>
-              )}
+              {(() => {
+                // Effective discount: loyalty takes priority, else base quote discount
+                const baseDiscountMinor = selectedResult.pricing_snapshot_preview?.discount_amount_minor ?? 0;
+                const effectiveDiscount = loyaltyDiscount ?? (baseDiscountMinor > 0 ? {
+                  finalFareMinor: selectedResult.estimated_total_minor,
+                  discountMinor: baseDiscountMinor,
+                } : null);
+                const originalPrice = loyaltyDiscount
+                  ? selectedResult.estimated_total_minor  // quote already has base discount
+                  : (selectedResult.pricing_snapshot_preview?.pre_discount_total_minor
+                      ?? selectedResult.estimated_total_minor + baseDiscountMinor);
+                const finalPrice = loyaltyDiscount
+                  ? loyaltyDiscount.finalFareMinor
+                  : selectedResult.estimated_total_minor;
+
+                return (
+                  <>
+                    {effectiveDiscount && effectiveDiscount.discountMinor > 0 && (
+                      <p className="text-xs text-[hsl(var(--muted-foreground))] line-through">
+                        {fmtMoney(originalPrice, selectedResult.currency)}
+                      </p>
+                    )}
+                    <p className={cn(
+                      "text-lg font-bold",
+                      effectiveDiscount ? "text-emerald-400" : "text-gradient-gold"
+                    )}>
+                      {fmtMoney(finalPrice, selectedResult.currency)}
+                    </p>
+                    {effectiveDiscount && effectiveDiscount.discountMinor > 0 && (
+                      <p className="text-[11px] text-emerald-400 font-semibold">
+                        -{fmtMoney(effectiveDiscount.discountMinor, selectedResult.currency)} off
+                      </p>
+                    )}
+                  </>
+                );
+              })()}
               <p className="text-[10px] text-[hsl(var(--muted-foreground))]">{selectedResult.currency} incl. GST</p>
             </div>
           </div>
@@ -509,12 +528,17 @@ export function BookPageClient() {
                   <span>-{fmtMoney(loyaltyDiscount.discountMinor, selectedResult.currency)}</span>
                 </div>
               )}
-              <div className="flex justify-between font-semibold text-[hsl(var(--foreground))] pt-1 border-t border-[hsl(var(--border))]">
-                <span>Total</span>
-                <span>{fmtMoney(
-                  loyaltyDiscount ? loyaltyDiscount.finalFareMinor : selectedResult.estimated_total_minor,
-                  selectedResult.currency,
-                )}</span>
+              <div className="flex justify-between font-semibold pt-1 border-t border-[hsl(var(--border))]">
+                <span className="text-[hsl(var(--foreground))]">Total</span>
+                <span className={loyaltyDiscount?.discountMinor || (selectedResult.pricing_snapshot_preview?.discount_amount_minor ?? 0) > 0
+                  ? "text-emerald-400"
+                  : "text-[hsl(var(--foreground))]"
+                }>
+                  {fmtMoney(
+                    loyaltyDiscount ? loyaltyDiscount.finalFareMinor : selectedResult.estimated_total_minor,
+                    selectedResult.currency,
+                  )}
+                </span>
               </div>
             </div>
           )}
