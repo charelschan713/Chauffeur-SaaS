@@ -131,6 +131,8 @@ export class PublicPricingService {
               multiplier_mode: snapshot.multiplier_mode ?? null,
               multiplier_value: snapshot.multiplier_value ?? null,
               surcharge_minor: snapshot.surcharge_minor ?? 0,
+              time_surcharge_minor: snapshot.time_surcharge_minor ?? 0,
+              surcharge_labels: snapshot.surcharge_labels ?? [],
               toll_parking_minor: snapshot.toll_parking_minor ?? 0,
               pre_discount_total_minor: baseFare,
               discount_amount_minor: discountMinor,
