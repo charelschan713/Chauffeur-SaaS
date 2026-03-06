@@ -53,6 +53,7 @@ interface QuoteSession {
         base_calculated_minor: number;
         toll_parking_minor: number;
         surcharge_minor: number;
+        surcharge_labels?: string[];
         grand_total_minor: number;
         minimum_applied: boolean;
         discount_amount_minor?: number;
@@ -675,9 +676,12 @@ export function BookPageClient() {
                 </div>
               )}
               {preview.surcharge_minor > 0 && (
-                <div className="flex justify-between text-[hsl(var(--muted-foreground))]">
-                  <span>Surcharge</span>
-                  <span>{fmtMoney(preview.surcharge_minor, selectedResult.currency)}</span>
+                <div className="flex justify-between text-amber-400/80">
+                  <span className="flex items-center gap-1">
+                    <svg className="h-3 w-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    {preview.surcharge_labels?.length ? preview.surcharge_labels.join(', ') : 'Surcharge'}
+                  </span>
+                  <span>+{fmtMoney(preview.surcharge_minor, selectedResult.currency)}</span>
                 </div>
               )}
               {preview.toll_parking_minor > 0 && (
