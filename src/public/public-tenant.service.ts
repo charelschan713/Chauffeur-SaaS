@@ -86,7 +86,8 @@ export class PublicTenantService {
     if (cached) return cached;
 
     const rows = await this.db.query(
-      `SELECT id, code, display_name AS name, calculation_type, booking_flow, active
+      `SELECT id, code, display_name AS name, calculation_type, booking_flow, active,
+              minimum_hours, surge_multiplier
        FROM public.tenant_service_types
        WHERE tenant_id = $1 AND active = true
        ORDER BY created_at ASC`,
@@ -109,6 +110,23 @@ export class PublicTenantService {
        FROM public.tenant_service_classes tsc
        WHERE tsc.tenant_id = $1 AND tsc.active = true
        ORDER BY tsc.display_order ASC NULLS LAST, tsc.name ASC`,
+      [tenant.id],
+    );
+    this.cacheSet(cacheKey, rows);
+    return rows;
+  }
+
+  async getCities(slug: string) {
+    const tenant = await this.resolveTenantBySlug(slug);
+    const cacheKey = `cities:${tenant.id}`;
+    const cached = this.cacheGet<any[]>(cacheKey);
+    if (cached) return cached;
+
+    const rows = await this.db.query(
+      `SELECT id, name, timezone, lat, lng
+       FROM public.tenant_service_cities
+       WHERE tenant_id = $1 AND active = true
+       ORDER BY name ASC`,
       [tenant.id],
     );
     this.cacheSet(cacheKey, rows);

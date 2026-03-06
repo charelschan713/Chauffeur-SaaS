@@ -51,6 +51,11 @@ export class PublicController {
     return this.mapsSvc.getRoute(slug, origin, destination);
   }
 
+  @Get('cities')
+  async cities(@Query('tenant_slug') slug: string) {
+    return this.tenantSvc.getCities(slug);
+  }
+
   @Get('maps/autocomplete')
   async autocomplete(
     @Query('tenant_slug') slug: string,
