@@ -36,6 +36,7 @@ interface QuoteSession {
       luggage_count?: number;
       trip_mode: string;
       service_type_id: string;
+      city_id?: string;
       infant_seats?: number;
       toddler_seats?: number;
       booster_seats?: number;
