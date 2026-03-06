@@ -2,9 +2,7 @@
 import { useEffect, useState, useCallback } from "react";
 import PageHeader from "@/components/layout/PageHeader";
 import { Button } from "@/components/ui/Button";
-import { useAuth } from "@/contexts/AuthContext";
-
-const API = process.env.NEXT_PUBLIC_API_URL ?? "";
+import api from "@/lib/api";
 
 type TimeSurcharge = {
   id: string; name: string; day_type: string;
@@ -26,9 +24,6 @@ const emptyHoliday = (): Partial<Holiday> => ({
 });
 
 export default function SurchargesPage() {
-  const { token } = useAuth();
-  const headers = { "Content-Type":"application/json", Authorization:`Bearer ${token}` };
-
   const [timeSurcharges, setTimeSurcharges] = useState<TimeSurcharge[]>([]);
   const [holidays, setHolidays] = useState<Holiday[]>([]);
 
@@ -41,60 +36,60 @@ export default function SurchargesPage() {
   const [saving, setSaving] = useState(false);
 
   const loadTime = useCallback(async () => {
-    const r = await fetch(`${API}/surcharges/time`, { headers });
-    setTimeSurcharges(await r.json());
-  }, [token]);
+    const r = await api.get("/surcharges/time");
+    setTimeSurcharges(r.data);
+  }, []);
 
   const loadHolidays = useCallback(async () => {
-    const r = await fetch(`${API}/surcharges/holidays`, { headers });
-    setHolidays(await r.json());
-  }, [token]);
+    const r = await api.get("/surcharges/holidays");
+    setHolidays(r.data);
+  }, []);
 
   useEffect(() => { loadTime(); loadHolidays(); }, [loadTime, loadHolidays]);
 
   // ── Time Surcharge save ──────────────────────────────────────────
   const saveTime = async () => {
     setSaving(true);
-    const url = editingTime ? `${API}/surcharges/time/${editingTime.id}` : `${API}/surcharges/time`;
-    const method = editingTime ? "PUT" : "POST";
-    await fetch(url, { method, headers, body: JSON.stringify(timeForm) });
+    if (editingTime) {
+      await api.put(`/surcharges/time/${editingTime.id}`, timeForm);
+    } else {
+      await api.post("/surcharges/time", timeForm);
+    }
     setSaving(false); setShowTimeForm(false); setEditingTime(null);
     setTimeForm(emptyTime()); loadTime();
   };
 
   const deleteTime = async (id: string) => {
     if (!confirm("Delete this time surcharge?")) return;
-    await fetch(`${API}/surcharges/time/${id}`, { method:"DELETE", headers });
+    await api.delete(`/surcharges/time/${id}`);
     loadTime();
   };
 
   const toggleTime = async (s: TimeSurcharge) => {
-    await fetch(`${API}/surcharges/time/${s.id}`, {
-      method:"PUT", headers, body: JSON.stringify({ is_active: !s.is_active }),
-    });
+    await api.put(`/surcharges/time/${s.id}`, { is_active: !s.is_active });
     loadTime();
   };
 
   // ── Holiday save ─────────────────────────────────────────────────
   const saveHoliday = async () => {
     setSaving(true);
-    const url = editingHoliday ? `${API}/surcharges/holidays/${editingHoliday.id}` : `${API}/surcharges/holidays`;
-    const method = editingHoliday ? "PUT" : "POST";
-    await fetch(url, { method, headers, body: JSON.stringify(holidayForm) });
+    if (editingHoliday) {
+      await api.put(`/surcharges/holidays/${editingHoliday.id}`, holidayForm);
+    } else {
+      await api.post("/surcharges/holidays", holidayForm);
+    }
     setSaving(false); setShowHolidayForm(false); setEditingHoliday(null);
     setHolidayForm(emptyHoliday()); loadHolidays();
   };
 
   const deleteHoliday = async (id: string) => {
     if (!confirm("Delete this holiday?")) return;
-    await fetch(`${API}/surcharges/holidays/${id}`, { method:"DELETE", headers });
+    await api.delete(`/surcharges/holidays/${id}`);
     loadHolidays();
   };
 
   const toggleHoliday = async (h: Holiday) => {
-    await fetch(`${API}/surcharges/holidays/${h.id}`, {
-      method:"PUT", headers, body: JSON.stringify({ is_active: !h.is_active }),
-    });
+    await api.put(`/surcharges/holidays/${h.id}`, { is_active: !h.is_active });
     loadHolidays();
   };
 
