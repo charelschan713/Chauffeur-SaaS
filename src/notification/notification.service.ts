@@ -807,7 +807,7 @@ export class NotificationService {
   ) {
     const { email, sms } = await this.resolveIntegrations(tenantId);
     const tpl = await this.templateResolver.resolve(tenantId, eventType, channel);
-    if (!tpl) return;
+    if (!tpl || !tpl.active || !tpl.body) return;
     const body = renderTemplate(tpl.body, vars);
     if (channel === 'email' && email) {
       const subject = renderTemplate(tpl.subject ?? eventType, vars);
@@ -819,13 +819,43 @@ export class NotificationService {
     }
   }
 
+  /**
+   * Sends email + SMS, but ONLY to recipients allowed by the template's `recipients` config.
+   * Pass contacts for each role; the template config decides who actually gets notified.
+   */
   private async sendBoth(
-    tenantId: string, eventType: string, vars: Record<string, string>,
-    toEmail?: string | null, toPhone?: string | null, bookingId?: string,
+    tenantId: string,
+    eventType: string,
+    vars: Record<string, string>,
+    toEmail?: string | null,
+    toPhone?: string | null,
+    bookingId?: string,
+    contacts?: {
+      driver?: { email?: string; phone?: string };
+      admin?: { email?: string; phone?: string }[];
+    },
   ) {
+    // Resolve recipients config from template (email channel is authoritative)
+    const tplMeta = await this.templateResolver.resolve(tenantId, eventType, 'email');
+    if (!tplMeta.active) return; // whole event disabled
+    const recipients = tplMeta.recipients?.length ? tplMeta.recipients : ['customer'];
+
     const promises: Promise<any>[] = [];
-    if (toEmail) promises.push(this.sendFromTemplate(tenantId, eventType, 'email', vars, toEmail, bookingId).catch(() => {}));
-    if (toPhone) promises.push(this.sendFromTemplate(tenantId, eventType, 'sms', vars, toPhone, bookingId).catch(() => {}));
+
+    const sendTo = (email?: string | null, phone?: string | null) => {
+      if (email) promises.push(this.sendFromTemplate(tenantId, eventType, 'email', vars, email, bookingId).catch(() => {}));
+      if (phone) promises.push(this.sendFromTemplate(tenantId, eventType, 'sms', vars, phone, bookingId).catch(() => {}));
+    };
+
+    for (const role of recipients) {
+      if (role === 'customer') sendTo(toEmail, toPhone);
+      if (role === 'driver' && contacts?.driver) sendTo(contacts.driver.email, contacts.driver.phone);
+      if (role === 'admin') {
+        const admins = contacts?.admin ?? await this.getAdminContacts(tenantId);
+        for (const a of admins) sendTo(a.email, a.phone);
+      }
+    }
+
     await Promise.all(promises);
   }
 

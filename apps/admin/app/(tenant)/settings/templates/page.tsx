@@ -89,12 +89,19 @@ interface TemplateRow {
   subject: string | null;
   body: string;
   active: boolean;
+  recipients: string[];
 }
 
 type TemplateState = {
   subject: string;
   body: string;
 };
+
+const RECIPIENT_OPTIONS = [
+  { value: 'customer', label: 'Customer' },
+  { value: 'driver',   label: 'Driver'   },
+  { value: 'admin',    label: 'Admin'    },
+];
 
 type PreviewState = {
   subject?: string;
@@ -107,6 +114,9 @@ export default function TemplatesPage() {
   const [savingKey, setSavingKey] = useState<string | null>(null);
   const [defaults, setDefaults] = useState<Record<string, any>>({});
   const [sources, setSources] = useState<Record<string, 'TENANT' | 'PLATFORM'>>({});
+  // Per-event (not per-channel) settings: active + recipients
+  const [eventActive, setEventActive] = useState<Record<string, boolean>>({});
+  const [eventRecipients, setEventRecipients] = useState<Record<string, string[]>>({});
 
   const { data: templates = [], isLoading, refetch } = useQuery({
     queryKey: ['notification-templates'],
@@ -131,6 +141,25 @@ export default function TemplatesPage() {
         const key = `${t.event_type}:${t.channel}`;
         if (!next[key]) {
           next[key] = { subject: t.subject ?? '', body: t.body ?? '' };
+        }
+      });
+      return next;
+    });
+    // Seed active + recipients from the email channel row (authoritative)
+    setEventActive((prev) => {
+      const next = { ...prev };
+      (templates as TemplateRow[]).forEach((t) => {
+        if (t.channel === 'email' && !(t.event_type in next)) {
+          next[t.event_type] = t.active ?? true;
+        }
+      });
+      return next;
+    });
+    setEventRecipients((prev) => {
+      const next = { ...prev };
+      (templates as TemplateRow[]).forEach((t) => {
+        if (t.channel === 'email' && !(t.event_type in next)) {
+          next[t.event_type] = Array.isArray(t.recipients) ? t.recipients : ['customer'];
         }
       });
       return next;
@@ -221,6 +250,30 @@ export default function TemplatesPage() {
     setSavingKey(null);
   }
 
+  async function handleToggleActive(eventType: string) {
+    const newVal = !eventActive[eventType];
+    setEventActive((prev) => ({ ...prev, [eventType]: newVal }));
+    // Update both channels
+    for (const ch of ['email', 'sms'] as const) {
+      await api.patch(`/notification-templates/${eventType}/${ch}`, { active: newVal }).catch(() => {});
+    }
+  }
+
+  async function handleSaveRecipients(eventType: string, newRecipients: string[]) {
+    setEventRecipients((prev) => ({ ...prev, [eventType]: newRecipients }));
+    for (const ch of ['email', 'sms'] as const) {
+      await api.patch(`/notification-templates/${eventType}/${ch}`, { recipients: newRecipients }).catch(() => {});
+    }
+  }
+
+  function toggleRecipient(eventType: string, role: string) {
+    const current = eventRecipients[eventType] ?? ['customer'];
+    const next = current.includes(role)
+      ? current.filter((r) => r !== role)
+      : [...current, role];
+    handleSaveRecipients(eventType, next);
+  }
+
   useEffect(() => {
     setSources((prev) => {
       const next = { ...prev };
@@ -253,9 +306,46 @@ export default function TemplatesPage() {
               <h3 className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3 mt-2">{group.group}</h3>
               <div className="space-y-4">
           {group.events.map((event) => (
-            <div key={event.key} className="bg-white border rounded p-4 space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="text-sm font-semibold text-gray-800">{event.label}</div>
+            <div key={event.key} className={`bg-white border rounded p-4 space-y-4 ${eventActive[event.key] === false ? 'opacity-50' : ''}`}>
+              <div className="flex items-center justify-between flex-wrap gap-3">
+                <div className="flex items-center gap-3">
+                  {/* Active toggle */}
+                  <button
+                    onClick={() => handleToggleActive(event.key)}
+                    title={eventActive[event.key] === false ? 'Enable event' : 'Disable event'}
+                    className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none ${
+                      eventActive[event.key] === false ? 'bg-gray-300' : 'bg-green-500'
+                    }`}
+                  >
+                    <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${
+                      eventActive[event.key] === false ? 'translate-x-0.5' : 'translate-x-4'
+                    }`} />
+                  </button>
+                  <div className="text-sm font-semibold text-gray-800">{event.label}</div>
+                  {eventActive[event.key] === false && (
+                    <span className="text-[10px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded">Disabled</span>
+                  )}
+                </div>
+                {/* Recipients */}
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] text-gray-400 uppercase tracking-wide">Notify:</span>
+                  {RECIPIENT_OPTIONS.map((opt) => {
+                    const checked = (eventRecipients[event.key] ?? ['customer']).includes(opt.value);
+                    return (
+                      <button
+                        key={opt.value}
+                        onClick={() => toggleRecipient(event.key, opt.value)}
+                        className={`text-[11px] px-2.5 py-1 rounded-full border transition-colors ${
+                          checked
+                            ? 'bg-indigo-50 border-indigo-400 text-indigo-700 font-medium'
+                            : 'bg-gray-50 border-gray-200 text-gray-400'
+                        }`}
+                      >
+                        {opt.label}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 <div className="border rounded p-4 space-y-3">
