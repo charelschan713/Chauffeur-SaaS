@@ -3,6 +3,7 @@ import {
   Controller,
   Get,
   NotFoundException,
+  Patch,
   Param,
   Post,
   Query,
@@ -64,5 +65,12 @@ export class PublicController {
       throw new NotFoundException('Quote session not found or expired');
     }
     return session;
+  }
+
+  /** Mark quote as converted (called after booking confirmed) */
+  @Patch('pricing/quote/:quoteId')
+  async convertQuote(@Param('quoteId') quoteId: string) {
+    await this.pricingSvc.markConverted(quoteId);
+    return { success: true };
   }
 }
