@@ -51,6 +51,15 @@ export class PublicController {
     return this.mapsSvc.getRoute(slug, origin, destination);
   }
 
+  @Get('maps/autocomplete')
+  async autocomplete(
+    @Query('tenant_slug') slug: string,
+    @Query('input') input: string,
+    @Query('sessiontoken') sessionToken: string,
+  ) {
+    return this.mapsSvc.autocomplete(slug, input, sessionToken);
+  }
+
   /** Quote all car types for given trip — returns quote_id for handoff */
   @Post('pricing/quote')
   async quote(@Query('tenant_slug') slug: string, @Body() body: any) {
