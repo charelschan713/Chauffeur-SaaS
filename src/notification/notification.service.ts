@@ -85,6 +85,37 @@ export class NotificationService {
       case 'DriverPayUpdated':
         await this.onDriverPayUpdated(tenantId, payload);
         break;
+      case 'CustomerRegistered':   await this.onCustomerRegistered(tenantId, payload); break;
+      case 'CustomerForgotPassword': await this.onForgotPassword(tenantId, payload); break;
+      case 'CustomerOtp':          await this.onCustomerOtp(payload); break;
+      case 'TripStarted':          await this.onTripStarted(tenantId, payload); break;
+      case 'RefundIssued':         await this.onRefundIssued(tenantId, payload); break;
+      case 'InvoiceSent':          await this.onInvoiceSent(tenantId, payload); break;
+      case 'InvoiceOverdue':       await this.onInvoiceOverdue(tenantId, payload); break;
+      case 'PaymentSuccess':       await this.onPaymentSuccess(tenantId, payload); break;
+      case 'PaymentFailed':        await this.onPaymentFailed(tenantId, payload); break;
+      case 'PaymentRequest':       await this.onPaymentRequest(tenantId, payload); break;
+      case 'DriverNewDispatch':    await this.onDriverNewDispatch(tenantId, payload); break;
+      case 'DriverDocExpiry30':    await this.onDriverDocExpiry(tenantId, payload, 30); break;
+      case 'DriverDocExpiry7':     await this.onDriverDocExpiry(tenantId, payload, 7); break;
+      case 'DriverAccountSuspended': await this.onDriverAccountSuspended(tenantId, payload); break;
+      case 'DriverDocApproved':    await this.onDriverDocResult(tenantId, payload, true); break;
+      case 'DriverDocRejected':    await this.onDriverDocResult(tenantId, payload, false); break;
+      case 'AdminNewBooking':      await this.onAdminNewBooking(tenantId, payload); break;
+      case 'AdminBookingPendingConfirm': await this.onAdminBookingPendingConfirm(tenantId, payload); break;
+      case 'AdminDriverRejected':  await this.onAdminDriverRejected(tenantId, payload); break;
+      case 'AdminPartnerRejected': await this.onAdminPartnerRejected(tenantId, payload); break;
+      case 'AdminTransferRequest': await this.onAdminTransferRequest(tenantId, payload); break;
+      case 'AdminPartnerAccepted': await this.onAdminPartnerAccepted(tenantId, payload); break;
+      case 'AdminCollabRequest':   await this.onAdminCollabRequest(tenantId, payload); break;
+      case 'AdminCollabApproved':  await this.onAdminCollabApproved(tenantId, payload); break;
+      case 'AdminDriverReview':    await this.onAdminDriverReview(tenantId, payload); break;
+      case 'AdminInvoicePaid':     await this.onAdminInvoicePaid(tenantId, payload); break;
+      case 'AdminPaymentFailed':   await this.onAdminPaymentFailed(tenantId, payload); break;
+      case 'AdminSettlement':      await this.onAdminSettlement(tenantId, payload); break;
+      case 'SuperAdminDriverReview': await this.onSuperAdminDriverReview(payload); break;
+      case 'SuperAdminCollabReview': await this.onSuperAdminCollabReview(payload); break;
+      case 'SuperAdminNewTenant':  await this.onSuperAdminNewTenant(payload); break;
     }
   }
 
@@ -746,13 +777,10 @@ export class NotificationService {
       (await this.integrationResolver.resolve(tenantId, 'sendgrid')) ??
       (await this.integrationResolver.resolve(tenantId, 'mailgun'));
     if (!emailIntegration) return;
-    const html = `
-      <h2>You're invited to join ${payload.company_name}</h2>
+    const html = `<h2>You're invited to join ${payload.company_name}</h2>
       <p>Hi ${payload.name},</p>
-      <p>${payload.company_name} has invited you to register as a ${payload.invite_type === 'EXTERNAL' ? 'partner' : ''} driver on their platform.</p>
-      <p><a href="${payload.onboard_url}" style="background:#2563eb;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;display:inline-block;font-weight:600;">Complete Registration →</a></p>
-      <p style="color:#6b7280;font-size:12px">This link expires in 7 days.</p>
-    `;
+      <p>${payload.company_name} has invited you to register as a driver.</p>
+      <p><a href="${payload.onboard_url}">Complete Registration →</a></p>`;
     await this.emailProvider.send(emailIntegration, {
       to: payload.to_email,
       subject: `${payload.company_name} — Driver Registration Invite`,
@@ -760,5 +788,356 @@ export class NotificationService {
       fromAddress: emailIntegration.config.from_address,
       fromName: emailIntegration.config.from_name,
     });
+  }
+
+  // ── Helper: resolve email+sms integrations ──────────────────────────────
+  private async resolveIntegrations(tenantId: string) {
+    const email =
+      (await this.integrationResolver.resolve(tenantId, 'resend')) ??
+      (await this.integrationResolver.resolve(tenantId, 'sendgrid')) ??
+      (await this.integrationResolver.resolve(tenantId, 'mailgun'));
+    const sms = await this.integrationResolver.resolve(tenantId, 'twilio');
+    return { email, sms };
+  }
+
+  // ── Helper: send from template (DB-driven with {{var}} interpolation) ──
+  private async sendFromTemplate(
+    tenantId: string, eventType: string, channel: 'email' | 'sms',
+    vars: Record<string, string>, to: string, bookingId?: string,
+  ) {
+    const { email, sms } = await this.resolveIntegrations(tenantId);
+    const tpl = await this.templateResolver.resolve(tenantId, eventType, channel);
+    if (!tpl) return;
+    const body = renderTemplate(tpl.body, vars);
+    if (channel === 'email' && email) {
+      const subject = renderTemplate(tpl.subject ?? eventType, vars);
+      await this.sendEmailWithLog(tenantId, eventType, email,
+        { to, subject, html: body }, bookingId, vars);
+    }
+    if (channel === 'sms' && sms) {
+      await this.sendSmsWithLog(tenantId, eventType, sms, to, body, bookingId);
+    }
+  }
+
+  private async sendBoth(
+    tenantId: string, eventType: string, vars: Record<string, string>,
+    toEmail?: string | null, toPhone?: string | null, bookingId?: string,
+  ) {
+    const promises: Promise<any>[] = [];
+    if (toEmail) promises.push(this.sendFromTemplate(tenantId, eventType, 'email', vars, toEmail, bookingId).catch(() => {}));
+    if (toPhone) promises.push(this.sendFromTemplate(tenantId, eventType, 'sms', vars, toPhone, bookingId).catch(() => {}));
+    await Promise.all(promises);
+  }
+
+  // ── Helpers: get admin email for tenant ──────────────────────────────────
+  private async getAdminContacts(tenantId: string): Promise<{ email?: string; phone?: string }[]> {
+    const rows = await this.dataSource.query(
+      `SELECT u.email, u.phone_number as phone
+       FROM public.memberships m
+       JOIN public.users u ON u.id = m.user_id
+       WHERE m.tenant_id = $1 AND m.role = 'tenant_admin' AND m.status = 'active'`,
+      [tenantId],
+    );
+    return rows;
+  }
+
+  private async getSuperAdminContacts(): Promise<{ email?: string }[]> {
+    const rows = await this.dataSource.query(
+      `SELECT email FROM public.users WHERE is_platform_admin = true`,
+    );
+    return rows;
+  }
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // CUSTOMER EVENTS
+  // ════════════════════════════════════════════════════════════════════════════
+
+  private async onCustomerRegistered(tenantId: string, payload: any) {
+    const vars = { customer_name: payload.first_name ?? '', email: payload.email ?? '' };
+    await this.sendBoth(tenantId, 'CustomerRegistered', vars, payload.email, payload.phone);
+  }
+
+  private async onForgotPassword(tenantId: string, payload: any) {
+    const vars = { customer_name: payload.name ?? '', reset_link: payload.reset_link ?? '', expires: '1 hour' };
+    await this.sendBoth(tenantId, 'CustomerForgotPassword', vars, payload.email, payload.phone);
+  }
+
+  private async onCustomerOtp(payload: any) {
+    const sms = await this.integrationResolver.resolve(payload.tenant_id, 'twilio');
+    if (!sms || !payload.phone) return;
+    const body = `Your ASChauffeured verification code is: ${payload.otp}. Valid for 10 minutes.`;
+    await this.sendSmsWithLog(payload.tenant_id, 'CustomerOtp', sms, payload.phone, body);
+  }
+
+  private async onTripStarted(tenantId: string, payload: any) {
+    const booking = await this.getBooking(payload.booking_id);
+    if (!booking) return;
+    const vars = this.bookingVars(booking);
+    await this.sendBoth(tenantId, 'TripStarted', vars,
+      booking.customer_email,
+      booking.customer_phone_number ? `${booking.customer_phone_country_code}${booking.customer_phone_number}` : null,
+      booking.id,
+    );
+  }
+
+  private async onRefundIssued(tenantId: string, payload: any) {
+    const booking = await this.getBooking(payload.booking_id);
+    if (!booking) return;
+    const vars = {
+      ...this.bookingVars(booking),
+      refund_amount: payload.refund_amount ?? '',
+      refund_days: '5–10 business days',
+    };
+    await this.sendBoth(tenantId, 'RefundIssued', vars,
+      booking.customer_email,
+      booking.customer_phone_number ? `${booking.customer_phone_country_code}${booking.customer_phone_number}` : null,
+      booking.id,
+    );
+  }
+
+  private async onInvoiceSent(tenantId: string, payload: any) {
+    const vars = {
+      customer_name: payload.customer_name ?? '',
+      invoice_number: payload.invoice_number ?? '',
+      amount: payload.amount ?? '',
+      due_date: payload.due_date ?? '',
+      invoice_url: payload.invoice_url ?? '',
+    };
+    await this.sendBoth(tenantId, 'InvoiceSent', vars, payload.customer_email, payload.customer_phone);
+  }
+
+  private async onInvoiceOverdue(tenantId: string, payload: any) {
+    const vars = {
+      customer_name: payload.customer_name ?? '',
+      invoice_number: payload.invoice_number ?? '',
+      amount: payload.amount ?? '',
+      due_date: payload.due_date ?? '',
+    };
+    await this.sendBoth(tenantId, 'InvoiceOverdue', vars, payload.customer_email, payload.customer_phone);
+  }
+
+  private async onPaymentSuccess(tenantId: string, payload: any) {
+    const booking = await this.getBooking(payload.booking_id);
+    if (!booking) return;
+    const vars = { ...this.bookingVars(booking), amount: payload.amount ?? '', card_last4: payload.card_last4 ?? '' };
+    await this.sendBoth(tenantId, 'PaymentSuccess', vars,
+      booking.customer_email,
+      booking.customer_phone_number ? `${booking.customer_phone_country_code}${booking.customer_phone_number}` : null,
+      booking.id,
+    );
+  }
+
+  private async onPaymentFailed(tenantId: string, payload: any) {
+    const booking = await this.getBooking(payload.booking_id);
+    if (!booking) return;
+    const vars = { ...this.bookingVars(booking), card_last4: payload.card_last4 ?? '' };
+    await this.sendBoth(tenantId, 'PaymentFailed', vars,
+      booking.customer_email,
+      booking.customer_phone_number ? `${booking.customer_phone_country_code}${booking.customer_phone_number}` : null,
+      booking.id,
+    );
+  }
+
+  private async onPaymentRequest(tenantId: string, payload: any) {
+    const booking = await this.getBooking(payload.booking_id);
+    if (!booking) return;
+    const vars = { ...this.bookingVars(booking), payment_link: payload.payment_link ?? '' };
+    await this.sendFromTemplate(tenantId, 'PaymentRequest', 'email',
+      vars, booking.customer_email, booking.id).catch(() => {});
+  }
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // DRIVER EVENTS
+  // ════════════════════════════════════════════════════════════════════════════
+
+  private async onDriverNewDispatch(tenantId: string, payload: any) {
+    const booking = await this.getBooking(payload.booking_id);
+    const driver  = payload.driver_id ? await this.getDriver(payload.driver_id) : null;
+    if (!booking || !driver) return;
+    const vars = {
+      ...this.bookingVars(booking),
+      driver_name: driver.full_name ?? '',
+      driver_pay: payload.driver_pay ?? '',
+      passenger_preferences: payload.passenger_preferences ?? '',
+    };
+    await this.sendBoth(tenantId, 'DriverNewDispatch', vars,
+      driver.email, driver.phone, booking.id);
+  }
+
+  private async onDriverDocExpiry(tenantId: string, payload: any, days: number) {
+    const eventType = days === 7 ? 'DriverDocExpiry7' : 'DriverDocExpiry30';
+    const vars = {
+      driver_name: payload.driver_name ?? '',
+      doc_type: payload.doc_type ?? '',
+      expiry_date: payload.expiry_date ?? '',
+      days_remaining: String(days),
+    };
+    await this.sendBoth(tenantId, eventType, vars, payload.driver_email, payload.driver_phone);
+  }
+
+  private async onDriverAccountSuspended(tenantId: string, payload: any) {
+    const vars = { driver_name: payload.driver_name ?? '', doc_type: payload.doc_type ?? '' };
+    await this.sendBoth(tenantId, 'DriverAccountSuspended', vars, payload.driver_email, payload.driver_phone);
+  }
+
+  private async onDriverDocResult(tenantId: string, payload: any, approved: boolean) {
+    const eventType = approved ? 'DriverDocApproved' : 'DriverDocRejected';
+    const vars = {
+      driver_name: payload.driver_name ?? '',
+      doc_type: payload.doc_type ?? '',
+      reject_reason: payload.reject_reason ?? '',
+    };
+    await this.sendBoth(tenantId, eventType, vars, payload.driver_email, payload.driver_phone);
+  }
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // ADMIN EVENTS
+  // ════════════════════════════════════════════════════════════════════════════
+
+  private async onAdminNewBooking(tenantId: string, payload: any) {
+    const booking = await this.getBooking(payload.booking_id);
+    if (!booking) return;
+    const admins = await this.getAdminContacts(tenantId);
+    for (const admin of admins) {
+      await this.sendBoth(tenantId, 'AdminNewBooking', this.bookingVars(booking),
+        admin.email, admin.phone, booking.id);
+    }
+  }
+
+  private async onAdminBookingPendingConfirm(tenantId: string, payload: any) {
+    const booking = await this.getBooking(payload.booking_id);
+    if (!booking) return;
+    const admins = await this.getAdminContacts(tenantId);
+    for (const admin of admins) {
+      await this.sendBoth(tenantId, 'AdminBookingPendingConfirm', this.bookingVars(booking),
+        admin.email, admin.phone, booking.id);
+    }
+  }
+
+  private async onAdminDriverRejected(tenantId: string, payload: any) {
+    const vars = {
+      driver_name: payload.driver_name ?? '',
+      booking_reference: payload.booking_reference ?? '',
+      reject_reason: payload.reject_reason ?? '',
+    };
+    const admins = await this.getAdminContacts(tenantId);
+    for (const admin of admins) {
+      await this.sendBoth(tenantId, 'AdminDriverRejected', vars, admin.email, admin.phone, payload.booking_id);
+    }
+  }
+
+  private async onAdminPartnerRejected(tenantId: string, payload: any) {
+    const vars = { partner_name: payload.partner_name ?? '', reject_reason: payload.reject_reason ?? '', booking_reference: payload.booking_reference ?? '' };
+    const admins = await this.getAdminContacts(tenantId);
+    for (const admin of admins) {
+      await this.sendBoth(tenantId, 'AdminPartnerRejected', vars, admin.email, admin.phone);
+    }
+  }
+
+  private async onAdminTransferRequest(tenantId: string, payload: any) {
+    const vars = { source_tenant: payload.source_tenant ?? '', booking_reference: payload.booking_reference ?? '', transfer_price: payload.transfer_price ?? '' };
+    const admins = await this.getAdminContacts(tenantId);
+    for (const admin of admins) {
+      await this.sendBoth(tenantId, 'AdminTransferRequest', vars, admin.email, admin.phone);
+    }
+  }
+
+  private async onAdminPartnerAccepted(tenantId: string, payload: any) {
+    const vars = { partner_name: payload.partner_name ?? '', booking_reference: payload.booking_reference ?? '' };
+    const admins = await this.getAdminContacts(tenantId);
+    for (const admin of admins) {
+      await this.sendBoth(tenantId, 'AdminPartnerAccepted', vars, admin.email, admin.phone);
+    }
+  }
+
+  private async onAdminCollabRequest(tenantId: string, payload: any) {
+    const vars = { source_tenant: payload.source_tenant ?? '' };
+    const admins = await this.getAdminContacts(tenantId);
+    for (const admin of admins) {
+      await this.sendBoth(tenantId, 'AdminCollabRequest', vars, admin.email, admin.phone);
+    }
+  }
+
+  private async onAdminCollabApproved(tenantId: string, payload: any) {
+    const vars = { partner_name: payload.partner_name ?? '' };
+    const admins = await this.getAdminContacts(tenantId);
+    for (const admin of admins) {
+      await this.sendBoth(tenantId, 'AdminCollabApproved', vars, admin.email, admin.phone);
+    }
+  }
+
+  private async onAdminDriverReview(tenantId: string, payload: any) {
+    const vars = { driver_name: payload.driver_name ?? '', review_status: payload.review_status ?? '' };
+    const admins = await this.getAdminContacts(tenantId);
+    for (const admin of admins) {
+      await this.sendBoth(tenantId, 'AdminDriverReview', vars, admin.email, admin.phone);
+    }
+  }
+
+  private async onAdminInvoicePaid(tenantId: string, payload: any) {
+    const vars = { invoice_number: payload.invoice_number ?? '', amount: payload.amount ?? '' };
+    const admins = await this.getAdminContacts(tenantId);
+    for (const admin of admins) {
+      await this.sendBoth(tenantId, 'AdminInvoicePaid', vars, admin.email, admin.phone);
+    }
+  }
+
+  private async onAdminPaymentFailed(tenantId: string, payload: any) {
+    const vars = { booking_reference: payload.booking_reference ?? '' };
+    const admins = await this.getAdminContacts(tenantId);
+    for (const admin of admins) {
+      await this.sendBoth(tenantId, 'AdminPaymentFailed', vars, admin.email, admin.phone);
+    }
+  }
+
+  private async onAdminSettlement(tenantId: string, payload: any) {
+    const vars = { booking_reference: payload.booking_reference ?? '', settlement_result: payload.settlement_result ?? '' };
+    const admins = await this.getAdminContacts(tenantId);
+    for (const admin of admins) {
+      await this.sendBoth(tenantId, 'AdminSettlement', vars, admin.email, admin.phone);
+    }
+  }
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // SUPER ADMIN EVENTS
+  // ════════════════════════════════════════════════════════════════════════════
+
+  private async onSuperAdminDriverReview(payload: any) {
+    const vars = { driver_name: payload.driver_name ?? '', tenant_name: payload.tenant_name ?? '' };
+    const admins = await this.getSuperAdminContacts();
+    for (const admin of admins) {
+      if (admin.email) await this.sendFromTemplate('platform', 'SuperAdminDriverReview', 'email', vars, admin.email).catch(() => {});
+    }
+  }
+
+  private async onSuperAdminCollabReview(payload: any) {
+    const vars = { tenant_a: payload.tenant_a ?? '', tenant_b: payload.tenant_b ?? '' };
+    const admins = await this.getSuperAdminContacts();
+    for (const admin of admins) {
+      if (admin.email) await this.sendFromTemplate('platform', 'SuperAdminCollabReview', 'email', vars, admin.email).catch(() => {});
+    }
+  }
+
+  private async onSuperAdminNewTenant(payload: any) {
+    const vars = { tenant_name: payload.tenant_name ?? '' };
+    const admins = await this.getSuperAdminContacts();
+    for (const admin of admins) {
+      if (admin.email) await this.sendFromTemplate('platform', 'SuperAdminNewTenant', 'email', vars, admin.email).catch(() => {});
+    }
+  }
+
+  // ── Helper: extract booking vars ─────────────────────────────────────────
+  private bookingVars(b: any): Record<string, string> {
+    return {
+      booking_reference:  b.booking_reference ?? '',
+      customer_name:      `${b.customer_first_name ?? ''} ${b.customer_last_name ?? ''}`.trim(),
+      pickup_address:     b.pickup_address_text ?? b.pickup_address ?? '',
+      dropoff_address:    b.dropoff_address_text ?? b.dropoff_address ?? '',
+      pickup_time:        b.pickup_at_utc ? new Date(b.pickup_at_utc).toLocaleString('en-AU', { timeZone: 'Australia/Sydney' }) : '',
+      driver_name:        b.driver_name ?? '',
+      vehicle_make:       b.vehicle_make ?? '',
+      vehicle_model:      b.vehicle_model ?? '',
+      total_price:        b.total_price_minor ? `$${(b.total_price_minor / 100).toFixed(2)}` : (b.total_amount ?? ''),
+    };
   }
 }

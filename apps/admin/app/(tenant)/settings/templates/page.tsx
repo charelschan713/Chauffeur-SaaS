@@ -5,27 +5,81 @@ import api from '@/lib/api';
 import { ListPage } from '@/components/patterns/ListPage';
 import {PageLoader, InlineSpinner} from '@/components/ui/LoadingSpinner';
 
-const EVENTS = [
-  { key: 'BookingConfirmed', label: 'Booking Confirmed' },
-  { key: 'DriverAcceptedAssignment', label: 'Driver Assigned' },
-  { key: 'DriverInvitationSent', label: 'Driver En Route' },
-  { key: 'JobCompleted', label: 'Booking Completed' },
-  { key: 'BookingCancelled', label: 'Booking Cancelled' },
-  { key: 'DriverRejectedAssignment', label: 'Driver Rejected (Admin)' },
-  { key: 'AssignmentCancelled', label: 'Assignment Cancelled' },
-  { key: 'DriverPayUpdated', label: 'Driver Pay Updated' },
+const EVENT_GROUPS = [
+  {
+    group: '👤 Customer',
+    events: [
+      { key: 'CustomerRegistered',        label: 'Registration Success',       email: true,  sms: true  },
+      { key: 'CustomerForgotPassword',    label: 'Forgot Password',            email: true,  sms: true  },
+      { key: 'CustomerOtp',               label: 'OTP Verification',           email: false, sms: true  },
+      { key: 'BookingConfirmed',          label: 'Booking Confirmed',          email: true,  sms: true  },
+      { key: 'DriverAcceptedAssignment',  label: 'Driver Assigned',            email: true,  sms: true  },
+      { key: 'DriverInvitationSent',      label: 'Driver En Route',            email: true,  sms: true  },
+      { key: 'TripStarted',               label: 'Trip Started',               email: false, sms: true  },
+      { key: 'JobCompleted',              label: 'Trip Completed',             email: true,  sms: true  },
+      { key: 'BookingCancelled',          label: 'Booking Cancelled (Customer)',email: true, sms: true  },
+      { key: 'BookingCancelledByAdmin',   label: 'Booking Cancelled (Admin)',  email: true,  sms: true  },
+      { key: 'JobFulfilledWithExtras',    label: 'Extra Charge Applied',       email: true,  sms: true  },
+      { key: 'RefundIssued',              label: 'Refund Issued',              email: true,  sms: true  },
+      { key: 'InvoiceSent',               label: 'Invoice Sent',               email: true,  sms: true  },
+      { key: 'InvoiceOverdue',            label: 'Invoice Overdue',            email: true,  sms: true  },
+      { key: 'PaymentSuccess',            label: 'Payment Success',            email: true,  sms: true  },
+      { key: 'PaymentFailed',             label: 'Payment Failed',             email: true,  sms: true  },
+      { key: 'PaymentRequest',            label: 'Payment Request',            email: true,  sms: false },
+    ],
+  },
+  {
+    group: '🚗 Driver',
+    events: [
+      { key: 'DriverNewDispatch',         label: 'New Job Dispatched',         email: true,  sms: true  },
+      { key: 'DriverAcceptedAssignment',  label: 'Acceptance Confirmed',       email: true,  sms: true  },
+      { key: 'DriverRejectedAssignment',  label: 'Rejection Recorded',         email: false, sms: true  },
+      { key: 'AssignmentCancelled',       label: 'Job Cancelled',              email: true,  sms: true  },
+      { key: 'DriverPayUpdated',          label: 'Pay Updated',                email: true,  sms: true  },
+      { key: 'DriverDocExpiry30',         label: 'Document Expiry (30 days)',  email: true,  sms: true  },
+      { key: 'DriverDocExpiry7',          label: 'Document Expiry (7 days)',   email: true,  sms: true  },
+      { key: 'DriverAccountSuspended',    label: 'Account Suspended',          email: true,  sms: true  },
+      { key: 'DriverDocApproved',         label: 'Document Approved',          email: true,  sms: true  },
+      { key: 'DriverDocRejected',         label: 'Document Rejected',          email: true,  sms: true  },
+    ],
+  },
+  {
+    group: '🏢 Admin',
+    events: [
+      { key: 'AdminNewBooking',           label: 'New Booking (Widget)',       email: true,  sms: true  },
+      { key: 'AdminBookingPendingConfirm',label: 'Booking Pending Confirm',    email: true,  sms: true  },
+      { key: 'AdminDriverRejected',       label: 'Driver Rejected Job',        email: true,  sms: true  },
+      { key: 'AdminPartnerRejected',      label: 'Partner Rejected Transfer',  email: true,  sms: true  },
+      { key: 'AdminTransferRequest',      label: 'Incoming Transfer Request',  email: true,  sms: true  },
+      { key: 'AdminPartnerAccepted',      label: 'Partner Accepted Transfer',  email: true,  sms: true  },
+      { key: 'AdminCollabRequest',        label: 'Collab Request Received',    email: true,  sms: true  },
+      { key: 'AdminCollabApproved',       label: 'Collab Request Approved',    email: true,  sms: true  },
+      { key: 'AdminDriverReview',         label: 'Driver Review Result',       email: true,  sms: true  },
+      { key: 'AdminInvoicePaid',          label: 'Invoice Payment Received',   email: true,  sms: true  },
+      { key: 'AdminPaymentFailed',        label: 'Payment Failed (Admin)',     email: true,  sms: true  },
+      { key: 'AdminSettlement',           label: 'Settlement Completed',       email: true,  sms: true  },
+    ],
+  },
+  {
+    group: '⭐ Super Admin',
+    events: [
+      { key: 'SuperAdminDriverReview',    label: 'New Driver Review Request',  email: true,  sms: true  },
+      { key: 'SuperAdminCollabReview',    label: 'New Collab Review Request',  email: true,  sms: true  },
+      { key: 'SuperAdminNewTenant',       label: 'New Tenant Registered',      email: true,  sms: true  },
+    ],
+  },
 ];
 
+// Flatten for backward-compat
+const EVENTS = EVENT_GROUPS.flatMap(g => g.events);
+
 const VARIABLES = [
-  'booking_reference',
-  'customer_name',
-  'pickup_address',
-  'dropoff_address',
-  'pickup_time',
-  'driver_name',
-  'vehicle_make',
-  'vehicle_model',
-  'total_price',
+  'booking_reference', 'customer_name', 'pickup_address', 'dropoff_address',
+  'pickup_time', 'driver_name', 'vehicle_make', 'vehicle_model', 'total_price',
+  'otp', 'reset_link', 'refund_amount', 'invoice_number', 'amount', 'due_date',
+  'invoice_url', 'card_last4', 'payment_link', 'doc_type', 'expiry_date',
+  'days_remaining', 'reject_reason', 'driver_pay', 'partner_name',
+  'source_tenant', 'transfer_price', 'tenant_name', 'review_status', 'settlement_result',
 ];
 
 interface TemplateRow {
@@ -194,7 +248,11 @@ export default function TemplatesPage() {
       table={
         <div className="space-y-6">
           {isLoading && <div className="text-sm text-gray-500">Loading...</div>}
-          {EVENTS.map((event) => (
+          {EVENT_GROUPS.map((group) => (
+            <div key={group.group}>
+              <h3 className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3 mt-2">{group.group}</h3>
+              <div className="space-y-4">
+          {group.events.map((event) => (
             <div key={event.key} className="bg-white border rounded p-4 space-y-4">
               <div className="flex items-center justify-between">
                 <div className="text-sm font-semibold text-gray-800">{event.label}</div>
@@ -336,6 +394,9 @@ export default function TemplatesPage() {
                     </div>
                   )}
                 </div>
+              </div>
+            </div>
+          ))}
               </div>
             </div>
           ))}
