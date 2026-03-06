@@ -792,7 +792,7 @@ export function BookPageClient() {
             {/* Booking details */}
             {step === 'details' && (
               <form onSubmit={handleDetailsSubmit} className="space-y-5">
-                <h2 className="font-semibold text-[hsl(var(--foreground))]">Passenger Details</h2>
+                <h2 className="font-semibold text-[hsl(var(--foreground))]">Contact Details</h2>
 
                 {submitError && (
                   <div className="flex items-start gap-2 p-3 rounded-lg bg-[hsl(var(--destructive)/0.1)] border border-[hsl(var(--destructive)/0.3)] text-sm text-[hsl(var(--destructive))]">
