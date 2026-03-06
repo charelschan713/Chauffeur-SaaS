@@ -53,6 +53,8 @@ interface QuoteSession {
         surcharge_minor: number;
         grand_total_minor: number;
         minimum_applied: boolean;
+        discount_amount_minor?: number;
+        pre_discount_total_minor?: number;
       };
     }>;
     currency: string;
@@ -250,6 +252,9 @@ export function BookPageClient() {
   const quoteId    = searchParams.get('quote_id');
   const carTypeId  = searchParams.get('car_type_id');
 
+  const [step, setStep]             = useState<Step>('loading');
+  const [session, setSession]       = useState<QuoteSession | null>(null);
+
   // Load tenant Stripe publishable key dynamically
   useEffect(() => {
     if (!session?.tenant_id) return;
@@ -262,9 +267,6 @@ export function BookPageClient() {
       })
       .catch(() => {});
   }, [session?.tenant_id]);
-
-  const [step, setStep]             = useState<Step>('loading');
-  const [session, setSession]       = useState<QuoteSession | null>(null);
   const [selectedResult, setSelectedResult] = useState<QuoteSession['payload']['results'][0] | null>(null);
   const [guestData, setGuestData]           = useState<any>(null);
 
@@ -318,13 +320,6 @@ export function BookPageClient() {
     }
   }, [countdown.expired, step]);
 
-  // Fetch loyalty discount once logged in and result is available
-  useEffect(() => {
-    if (token && selectedResult && (step === 'details' || step === 'card')) {
-      fetchLoyaltyDiscount();
-    }
-  }, [token, selectedResult, step, fetchLoyaltyDiscount]);
-
   // ── Fetch loyalty discount after login ──
   const fetchLoyaltyDiscount = useCallback(async () => {
     if (!quoteId || !selectedResult) return;
@@ -346,6 +341,13 @@ export function BookPageClient() {
       // Non-critical — proceed without loyalty adjustment
     }
   }, [quoteId, selectedResult]);
+
+  // Fetch loyalty discount once logged in and result is available
+  useEffect(() => {
+    if (token && selectedResult && (step === 'details' || step === 'card')) {
+      fetchLoyaltyDiscount();
+    }
+  }, [token, selectedResult, step, fetchLoyaltyDiscount]);
 
   // ── Submit booking details ──
   const handleDetailsSubmit = useCallback(async (e: React.FormEvent) => {
