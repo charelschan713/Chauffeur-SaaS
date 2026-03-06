@@ -256,12 +256,15 @@ function InlineLoginForm({ onSuccess, onBack }: { onSuccess: () => void; onBack:
 
 // ── Guest form ─────────────────────────────────────────────────────────────
 function GuestForm({ onSuccess, onBack }: { onSuccess: (guestData: any) => void; onBack: () => void }) {
-  const [form, setForm] = useState({ firstName: '', lastName: '', email: '', phone: '' });
+  const [form, setForm] = useState({ firstName: '', lastName: '', email: '', phoneCode: '+61', phoneNumber: '' });
   const f = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm(p => ({ ...p, [k]: e.target.value }));
 
   return (
-    <form onSubmit={e => { e.preventDefault(); onSuccess(form); }} className="space-y-3">
+    <form onSubmit={e => {
+      e.preventDefault();
+      onSuccess({ ...form, phone: `${form.phoneCode}${form.phoneNumber}` });
+    }} className="space-y-3">
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1.5">
           <Label>First Name *</Label>
@@ -278,7 +281,10 @@ function GuestForm({ onSuccess, onBack }: { onSuccess: (guestData: any) => void;
       </div>
       <div className="space-y-1.5">
         <Label>Phone</Label>
-        <Input type="tel" value={form.phone} onChange={f('phone')} placeholder="+61 400 000 000" />
+        <div className="flex gap-2">
+          <Input className="w-20 shrink-0" value={form.phoneCode} onChange={f('phoneCode')} placeholder="+61" />
+          <Input type="tel" className="flex-1" value={form.phoneNumber} onChange={f('phoneNumber')} placeholder="400 000 000" />
+        </div>
       </div>
       <div className="flex gap-3 pt-1">
         <Button type="submit" size="lg" className="flex-1">Continue</Button>
@@ -358,7 +364,7 @@ export function BookPageClient() {
 
   // Passenger details (pre-filled from profile or guest form)
   const [passengerDetails, setPassengerDetails] = useState({
-    firstName: '', lastName: '', email: '', phone: '',
+    firstName: '', lastName: '', email: '', phoneCode: '+61', phoneNumber: '',
   });
 
   // Extra booking details
@@ -433,19 +439,24 @@ export function BookPageClient() {
   // Pre-fill passenger details from profile (logged-in) or guestData
   useEffect(() => {
     if (guestData) {
+      // Guest phone may be combined (e.g. "+61400000000") — split out the code
+      const rawPhone: string = guestData.phone ?? '';
+      const codeMatch = rawPhone.match(/^(\+\d{1,3})(.*)/);
       setPassengerDetails({
-        firstName: guestData.firstName ?? '',
-        lastName:  guestData.lastName  ?? '',
-        email:     guestData.email     ?? '',
-        phone:     guestData.phone     ?? '',
+        firstName:   guestData.firstName ?? '',
+        lastName:    guestData.lastName  ?? '',
+        email:       guestData.email     ?? '',
+        phoneCode:   codeMatch ? codeMatch[1] : '+61',
+        phoneNumber: codeMatch ? codeMatch[2].trim() : rawPhone,
       });
     } else if (token) {
       api.get('/customer-portal/profile').then(({ data }) => {
         setPassengerDetails({
-          firstName: data.first_name   ?? '',
-          lastName:  data.last_name    ?? '',
-          email:     data.email        ?? '',
-          phone:     data.phone_number ?? '',
+          firstName:   data.first_name          ?? '',
+          lastName:    data.last_name           ?? '',
+          email:       data.email               ?? '',
+          phoneCode:   data.phone_country_code  ?? '+61',
+          phoneNumber: data.phone_number        ?? '',
         });
       }).catch(() => {});
     }
@@ -487,13 +498,13 @@ export function BookPageClient() {
         setupIntentId,
         passengerFirstName: passengerDetails.firstName || undefined,
         passengerLastName:  passengerDetails.lastName  || undefined,
-        passengerPhone:     passengerDetails.phone     || undefined,
+        passengerPhone:     (passengerDetails.phoneCode + passengerDetails.phoneNumber).trim() || undefined,
         ...(guestData && {
           guestCheckout: true,
           firstName: passengerDetails.firstName || guestData.firstName,
           lastName:  passengerDetails.lastName  || guestData.lastName,
           email:     passengerDetails.email     || guestData.email,
-          phone:     passengerDetails.phone     || guestData.phone,
+          phone:     (passengerDetails.phoneCode + passengerDetails.phoneNumber).trim() || guestData.phone,
         }),
       };
 
@@ -968,12 +979,21 @@ export function BookPageClient() {
                 {/* Phone */}
                 <div className="space-y-1.5">
                   <Label>Phone <span className="text-[hsl(var(--muted-foreground))] font-normal normal-case">(optional)</span></Label>
-                  <Input
-                    type="tel"
-                    value={passengerDetails.phone}
-                    onChange={e => setPassengerDetails(p => ({ ...p, phone: e.target.value }))}
-                    placeholder="+61 400 000 000"
-                  />
+                  <div className="flex gap-2">
+                    <Input
+                      className="w-20 shrink-0"
+                      value={passengerDetails.phoneCode}
+                      onChange={e => setPassengerDetails(p => ({ ...p, phoneCode: e.target.value }))}
+                      placeholder="+61"
+                    />
+                    <Input
+                      type="tel"
+                      className="flex-1"
+                      value={passengerDetails.phoneNumber}
+                      onChange={e => setPassengerDetails(p => ({ ...p, phoneNumber: e.target.value }))}
+                      placeholder="400 000 000"
+                    />
+                  </div>
                 </div>
 
                 <div className="border-t border-[hsl(var(--border))] pt-4 space-y-4">
