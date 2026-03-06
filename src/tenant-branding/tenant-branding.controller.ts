@@ -21,25 +21,33 @@ export class TenantBrandingController {
   async upsert(@Req() req: any, @Body() body: any) {
     const [row] = await this.db.query(
       `INSERT INTO public.tenant_branding
-         (tenant_id, logo_url, primary_color, company_name, contact_email, contact_phone, custom_domain, updated_at)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,now())
+         (tenant_id, logo_url, primary_color, primary_foreground, font_family,
+          company_name, contact_email, contact_phone, custom_domain,
+          cancel_window_hours, updated_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,now())
        ON CONFLICT (tenant_id) DO UPDATE
-         SET logo_url=EXCLUDED.logo_url,
-             primary_color=EXCLUDED.primary_color,
-             company_name=EXCLUDED.company_name,
-             contact_email=EXCLUDED.contact_email,
-             contact_phone=EXCLUDED.contact_phone,
-             custom_domain=EXCLUDED.custom_domain,
-             updated_at=now()
+         SET logo_url              = EXCLUDED.logo_url,
+             primary_color         = EXCLUDED.primary_color,
+             primary_foreground    = EXCLUDED.primary_foreground,
+             font_family           = EXCLUDED.font_family,
+             company_name          = EXCLUDED.company_name,
+             contact_email         = EXCLUDED.contact_email,
+             contact_phone         = EXCLUDED.contact_phone,
+             custom_domain         = EXCLUDED.custom_domain,
+             cancel_window_hours   = EXCLUDED.cancel_window_hours,
+             updated_at            = now()
        RETURNING *`,
       [
         req.user.tenant_id,
-        body.logoUrl ?? null,
-        body.primaryColor ?? '#2563eb',
-        body.companyName ?? null,
-        body.contactEmail ?? null,
-        body.contactPhone ?? null,
-        body.customDomain ?? null,
+        body.logoUrl            ?? null,
+        body.primaryColor       ?? null,
+        body.primaryForeground  ?? null,
+        body.fontFamily         ?? null,
+        body.companyName        ?? null,
+        body.contactEmail       ?? null,
+        body.contactPhone       ?? null,
+        body.customDomain       ?? null,
+        body.cancelWindowHours  ?? null,
       ],
     );
     return row;
