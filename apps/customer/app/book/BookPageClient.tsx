@@ -729,12 +729,18 @@ export function BookPageClient() {
                     {submitError}
                   </div>
                 )}
-                <Elements stripe={stripePromise}>
-                  <CardSetupForm
-                    onSuccess={handleCardConfirmed}
-                    onCancel={() => setStep('details')}
-                  />
-                </Elements>
+                {stripePromise ? (
+                  <Elements stripe={stripePromise}>
+                    <CardSetupForm
+                      onSuccess={handleCardConfirmed}
+                      onCancel={() => setStep('details')}
+                    />
+                  </Elements>
+                ) : (
+                  <div className="flex items-center justify-center py-8 text-sm text-muted-foreground gap-2">
+                    <Spinner className="h-4 w-4" /> Loading payment…
+                  </div>
+                )}
               </div>
             )}
 
