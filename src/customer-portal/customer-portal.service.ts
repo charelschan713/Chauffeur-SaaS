@@ -110,11 +110,17 @@ export class CustomerPortalService {
   ) {
     const limit = Math.min(Number(query.limit ?? 20), 100);
     const offset = Number(query.offset ?? 0);
-    const params: any[] = [customerId, tenantId];
-    let where = `WHERE b.customer_id=$1 AND b.tenant_id=$2`;
+    // Get customer email for matching unlinked bookings
+    const custRows = await this.db.query(
+      `SELECT email FROM public.customers WHERE id=$1 LIMIT 1`, [customerId],
+    );
+    const custEmail = custRows[0]?.email ?? '';
+
+    const params: any[] = [customerId, tenantId, custEmail];
+    let where = `WHERE (b.customer_id=$1 OR (b.customer_id IS NULL AND b.customer_email=$3)) AND b.tenant_id=$2`;
     if (query.status) {
       params.push(query.status);
-      where += ` AND b.status=$${params.length}`;
+      where += ` AND b.operational_status=$${params.length}`;
     }
     const [rows, cnt] = await Promise.all([
       this.db.query(
@@ -137,12 +143,41 @@ export class CustomerPortalService {
 
   // ── Booking detail ────────────────────────────────────────────────────────
   async getBooking(customerId: string, tenantId: string, bookingId: string) {
-    const rows = await this.db.query(
+    // First try: exact customer_id match
+    let rows = await this.db.query(
       `SELECT b.*
        FROM public.bookings b
        WHERE b.id=$1 AND b.customer_id=$2 AND b.tenant_id=$3`,
       [bookingId, customerId, tenantId],
     );
+
+    // Fallback: booking has no customer_id yet — match by tenant + id
+    // then verify email matches (so customers can't see each other's bookings)
+    if (!rows.length) {
+      const customerRows = await this.db.query(
+        `SELECT email FROM public.customers WHERE id=$1 LIMIT 1`,
+        [customerId],
+      );
+      const email = customerRows[0]?.email;
+      if (email) {
+        rows = await this.db.query(
+          `SELECT b.*
+           FROM public.bookings b
+           WHERE b.id=$1 AND b.tenant_id=$2
+             AND b.customer_id IS NULL
+             AND b.customer_email = $3`,
+          [bookingId, tenantId, email],
+        );
+        // If found, retroactively link this booking to the customer
+        if (rows.length) {
+          await this.db.query(
+            `UPDATE public.bookings SET customer_id=$1 WHERE id=$2`,
+            [customerId, bookingId],
+          ).catch(() => {});
+        }
+      }
+    }
+
     if (!rows.length) throw new NotFoundException('Booking not found');
     return rows[0];
   }
