@@ -400,6 +400,17 @@ export class CustomerPortalService {
     );
   }
 
+  /** Public setup intent for guest checkout — no Stripe customer created, just a bare intent */
+  async createGuestSetupIntent(tenantSlug: string) {
+    const tenant = await this.getTenantInfo(tenantSlug);
+    const stripe = await this.getStripe(tenant.id);
+    const si = await stripe.setupIntents.create({
+      payment_method_types: ['card'],
+      usage: 'off_session',
+    });
+    return { clientSecret: si.client_secret };
+  }
+
   async createSetupIntent(customerId: string, tenantId: string) {
     const stripe = await this.getStripe(tenantId);
 

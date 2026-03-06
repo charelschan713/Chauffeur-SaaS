@@ -175,6 +175,12 @@ export class CustomerPortalController {
     return this.svc.listPaymentMethods(req.customer.sub, req.customer.tenant_id);
   }
 
+  /** Public endpoint — for guest checkout (no auth required) */
+  @Post('payments/guest-setup-intent')
+  createGuestSetupIntent(@Body() body: { slug: string }) {
+    return this.svc.createGuestSetupIntent(body.slug);
+  }
+
   @Post('payments/setup-intent')
   @UseGuards(CustomerAuthGuard)
   createSetupIntent(@Req() req: any) {

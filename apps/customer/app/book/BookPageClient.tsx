@@ -89,21 +89,52 @@ function useCountdown(expiresAt: string) {
 }
 
 // ── Card setup form ────────────────────────────────────────────────────────
-function CardSetupForm({ onSuccess, onCancel }: { onSuccess: (setupIntentId: string) => void; onCancel: () => void }) {
+function CardSetupForm({ onSuccess, onCancel, isGuest, guestName }: {
+  onSuccess: (setupIntentId: string) => void;
+  onCancel: () => void;
+  isGuest?: boolean;
+  guestName?: string;
+}) {
   const stripe   = useStripe();
   const elements = useElements();
-  const [loading, setLoading] = useState(false);
-  const [error, setError]     = useState('');
+  const { token } = useAuthStore();
+  const [loading, setLoading]       = useState(false);
+  const [error, setError]           = useState('');
+  const [cardholderName, setCardholderName] = useState(guestName ?? '');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!stripe || !elements) return;
+    if (!cardholderName.trim()) { setError('Please enter the name on your card.'); return; }
     setLoading(true);
     setError('');
     try {
-      const { data: si } = await api.post('/customer-portal/payments/setup-intent');
-      const { setupIntent, error: stripeErr } = await stripe.confirmCardSetup(si.clientSecret, {
-        payment_method: { card: elements.getElement(CardElement)! },
+      let clientSecret: string;
+      if (isGuest || !token) {
+        // Guest: use public endpoint (no auth)
+        const slug = typeof window !== 'undefined'
+          ? (document.cookie.split('; ').find(r => r.startsWith('tenant_slug='))?.split('=')[1]
+              || window.location.hostname.split('.')[0]
+              || 'aschauffeured')
+          : 'aschauffeured';
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL ?? 'https://chauffeur-saas-production.up.railway.app'}/customer-portal/payments/guest-setup-intent`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ slug }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message ?? 'Failed to initialise payment');
+        clientSecret = data.clientSecret;
+      } else {
+        const { data: si } = await api.post('/customer-portal/payments/setup-intent');
+        clientSecret = si.clientSecret;
+      }
+
+      const { setupIntent, error: stripeErr } = await stripe.confirmCardSetup(clientSecret, {
+        payment_method: {
+          card: elements.getElement(CardElement)!,
+          billing_details: { name: cardholderName.trim() },
+        },
       });
       if (stripeErr) throw new Error(stripeErr.message);
       if (!setupIntent || setupIntent.status !== 'succeeded') throw new Error('Card setup failed');
@@ -123,6 +154,16 @@ function CardSetupForm({ onSuccess, onCancel }: { onSuccess: (setupIntentId: str
           {error}
         </div>
       )}
+      <div>
+        <Label className="mb-2 block">Name on Card</Label>
+        <Input
+          value={cardholderName}
+          onChange={e => setCardholderName(e.target.value)}
+          placeholder="As it appears on your card"
+          required
+          autoComplete="cc-name"
+        />
+      </div>
       <div>
         <Label className="mb-2 block">Card Details</Label>
         <div className="rounded-[--radius] border border-[hsl(var(--input-border))] bg-[hsl(var(--input))] px-3 py-3.5">
@@ -976,6 +1017,8 @@ export function BookPageClient() {
                     <CardSetupForm
                       onSuccess={handleCardConfirmed}
                       onCancel={() => setStep('details')}
+                      isGuest={!!guestData}
+                      guestName={guestData ? `${guestData.firstName ?? ''} ${guestData.lastName ?? ''}`.trim() : undefined}
                     />
                   </Elements>
                 ) : (
