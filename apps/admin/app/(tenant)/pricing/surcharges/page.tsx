@@ -105,12 +105,12 @@ export default function SurchargesPage() {
 
   const statusPill = (active: boolean) => (
     <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-      active ? "bg-emerald-500/15 text-emerald-400" : "bg-white/8 text-muted-foreground"
+      active ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-gray-100 text-gray-500"
     }`}>{active ? "Active" : "Inactive"}</span>
   );
 
-  const inputCls = "w-full px-3 py-2 rounded-lg bg-[hsl(228,10%,11%)] border border-white/10 text-sm text-foreground focus:border-primary/60 focus:outline-none";
-  const labelCls = "block text-xs font-medium text-muted-foreground mb-1";
+  const inputCls = "w-full px-3 py-2 rounded-lg bg-white border border-gray-300 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500";
+  const labelCls = "block text-xs font-medium text-gray-600 mb-1";
 
   return (
     <div className="p-6 space-y-8">
@@ -118,8 +118,8 @@ export default function SurchargesPage() {
       <div>
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h2 className="text-lg font-semibold text-foreground">Time-Based Surcharges</h2>
-            <p className="text-sm text-muted-foreground">Late night, early morning, weekend premiums</p>
+            <h2 className="text-lg font-semibold text-gray-900">Time-Based Surcharges</h2>
+            <p className="text-sm text-gray-500">Late night, early morning, weekend premiums</p>
           </div>
           <Button onClick={() => { setEditingTime(null); setTimeForm(emptyTime()); setShowTimeForm(true); }}>
             + Add Rule
@@ -127,8 +127,8 @@ export default function SurchargesPage() {
         </div>
 
         {showTimeForm && (
-          <div className="mb-4 rounded-xl border border-white/10 bg-[hsl(228,10%,8%)] p-5 space-y-4">
-            <h3 className="text-sm font-semibold text-foreground">
+          <div className="mb-4 rounded-xl border border-gray-200 bg-gray-50 p-5 space-y-4">
+            <h3 className="text-sm font-semibold text-gray-900">
               {editingTime ? "Edit Time Rule" : "New Time Rule"}
             </h3>
             <div className="grid grid-cols-2 gap-4">
@@ -168,30 +168,30 @@ export default function SurchargesPage() {
             </div>
             <div className="flex gap-3 pt-1">
               <Button onClick={saveTime} disabled={saving}>{saving ? "Saving…" : editingTime ? "Update" : "Create"}</Button>
-              <button onClick={() => { setShowTimeForm(false); setEditingTime(null); }} className="text-sm text-muted-foreground hover:text-foreground transition-colors">Cancel</button>
+              <button onClick={() => { setShowTimeForm(false); setEditingTime(null); }} className="text-sm text-gray-500 hover:text-gray-900 transition-colors">Cancel</button>
             </div>
           </div>
         )}
 
-        <div className="rounded-xl border border-white/8 overflow-hidden">
+        <div className="rounded-xl border border-gray-200 overflow-hidden">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-white/8 bg-white/3">
-                <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">Rule</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">Days</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">Time Window</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">Surcharge</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">Status</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground">Actions</th>
+              <tr className="border-b border-gray-200 bg-gray-50">
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">Rule</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">Days</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">Time Window</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">Surcharge</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">Status</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5">
               {timeSurcharges.length === 0 ? (
-                <tr><td colSpan={6} className="px-4 py-8 text-center text-muted-foreground text-sm">No time rules yet</td></tr>
+                <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-500 text-sm">No time rules yet</td></tr>
               ) : timeSurcharges.map(s => (
-                <tr key={s.id} className="hover:bg-white/3 transition-colors">
-                  <td className="px-4 py-3 font-medium text-foreground">{s.name}</td>
-                  <td className="px-4 py-3 text-muted-foreground capitalize">{s.day_type === "ALL" ? "All days" : s.day_type.charAt(0)+s.day_type.slice(1).toLowerCase()+"s"}</td>
+                <tr key={s.id} className="hover:bg-gray-50 transition-colors">
+                  <td className="px-4 py-3 font-medium text-gray-900">{s.name}</td>
+                  <td className="px-4 py-3 text-gray-500 capitalize">{s.day_type === "ALL" ? "All days" : s.day_type.charAt(0)+s.day_type.slice(1).toLowerCase()+"s"}</td>
                   <td className="px-4 py-3 font-mono text-sm">{fmtTime(s.start_time)} – {fmtTime(s.end_time)}</td>
                   <td className="px-4 py-3 text-primary font-semibold">{surchargeLabel(s.surcharge_type, s.surcharge_value)}</td>
                   <td className="px-4 py-3">
@@ -206,15 +206,15 @@ export default function SurchargesPage() {
             </tbody>
           </table>
         </div>
-        <p className="text-xs text-muted-foreground/60 mt-2">💡 Overnight ranges work automatically — e.g. 23:00–05:00 wraps midnight correctly.</p>
+        <p className="text-xs text-gray-400 mt-2">💡 Overnight ranges work automatically — e.g. 23:00–05:00 wraps midnight correctly.</p>
       </div>
 
       {/* ── Public Holidays ──────────────────────────────────────── */}
       <div>
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h2 className="text-lg font-semibold text-foreground">Public Holidays</h2>
-            <p className="text-sm text-muted-foreground">Holiday surcharges applied automatically on matching dates</p>
+            <h2 className="text-lg font-semibold text-gray-900">Public Holidays</h2>
+            <p className="text-sm text-gray-500">Holiday surcharges applied automatically on matching dates</p>
           </div>
           <Button onClick={() => { setEditingHoliday(null); setHolidayForm(emptyHoliday()); setShowHolidayForm(true); }}>
             + Add Holiday
@@ -222,8 +222,8 @@ export default function SurchargesPage() {
         </div>
 
         {showHolidayForm && (
-          <div className="mb-4 rounded-xl border border-white/10 bg-[hsl(228,10%,8%)] p-5 space-y-4">
-            <h3 className="text-sm font-semibold text-foreground">
+          <div className="mb-4 rounded-xl border border-gray-200 bg-gray-50 p-5 space-y-4">
+            <h3 className="text-sm font-semibold text-gray-900">
               {editingHoliday ? "Edit Holiday" : "New Holiday"}
             </h3>
             <div className="grid grid-cols-2 gap-4">
@@ -258,31 +258,31 @@ export default function SurchargesPage() {
             </div>
             <div className="flex gap-3 pt-1">
               <Button onClick={saveHoliday} disabled={saving}>{saving ? "Saving…" : editingHoliday ? "Update" : "Create"}</Button>
-              <button onClick={() => { setShowHolidayForm(false); setEditingHoliday(null); }} className="text-sm text-muted-foreground hover:text-foreground transition-colors">Cancel</button>
+              <button onClick={() => { setShowHolidayForm(false); setEditingHoliday(null); }} className="text-sm text-gray-500 hover:text-gray-900 transition-colors">Cancel</button>
             </div>
           </div>
         )}
 
-        <div className="rounded-xl border border-white/8 overflow-hidden">
+        <div className="rounded-xl border border-gray-200 overflow-hidden">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-white/8 bg-white/3">
-                <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">Holiday</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">Date</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">Recurring</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">Surcharge</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">Status</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground">Actions</th>
+              <tr className="border-b border-gray-200 bg-gray-50">
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">Holiday</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">Date</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">Recurring</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">Surcharge</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">Status</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5">
               {holidays.length === 0 ? (
-                <tr><td colSpan={6} className="px-4 py-8 text-center text-muted-foreground text-sm">No holidays yet</td></tr>
+                <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-500 text-sm">No holidays yet</td></tr>
               ) : holidays.map(h => (
-                <tr key={h.id} className="hover:bg-white/3 transition-colors">
-                  <td className="px-4 py-3 font-medium text-foreground">{h.name}</td>
-                  <td className="px-4 py-3 text-muted-foreground">{fmtDate(h.date)}</td>
-                  <td className="px-4 py-3 text-muted-foreground">{h.recurring ? "↻ Annual" : "Once"}</td>
+                <tr key={h.id} className="hover:bg-gray-50 transition-colors">
+                  <td className="px-4 py-3 font-medium text-gray-900">{h.name}</td>
+                  <td className="px-4 py-3 text-gray-500">{fmtDate(h.date)}</td>
+                  <td className="px-4 py-3 text-gray-500">{h.recurring ? "↻ Annual" : "Once"}</td>
                   <td className="px-4 py-3 text-primary font-semibold">{surchargeLabel(h.surcharge_type, h.surcharge_value)}</td>
                   <td className="px-4 py-3">
                     <button onClick={() => toggleHoliday(h)}>{statusPill(h.is_active)}</button>
@@ -296,7 +296,7 @@ export default function SurchargesPage() {
             </tbody>
           </table>
         </div>
-        <p className="text-xs text-muted-foreground/60 mt-2">💡 Recurring holidays match by month/day each year. Non-recurring apply once on the exact date.</p>
+        <p className="text-xs text-gray-400 mt-2">💡 Recurring holidays match by month/day each year. Non-recurring apply once on the exact date.</p>
       </div>
     </div>
   );
