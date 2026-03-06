@@ -382,12 +382,18 @@ export function BookPageClient() {
   }, [token, guestData]);
 
   // ── Submit booking details ──
+  // Details step: just validate + move to card (no booking created yet)
   const handleDetailsSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     if (!session || !selectedResult) return;
-    setSubmitting(true);
     setSubmitError('');
+    setStep('card');
+  }, [session, selectedResult]);
 
+  // Card confirmed: NOW create the booking (only after payment card saved)
+  const handleCardConfirmed = useCallback(async (setupIntentId: string) => {
+    if (!session || !selectedResult) return;
+    setSubmitError('');
     try {
       const req = session.payload.request;
       const payload = {
@@ -408,7 +414,7 @@ export function BookPageClient() {
         toddlerSeats: req.toddler_seats ?? 0,
         boosterSeats: req.booster_seats ?? 0,
         quoteId: session.id,
-        // Passenger details (from form — may differ from account holder)
+        setupIntentId,
         passengerFirstName: passengerDetails.firstName || undefined,
         passengerLastName:  passengerDetails.lastName  || undefined,
         passengerPhone:     passengerDetails.phone     || undefined,
@@ -427,29 +433,15 @@ export function BookPageClient() {
 
       const { data } = await api.post(endpoint, payload);
       setCreatedBooking(data?.booking ?? data);
-      setStep('card');
-    } catch (err: any) {
-      setSubmitError(err.response?.data?.message ?? 'Failed to create booking');
-    } finally {
-      setSubmitting(false);
-    }
-  }, [session, selectedResult, flightNumber, specialRequests, guestData]);
 
-  // ── Card confirmed ──
-  const handleCardConfirmed = useCallback(async (setupIntentId: string) => {
-    try {
-      await api.post('/customer-portal/payments/setup-confirm', {
-        setupIntentId,
-        bookingId: createdBooking?.id,
-      });
       // Mark quote as converted
       await fetch(`${API_URL}/public/pricing/quote/${quoteId}`, { method: 'PATCH' }).catch(() => {});
       setStep('done');
     } catch (err: any) {
-      setSubmitError(err.response?.data?.message ?? 'Payment setup failed');
+      setSubmitError(err.response?.data?.message ?? 'Failed to create booking');
       setStep('details');
     }
-  }, [createdBooking, quoteId]);
+  }, [session, selectedResult, loyaltyDiscount, flightNumber, specialRequests, guestData, passengerDetails, quoteId]);
 
   // ── Render helpers ──
   const [cityName, setCityName]           = useState('');
