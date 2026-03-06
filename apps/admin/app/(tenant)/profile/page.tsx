@@ -119,7 +119,7 @@ export default function ProfilePage() {
     name: '', title: '', phone: '', email: '',
   };
   const emptyDomain = {
-    slug: '', custom_domain: '', booking_ref_prefix: '',
+    slug: '', custom_domain: '',
   };
 
   const [bizForm, setBizForm] = useState(emptyBiz);
@@ -150,7 +150,7 @@ export default function ProfilePage() {
       setDomainForm({
         slug: biz.slug ?? '',
         custom_domain: biz.custom_domain ?? '',
-        booking_ref_prefix: biz.booking_ref_prefix ?? '',
+
       });
     }
   }, [biz]);
@@ -422,22 +422,10 @@ export default function ProfilePage() {
       {activeTab === 'Domain & Branding' && (
         <div className="space-y-5">
           <Section title="Platform URLs">
-            <Field label="Booking Reference Prefix" hint="2–5 uppercase letters — shown at the start of every booking ref (e.g. ASC-A1B2C3D4)">
-              <div className="flex items-center gap-3">
-                <input
-                  className="w-32 border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono uppercase"
-                  value={domainForm.booking_ref_prefix}
-                  maxLength={5}
-                  onChange={e => setDomainForm(f => ({ ...f, booking_ref_prefix: e.target.value.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 5) }))}
-                  placeholder="ASC"
-                />
-                {domainForm.booking_ref_prefix && (
-                  <span className="text-sm text-gray-500">
-                    Preview: <span className="font-mono font-semibold text-gray-900">{domainForm.booking_ref_prefix}-A1B2C3D4</span>
-                  </span>
-                )}
-              </div>
-            </Field>
+            <div className="flex items-center gap-2 px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-700">
+              <span>⚙️</span>
+              <span>Booking Reference Prefix is managed by the platform. Contact your platform admin to change it.</span>
+            </div>
 
             <Field label="Tenant Slug" hint="Your unique identifier on the platform — contact support to change">
               <div className="flex items-center gap-2">
@@ -479,7 +467,7 @@ export default function ProfilePage() {
 
             <Button onClick={() => bizMutation.mutate({
                 custom_domain: domainForm.custom_domain || null,
-                booking_ref_prefix: domainForm.booking_ref_prefix || null,
+
               })}
               disabled={bizMutation.isPending}>
               {bizMutation.isPending ? <><InlineSpinner /> Saving…</> : 'Save Domain Settings'}
