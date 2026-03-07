@@ -118,8 +118,12 @@ export class CustomerPortalService {
 
     const params: any[] = [customerId, tenantId, custEmail];
     let where = `WHERE (b.customer_id=$1 OR (b.customer_id IS NULL AND b.customer_email=$3)) AND b.tenant_id=$2`;
-    if (query.status) {
-      params.push(query.status);
+    if (query.status === 'upcoming') {
+      where += ` AND b.pickup_at_utc >= NOW()`;
+    } else if (query.status === 'past') {
+      where += ` AND b.pickup_at_utc < NOW()`;
+    } else if (query.status) {
+      params.push(query.status.toUpperCase());
       where += ` AND b.operational_status=$${params.length}`;
     }
     const [rows, cnt] = await Promise.all([

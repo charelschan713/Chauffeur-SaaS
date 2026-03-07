@@ -2,6 +2,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
+import BottomNav from '@/components/BottomNav';
 
 export default function InvoicesPage() {
   const router = useRouter();
@@ -11,45 +12,71 @@ export default function InvoicesPage() {
   });
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white border-b border-gray-200 px-4 py-4">
+    <div className="min-h-screen bg-[hsl(var(--background))] pb-24">
+      {/* Header */}
+      <header className="bg-[hsl(var(--card))] border-b border-[hsl(var(--border))] px-4 py-4 sticky top-0 z-10">
         <div className="max-w-lg mx-auto flex items-center gap-3">
-          <button onClick={() => router.back()} className="text-gray-400 hover:text-gray-600 text-xl">←</button>
-          <h1 className="text-lg font-semibold text-gray-900">Invoices</h1>
+          <button
+            onClick={() => router.back()}
+            className="text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] transition-colors"
+          >
+            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7"/>
+            </svg>
+          </button>
+          <h1 className="text-lg font-semibold text-[hsl(var(--foreground))]">Invoices</h1>
         </div>
       </header>
-      <main className="max-w-lg mx-auto px-4 py-6">
+
+      <main className="max-w-lg mx-auto px-4 py-6 space-y-3">
         {isLoading ? (
-          <div className="flex justify-center py-12"><div className="animate-spin h-8 w-8 border-4 border-blue-600 border-t-transparent rounded-full" /></div>
+          <div className="flex justify-center py-16">
+            <div className="animate-spin h-8 w-8 border-2 border-[hsl(var(--primary))] border-t-transparent rounded-full" />
+          </div>
         ) : invoices.length === 0 ? (
-          <div className="text-center py-12 text-gray-400">
-            <p className="text-4xl mb-3">🧾</p>
-            <p>No invoices yet</p>
+          <div className="flex flex-col items-center justify-center py-20 gap-3 text-center">
+            <div className="text-5xl">🧾</div>
+            <p className="text-[hsl(var(--muted-foreground))] text-sm">No invoices yet</p>
           </div>
         ) : (
-          <div className="space-y-3">
-            {invoices.map((inv: any) => (
-              <div key={inv.id} className="bg-white rounded-xl border border-gray-200 p-4">
-                <div className="flex justify-between items-start mb-2">
-                  <span className="font-mono text-sm font-medium text-gray-900">{inv.invoice_number}</span>
-                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${inv.status === 'PAID' ? 'bg-green-100 text-green-800' : inv.status === 'OVERDUE' ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-600'}`}>
-                    {inv.status}
-                  </span>
-                </div>
-                <div className="flex justify-between text-sm text-gray-500">
-                  <span>Issued {new Date(inv.issued_at).toLocaleDateString()}</span>
-                  <span className="font-semibold text-gray-900">
-                    {((inv.total_minor ?? 0) / 100).toFixed(2)} {inv.currency}
-                  </span>
-                </div>
-                {inv.due_date && (
-                  <p className="text-xs text-gray-400 mt-1">Due {new Date(inv.due_date).toLocaleDateString()}</p>
-                )}
+          invoices.map((inv: any) => (
+            <div
+              key={inv.id}
+              className="bg-[hsl(var(--card))] rounded-2xl border border-[hsl(var(--border))] p-4 space-y-2"
+            >
+              <div className="flex justify-between items-center">
+                <span className="font-mono text-sm font-semibold text-[hsl(var(--foreground))]">
+                  {inv.invoice_number}
+                </span>
+                <span className={`text-xs px-2.5 py-0.5 rounded-full font-medium border ${
+                  inv.status === 'PAID'
+                    ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                    : inv.status === 'OVERDUE'
+                    ? 'bg-red-500/10 text-red-400 border-red-500/20'
+                    : 'bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))] border-[hsl(var(--border))]'
+                }`}>
+                  {inv.status}
+                </span>
               </div>
-            ))}
-          </div>
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-[hsl(var(--muted-foreground))]">
+                  Issued {new Date(inv.issue_date ?? inv.issued_at).toLocaleDateString('en-AU')}
+                </span>
+                <span className="font-semibold text-[hsl(var(--primary))]">
+                  ${((inv.total_minor ?? 0) / 100).toFixed(2)} {inv.currency}
+                </span>
+              </div>
+              {inv.due_date && (
+                <p className="text-xs text-[hsl(var(--muted-foreground)/0.6)]">
+                  Due {new Date(inv.due_date).toLocaleDateString('en-AU')}
+                </p>
+              )}
+            </div>
+          ))
         )}
       </main>
+
+      <BottomNav />
     </div>
   );
 }
