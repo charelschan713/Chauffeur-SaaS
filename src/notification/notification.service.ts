@@ -609,9 +609,10 @@ export class NotificationService {
       special_requests: booking.special_requests ?? '',
       flight_number: booking.flight_number ?? '',
       currency,
-      base_fare: NotificationService.formatMinor(snapshot.subtotalMinor ?? snapshot.totalPriceMinor ?? 0),
-      toll_parking_total: NotificationService.formatMinor(snapshot.toll_parking_minor ?? 0),
-      total_amount: booking.total_amount ?? NotificationService.formatMinor(booking.total_price_minor ?? 0),
+      car_type_name: booking.car_type_name ?? booking.vehicle_make ?? '',
+      base_fare: NotificationService.formatMinor(snapshot.subtotalMinor ?? snapshot.base_price_minor ?? snapshot.totalPriceMinor ?? booking.total_price_minor ?? 0),
+      toll_parking_total: NotificationService.formatMinor((snapshot.toll_minor ?? 0) + (snapshot.parking_minor ?? 0) + (snapshot.toll_parking_minor ?? 0)),
+      total_amount: NotificationService.formatMinor(booking.total_price_minor ?? 0),
       driver_name: driver?.full_name ?? driver?.name ?? '',
       vehicle_make: booking.vehicle_make ?? '',
       vehicle_model: booking.vehicle_model ?? '',
@@ -748,6 +749,7 @@ export class NotificationService {
     const rows = await this.dataSource.query(
       `SELECT
           b.id,
+          b.tenant_id,
           b.booking_reference,
           b.pickup_address_text,
           b.dropoff_address_text,
@@ -760,20 +762,24 @@ export class NotificationService {
           b.customer_phone_number,
           b.currency,
           b.total_price_minor,
+          b.passenger_count,
+          b.luggage_count,
+          b.special_requests,
+          b.pricing_snapshot,
+          b.service_class_id,
+          sc.name AS car_type_name,
+          sc.name AS vehicle_make,
+          NULL::text AS vehicle_model,
           COALESCE(b.passenger_first_name, b.customer_first_name) AS passenger_name,
           COALESCE(b.passenger_phone_country_code, b.customer_phone_country_code) AS passenger_phone_country_code,
           COALESCE(b.passenger_phone_number, b.customer_phone_number) AS passenger_phone_number,
-          b.service_class_id,
-          sc.name as city_name,
-          sc.name as vehicle_make,
-          NULL::text as vehicle_model,
           to_char(b.pickup_at_utc AT TIME ZONE COALESCE(b.timezone, 'UTC'), 'Dy DD Mon YYYY HH12:MI AM') AS pickup_time_local
        FROM public.bookings b
        LEFT JOIN public.tenant_service_classes sc ON sc.id = b.service_class_id
        WHERE b.id = $1
        LIMIT 1`,
       [id],
-    ).catch(() => []);
+    ).catch((e) => { console.error('[getBooking] query failed:', e?.message); return []; });
     return rows[0] ?? null;
   }
 

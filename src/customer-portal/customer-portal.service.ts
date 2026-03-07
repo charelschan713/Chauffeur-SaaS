@@ -331,6 +331,9 @@ export class CustomerPortalService {
       `UPDATE public.bookings SET operational_status='CANCELLED', updated_at=now() WHERE id=$1`,
       [bookingId],
     );
+    // Fire cancellation notification (non-blocking)
+    this.notificationService.handleEvent('BookingCancelled', { tenant_id: tenantId, booking_id: bookingId })
+      .catch((e) => console.error('[Notification] BookingCancelled FAILED:', e?.message ?? e));
     return { success: true };
   }
 

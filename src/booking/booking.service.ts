@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { PricingResolver } from '../pricing/pricing.resolver';
+import { NotificationService } from '../notification/notification.service';
 import { randomUUID } from 'crypto';
 
 @Injectable()
@@ -8,6 +9,7 @@ export class BookingService {
   constructor(
     private readonly dataSource: DataSource,
     private readonly pricing: PricingResolver,
+    private readonly notificationService: NotificationService,
   ) {}
 
   async listBookings(tenantId: string, query: Record<string, any>) {
@@ -396,6 +398,10 @@ export class BookingService {
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
         [randomUUID(), tenantId, bookingId, booking.operational_status, 'CANCELLED', actor, null, new Date().toISOString()],
       );
+
+      // Fire cancellation notification (non-blocking)
+      this.notificationService.handleEvent('BookingCancelled', { tenant_id: tenantId, booking_id: bookingId })
+        .catch((e) => console.error('[Notification] BookingCancelled FAILED:', e?.message ?? e));
 
       return { success: true };
     });
