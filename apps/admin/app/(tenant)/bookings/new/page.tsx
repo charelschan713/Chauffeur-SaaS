@@ -332,11 +332,11 @@ export default function CreateBookingPage() {
         const v = values;
         const isPassengerCustomer = v.passenger_is_customer;
         const pFirstName = isPassengerCustomer
-          ? payload.customer.firstName
-          : (v.passenger_first_name ?? payload.customer.firstName);
+          ? payload.customer_first_name
+          : (v.passenger_first_name ?? payload.customer_first_name);
         const pLastName = isPassengerCustomer
-          ? payload.customer.lastName
-          : (v.passenger_last_name ?? payload.customer.lastName);
+          ? payload.customer_last_name
+          : (v.passenger_last_name ?? payload.customer_last_name);
         const pPhoneCountry = isPassengerCustomer
           ? (v.customer_phone_country_code || '+61')
           : (v.passenger_phone_country_code || '+61');
