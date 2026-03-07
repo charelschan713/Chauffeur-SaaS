@@ -271,7 +271,8 @@ function GuestForm({ onSuccess, onBack }: { onSuccess: (guestData: any) => void;
 }
 
 // ── Main component ─────────────────────────────────────────────────────────
-type Step = 'loading' | 'expired' | 'auth' | 'login' | 'guest' | 'details' | 'done';
+// 'expired' removed — expiry is now shown as an inline banner, not a full-page redirect
+type Step = 'loading' | 'auth' | 'login' | 'guest' | 'details' | 'done';
 
 export function BookPageClient() {
   const router       = useRouter();
@@ -283,6 +284,7 @@ export function BookPageClient() {
 
   const [step, setStep]             = useState<Step>('loading');
   const [session, setSession]       = useState<QuoteSession | null>(null);
+  const [quoteError, setQuoteError] = useState<string | null>(null); // inline error banner, no redirect
 
   // Stripe promise — loaded dynamically so we always get the real key
   const [stripePromise, setStripePromise] = useState<ReturnType<typeof loadStripe> | null>(null);
@@ -369,13 +371,20 @@ export function BookPageClient() {
 
   // Load quote session
   useEffect(() => {
-    if (!quoteId) { setStep('expired'); return; }
+    if (!quoteId) {
+      setQuoteError('No quote found. Please start a new quote.');
+      setStep('details');
+      return;
+    }
     fetch(`${API_URL}/public/pricing/quote/${quoteId}`)
       .then(r => r.ok ? r.json() : null)
       .then(data => {
-        if (!data) { setStep('expired'); return; }
+        if (!data) {
+          setQuoteError('This quote is no longer valid. You can still proceed or get a new quote.');
+          setStep('details');
+          return;
+        }
         setSession(data);
-        // Find the selected car type result
         const result = data.payload.results.find((r: any) => r.service_class_id === carTypeId)
           ?? data.payload.results[0];
         setSelectedResult(result);
@@ -383,13 +392,16 @@ export function BookPageClient() {
           setStep('details');
         } else setStep('auth');
       })
-      .catch(() => setStep('expired'));
+      .catch(() => {
+        setQuoteError('Could not load quote. Please check your connection.');
+        setStep('details');
+      });
   }, [quoteId, carTypeId, token]);
 
-  // Handle quote expiry
+  // Handle quote expiry — show inline banner, don't redirect
   useEffect(() => {
-    if (countdown.expired && step !== 'loading' && step !== 'expired' && step !== 'done') {
-      setStep('expired');
+    if (countdown.expired && step !== 'loading' && step !== 'done') {
+      setQuoteError('Your quote has expired. Prices may have changed — tap "Refresh Quote" to get updated pricing.');
     }
   }, [countdown.expired, step]);
 
@@ -866,24 +878,7 @@ export function BookPageClient() {
     );
   }
 
-  if (step === 'expired') {
-    return (
-      <div className="min-h-screen bg-[hsl(var(--background))] flex items-center justify-center px-4">
-        <div className="max-w-sm w-full text-center space-y-4">
-          <div className="w-16 h-16 rounded-full bg-[hsl(var(--muted))] flex items-center justify-center mx-auto">
-            <Timer className="h-8 w-8 text-[hsl(var(--muted-foreground))]" />
-          </div>
-          <h1 className="font-serif text-xl font-medium text-[hsl(var(--foreground))]">Quote Expired</h1>
-          <p className="text-sm text-[hsl(var(--muted-foreground))]">
-            This quote has expired or is no longer valid. Please return to get a new quote.
-          </p>
-          <Button size="lg" className="w-full" onClick={() => router.push('/quote')}>
-            Get a New Quote
-          </Button>
-        </div>
-      </div>
-    );
-  }
+  // 'expired' step removed — handled inline via quoteError banner
 
   if (step === 'done') {
     return (
@@ -939,6 +934,25 @@ export function BookPageClient() {
       </header>
 
       <main className="max-w-lg mx-auto px-4 py-5 space-y-4" style={{ paddingBottom: 'calc(32px + env(safe-area-inset-bottom, 0px))' }}>
+
+        {/* Inline error/expiry banner — never redirects, keeps form intact */}
+        {quoteError && (
+          <div className="flex items-start gap-3 p-4 rounded-2xl bg-amber-500/10 border border-amber-500/25">
+            <Timer className="h-5 w-5 text-amber-400 shrink-0 mt-0.5" />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm text-amber-300 leading-snug">{quoteError}</p>
+              <button
+                onClick={() => router.push('/quote')}
+                className="mt-2 text-xs font-semibold text-amber-400 underline underline-offset-2"
+              >
+                Get a new quote →
+              </button>
+            </div>
+            <button onClick={() => setQuoteError(null)} className="text-amber-400/50 hover:text-amber-400 transition-colors">
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+          </div>
+        )}
 
         {/* Quote Summary — always visible */}
         {renderQuoteSummary()}
