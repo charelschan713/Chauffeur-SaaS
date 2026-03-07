@@ -40,6 +40,8 @@ interface QuoteSession {
       infant_seats?: number;
       toddler_seats?: number;
       booster_seats?: number;
+      waypoints?: string[];
+      waypoints_count?: number;
       return_date?: string;
       return_time?: string;
       return_pickup_at_utc?: string;
@@ -61,6 +63,8 @@ interface QuoteSession {
         extras_minor?: number;
         waypoints_minor?: number;
         baby_seats_minor?: number;
+        toll_minor?: number;
+        parking_minor?: number;
       };
     }>;
     currency: string;
@@ -735,9 +739,9 @@ export function BookPageClient() {
                   {req.luggage_count} bags
                 </span>
               )}
-              {(req.infant_seats ?? 0) > 0 && <span>🧷 {req.infant_seats} infant</span>}
-              {(req.toddler_seats ?? 0) > 0 && <span>🪑 {req.toddler_seats} toddler</span>}
-              {(req.booster_seats ?? 0) > 0 && <span>💺 {req.booster_seats} booster</span>}
+              {(req.infant_seats ?? 0) > 0 && <span>🧷 {req.infant_seats}× infant seat (0–6m)</span>}
+              {(req.toddler_seats ?? 0) > 0 && <span>🪑 {req.toddler_seats}× toddler seat (0–4yr)</span>}
+              {(req.booster_seats ?? 0) > 0 && <span>💺 {req.booster_seats}× booster seat (4–8yr)</span>}
             </div>
           </div>
 
@@ -752,14 +756,26 @@ export function BookPageClient() {
               )}
               {(preview.waypoints_minor ?? 0) > 0 && (
                 <div className="flex justify-between text-[hsl(var(--muted-foreground))]">
-                  <span>+ Waypoint stops</span>
+                  <span>+ {req.waypoints?.filter(Boolean).length ?? 1} waypoint stop{(req.waypoints?.filter(Boolean).length ?? 1) > 1 ? 's' : ''}</span>
                   <span>+{fmtMoney(preview.waypoints_minor!, selectedResult.currency)}</span>
                 </div>
               )}
-              {(preview.baby_seats_minor ?? 0) > 0 && (
+              {(req.infant_seats ?? 0) > 0 && (
                 <div className="flex justify-between text-[hsl(var(--muted-foreground))]">
-                  <span>+ Baby seats</span>
-                  <span>+{fmtMoney(preview.baby_seats_minor!, selectedResult.currency)}</span>
+                  <span>+ {req.infant_seats}× infant seat (0–6m)</span>
+                  <span>+{fmtMoney(Math.round((preview.baby_seats_minor ?? 0) * (req.infant_seats ?? 0) / Math.max(1, (req.infant_seats ?? 0) + (req.toddler_seats ?? 0) + (req.booster_seats ?? 0))), selectedResult.currency)}</span>
+                </div>
+              )}
+              {(req.toddler_seats ?? 0) > 0 && (
+                <div className="flex justify-between text-[hsl(var(--muted-foreground))]">
+                  <span>+ {req.toddler_seats}× toddler seat (0–4yr)</span>
+                  <span>+{fmtMoney(Math.round((preview.baby_seats_minor ?? 0) * (req.toddler_seats ?? 0) / Math.max(1, (req.infant_seats ?? 0) + (req.toddler_seats ?? 0) + (req.booster_seats ?? 0))), selectedResult.currency)}</span>
+                </div>
+              )}
+              {(req.booster_seats ?? 0) > 0 && (
+                <div className="flex justify-between text-[hsl(var(--muted-foreground))]">
+                  <span>+ {req.booster_seats}× booster seat (4–8yr)</span>
+                  <span>+{fmtMoney(Math.round((preview.baby_seats_minor ?? 0) * (req.booster_seats ?? 0) / Math.max(1, (req.infant_seats ?? 0) + (req.toddler_seats ?? 0) + (req.booster_seats ?? 0))), selectedResult.currency)}</span>
                 </div>
               )}
               {preview.surcharge_minor > 0 && (
@@ -771,10 +787,23 @@ export function BookPageClient() {
                   <span>+{fmtMoney(preview.surcharge_minor, selectedResult.currency)}</span>
                 </div>
               )}
-              {preview.toll_parking_minor > 0 && (
+              {(preview.toll_minor ?? 0) > 0 && (
+                <div className="flex justify-between text-[hsl(var(--muted-foreground))]">
+                  <span className="flex items-center gap-1">🛣️ Road tolls</span>
+                  <span>+{fmtMoney(preview.toll_minor!, selectedResult.currency)}</span>
+                </div>
+              )}
+              {(preview.parking_minor ?? 0) > 0 && (
+                <div className="flex justify-between text-[hsl(var(--muted-foreground))]">
+                  <span className="flex items-center gap-1">🅿️ Airport parking</span>
+                  <span>+{fmtMoney(preview.parking_minor!, selectedResult.currency)}</span>
+                </div>
+              )}
+              {/* Fallback: if toll/parking not broken out separately */}
+              {preview.toll_parking_minor > 0 && !(preview.toll_minor ?? 0) && !(preview.parking_minor ?? 0) && (
                 <div className="flex justify-between text-[hsl(var(--muted-foreground))]">
                   <span>Tolls / Parking</span>
-                  <span>{fmtMoney(preview.toll_parking_minor, selectedResult.currency)}</span>
+                  <span>+{fmtMoney(preview.toll_parking_minor, selectedResult.currency)}</span>
                 </div>
               )}
               {/* Loyalty discount row */}
