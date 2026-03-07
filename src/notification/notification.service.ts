@@ -683,7 +683,27 @@ export class NotificationService {
     const brandedHtml = templateVars
       ? this.ascBrandedHtml(tenantId, eventType, templateVars)
       : null;
-    const finalOpts = brandedHtml ? { ...opts, html: brandedHtml } : opts;
+
+    // Resolve from address — fall back to tenant branding contact_email
+    let resolvedFrom = opts.fromAddress || integration.config?.from_address;
+    let resolvedFromName = opts.fromName || integration.config?.from_name;
+    if (!resolvedFrom) {
+      const [branding] = await this.dataSource.query(
+        `SELECT tb.contact_email, tb.company_name, t.name
+           FROM public.tenant_branding tb
+           JOIN public.tenants t ON t.id = tb.tenant_id
+          WHERE tb.tenant_id = $1 LIMIT 1`,
+        [tenantId],
+      ).catch(() => []);
+      resolvedFrom = branding?.contact_email ?? 'noreply@aschauffeured.com.au';
+      resolvedFromName = resolvedFromName ?? branding?.company_name ?? branding?.name ?? 'ASChauffeured';
+    }
+
+    const finalOpts = {
+      ...(brandedHtml ? { ...opts, html: brandedHtml } : opts),
+      fromAddress: resolvedFrom,
+      fromName: resolvedFromName,
+    };
     try {
       await this.emailProvider.send(integration, finalOpts);
       await this.logNotification({
