@@ -164,12 +164,15 @@ export class CustomerPortalService {
       );
       const email = customerRows[0]?.email;
       if (email) {
+        // Match bookings where: customer_id is NULL and email matches, OR customer_email matches
         rows = await this.db.query(
           `SELECT b.*
            FROM public.bookings b
            WHERE b.id=$1 AND b.tenant_id=$2
-             AND b.customer_id IS NULL
-             AND b.customer_email = $3`,
+             AND (
+               (b.customer_id IS NULL AND b.customer_email = $3)
+               OR b.customer_email = $3
+             )`,
           [bookingId, tenantId, email],
         );
         // If found, retroactively link this booking to the customer
