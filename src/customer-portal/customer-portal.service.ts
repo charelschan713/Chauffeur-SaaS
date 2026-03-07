@@ -6,10 +6,14 @@ import {
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 import Stripe from 'stripe';
+import { NotificationService } from '../notification/notification.service';
 
 @Injectable()
 export class CustomerPortalService {
-  constructor(@InjectDataSource() private readonly db: DataSource) {}
+  constructor(
+    @InjectDataSource() private readonly db: DataSource,
+    private readonly notificationService: NotificationService,
+  ) {}
 
   // ── Stripe helper ─────────────────────────────────────────────────────────
   private async getStripe(tenantId: string): Promise<Stripe> {
@@ -808,6 +812,12 @@ export class CustomerPortalService {
         [quoteSessionId],
       ).catch(() => {});
     }
+
+    // Fire notifications (non-blocking — never fail the booking on notification error)
+    const notifPayload = { tenant_id: tenantId, booking_id: booking.id };
+    this.notificationService.handleEvent('AdminNewBooking', notifPayload).catch(() => {});
+    this.notificationService.handleEvent('AdminBookingPendingConfirm', notifPayload).catch(() => {});
+    this.notificationService.handleEvent('BookingConfirmed', notifPayload).catch(() => {});
 
     return { booking, customerId };
   }

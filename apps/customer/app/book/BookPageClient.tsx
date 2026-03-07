@@ -905,9 +905,9 @@ export function BookPageClient() {
           </div>
 
           <div>
-            <h1 className="font-serif text-2xl font-semibold text-white">Booking Confirmed!</h1>
+            <h1 className="font-serif text-2xl font-semibold text-white">Thank You!</h1>
             <p className="text-sm text-white/50 mt-2 leading-relaxed">
-              Your booking has been received. We'll send a confirmation to your email shortly.
+              Your booking is confirmed. A confirmation email has been sent to your inbox.
             </p>
           </div>
 
