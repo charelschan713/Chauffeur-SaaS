@@ -303,6 +303,23 @@ export class CustomerPortalService {
       ).catch(() => {});
     }
 
+    // Record status history
+    await this.db.query(
+      `INSERT INTO public.booking_status_history
+         (id, tenant_id, booking_id, previous_status, new_status, triggered_by, reason, created_at)
+       VALUES (gen_random_uuid(),$1,$2,NULL,'PENDING_CUSTOMER_CONFIRMATION','CUSTOMER',NULL,now())`,
+      [tenantId, booking.id],
+    ).catch(() => {});
+
+    // Fire notifications (non-blocking)
+    const notifPayload = { tenant_id: tenantId, booking_id: booking.id };
+    this.notificationService.handleEvent('BookingConfirmed', notifPayload)
+      .catch((e) => console.error(`[Notification] BookingConfirmed FAILED:`, e?.message ?? e));
+    this.notificationService.handleEvent('AdminNewBooking', notifPayload)
+      .catch((e) => console.error(`[Notification] AdminNewBooking FAILED:`, e?.message ?? e));
+    this.notificationService.handleEvent('AdminBookingPendingConfirm', notifPayload)
+      .catch((e) => console.error(`[Notification] AdminBookingPendingConfirm FAILED:`, e?.message ?? e));
+
     return booking;
   }
 
