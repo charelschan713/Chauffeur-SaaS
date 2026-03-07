@@ -538,7 +538,7 @@ export function BookPageClient() {
       };
 
       const endpoint = guestData
-        ? '/customer-portal/guest-checkout'
+        ? '/customer-portal/guest/checkout'
         : '/customer-portal/bookings';
 
       const { data } = await api.post(endpoint, payload);
