@@ -750,7 +750,6 @@ export class NotificationService {
           b.booking_reference,
           b.pickup_address_text,
           b.dropoff_address_text,
-          b.pickup_time_local,
           b.pickup_at_utc,
           b.timezone,
           b.customer_first_name,
@@ -759,22 +758,24 @@ export class NotificationService {
           b.customer_phone_country_code,
           b.customer_phone_number,
           b.currency,
-          b.total_amount,
           b.total_price_minor,
-          b.passenger_name,
-          b.passenger_phone_country_code,
-          b.passenger_phone_number,
-          v.make as vehicle_make,
-          v.model as vehicle_model,
-          c.name as city_name
+          COALESCE(b.passenger_first_name, b.customer_first_name) AS passenger_name,
+          COALESCE(b.passenger_phone_country_code, b.customer_phone_country_code) AS passenger_phone_country_code,
+          COALESCE(b.passenger_phone_number, b.customer_phone_number) AS passenger_phone_number,
+          b.service_class_id,
+          b.city_id,
+          ci.name as city_name,
+          sc.name as vehicle_make,
+          NULL::text as vehicle_model,
+          to_char(b.pickup_at_utc AT TIME ZONE COALESCE(b.timezone, 'UTC'), 'Dy DD Mon YYYY HH12:MI AM') AS pickup_time_local
        FROM public.bookings b
-       LEFT JOIN public.vehicles v ON v.id = b.vehicle_id
-       LEFT JOIN public.cities c ON c.id = b.city_id
+       LEFT JOIN public.cities ci ON ci.id = b.city_id
+       LEFT JOIN public.tenant_service_classes sc ON sc.id = b.service_class_id
        WHERE b.id = $1
        LIMIT 1`,
       [id],
-    );
-    return rows[0];
+    ).catch(() => []);
+    return rows[0] ?? null;
   }
 
   private async getDriver(id: string) {
