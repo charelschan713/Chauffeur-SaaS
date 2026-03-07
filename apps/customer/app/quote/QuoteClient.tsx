@@ -365,6 +365,7 @@ export function QuoteClient() {
         distance_km: route.distance_km,
         duration_minutes: route.duration_minutes,
         waypoints_count: waypoints.filter(Boolean).length,
+        waypoints: waypoints.filter(Boolean),
         infant_seats: Number(infantSeats),
         toddler_seats: Number(toddlerSeats),
         booster_seats: Number(boosterSeats),

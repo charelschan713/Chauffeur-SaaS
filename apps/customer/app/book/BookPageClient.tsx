@@ -680,6 +680,17 @@ export function BookPageClient() {
                 </div>
               </div>
 
+              {/* Waypoints */}
+              {req.waypoints?.filter(Boolean).map((wp, i) => (
+                <div key={i} className="relative flex items-start gap-2 mb-3">
+                  <div className="absolute -left-5 mt-1 w-3 h-3 rounded-full bg-amber-500/70 border-2 border-[hsl(var(--background))] shrink-0" />
+                  <div>
+                    <p className="text-[10px] font-semibold uppercase tracking-widest text-[hsl(var(--muted-foreground)/0.6)] mb-0.5">Stop {i + 1}</p>
+                    <p className="text-[hsl(var(--foreground)/0.85)] leading-snug">{wp}</p>
+                  </div>
+                </div>
+              ))}
+
               {/* Dropoff */}
               {req.dropoff_address && req.dropoff_address !== req.pickup_address && (
                 <div className="relative flex items-start gap-2">
