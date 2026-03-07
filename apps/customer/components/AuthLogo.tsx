@@ -66,7 +66,13 @@ export function AuthLogo({ subtitle }: { subtitle?: string }) {
 /** Shared page shell for auth pages */
 export function AuthShell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-screen bg-[#0d0f14] flex items-center justify-center px-4 py-12">
+    <div
+      className="min-h-screen bg-[#0d0f14] flex items-center justify-center px-4"
+      style={{
+        paddingTop: 'max(48px, env(safe-area-inset-top))',
+        paddingBottom: 'max(32px, env(safe-area-inset-bottom))',
+      }}
+    >
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_#1a1200_0%,_#0d0f14_60%)] pointer-events-none" />
       <div className="relative w-full max-w-sm">
         {children}
@@ -78,7 +84,7 @@ export function AuthShell({ children }: { children: React.ReactNode }) {
   );
 }
 
-export const inputCls = "w-full h-11 px-4 rounded-xl bg-white/5 border border-white/10 text-white text-sm placeholder-white/20 focus:outline-none focus:border-[#c8a96b]/50 transition-all";
+export const inputCls = "w-full h-12 px-4 rounded-xl bg-white/5 border border-white/10 text-white text-sm placeholder-white/20 focus:outline-none focus:border-[#c8a96b]/50 transition-all";
 export const labelCls = "block text-xs font-semibold uppercase tracking-widest text-[#c8a96b]/60 mb-2";
 
 export function GoldButton({ loading, children, disabled, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement> & { loading?: boolean }) {
@@ -86,7 +92,7 @@ export function GoldButton({ loading, children, disabled, ...props }: React.Butt
     <button
       {...props}
       disabled={loading || disabled}
-      className="w-full h-11 rounded-xl font-semibold text-sm tracking-widest uppercase transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+      className="w-full h-12 rounded-xl font-semibold text-sm tracking-widest uppercase transition-all disabled:opacity-40 disabled:cursor-not-allowed active:scale-[0.98]"
       style={{ background: 'linear-gradient(135deg, #c8a96b, #a8853d)', color: '#0d0f14' }}
     >
       {loading ? (

@@ -12,13 +12,22 @@ export default function InvoicesPage() {
   });
 
   return (
-    <div className="min-h-screen bg-[hsl(var(--background))] pb-24">
+    <div className="min-h-screen bg-[hsl(var(--background))]" style={{ paddingBottom: 'calc(96px + env(safe-area-inset-bottom, 0px))' }}>
       {/* Header */}
-      <header className="bg-[hsl(var(--card))] border-b border-[hsl(var(--border))] px-4 py-4 sticky top-0 z-10">
+      <header
+        className="border-b border-[hsl(var(--border))] px-4 sticky top-0 z-10"
+        style={{
+          background: 'rgba(13,15,20,0.97)',
+          backdropFilter: 'blur(20px)',
+          WebkitBackdropFilter: 'blur(20px)',
+          paddingTop: 'max(12px, env(safe-area-inset-top))',
+          paddingBottom: 12,
+        }}
+      >
         <div className="max-w-lg mx-auto flex items-center gap-3">
           <button
             onClick={() => router.back()}
-            className="text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] transition-colors"
+            className="w-9 h-9 flex items-center justify-center rounded-full text-[hsl(var(--muted-foreground))] active:bg-white/8 transition-colors"
           >
             <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7"/>

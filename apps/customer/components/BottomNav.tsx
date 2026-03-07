@@ -8,7 +8,7 @@ const NAV_ITEMS = [
     href: '/dashboard',
     label: 'Home',
     icon: (active: boolean) => (
-      <svg className="w-5 h-5" fill={active ? 'currentColor' : 'none'} viewBox="0 0 24 24" stroke="currentColor" strokeWidth={active ? 0 : 1.8}>
+      <svg className="w-[22px] h-[22px]" fill={active ? 'currentColor' : 'none'} viewBox="0 0 24 24" stroke="currentColor" strokeWidth={active ? 0 : 1.8}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
       </svg>
     ),
@@ -17,7 +17,7 @@ const NAV_ITEMS = [
     href: '/bookings',
     label: 'Bookings',
     icon: (active: boolean) => (
-      <svg className="w-5 h-5" fill={active ? 'currentColor' : 'none'} viewBox="0 0 24 24" stroke="currentColor" strokeWidth={active ? 0 : 1.8}>
+      <svg className="w-[22px] h-[22px]" fill={active ? 'currentColor' : 'none'} viewBox="0 0 24 24" stroke="currentColor" strokeWidth={active ? 0 : 1.8}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
       </svg>
     ),
@@ -26,8 +26,8 @@ const NAV_ITEMS = [
     href: '/quote',
     label: 'Book',
     icon: (_active: boolean) => (
-      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[hsl(var(--primary))] to-[hsl(var(--primary)/0.7)] flex items-center justify-center shadow-[0_4px_14px_hsl(var(--primary)/0.4)] -mt-5">
-        <svg className="w-5 h-5 text-[hsl(var(--primary-foreground))]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+      <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[hsl(var(--primary))] to-[hsl(var(--primary)/0.75)] flex items-center justify-center shadow-[0_4px_18px_hsl(var(--primary)/0.45)] -mt-6">
+        <svg className="w-6 h-6 text-[hsl(var(--primary-foreground))]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
         </svg>
       </div>
@@ -38,7 +38,7 @@ const NAV_ITEMS = [
     href: '/invoices',
     label: 'Invoices',
     icon: (active: boolean) => (
-      <svg className="w-5 h-5" fill={active ? 'currentColor' : 'none'} viewBox="0 0 24 24" stroke="currentColor" strokeWidth={active ? 0 : 1.8}>
+      <svg className="w-[22px] h-[22px]" fill={active ? 'currentColor' : 'none'} viewBox="0 0 24 24" stroke="currentColor" strokeWidth={active ? 0 : 1.8}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
       </svg>
     ),
@@ -47,7 +47,7 @@ const NAV_ITEMS = [
     href: '/profile',
     label: 'Profile',
     icon: (active: boolean) => (
-      <svg className="w-5 h-5" fill={active ? 'currentColor' : 'none'} viewBox="0 0 24 24" stroke="currentColor" strokeWidth={active ? 0 : 1.8}>
+      <svg className="w-[22px] h-[22px]" fill={active ? 'currentColor' : 'none'} viewBox="0 0 24 24" stroke="currentColor" strokeWidth={active ? 0 : 1.8}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
       </svg>
     ),
@@ -64,8 +64,16 @@ export function BottomNav() {
   if (!showNav) return null;
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-40 bg-[hsl(228,12%,8%)]/95 backdrop-blur-md border-t border-white/8 safe-area-pb">
-      <div className="max-w-lg mx-auto flex items-end justify-around px-2 pt-2 pb-2">
+    <nav
+      className="fixed bottom-0 left-0 right-0 z-40 border-t border-white/[0.07]"
+      style={{
+        background: 'rgba(13,15,20,0.97)',
+        backdropFilter: 'blur(20px)',
+        WebkitBackdropFilter: 'blur(20px)',
+        paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+      }}
+    >
+      <div className="max-w-lg mx-auto flex items-end justify-around px-1 pt-2 pb-2">
         {NAV_ITEMS.map(item => {
           const active = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href + '/'));
           return (
@@ -73,14 +81,17 @@ export function BottomNav() {
               key={item.href}
               href={item.href}
               className={cn(
-                'flex flex-col items-center gap-1 min-w-[56px] transition-all duration-200',
-                item.isAction ? 'pb-1' : 'py-1',
-                !item.isAction && (active ? 'text-[hsl(var(--primary))]' : 'text-white/35 hover:text-white/60'),
+                'flex flex-col items-center gap-1 min-w-[60px] min-h-[44px] transition-all duration-200 active:scale-95',
+                item.isAction ? 'pb-1 justify-end' : 'py-1 justify-center',
+                !item.isAction && (active ? 'text-[hsl(var(--primary))]' : 'text-white/30 hover:text-white/55'),
               )}
             >
               {item.icon(active)}
               {!item.isAction && (
-                <span className={cn('text-[10px] font-medium tracking-wide', active ? 'text-[hsl(var(--primary))]' : 'text-white/35')}>
+                <span className={cn(
+                  'text-[10px] font-medium tracking-wide',
+                  active ? 'text-[hsl(var(--primary))]' : 'text-white/30',
+                )}>
                   {item.label}
                 </span>
               )}

@@ -107,9 +107,18 @@ export default function PaymentMethodsPage() {
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
 
   return (
-    <div className="min-h-screen pb-28">
+    <div className="min-h-screen" style={{ paddingBottom: 'calc(96px + env(safe-area-inset-bottom, 0px))' }}>
       {/* Header */}
-      <div className="sticky top-0 z-20 bg-[hsl(228,12%,8%)] border-b border-white/8 px-4 py-4 flex items-center gap-3">
+      <div
+        className="sticky top-0 z-20 border-b border-white/[0.07] px-4 flex items-center gap-3"
+        style={{
+          background: 'rgba(13,15,20,0.97)',
+          backdropFilter: 'blur(20px)',
+          WebkitBackdropFilter: 'blur(20px)',
+          paddingTop: 'max(12px, env(safe-area-inset-top))',
+          paddingBottom: 12,
+        }}
+      >
         <button onClick={() => router.back()} className="text-white/50 hover:text-white transition-colors">
           <ArrowLeft className="h-5 w-5" />
         </button>

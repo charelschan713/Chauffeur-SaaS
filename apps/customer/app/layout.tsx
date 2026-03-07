@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Geist } from 'next/font/google';
 import { Playfair_Display } from 'next/font/google';
 import './globals.css';
@@ -22,10 +22,18 @@ export const metadata: Metadata = {
   description: 'Book your ride',
 };
 
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,   // prevent iOS zoom on input focus
+  viewportFit: 'cover', // enable safe-area-inset on notched phones
+  themeColor: '#0d0f14',
+};
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body className={`${geist.variable} ${playfair.variable} antialiased`}>
+      <body className={`${geist.variable} ${playfair.variable} antialiased bg-[#0d0f14]`}>
         <QueryProvider>
           <TenantProvider>
             {children}

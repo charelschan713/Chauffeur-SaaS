@@ -80,7 +80,7 @@ function CalendarPicker({ value, onChange, minDate }: { value: string; onChange:
   const cells: (number|null)[] = [...Array(firstDow).fill(null), ...Array.from({length:daysInMonth},(_,i)=>i+1)];
   while (cells.length%7!==0) cells.push(null);
   return (
-    <div className="select-none" style={{width:264}}>
+    <div className="select-none w-full" style={{minWidth:264}}>
       <div className="flex items-center justify-between px-3 py-2">
         <button type="button" onClick={()=>setView(v=>new Date(v.getFullYear(),v.getMonth()-1,1))} className="p-1 rounded hover:bg-white/10 text-white/40 hover:text-white transition-colors">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M15 18l-6-6 6-6"/></svg>
@@ -117,7 +117,7 @@ function TimePicker({ value, onChange, onConfirm }: { value: string; onChange: (
   const commit=(h:number,m:number,p:'AM'|'PM')=>{let h24=p==='AM'?(h===12?0:h):(h===12?12:h+12);onChange(`${String(h24).padStart(2,'0')}:${String(m).padStart(2,'0')}`);};
   const colCls='overflow-y-auto h-40 scroll-smooth'; const itemCls=(sel:boolean)=>cn('px-3 py-2 text-center text-sm cursor-pointer rounded transition-colors',sel?'bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] font-semibold':'text-white/50 hover:text-white hover:bg-white/8');
   return (
-    <div style={{width:200}}>
+    <div style={{minWidth:200}}>
       <div className="flex border-b border-white/10 pb-1 mb-1">
         {['Hour','Min','Period'].map(l=><div key={l} className="flex-1 text-center text-xs text-white/30 font-medium py-1">{l}</div>)}
       </div>
@@ -132,13 +132,22 @@ function TimePicker({ value, onChange, onConfirm }: { value: string; onChange: (
 }
 
 function DropdownPortal({ anchor, onClose, children }: { anchor: React.RefObject<HTMLElement | null>; onClose: () => void; children: React.ReactNode }) {
-  const [pos, setPos] = useState({top:0,left:0}); const panelRef = useRef<HTMLDivElement>(null);
-  const updatePos = useCallback(()=>{ const el=anchor.current; if(!el) return; const r=el.getBoundingClientRect(); setPos({top:r.bottom+6,left:r.left}); },[anchor]);
+  const [pos, setPos] = useState({top:0,left:0,width:0}); const panelRef = useRef<HTMLDivElement>(null);
+  const updatePos = useCallback(()=>{
+    const el=anchor.current; if(!el) return;
+    const r=el.getBoundingClientRect();
+    const vw=window.innerWidth;
+    const panelW=Math.max(r.width, 264);
+    // clamp left so panel doesn't overflow viewport on mobile
+    const rawLeft=r.left;
+    const clampedLeft=Math.min(rawLeft, vw-panelW-8);
+    setPos({top:r.bottom+6, left:Math.max(8, clampedLeft), width:panelW});
+  },[anchor]);
   useEffect(()=>{ updatePos(); window.addEventListener('scroll',updatePos,true); window.addEventListener('resize',updatePos); return()=>{ window.removeEventListener('scroll',updatePos,true); window.removeEventListener('resize',updatePos); }; },[updatePos]);
   useEffect(()=>{ const h=(e:MouseEvent)=>{ if(!anchor.current?.contains(e.target as Node)&&!panelRef.current?.contains(e.target as Node)) onClose(); }; document.addEventListener('mousedown',h,true); return()=>document.removeEventListener('mousedown',h,true); },[anchor,onClose]);
   if (typeof document === 'undefined') return null;
   return createPortal(
-    <div ref={panelRef} style={{position:'fixed',top:pos.top,left:pos.left,zIndex:9999}} className="rounded-xl border border-white/10 bg-[hsl(228,10%,8%)] shadow-2xl overflow-hidden" onMouseDown={e=>{e.stopPropagation();e.nativeEvent.stopImmediatePropagation();}}>
+    <div ref={panelRef} style={{position:'fixed',top:pos.top,left:pos.left,width:pos.width,zIndex:9999}} className="rounded-xl border border-white/10 bg-[hsl(228,10%,8%)] shadow-2xl overflow-hidden" onMouseDown={e=>{e.stopPropagation();e.nativeEvent.stopImmediatePropagation();}}>
       {children}
     </div>, document.body
   );
@@ -415,16 +424,30 @@ export function QuoteClient() {
 
   return (
     <>
-    <div className="min-h-screen pb-28">
+    <div className="min-h-screen" style={{ paddingBottom: 'calc(96px + env(safe-area-inset-bottom, 0px))' }}>
       {/* Header */}
-      <div className="sticky top-0 z-20 bg-[hsl(228,12%,8%)] border-b border-white/8 px-4 py-4 flex items-center gap-3">
-        <button onClick={() => router.back()} className="text-white/50 hover:text-white transition-colors">
+      <div
+        className="sticky top-0 z-20 border-b border-white/[0.07]"
+        style={{
+          background: 'rgba(13,15,20,0.97)',
+          backdropFilter: 'blur(20px)',
+          WebkitBackdropFilter: 'blur(20px)',
+          paddingTop: 'max(12px, env(safe-area-inset-top))',
+          paddingBottom: 12,
+          paddingLeft: 16,
+          paddingRight: 16,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 12,
+        }}
+      >
+        <button onClick={() => router.back()} className="w-9 h-9 flex items-center justify-center rounded-full text-white/40 active:bg-white/8 transition-colors shrink-0">
           <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7"/></svg>
         </button>
         <h1 className="font-semibold text-white">Get a Quote</h1>
       </div>
 
-      <div className="max-w-2xl mx-auto px-4 pt-6 pb-8">
+      <div className="max-w-2xl mx-auto px-4 pt-5 pb-8">
         <div className="rounded-xl border border-white/10 bg-white/2 shadow-2xl p-5 sm:p-8 space-y-6">
 
           {/* Row 1 — City + Service Type */}

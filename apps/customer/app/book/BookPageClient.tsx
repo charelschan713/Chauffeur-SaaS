@@ -918,19 +918,29 @@ export function BookPageClient() {
 
   // ── Main layout ──
   return (
-    <div className="min-h-screen bg-[hsl(var(--background))]">
+    <div className="min-h-screen bg-[hsl(var(--background))]" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
       {/* Header */}
-      <header className="border-b border-[hsl(var(--border))] bg-[hsl(var(--card))] px-4 py-4">
-        <div className="max-w-lg mx-auto flex items-center gap-3">
-          <button onClick={() => window.history.back()}
-            className="text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] transition-colors">
+      <header
+        className="sticky top-0 z-20 border-b border-[hsl(var(--border))]"
+        style={{
+          background: 'rgba(13,15,20,0.97)',
+          backdropFilter: 'blur(20px)',
+          WebkitBackdropFilter: 'blur(20px)',
+          paddingTop: 'max(12px, env(safe-area-inset-top))',
+        }}
+      >
+        <div className="max-w-lg mx-auto px-4 pb-4 flex items-center gap-3">
+          <button
+            onClick={() => window.history.back()}
+            className="w-9 h-9 flex items-center justify-center rounded-full text-[hsl(var(--muted-foreground))] active:bg-white/8 transition-colors"
+          >
             <ArrowLeft className="h-5 w-5" />
           </button>
           <h1 className="font-serif text-lg font-medium text-[hsl(var(--foreground))]">Complete Booking</h1>
         </div>
       </header>
 
-      <main className="max-w-lg mx-auto px-4 py-6 space-y-4">
+      <main className="max-w-lg mx-auto px-4 py-5 space-y-4" style={{ paddingBottom: 'calc(32px + env(safe-area-inset-bottom, 0px))' }}>
 
         {/* Quote Summary — always visible */}
         {renderQuoteSummary()}
