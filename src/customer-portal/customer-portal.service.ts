@@ -7,12 +7,14 @@ import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 import Stripe from 'stripe';
 import { NotificationService } from '../notification/notification.service';
+import { DebugTraceService } from '../debug/debug-trace.service';
 
 @Injectable()
 export class CustomerPortalService {
   constructor(
     @InjectDataSource() private readonly db: DataSource,
     private readonly notificationService: NotificationService,
+    private readonly trace: DebugTraceService,
   ) {}
 
   // ── Stripe helper ─────────────────────────────────────────────────────────
@@ -632,6 +634,12 @@ export class CustomerPortalService {
 
   // ── Guest checkout ────────────────────────────────────────────────────────
   async guestCheckout(tenantSlug: string, dto: any) {
+    this.trace.traceInfo('GUEST_CHECKOUT_START', {
+      tenant_id: undefined,
+      message: 'Guest checkout initiated',
+      context: { slug: tenantSlug, quoteId: dto.quoteId, vehicleClassId: dto.vehicleClassId, email: dto.email ? dto.email.substring(0,3)+'***' : undefined },
+    });
+
     const tenant = await this.db.query(
       `SELECT id, booking_ref_prefix FROM public.tenants WHERE slug=$1 LIMIT 1`,
       [tenantSlug],
@@ -828,6 +836,12 @@ export class CustomerPortalService {
       .catch((e) => console.error(`[Notification] AdminNewBooking FAILED:`, e?.message ?? e));
     this.notificationService.handleEvent('AdminBookingPendingConfirm', notifPayload)
       .catch((e) => console.error(`[Notification] AdminBookingPendingConfirm FAILED:`, e?.message ?? e));
+
+    this.trace.traceInfo('GUEST_CHECKOUT_SUCCESS', {
+      tenant_id: tenantId, booking_id: booking?.id,
+      message: 'Guest checkout completed',
+      context: { booking_reference: booking?.booking_reference, customerId },
+    });
 
     return { booking, customerId };
   }

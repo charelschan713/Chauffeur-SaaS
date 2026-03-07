@@ -4,6 +4,7 @@ import { Playfair_Display } from 'next/font/google';
 import './globals.css';
 import { QueryProvider } from '@/components/QueryProvider';
 import { TenantProvider } from '@/components/TenantProvider';
+import { GlobalErrorBoundary } from '@/components/GlobalErrorBoundary';
 import { BottomNav } from '@/components/BottomNav';
 import { ScrollToInput } from '@/components/ScrollToInput';
 
@@ -35,13 +36,15 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <body className={`${geist.variable} ${playfair.variable} antialiased bg-[#0d0f14]`}>
-        <QueryProvider>
-          <TenantProvider>
-            <ScrollToInput />
-            {children}
-            <BottomNav />
-          </TenantProvider>
-        </QueryProvider>
+        <GlobalErrorBoundary>
+          <QueryProvider>
+            <TenantProvider>
+              <ScrollToInput />
+              {children}
+              <BottomNav />
+            </TenantProvider>
+          </QueryProvider>
+        </GlobalErrorBoundary>
       </body>
     </html>
   );

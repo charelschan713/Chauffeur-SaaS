@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { DataSource } from 'typeorm';
 import { PricingResolver } from '../pricing/pricing.resolver';
 import { NotificationService } from '../notification/notification.service';
+import { DebugTraceService } from '../debug/debug-trace.service';
 import { randomUUID } from 'crypto';
 
 @Injectable()
@@ -10,6 +11,7 @@ export class BookingService {
     private readonly dataSource: DataSource,
     private readonly pricing: PricingResolver,
     private readonly notificationService: NotificationService,
+    private readonly trace: DebugTraceService,
   ) {}
 
   async listBookings(tenantId: string, query: Record<string, any>) {
@@ -176,6 +178,13 @@ export class BookingService {
     const now = new Date().toISOString();
     const pickupAtUtc = dto.pickup_at_utc ?? dto.pickupAtUtc;
     if (!pickupAtUtc) throw new Error('pickup_at_utc is required');
+
+    this.trace.traceInfo('BOOKING_CREATE_START', {
+      tenant_id: tenantId,
+      booking_id: id,
+      message: 'Booking creation started',
+      context: { customer_email: dto.customer_email ?? dto.email, total_price_minor: dto.total_price_minor ?? dto.totalPriceMinor, source: dto.booking_source ?? 'ADMIN' },
+    });
     const pickupTimezone = dto.timezone || 'Australia/Sydney';
 
     // Fetch tenant booking_ref_prefix
@@ -319,8 +328,20 @@ export class BookingService {
       ],
     );
     } catch (err: any) {
+      this.trace.traceError('BOOKING_CREATE_FAILED', {
+        tenant_id: tenantId, booking_id: id,
+        message: 'Booking INSERT failed',
+        error: err,
+        context: { customer_email: dto.customer_email ?? dto.email },
+      });
       throw new Error(`Booking INSERT failed: ${err?.message ?? String(err)}`);
     }
+
+    this.trace.traceInfo('BOOKING_SAVED', {
+      tenant_id: tenantId, booking_id: id,
+      message: 'Booking saved to DB',
+      context: { booking_reference: bookingRows[0]?.booking_reference, status: dto.operational_status ?? 'PENDING_CUSTOMER_CONFIRMATION' },
+    });
 
     await this.dataSource.query(
       `INSERT INTO public.booking_status_history

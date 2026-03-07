@@ -1,3 +1,4 @@
+import { APP_INTERCEPTOR } from '@nestjs/core';
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -30,6 +31,8 @@ import { SurchargeModule } from './surcharge/surcharge.module';
 import { AssignmentModule } from './assignment/assignment.module';
 import { TenantModule } from './tenant/tenant.module';
 import { TenantContextMiddleware } from './common/middleware/tenant-context.middleware';
+import { DebugModule } from './debug/debug.module';
+import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 
 @Module({
   imports: [
@@ -73,8 +76,12 @@ import { TenantContextMiddleware } from './common/middleware/tenant-context.midd
     SurchargeModule,
     AssignmentModule,
     TenantModule,
+    DebugModule,
   ],
   controllers: [HealthController],
+  providers: [
+    { provide: APP_INTERCEPTOR, useClass: LoggingInterceptor },
+  ],
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
