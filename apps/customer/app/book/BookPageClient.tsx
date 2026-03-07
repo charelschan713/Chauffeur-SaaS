@@ -94,24 +94,22 @@ function useCountdown(expiresAt: string) {
 }
 
 // ── Card setup form ────────────────────────────────────────────────────────
-function CardSetupForm({ onSuccess, isGuest, guestName, submitLabel, submitting: externalSubmitting }: {
+function CardSetupForm({ onSuccess, isGuest, billingName, submitLabel, submitting: externalSubmitting }: {
   onSuccess: (setupIntentId: string) => void;
   isGuest?: boolean;
-  guestName?: string;
+  billingName?: string;
   submitLabel?: string;
   submitting?: boolean;
 }) {
   const stripe   = useStripe();
   const elements = useElements();
   const { token } = useAuthStore();
-  const [loading, setLoading]       = useState(false);
-  const [error, setError]           = useState('');
-  const [cardholderName, setCardholderName] = useState(guestName ?? '');
+  const [loading, setLoading] = useState(false);
+  const [error, setError]     = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!stripe || !elements) return;
-    if (!cardholderName.trim()) { setError('Please enter the name on your card.'); return; }
     setLoading(true);
     setError('');
     try {
@@ -142,7 +140,7 @@ function CardSetupForm({ onSuccess, isGuest, guestName, submitLabel, submitting:
       const { setupIntent, error: stripeErr } = await stripe.confirmCardSetup(clientSecret, {
         payment_method: {
           card: elements.getElement(CardElement)!,
-          billing_details: { name: cardholderName.trim() },
+          billing_details: { name: billingName?.trim() || undefined },
         },
         return_url: returnUrl,
       });
@@ -166,17 +164,6 @@ function CardSetupForm({ onSuccess, isGuest, guestName, submitLabel, submitting:
         </div>
       )}
       <div>
-        <Label className="mb-2 block">Name on Card</Label>
-        <Input
-          value={cardholderName}
-          onChange={e => setCardholderName(e.target.value)}
-          placeholder="As it appears on your card"
-          required
-          autoComplete="cc-name"
-        />
-      </div>
-      <div>
-        <Label className="mb-2 block">Card Details</Label>
         <div className="rounded-[--radius] border border-[hsl(var(--input-border))] bg-[hsl(var(--input))] px-3 py-3.5">
           <CardElement options={{
             style: {
@@ -1104,9 +1091,7 @@ export function BookPageClient() {
                       <CardSetupForm
                         onSuccess={handleCardConfirmed}
                         isGuest={!!guestData}
-                        guestName={passengerDetails.firstName
-                          ? `${passengerDetails.firstName} ${passengerDetails.lastName}`.trim()
-                          : guestData ? `${guestData.firstName ?? ''} ${guestData.lastName ?? ''}`.trim() : undefined}
+                        billingName={`${passengerDetails.firstName} ${passengerDetails.lastName}`.trim() || undefined}
                         submitLabel={`Confirm & Pay ${fmtMoney(
                           loyaltyDiscount?.finalFareMinor ?? selectedResult?.estimated_total_minor ?? 0,
                           selectedResult?.currency ?? 'AUD',
