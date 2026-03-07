@@ -98,13 +98,14 @@ function useCountdown(expiresAt: string) {
 }
 
 // ── Card setup form ────────────────────────────────────────────────────────
-function CardSetupForm({ onSuccess, isGuest, billingName, submitLabel, submitting: externalSubmitting, clientSecret }: {
+function CardSetupForm({ onSuccess, isGuest, billingName, submitLabel, submitting: externalSubmitting, clientSecret, onValidate }: {
   onSuccess: (setupIntentId: string) => void;
   isGuest?: boolean;
   billingName?: string;
   submitLabel?: string;
   submitting?: boolean;
   clientSecret: string;
+  onValidate?: () => string | null; // returns error string or null if ok
 }) {
   const stripe   = useStripe();
   const elements = useElements();
@@ -114,6 +115,14 @@ function CardSetupForm({ onSuccess, isGuest, billingName, submitLabel, submittin
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!stripe || !elements) return;
+    // Run contact details validation before touching Stripe
+    if (onValidate) {
+      const validationError = onValidate();
+      if (validationError) {
+        setError(validationError);
+        return;
+      }
+    }
     setLoading(true);
     setError('');
     try {
@@ -1208,6 +1217,17 @@ export function BookPageClient() {
                           selectedResult?.currency ?? 'AUD',
                         )}`}
                         submitting={submitting}
+                        onValidate={() => {
+                          if (!passengerDetails.firstName.trim()) return 'Please enter your first name.';
+                          if (!passengerDetails.lastName.trim()) return 'Please enter your last name.';
+                          if (!passengerDetails.email.trim() || !/\S+@\S+\.\S+/.test(passengerDetails.email)) return 'Please enter a valid email address.';
+                          if (!passengerDetails.phoneNumber.trim()) return 'Please enter your phone number.';
+                          if (!samePassenger) {
+                            if (!passengerOverride.firstName.trim()) return 'Please enter the passenger\'s first name.';
+                            if (!passengerOverride.lastName.trim()) return 'Please enter the passenger\'s last name.';
+                          }
+                          return null;
+                        }}
                       />
                     </Elements>
                   ) : (
