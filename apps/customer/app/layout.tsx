@@ -5,6 +5,7 @@ import './globals.css';
 import { QueryProvider } from '@/components/QueryProvider';
 import { TenantProvider } from '@/components/TenantProvider';
 import { BottomNav } from '@/components/BottomNav';
+import { ScrollToInput } from '@/components/ScrollToInput';
 
 const geist = Geist({
   variable: '--font-geist-sans',
@@ -36,6 +37,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className={`${geist.variable} ${playfair.variable} antialiased bg-[#0d0f14]`}>
         <QueryProvider>
           <TenantProvider>
+            <ScrollToInput />
             {children}
             <BottomNav />
           </TenantProvider>
