@@ -43,7 +43,7 @@ const emptyForm = (): Partial<Discount> & { maxDiscountDollars: string; minFareD
   active:                true,
   max_uses:              null,
   max_uses_per_customer: 1,
-  maxDiscountDollars:    '20',
+  maxDiscountDollars:    '',
   minFareDollars:        '0',
   fixedAmountDollars:    '10',
 });
@@ -128,7 +128,7 @@ export default function DiscountsPage() {
     setEditing(d);
     setForm({
       ...d,
-      maxDiscountDollars: d.max_discount_minor ? String(d.max_discount_minor / 100) : '20',
+      maxDiscountDollars: d.max_discount_minor ? String(d.max_discount_minor / 100) : '',
       minFareDollars:     String(d.min_fare_minor / 100),
       fixedAmountDollars: d.type === 'FIXED_AMOUNT' ? String(d.value / 100) : '10',
     });
@@ -196,12 +196,12 @@ export default function DiscountsPage() {
                     </div>
                   </div>
                   <div>
-                    <label className={labelCls}>Max Discount ($) <span className="text-gray-400 font-normal text-xs">cap</span></label>
+                    <label className={labelCls}>Max Discount ($) <span className="text-gray-400 font-normal text-xs">blank = unlimited</span></label>
                     <div className="relative">
                       <span className="absolute left-3 top-2 text-gray-400 text-sm">$</span>
                       <input type="number" min={0} className={inputCls + " pl-6"}
                         value={form.maxDiscountDollars} onChange={f('maxDiscountDollars')}
-                        placeholder="e.g. 20" />
+                        placeholder="Unlimited" />
                     </div>
                   </div>
                 </>
