@@ -115,7 +115,10 @@ function CardSetupForm({ onSuccess, isGuest, billingName, submitLabel, submittin
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!stripe || !elements) return;
+    if (!stripe || !elements) {
+      console.error('[CardSetupForm] stripe or elements is null', { stripe: !!stripe, elements: !!elements });
+      return;
+    }
     // Run contact details validation before touching Stripe
     if (onValidate) {
       const validationError = onValidate();
@@ -1287,6 +1290,7 @@ export function BookPageClient() {
                         )}`}
                         submitting={submitting}
                         onValidate={() => {
+                          console.log('[VALIDATE]', passengerDetails);
                           if (!passengerDetails.firstName.trim()) return 'Please enter your first name.';
                           if (!passengerDetails.lastName.trim()) return 'Please enter your last name.';
                           if (!passengerDetails.email.trim() || !/\S+@\S+\.\S+/.test(passengerDetails.email)) return 'Please enter a valid email address.';
