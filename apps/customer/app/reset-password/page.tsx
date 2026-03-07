@@ -1,54 +1,108 @@
 'use client';
-import { useState } from 'react';
+import { useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import api from '@/lib/api';
 import Link from 'next/link';
-import { Suspense } from 'react';
+import { AuthShell, AuthLogo, AuthCard, GoldButton, ErrorAlert, inputCls, labelCls } from '@/components/AuthLogo';
 
 function ResetPasswordForm() {
   const router = useRouter();
   const params = useSearchParams();
   const token = params.get('token') ?? '';
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
+
+  const [password, setPassword]   = useState('');
+  const [confirm, setConfirm]     = useState('');
+  const [error, setError]         = useState('');
+  const [loading, setLoading]     = useState(false);
+  const [done, setDone]           = useState(false);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (password.length < 8) { setError('Password must be at least 8 characters.'); return; }
+    if (password !== confirm)  { setError('Passwords do not match.'); return; }
+    if (!token)                { setError('Invalid or missing reset token.'); return; }
     setLoading(true);
+    setError('');
     try {
       const { data } = await api.post('/customer-auth/reset-password', { token, password });
-      localStorage.setItem('customer_token', data.accessToken);
-      router.push('/dashboard');
+      if (data?.accessToken) {
+        localStorage.setItem('customer_token', data.accessToken);
+        setDone(true);
+        setTimeout(() => router.push('/dashboard'), 2000);
+      } else {
+        setDone(true);
+        setTimeout(() => router.push('/login'), 2000);
+      }
     } catch (err: any) {
-      setError(err.response?.data?.message ?? 'Failed');
+      setError(err.response?.data?.message ?? 'Reset failed. The link may have expired.');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4">
-      <div className="w-full max-w-sm bg-white rounded-2xl shadow-md p-8">
-        <h1 className="text-2xl font-bold text-gray-900 mb-6">New password</h1>
-        {error && <p className="mb-4 text-sm text-red-600 bg-red-50 rounded p-3">{error}</p>}
-        <form onSubmit={submit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">New password</label>
-            <input type="password" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={8} />
+    <AuthShell>
+      <AuthLogo subtitle="Set a new password" />
+      <AuthCard>
+        {done ? (
+          <div className="flex items-start gap-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 px-4 py-4 rounded-xl text-sm">
+            <svg className="w-4 h-4 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            Password updated! Redirecting…
           </div>
-          <button type="submit" disabled={loading} className="w-full py-2.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50">
-            {loading ? 'Saving...' : 'Set new password'}
-          </button>
-        </form>
-        <p className="mt-4 text-sm text-center">
-          <Link href="/login" className="text-blue-600 hover:underline">Back to sign in</Link>
+        ) : (
+          <form onSubmit={submit} className="space-y-5">
+            {error && <ErrorAlert message={error} />}
+
+            <div>
+              <label className={labelCls}>New password</label>
+              <input
+                type="password"
+                className={inputCls}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="At least 8 characters"
+                required
+                minLength={8}
+                autoComplete="new-password"
+              />
+            </div>
+
+            <div>
+              <label className={labelCls}>Confirm new password</label>
+              <input
+                type="password"
+                className={inputCls}
+                value={confirm}
+                onChange={(e) => setConfirm(e.target.value)}
+                placeholder="Re-enter your password"
+                required
+                minLength={8}
+                autoComplete="new-password"
+              />
+            </div>
+
+            <GoldButton type="submit" loading={loading}>
+              {loading ? 'Saving…' : 'Set New Password'}
+            </GoldButton>
+          </form>
+        )}
+
+        <p className="mt-6 text-sm text-center">
+          <Link href="/login" className="text-[#c8a96b]/70 hover:text-[#c8a96b] transition-colors text-sm">
+            ← Back to sign in
+          </Link>
         </p>
-      </div>
-    </div>
+      </AuthCard>
+    </AuthShell>
   );
 }
 
 export default function ResetPasswordPage() {
-  return <Suspense><ResetPasswordForm /></Suspense>;
+  return (
+    <Suspense>
+      <ResetPasswordForm />
+    </Suspense>
+  );
 }
