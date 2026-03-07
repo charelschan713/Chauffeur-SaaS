@@ -156,7 +156,7 @@ export default function ParkingPage() {
               {rules.map(r => (
                 <tr key={r.id} className="hover:bg-gray-50 transition-colors">
                   <td className="px-4 py-3 font-medium text-gray-900">{r.name}</td>
-                  <td className="px-4 py-3 text-gray-500">
+                  <td className="px-4 py-3 text-gray-700">
                     <div className="flex flex-wrap gap-1">
                       {r.keywords.map(k => (
                         <span key={k} className="bg-gray-100 text-gray-600 rounded px-1.5 py-0.5 text-xs">{k}</span>

@@ -134,12 +134,16 @@ function BookingDetailInner() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title={`Booking ${booking.booking_reference}
-                  {getTransferBadge(booking).show && (
-                    <Badge variant="info">
-                      📥 Transferred from {getTransferBadge(booking).sourceTenantName ?? 'another tenant'}
-                    </Badge>
-                  )}`}
+        title={
+          <span className="flex items-center gap-2 flex-wrap">
+            Booking {booking.booking_reference}
+            {getTransferBadge(booking).show && (
+              <Badge variant="info">
+                📥 Transferred from {getTransferBadge(booking).sourceTenantName ?? 'another tenant'}
+              </Badge>
+            )}
+          </span>
+        }
         description={`Created ${formatBookingTime(booking.created_at, null, null)}`}
         actions={
           <div className="flex items-center gap-2 flex-wrap">
@@ -153,9 +157,15 @@ function BookingDetailInner() {
                 🚗 {formatStatus(booking.assignments[0].driver_execution_status)}
               </Badge>
             )}
-            <Badge variant={PAY_BADGE[booking.payment_status] ?? 'neutral'}>
-              {booking.payment_status ?? '—'}
-            </Badge>
+            {booking.payment_status === 'UNPAID' && data?.saved_card ? (
+              <Badge variant="info">
+                💳 Card saved ····{data.saved_card.card_last4}
+              </Badge>
+            ) : (
+              <Badge variant={PAY_BADGE[booking.payment_status] ?? 'neutral'}>
+                {booking.payment_status ?? '—'}
+              </Badge>
+            )}
             <Button variant="secondary" onClick={() => setPaymentOpen(true)}>
               💳 Payment
             </Button>
@@ -427,9 +437,9 @@ function BookingDetailInner() {
                 <div className="text-sm text-gray-500">No driver assigned</div>
                 {canAssign && (
                   <div className="flex flex-col gap-2">
-                    <Link href={dispatchHref}>
-                      <Button className="w-full">Assign Internal Driver</Button>
-                    </Link>
+                    <Button className="w-full" onClick={() => { setAssignLeg('A'); setAssignOpen(true); }}>
+                      Assign Internal Driver
+                    </Button>
                     <Button
                       variant="ghost"
                       className="w-full border border-purple-200 text-purple-700 hover:bg-purple-50"

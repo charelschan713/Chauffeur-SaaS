@@ -104,7 +104,7 @@ export class BookingService {
     if (!bookings.length) throw new NotFoundException('Booking not found');
     const booking = bookings[0];
 
-    const [history, assignments, payments] = await Promise.all([
+    const [history, assignments, payments, savedCard] = await Promise.all([
       this.dataSource.query(
         `SELECT * FROM public.booking_status_history
          WHERE booking_id = $1
@@ -138,6 +138,15 @@ export class BookingService {
           ORDER BY created_at ASC`,
         [bookingId],
       ),
+      // Check if customer has a saved Stripe payment method
+      booking.customer_id ? this.dataSource.query(
+        `SELECT spm.id, spm.stripe_payment_method_id, spm.card_brand, spm.card_last4, spm.card_exp_month, spm.card_exp_year
+           FROM public.saved_payment_methods spm
+           JOIN public.customers c ON c.id = spm.customer_id
+          WHERE c.id = $1
+          ORDER BY spm.created_at DESC LIMIT 1`,
+        [booking.customer_id],
+      ).catch(() => []) : Promise.resolve([]),
     ]);
 
     const summary = payments.length
@@ -154,11 +163,9 @@ export class BookingService {
       status_history: history,
       assignments,
       payments: payments.length
-        ? {
-            summary,
-            items: payments,
-          }
+        ? { summary, items: payments }
         : null,
+      saved_card: savedCard?.[0] ?? null,
     };
   }
 

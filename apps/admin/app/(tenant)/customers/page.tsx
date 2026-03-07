@@ -284,7 +284,7 @@ export default function CustomersPage() {
                     )}
                   </span>
                 </td>
-                <td className="px-4 py-3 text-gray-500">{c.created_at ? new Date(c.created_at).toLocaleDateString() : '—'}</td>
+                <td className="px-4 py-3 text-gray-700">{c.created_at ? new Date(c.created_at).toLocaleDateString() : '—'}</td>
                 <td className="px-4 py-3 text-right space-x-2">
                   <Button variant="ghost" onClick={() => openEditCustomer(c)}>Edit</Button>
                   <Button variant="ghost" onClick={() => setExpandedId(expandedId === c.id ? null : c.id)}>Passengers</Button>

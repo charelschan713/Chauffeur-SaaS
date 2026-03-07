@@ -282,8 +282,8 @@ export default function SurchargesPage() {
               ) : holidays.map(h => (
                 <tr key={h.id} className="hover:bg-gray-50 transition-colors">
                   <td className="px-4 py-3 font-medium text-gray-900">{h.name}</td>
-                  <td className="px-4 py-3 text-gray-500">{fmtDate(h.date)}</td>
-                  <td className="px-4 py-3 text-gray-500">{h.recurring ? "↻ Annual" : "Once"}</td>
+                  <td className="px-4 py-3 text-gray-700">{fmtDate(h.date)}</td>
+                  <td className="px-4 py-3 text-gray-700">{h.recurring ? "↻ Annual" : "Once"}</td>
                   <td className="px-4 py-3 text-primary font-semibold">{surchargeLabel(h.surcharge_type, h.surcharge_value)}</td>
                   <td className="px-4 py-3">
                     <button onClick={() => toggleHoliday(h)}>{statusPill(h.is_active)}</button>
