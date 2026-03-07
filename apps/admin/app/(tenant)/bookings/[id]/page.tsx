@@ -25,7 +25,7 @@ import { getVerificationBadge, getTransferBadge } from '@/lib/badges/getVerifica
 import { formatStatus } from '@/lib/ui/formatStatus';
 
 // Statuses that allow cancellation
-const CANCELABLE_STATUSES = new Set(['DRAFT', 'PENDING', 'CONFIRMED', 'ASSIGNED', 'AWAITING_CONFIRMATION']);
+const CANCELABLE_STATUSES = new Set(['DRAFT', 'PENDING', 'CONFIRMED', 'ASSIGNED', 'AWAITING_CONFIRMATION', 'PENDING_CUSTOMER_CONFIRMATION']);
 
 // Statuses where assignment actions make no sense
 const NO_ASSIGN_STATUSES = new Set(['CANCELLED', 'COMPLETED', 'JOB_COMPLETED', 'NO_SHOW']);
