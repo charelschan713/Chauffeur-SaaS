@@ -209,6 +209,7 @@ export class CustomerPortalService {
     let flightNumber    = dto.flightNumber ?? null;
     let notes           = dto.notes ?? dto.specialRequests ?? null;
     let quoteSessionId  = null;
+    let pricingSnapshot: any = null;
 
     if (dto.quoteId) {
       const [session] = await this.db.query(
@@ -230,12 +231,14 @@ export class CustomerPortalService {
       passengerCount  = passengerCount  ?? req.passengers     ?? req.passenger_count ?? 1;
       quoteSessionId  = session.id;
 
-      // Get final price from quote result for requested car type
-      if (dto.vehicleClassId && payload.results?.length) {
-        const result = payload.results.find((r: any) => r.service_class_id === dto.vehicleClassId)
-          ?? payload.results[0];
+      // Get final price + pricing breakdown from quote result for requested car type
+      if (payload.results?.length) {
+        const result = (dto.vehicleClassId
+          ? payload.results.find((r: any) => r.service_class_id === dto.vehicleClassId)
+          : null) ?? payload.results[0];
         if (result) {
           totalPriceMinor = dto.totalPriceMinor ?? result.estimated_total_minor;
+          pricingSnapshot = result.pricing_snapshot_preview ?? null;
         }
       }
     }
@@ -246,6 +249,11 @@ export class CustomerPortalService {
     );
     const refPrefix = (tenantRow?.booking_ref_prefix ?? 'BK').trim().toUpperCase();
     const ref = `${refPrefix}-${Math.random().toString(36).slice(2, 10).toUpperCase()}`;
+
+    // Extract toll/parking breakdown from pricing snapshot
+    const tollMinor    = pricingSnapshot?.toll_minor    ?? 0;
+    const parkingMinor = pricingSnapshot?.parking_minor ?? 0;
+    const baseFareMinor = pricingSnapshot?.base_calculated_minor ?? (totalPriceMinor - tollMinor - parkingMinor);
 
     // Load customer info for passenger fields
     const [customer] = await this.db.query(
@@ -266,6 +274,8 @@ export class CustomerPortalService {
           timezone,
           service_type_id, service_class_id,
           total_price_minor, currency,
+          prepay_base_fare_minor, prepay_toll_minor, prepay_parking_minor, prepay_total_minor,
+          pricing_snapshot,
           operational_status, payment_status,
           flight_number, passenger_count, luggage_count, special_requests,
           created_at, updated_at)
@@ -277,8 +287,10 @@ export class CustomerPortalService {
           'Australia/Sydney',
           $12, $13,
           $14, $15,
+          $16, $17, $18, $14,
+          $19,
           'PENDING_CUSTOMER_CONFIRMATION', 'UNPAID',
-          $16, $17, $18, $19,
+          $20, $21, $22, $23,
           now(), now())
        RETURNING *`,
       [
@@ -288,6 +300,8 @@ export class CustomerPortalService {
         pickupAddress, dropoffAddress, pickupAtUtc,
         serviceTypeId, vehicleClassId,
         totalPriceMinor, currency,
+        baseFareMinor, tollMinor, parkingMinor,
+        pricingSnapshot ? JSON.stringify(pricingSnapshot) : null,
         flightNumber,
         passengerCount,
         dto.luggageCount ?? 0,
@@ -680,6 +694,7 @@ export class CustomerPortalService {
     let currency       = dto.currency ?? 'AUD';
     let passengerCount = dto.passengerCount ?? 1;
     let quoteSessionId: string | null = null;
+    let guestPricingSnapshot: any = null;
 
     if (dto.quoteId) {
       const [session] = await this.db.query(
@@ -698,13 +713,21 @@ export class CustomerPortalService {
         quoteSessionId = session.id;
 
         const resolvedClassId = dto.vehicleClassId ?? dto.carTypeId;
-        if (resolvedClassId && session.payload?.results?.length) {
-          const result = session.payload.results.find((r: any) => r.service_class_id === resolvedClassId)
-            ?? session.payload.results[0];
-          if (result) totalMinor = dto.totalPriceMinor ?? result.estimated_total_minor ?? totalMinor;
+        if (session.payload?.results?.length) {
+          const result = (resolvedClassId
+            ? session.payload.results.find((r: any) => r.service_class_id === resolvedClassId)
+            : null) ?? session.payload.results[0];
+          if (result) {
+            totalMinor = dto.totalPriceMinor ?? result.estimated_total_minor ?? totalMinor;
+            guestPricingSnapshot = result.pricing_snapshot_preview ?? null;
+          }
         }
       }
     }
+
+    const guestTollMinor    = guestPricingSnapshot?.toll_minor    ?? 0;
+    const guestParkingMinor = guestPricingSnapshot?.parking_minor ?? 0;
+    const guestBaseFare     = guestPricingSnapshot?.base_calculated_minor ?? (totalMinor - guestTollMinor - guestParkingMinor);
 
     // ── Create or find customer by email ────────────────────────────────────
     const email = dto.email?.toLowerCase?.() ?? null;
@@ -790,6 +813,8 @@ export class CustomerPortalService {
             pickup_at_utc, timezone,
             service_type_id, service_class_id,
             total_price_minor, currency,
+            prepay_base_fare_minor, prepay_toll_minor, prepay_parking_minor, prepay_total_minor,
+            pricing_snapshot,
             operational_status, payment_status,
             passenger_count, luggage_count,
             flight_number, special_requests,
@@ -807,10 +832,12 @@ export class CustomerPortalService {
             $11, 'Australia/Sydney',
             $12, $13,
             $14, $15,
+            $16, $17, $18, $14,
+            $19,
             'PENDING_CUSTOMER_CONFIRMATION', 'UNPAID',
-            $16, $17,
-            $18, $19,
-            $20, $21, $22,
+            $20, $21,
+            $22, $23,
+            $24, $25, $26,
             now(), now())
          RETURNING *`,
         [
@@ -822,6 +849,8 @@ export class CustomerPortalService {
           pickupAtUtc,
           serviceTypeId, serviceClassId,
           totalMinor, currency,
+          guestBaseFare, guestTollMinor, guestParkingMinor,
+          guestPricingSnapshot ? JSON.stringify(guestPricingSnapshot) : null,
           passengerCount, dto.luggageCount ?? 0,
           dto.flightNumber ?? null, dto.notes ?? null,
           dto.infantSeats ?? 0, dto.toddlerSeats ?? 0, dto.boosterSeats ?? 0,
