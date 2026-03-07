@@ -309,6 +309,7 @@ export class PricingResolver {
     // ── Time/Holiday surcharges ──────────────────────────────────────
     let timeSurchargeMinor = 0;
     let surchargeLabels: string[] = [];
+    let surchargeItems: { label: string; amount_minor: number }[] = [];
     if (ctx.pickupAtUtc) {
       const surchargeResult = await this.surchargeService.resolve(
         ctx.tenantId,
@@ -318,6 +319,7 @@ export class PricingResolver {
       );
       timeSurchargeMinor = surchargeResult.total_surcharge_minor;
       surchargeLabels = surchargeResult.surcharges.map(s => s.label);
+      surchargeItems = surchargeResult.surcharges.map(s => ({ label: s.label, amount_minor: s.amount_minor }));
     }
     if (parkingLabel) surchargeLabels = [...surchargeLabels, `${parkingLabel} parking`];
 
@@ -367,6 +369,7 @@ export class PricingResolver {
       minimum_applied: minimumApplied,
       time_surcharge_minor: timeSurchargeMinor,
       surcharge_labels: surchargeLabels,
+      surcharge_items: surchargeItems,
     };
   }
 }

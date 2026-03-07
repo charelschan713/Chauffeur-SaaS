@@ -65,6 +65,7 @@ export interface PricingSnapshot {
   minimum_applied?: boolean;
   time_surcharge_minor?: number;
   surcharge_labels?: string[];
+  surcharge_items?: { label: string; amount_minor: number }[];
   extras_minor?: number;
   waypoints_minor?: number;
   baby_seats_minor?: number;

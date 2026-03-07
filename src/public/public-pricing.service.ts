@@ -133,6 +133,7 @@ export class PublicPricingService {
               surcharge_minor: snapshot.surcharge_minor ?? 0,
               time_surcharge_minor: snapshot.time_surcharge_minor ?? 0,
               surcharge_labels: snapshot.surcharge_labels ?? [],
+              surcharge_items: snapshot.surcharge_items ?? [],
               toll_parking_minor: snapshot.toll_parking_minor ?? 0,
               toll_minor: snapshot.toll_minor ?? 0,
               parking_minor: snapshot.parking_minor ?? 0,
