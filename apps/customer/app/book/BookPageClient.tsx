@@ -1235,7 +1235,7 @@ export function BookPageClient() {
                 <div className="space-y-3 border-t border-[hsl(var(--border))] pt-5">
                   <h2 className="font-semibold text-[hsl(var(--foreground))]">Payment</h2>
                   {stripePromise && setupClientSecret ? (
-                    <Elements stripe={stripePromise} options={{ clientSecret: setupClientSecret }}>
+                    <Elements stripe={stripePromise} options={{ locale: 'en-AU' }}>
                       <CardSetupForm
                         onSuccess={handleCardConfirmed}
                         isGuest={!!guestData}
