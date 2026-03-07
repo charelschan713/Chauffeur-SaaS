@@ -105,7 +105,7 @@ type QuoteState =
   | { status: 'idle' }
   | { status: 'loading' }
   | { status: 'error'; message: string }
-  | { status: 'success'; distanceKm: number; durationMinutes: number; estimates: Record<string, number>; tolls: Record<string, number> };
+  | { status: 'success'; distanceKm: number; durationMinutes: number; estimates: Record<string, number>; breakdowns: Record<string, any> };
 
 function toDisplay(minor: number) {
   return (minor / 100).toFixed(2);
@@ -282,40 +282,48 @@ export default function CreateBookingPage() {
     mutationFn: async (values: FormValues) => {
       const [firstName, ...rest] = values.customer_name.trim().split(' ');
       const payload = {
-        customer: {
-          firstName,
-          lastName: rest.join(' ') || 'Customer',
-          email: values.customer_email?.trim() || undefined,
-          phone_country_code: values.customer_phone_country_code || '+61',
-          phone_number: values.customer_phone_number?.trim() || undefined,
-        },
-        pickup: { address: (values.pickup_address_text ?? '').trim(), place_id: pickupPlaceId || undefined },
-        dropoff: { address: (values.dropoff_address_text ?? '').trim(), place_id: dropoffPlaceId || undefined },
-        pickupAtUtc: new Date(values.pickup_at_utc).toISOString(),
+        // Customer fields — flat as backend expects
+        customer_first_name: firstName,
+        customer_last_name: rest.join(' ') || 'Customer',
+        customer_email: values.customer_email?.trim() || undefined,
+        customer_phone_country_code: values.customer_phone_country_code || '+61',
+        customer_phone_number: values.customer_phone_number?.trim() || undefined,
+        customer_id: selectedCustomerId || undefined,
+        // Route
+        pickup_address_text: (values.pickup_address_text ?? '').trim(),
+        pickup_place_id: pickupPlaceId || undefined,
+        dropoff_address_text: (values.dropoff_address_text ?? '').trim(),
+        dropoff_place_id: dropoffPlaceId || undefined,
+        // Timing — snake_case to match backend
+        pickup_at_utc: new Date(values.pickup_at_utc).toISOString(),
         timezone: values.timezone || 'Australia/Sydney',
         is_return_trip: values.is_return_trip,
         return_pickup_at_utc: values.return_pickup_at_utc
           ? new Date(values.return_pickup_at_utc).toISOString()
           : undefined,
         return_pickup_address_text: values.return_pickup_address_text?.trim() || undefined,
-        passengerCount: values.passenger_count,
-        luggageCount: values.luggage_count ?? 0,
-        specialRequests: values.special_requests?.trim() || undefined,
-        bookingSource: 'ADMIN' as const,
+        passenger_count: values.passenger_count,
+        luggage_count: values.luggage_count ?? 0,
+        special_requests: values.special_requests?.trim() || undefined,
+        booking_source: 'ADMIN',
         service_class_id: values.service_class_id,
         service_type_id: values.service_type_id,
         city_id: values.city_id,
         flight_number: values.flight_number?.trim() || undefined,
-        waypoints: waypoints.map((w) => ({ address: w })),
+        waypoints: waypoints.filter(Boolean).map((w) => ({ address: w })),
+        waypoints_count: waypoints.filter(Boolean).length,
+        passenger_first_name: values.passenger_is_customer ? firstName : (values.passenger_first_name ?? firstName),
+        passenger_last_name: values.passenger_is_customer ? (rest.join(' ') || 'Customer') : (values.passenger_last_name ?? rest.join(' ') || 'Customer'),
+        passenger_is_customer: values.passenger_is_customer,
         passenger_phone_country_code: values.passenger_is_customer
           ? (values.customer_phone_country_code || '+61')
           : (values.passenger_phone_country_code || '+61'),
         passenger_phone_number: values.passenger_is_customer
           ? (values.customer_phone_number?.trim() || undefined)
           : (values.passenger_phone_number?.trim() || undefined),
-        infant_seats: values.infant_seats,
-        toddler_seats: values.toddler_seats,
-        booster_seats: values.booster_seats,
+        infant_seats: values.infant_seats ?? 0,
+        toddler_seats: values.toddler_seats ?? 0,
+        booster_seats: values.booster_seats ?? 0,
       };
       const response = await api.post('/bookings', payload);
 
@@ -397,7 +405,7 @@ export default function CreateBookingPage() {
       const classes = classesRes.data ?? [];
 
       const estimates: Record<string, number> = {};
-      const tolls: Record<string, number> = {};
+      const breakdowns: Record<string, any> = {};
       for (const c of classes) {
         const estimateRes = await api.post('/pricing/estimate', {
           serviceClassId: c.id,
@@ -410,9 +418,10 @@ export default function CreateBookingPage() {
           booster_seats: values.booster_seats ?? 0,
           pickupAddress: values.pickup_address_text,
           dropoffAddress: values.dropoff_address_text,
+          pickupAt: values.pickup_at_utc ? new Date(values.pickup_at_utc).toISOString() : undefined,
         });
         estimates[c.id] = estimateRes.data?.grand_total_minor ?? estimateRes.data?.total_minor ?? 0;
-        tolls[c.id] = estimateRes.data?.toll_minor ?? estimateRes.data?.toll_parking_minor ?? 0;
+        breakdowns[c.id] = estimateRes.data ?? {};
       }
 
       setQuote({
@@ -420,7 +429,7 @@ export default function CreateBookingPage() {
         distanceKm: routeRes.data.distanceKm,
         durationMinutes: routeRes.data.durationMinutes,
         estimates,
-        tolls,
+        breakdowns,
       });
     } catch {
       setQuote({
@@ -935,7 +944,7 @@ export default function CreateBookingPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {carTypes.filter((c: any) => c.name && c.active !== false).map((c: any) => {
                 const price = quote.status === 'success' ? (quote.estimates[c.id] ?? 0) : 0;
-                const toll  = quote.status === 'success' ? (quote.tolls[c.id]     ?? 0) : 0;
+                const bd    = quote.status === 'success' ? (quote.breakdowns[c.id] ?? {}) : {};
                 const insufficient = (c.passenger_capacity ?? 0) > 0 && ((c.passenger_capacity ?? 0) < values.passenger_count || (c.luggage_capacity ?? 0) < (values.luggage_count ?? 0));
                 return (
                   <button key={c.id} type="button" disabled={insufficient}
@@ -943,11 +952,29 @@ export default function CreateBookingPage() {
                     className={`border rounded-lg p-3 text-left transition-colors ${values.service_class_id === c.id ? 'border-blue-600 bg-blue-50' : 'border-gray-200 hover:border-gray-300'} ${insufficient ? 'opacity-40 cursor-not-allowed' : ''}`}>
                     <div className="font-medium text-gray-900">{c.name}</div>
                     {quote.status === 'success' && (
-                      <div className="mt-1 space-y-0.5">
-                        <div className="text-blue-600 font-semibold text-sm">${toDisplay(price)}</div>
-                        {toll > 0 && (
-                          <div className="text-xs text-amber-600 font-medium">+ ${toDisplay(toll)} toll est.</div>
+                      <div className="mt-1.5 space-y-0.5 text-xs">
+                        {(bd.base_calculated_minor ?? 0) > 0 && (
+                          <div className="text-gray-500">Base: ${toDisplay(bd.base_calculated_minor)}</div>
                         )}
+                        {(bd.waypoints_minor ?? 0) > 0 && (
+                          <div className="text-gray-500">+ {waypoints.filter(Boolean).length} stop{waypoints.filter(Boolean).length > 1 ? 's' : ''}: ${toDisplay(bd.waypoints_minor)}</div>
+                        )}
+                        {(bd.baby_seats_minor ?? 0) > 0 && (
+                          <div className="text-gray-500">+ Baby seats: ${toDisplay(bd.baby_seats_minor)}</div>
+                        )}
+                        {(bd.surcharge_items ?? []).map((s: any, i: number) => (
+                          <div key={i} className="text-amber-600">⏱ {s.label}: ${toDisplay(s.amount_minor)}</div>
+                        ))}
+                        {(bd.toll_minor ?? 0) > 0 && (
+                          <div className="text-amber-600">🛣️ Tolls: ${toDisplay(bd.toll_minor)}</div>
+                        )}
+                        {(bd.parking_minor ?? 0) > 0 && (
+                          <div className="text-amber-600">🅿️ Parking: ${toDisplay(bd.parking_minor)}</div>
+                        )}
+                        {!(bd.toll_minor) && !(bd.parking_minor) && (bd.toll_parking_minor ?? 0) > 0 && (
+                          <div className="text-amber-600">Tolls/Parking: ${toDisplay(bd.toll_parking_minor)}</div>
+                        )}
+                        <div className="text-blue-600 font-semibold pt-0.5 border-t border-gray-100">Total: ${toDisplay(price)}</div>
                       </div>
                     )}
                     <div className="text-xs text-gray-500 mt-1">🧍 {c.passenger_capacity ?? 0} · 🧳 {c.luggage_capacity ?? 0}</div>
