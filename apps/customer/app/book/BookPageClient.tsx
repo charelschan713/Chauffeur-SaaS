@@ -79,7 +79,8 @@ interface QuoteSession {
 
 // ── Countdown hook ─────────────────────────────────────────────────────────
 function useCountdown(expiresAt: string) {
-  const [remaining, setRemaining] = useState(0);
+  // Start with null — means "not yet computed". Prevents false-expiry on first render.
+  const [remaining, setRemaining] = useState<number | null>(null);
   useEffect(() => {
     const tick = () => {
       const ms = new Date(expiresAt).getTime() - Date.now();
@@ -89,9 +90,10 @@ function useCountdown(expiresAt: string) {
     const id = setInterval(tick, 1000);
     return () => clearInterval(id);
   }, [expiresAt]);
-  const mins = Math.floor(remaining / 60);
-  const secs = remaining % 60;
-  return { remaining, mins, secs, expired: remaining === 0 };
+  const mins = remaining !== null ? Math.floor(remaining / 60) : 30;
+  const secs = remaining !== null ? remaining % 60 : 0;
+  // Only mark expired once we've actually computed a value (remaining === 0, not null)
+  return { remaining: remaining ?? 9999, mins, secs, expired: remaining === 0 };
 }
 
 // ── Card setup form ────────────────────────────────────────────────────────
