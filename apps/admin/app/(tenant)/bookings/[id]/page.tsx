@@ -189,6 +189,48 @@ function BookingDetailInner() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
+        {/* ── PENDING_CUSTOMER_CONFIRMATION banner (widget/guest bookings) ── */}
+        {booking.operational_status === 'PENDING_CUSTOMER_CONFIRMATION' && (
+          <div className="lg:col-span-3 bg-blue-50 border border-blue-300 rounded-xl p-4 flex items-start justify-between gap-4">
+            <div>
+              <p className="font-semibold text-blue-900">📋 New Booking — Pending Confirmation</p>
+              <p className="text-sm text-blue-700 mt-1">
+                Customer has submitted and saved their card. Confirm to accept this booking.
+              </p>
+            </div>
+            <div className="flex gap-2 shrink-0">
+              <button
+                onClick={async () => {
+                  try {
+                    await api.patch(`/bookings/${booking.id}/transition`, { newStatus: 'CONFIRMED' });
+                    setToast({ message: 'Booking confirmed!', tone: 'success' });
+                    refetch();
+                  } catch (e: any) {
+                    setToast({ message: e.response?.data?.message ?? 'Failed to confirm', tone: 'error' });
+                  }
+                }}
+                className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700"
+              >
+                ✅ Confirm Booking
+              </button>
+              <button
+                onClick={async () => {
+                  try {
+                    await api.post(`/bookings/${booking.id}/cancel`, { reason: 'Rejected by admin' });
+                    setToast({ message: 'Booking rejected', tone: 'success' });
+                    refetch();
+                  } catch (e: any) {
+                    setToast({ message: e.response?.data?.message ?? 'Failed', tone: 'error' });
+                  }
+                }}
+                className="px-4 py-2 bg-red-100 text-red-700 rounded-lg text-sm font-medium hover:bg-red-200"
+              >
+                ✕ Reject
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* ── AWAITING_CONFIRMATION banner ── */}
         {booking.operational_status === 'AWAITING_CONFIRMATION' && (
           <div className="lg:col-span-3 bg-amber-50 border border-amber-300 rounded-xl p-4 flex items-start justify-between gap-4">
