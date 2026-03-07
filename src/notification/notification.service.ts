@@ -121,12 +121,13 @@ export class NotificationService {
 
   private async onBookingConfirmed(tenantId: string, payload: any) {
     const booking = await this.getBooking(payload.booking_id);
-    if (!booking) return;
+    if (!booking) { console.error(`[BookingConfirmed] booking not found: ${payload.booking_id}`); return; }
 
     const emailIntegration =
       (await this.integrationResolver.resolve(tenantId, 'resend')) ??
       (await this.integrationResolver.resolve(tenantId, 'sendgrid')) ??
       (await this.integrationResolver.resolve(tenantId, 'mailgun'));
+    console.log(`[BookingConfirmed] emailIntegration=${emailIntegration?.provider ?? 'null'} booking=${booking.booking_reference} to=${booking.customer_email}`);
     const smsIntegration = await this.integrationResolver.resolve(
       tenantId,
       'twilio',
