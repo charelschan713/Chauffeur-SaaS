@@ -480,16 +480,12 @@ export function BookPageClient() {
     if (guestData) {
       // Guest phone may be combined (e.g. "+61400000000") — split out the code
       const rawPhone: string = guestData.phone ?? '';
-      // Known AU country code — safely strip +61 prefix, leave rest as local number
-      const knownCodes = ['+61', '+1', '+44', '+64', '+65', '+852', '+86', '+81', '+82', '+66', '+91'];
-      const matchedCode = knownCodes.find(c => rawPhone.startsWith(c));
-      const codeMatch = matchedCode ? [rawPhone, matchedCode, rawPhone.slice(matchedCode.length).trim()] : null;
       setPassengerDetails({
-        firstName:   guestData.firstName ?? '',
-        lastName:    guestData.lastName  ?? '',
-        email:       guestData.email     ?? '',
-        phoneCode:   codeMatch ? codeMatch[1] : '+61',
-        phoneNumber: codeMatch ? codeMatch[2].trim() : rawPhone,
+        firstName:   guestData.firstName   ?? '',
+        lastName:    guestData.lastName    ?? '',
+        email:       guestData.email       ?? '',
+        phoneCode:   guestData.phoneCode   ?? '+61',
+        phoneNumber: guestData.phoneNumber ?? '',
       });
     } else if (token) {
       api.get('/customer-portal/profile').then(({ data }) => {
