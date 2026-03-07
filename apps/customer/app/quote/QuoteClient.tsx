@@ -560,15 +560,15 @@ export function QuoteClient() {
           {/* Baby Seats */}
           <div className="space-y-2">
             <p className="text-xs font-semibold uppercase tracking-widest text-white/40">Baby Seats <span className="normal-case font-normal">(optional)</span></p>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-3 gap-3 items-end">
               {[
                 { label:'Infant',  sub:'Rear-facing · 0–6 months',   value:infantSeats,  set:setInfantSeats },
                 { label:'Toddler', sub:'Forward-facing · 0–4 yrs',   value:toddlerSeats, set:setToddlerSeats },
                 { label:'Booster', sub:'4–8 years old',               value:boosterSeats, set:setBoosterSeats },
               ].map(({label,sub,value,set})=>(
-                <div key={label}>
+                <div key={label} className="flex flex-col">
                   <p className="text-[11px] font-medium text-white/70 mb-0.5">{label}</p>
-                  <p className="text-[10px] text-white/30 mb-1.5 leading-tight">{sub}</p>
+                  <p className="text-[10px] text-white/30 mb-1.5 leading-tight flex-1">{sub}</p>
                   <LuxSelect value={value} onChange={v=>{set(v);clearQuote();}}>
                     {[0,1,2,3].map(n=><option key={n} value={String(n)} className="bg-gray-900">{n}</option>)}
                   </LuxSelect>
