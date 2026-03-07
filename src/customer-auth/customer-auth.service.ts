@@ -146,7 +146,7 @@ export class CustomerAuthService {
     const tenant = await this.getTenantBySlug(dto.tenantSlug);
     const email = dto.email.toLowerCase();
 
-    // Look up customer_auth + customer profile
+    // Look up customer_auth record
     const [auth] = await this.db.query(
       `SELECT ca.customer_id, ca.email, c.first_name, c.last_name
        FROM public.customer_auth ca
@@ -156,8 +156,24 @@ export class CustomerAuthService {
       [tenant.id, email],
     );
 
-    // Always return success to prevent email enumeration
-    if (!auth) return { sent: true };
+    // If no auth record, check if customer exists (guest who never registered)
+    // Auto-create a customer_auth row so they can set a password via reset link
+    if (!auth) {
+      const [customer] = await this.db.query(
+        `SELECT id, first_name, last_name FROM public.customers
+         WHERE tenant_id=$1 AND email=$2 AND deleted_at IS NULL LIMIT 1`,
+        [tenant.id, email],
+      );
+      if (!customer) return { sent: true }; // email not found — don't reveal
+
+      // Create customer_auth with no password (they'll set it via reset link)
+      await this.db.query(
+        `INSERT INTO public.customer_auth (customer_id, tenant_id, email, created_at, updated_at)
+         VALUES ($1, $2, $3, now(), now())
+         ON CONFLICT (tenant_id, email) DO NOTHING`,
+        [customer.id, tenant.id, email],
+      );
+    }
 
     const token = crypto.randomBytes(32).toString('hex');
     const expires = new Date(Date.now() + 60 * 60 * 1000);
