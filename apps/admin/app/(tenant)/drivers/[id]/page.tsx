@@ -60,7 +60,7 @@ const empty = {
   dob: '', address_line1: '', address_line2: '', city: '', state: '', postcode: '', avatar_url: '', abn: '',
   driver_license_number: '', driver_license_state: '', driver_license_expiry: '', driver_license_class: '',
   vehicle_hire_license_number: '', vehicle_hire_license_expiry: '',
-  emergency_contact_name: '', emergency_contact_phone: '', emergency_contact_relationship: '',
+  emergency_contact_name: '', emergency_contact_phone_code: '+61', emergency_contact_phone: '', emergency_contact_relationship: '',
   bank_name: '', bank_account_name: '', bank_bsb: '', bank_account_number: '',
   notes: '',
 };
@@ -101,7 +101,8 @@ export default function DriverProfilePage() {
       vehicle_hire_license_number: profile.vehicle_hire_license_number ?? '',
       vehicle_hire_license_expiry: profile.vehicle_hire_license_expiry?.slice(0, 10) ?? '',
       emergency_contact_name: profile.emergency_contact_name ?? '',
-      emergency_contact_phone: profile.emergency_contact_phone ?? '',
+      emergency_contact_phone_code: (() => { const p = profile.emergency_contact_phone ?? ''; const m = p.match(/^(\+\d{1,3})/); return m ? m[1] : '+61'; })(),
+      emergency_contact_phone: (() => { const p = profile.emergency_contact_phone ?? ''; return p.replace(/^\+\d{1,3}\s?/, ''); })(),
       emergency_contact_relationship: profile.emergency_contact_relationship ?? '',
       bank_name: profile.bank_name ?? '',
       bank_account_name: profile.bank_account_name ?? '',
@@ -122,7 +123,15 @@ export default function DriverProfilePage() {
     onError: () => setToast({ message: 'Failed to save', tone: 'error' }),
   });
 
-  function handleSave() { saveMutation.mutate(form); }
+  function handleSave() {
+    const payload = {
+      ...form,
+      emergency_contact_phone: form.emergency_contact_phone
+        ? `${form.emergency_contact_phone_code}${form.emergency_contact_phone}`
+        : '',
+    };
+    saveMutation.mutate(payload);
+  }
 
   const initials = [form.first_name, form.last_name].filter(Boolean).map(n => n[0].toUpperCase()).join('') || '?';
 
@@ -303,7 +312,13 @@ export default function DriverProfilePage() {
             </Field>
             <div className="grid grid-cols-2 gap-4">
               <Field label="Phone Number">
-                <Inp value={form.emergency_contact_phone} onChange={set('emergency_contact_phone')} placeholder="+61 412 345 678" />
+                <div className="flex gap-2">
+                  <select value={form.emergency_contact_phone_code} onChange={e => set('emergency_contact_phone_code')(e.target.value)}
+                    className="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white w-24 shrink-0">
+                    {['+61','+1','+44','+64','+852','+65','+86'].map(c => <option key={c}>{c}</option>)}
+                  </select>
+                  <Inp value={form.emergency_contact_phone} onChange={set('emergency_contact_phone')} placeholder="412 345 678" />
+                </div>
               </Field>
               <Field label="Relationship">
                 <select value={form.emergency_contact_relationship}
@@ -321,7 +336,7 @@ export default function DriverProfilePage() {
                 <p className="text-xs font-semibold text-red-700 uppercase tracking-wider mb-1">Emergency Contact</p>
                 <p className="font-semibold text-gray-900">{form.emergency_contact_name}</p>
                 {form.emergency_contact_relationship && <p className="text-sm text-gray-600">{form.emergency_contact_relationship}</p>}
-                {form.emergency_contact_phone && <p className="text-sm text-gray-700 font-mono mt-1">{form.emergency_contact_phone}</p>}
+                {form.emergency_contact_phone && <p className="text-sm text-gray-700 font-mono mt-1">{form.emergency_contact_phone_code} {form.emergency_contact_phone}</p>}
               </div>
             )}
           </Section>

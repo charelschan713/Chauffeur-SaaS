@@ -85,7 +85,7 @@ export default function GeneralSettingsPage() {
   const emptyBiz = {
     business_name: '', abn: '',
     address_line1: '', address_line2: '', city: '', state: '', postcode: '', country: 'Australia',
-    phone: '', email: '', website: '', logo_url: '',
+    phoneCode: '+61', phone: '', email: '', website: '', logo_url: '',
   };
   const emptyInvoice = { invoice_notes: '', invoice_footer: '' };
   const emptyBank = { bank_name: '', bank_account_name: '', bank_bsb: '', bank_account_number: '' };
@@ -105,7 +105,8 @@ export default function GeneralSettingsPage() {
         state: biz.state ?? '',
         postcode: biz.postcode ?? '',
         country: biz.country ?? 'Australia',
-        phone: biz.phone ?? '',
+        phoneCode: (() => { const p = biz.phone ?? ''; const m = p.match(/^(\+\d{1,3})/); return m ? m[1] : '+61'; })(),
+        phone: (() => { const p = biz.phone ?? ''; return p.replace(/^\+\d{1,3}\s?/, ''); })(),
         email: biz.email ?? '',
         website: biz.website ?? '',
         logo_url: biz.logo_url ?? '',
@@ -196,8 +197,7 @@ export default function GeneralSettingsPage() {
           <Section title="Contact Details">
             <div className="grid grid-cols-2 gap-4">
               <Field label="Business Phone">
-                <input className="w-full border rounded-lg px-3 py-2 text-sm" value={bizForm.phone}
-                  onChange={e => setBizForm(f => ({ ...f, phone: e.target.value }))} placeholder="+61 2 9999 9999" />
+                <div className="flex gap-2"><select value={bizForm.phoneCode} onChange={e => setBizForm(f => ({ ...f, phoneCode: e.target.value }))} className="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white w-24 shrink-0">{["+61","+1","+44","+64","+852","+65","+86"].map(c => <option key={c}>{c}</option>)}</select><input className="flex-1 border rounded-lg px-3 py-2 text-sm" value={bizForm.phone} onChange={e => setBizForm(f => ({ ...f, phone: e.target.value }))} placeholder="2 9999 9999" /></div>
               </Field>
               <Field label="Business Email">
                 <input type="email" className="w-full border rounded-lg px-3 py-2 text-sm" value={bizForm.email}
@@ -222,7 +222,7 @@ export default function GeneralSettingsPage() {
 
           <div>
             <button
-              onClick={() => bizMutation.mutate(bizForm)}
+              onClick={() => bizMutation.mutate({ ...bizForm, phone: bizForm.phone ? `${bizForm.phoneCode}${bizForm.phone}` : '' })}
               disabled={bizMutation.isPending}
               className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg disabled:opacity-60 flex items-center gap-2"
             >
@@ -344,7 +344,7 @@ export default function GeneralSettingsPage() {
                 {(bizForm.city || bizForm.state || bizForm.postcode) && (
                   <div className="text-gray-500">{[bizForm.city, bizForm.state, bizForm.postcode].filter(Boolean).join(' ')}, {bizForm.country}</div>
                 )}
-                {bizForm.phone && <div className="text-gray-500">📞 {bizForm.phone}</div>}
+                {bizForm.phone && <div className="text-gray-500">📞 {bizForm.phoneCode} {bizForm.phone}</div>}
                 {bizForm.email && <div className="text-gray-500">✉ {bizForm.email}</div>}
               </div>
               {invoiceForm.invoice_notes && (
