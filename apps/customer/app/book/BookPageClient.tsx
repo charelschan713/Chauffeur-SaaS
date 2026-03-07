@@ -131,6 +131,7 @@ function CardSetupForm({ onSuccess, isGuest, billingName, submitLabel, submittin
       if (!setupIntent || setupIntent.status !== 'succeeded') throw new Error('Card verification failed. Please try again.');
       onSuccess(setupIntent.id);
     } catch (err: any) {
+      console.error('[CardSetupForm] error:', err);
       setError(err.message ?? 'Card setup failed');
     } finally {
       setLoading(false);
@@ -547,7 +548,8 @@ export function BookPageClient() {
       await fetch(`${API_URL}/public/pricing/quote/${quoteId}`, { method: 'PATCH' }).catch(() => {});
       setStep('done');
     } catch (err: any) {
-      setSubmitError(err.response?.data?.message ?? 'Failed to create booking');
+      console.error('[handleCardConfirmed] booking error:', err?.response?.data ?? err);
+      setSubmitError(err.response?.data?.message ?? err?.message ?? 'Failed to create booking. Please try again.');
       setStep('details');
     }
   }, [session, selectedResult, loyaltyDiscount, flightNumber, specialRequests, guestData, passengerDetails, quoteId]);
@@ -886,34 +888,81 @@ export function BookPageClient() {
   // 'expired' step removed — handled inline via quoteError banner
 
   if (step === 'done') {
+    const ref = createdBooking?.booking_reference;
+    const pickup = session?.payload?.request?.pickup_address ?? createdBooking?.pickup_address_text;
+    const dropoff = session?.payload?.request?.dropoff_address ?? createdBooking?.dropoff_address_text;
+    const total = fmtMoney(
+      loyaltyDiscount?.finalFareMinor ?? selectedResult?.estimated_total_minor ?? createdBooking?.total_price_minor ?? 0,
+      selectedResult?.currency ?? 'AUD',
+    );
     return (
-      <div className="min-h-screen bg-[hsl(var(--background))] flex items-center justify-center px-4">
-        <div className="max-w-sm w-full text-center space-y-5">
-          <div className="w-16 h-16 rounded-full bg-[hsl(var(--success)/0.15)] flex items-center justify-center mx-auto">
-            <CheckCircle2 className="h-8 w-8 text-[hsl(var(--success))]" />
+      <div className="min-h-screen bg-[hsl(var(--background))]" style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}>
+        <div className="max-w-sm mx-auto px-4 py-10 flex flex-col items-center text-center space-y-6">
+
+          {/* Success icon */}
+          <div className="w-20 h-20 rounded-full bg-emerald-500/15 border-2 border-emerald-500/30 flex items-center justify-center">
+            <CheckCircle2 className="h-10 w-10 text-emerald-400" />
           </div>
+
           <div>
-            <h1 className="font-serif text-2xl font-medium text-[hsl(var(--foreground))]">Booking Submitted!</h1>
-            <p className="text-sm text-[hsl(var(--muted-foreground))] mt-2">
-              Your card has been saved. We'll confirm your booking and notify you shortly.
+            <h1 className="font-serif text-2xl font-semibold text-white">Booking Confirmed!</h1>
+            <p className="text-sm text-white/50 mt-2 leading-relaxed">
+              Your booking has been received. We'll send a confirmation to your email shortly.
             </p>
           </div>
-          {createdBooking?.booking_reference && (
-            <div className="font-mono text-sm bg-[hsl(var(--muted))] rounded-lg px-4 py-2.5 inline-block">
-              {createdBooking.booking_reference}
+
+          {/* Booking reference — most important thing */}
+          {ref && (
+            <div className="w-full rounded-2xl bg-[hsl(var(--primary)/0.1)] border border-[hsl(var(--primary)/0.3)] px-5 py-4">
+              <p className="text-xs text-[hsl(var(--primary)/0.6)] uppercase tracking-widest mb-1">Booking Reference</p>
+              <p className="font-mono text-xl font-bold text-[hsl(var(--primary))]">{ref}</p>
             </div>
           )}
-          <div className="flex gap-3">
+
+          {/* Trip summary */}
+          {pickup && (
+            <div className="w-full rounded-2xl bg-white/[0.04] border border-white/8 px-4 py-4 text-left space-y-3">
+              <div className="flex items-start gap-3">
+                <div className="w-2 h-2 rounded-full bg-emerald-400 mt-1.5 shrink-0" />
+                <div>
+                  <p className="text-[10px] text-white/30 uppercase tracking-wide">Pickup</p>
+                  <p className="text-sm text-white/75 leading-snug">{pickup}</p>
+                </div>
+              </div>
+              {dropoff && (
+                <div className="flex items-start gap-3">
+                  <div className="w-2 h-2 rounded-full bg-[hsl(var(--primary))] mt-1.5 shrink-0" />
+                  <div>
+                    <p className="text-[10px] text-white/30 uppercase tracking-wide">Drop-off</p>
+                    <p className="text-sm text-white/75 leading-snug">{dropoff}</p>
+                  </div>
+                </div>
+              )}
+              <div className="border-t border-white/8 pt-3 flex items-center justify-between">
+                <span className="text-sm text-white/40">Total charged</span>
+                <span className="font-bold text-[hsl(var(--primary))]">{total}</span>
+              </div>
+            </div>
+          )}
+
+          {/* CTA */}
+          <div className="w-full space-y-3 pt-2">
             {token ? (
-              <Button size="lg" className="flex-1" onClick={() => router.push('/dashboard')}>
-                View Dashboard
+              <Button size="lg" className="w-full" onClick={() => router.push('/bookings')}>
+                View My Bookings
               </Button>
             ) : (
-              <Button size="lg" className="flex-1" onClick={() => router.push('/register')}>
-                Create Account
-              </Button>
+              <>
+                <Button size="lg" className="w-full" onClick={() => router.push(`/register`)}>
+                  Create Account to Track Booking
+                </Button>
+                <Button size="lg" variant="outline" className="w-full" onClick={() => router.push('/quote')}>
+                  Book Another Ride
+                </Button>
+              </>
             )}
           </div>
+
         </div>
       </div>
     );
@@ -937,6 +986,18 @@ export function BookPageClient() {
           <h1 className="font-serif text-lg font-medium text-[hsl(var(--foreground))]">Complete Booking</h1>
         </div>
       </header>
+
+      {/* Sticky error toast — booking submission failed */}
+      {submitError && (
+        <div className="fixed top-0 left-0 right-0 z-50 flex items-center gap-3 px-4 py-4 bg-red-950/95 border-b border-red-500/30 backdrop-blur"
+          style={{ paddingTop: 'max(16px, env(safe-area-inset-top))' }}>
+          <AlertCircle className="h-5 w-5 text-red-400 shrink-0" />
+          <p className="flex-1 text-sm text-red-200">{submitError}</p>
+          <button onClick={() => setSubmitError('')} className="text-red-400/60 hover:text-red-400">
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+          </button>
+        </div>
+      )}
 
       <main className="max-w-lg mx-auto px-4 py-5 space-y-4" style={{ paddingBottom: 'calc(32px + env(safe-area-inset-bottom, 0px))' }}>
 
@@ -1020,12 +1081,7 @@ export function BookPageClient() {
                   </div>
                 )}
 
-                {submitError && (
-                  <div className="flex items-start gap-2 p-3 rounded-lg bg-[hsl(var(--destructive)/0.1)] border border-[hsl(var(--destructive)/0.3)] text-sm text-[hsl(var(--destructive))]">
-                    <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
-                    {submitError}
-                  </div>
-                )}
+                {/* submitError shown in sticky toast at top of page — see below */}
 
                 {/* ── Your Details ── */}
                 <div className="space-y-4">
