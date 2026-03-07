@@ -165,7 +165,8 @@ export class BookingService {
   async createBooking(tenantId: string, dto: any) {
     const id = randomUUID();
     const now = new Date().toISOString();
-    const pickupAtUtc = dto.pickup_at_utc;
+    const pickupAtUtc = dto.pickup_at_utc ?? dto.pickupAtUtc;
+    if (!pickupAtUtc) throw new Error('pickup_at_utc is required');
     const pickupTimezone = dto.timezone || 'Australia/Sydney';
 
     // Fetch tenant booking_ref_prefix
@@ -209,9 +210,16 @@ export class BookingService {
       dropoffAddress: dto.dropoff_address_text ?? null,
     };
 
-    const pricing = await this.pricing.resolve(pricingContext);
+    let pricing: any;
+    try {
+      pricing = await this.pricing.resolve(pricingContext);
+    } catch (err: any) {
+      throw new Error(`Pricing resolve failed: ${err?.message ?? String(err)}`);
+    }
 
-    const bookingRows = await this.dataSource.query(
+    let bookingRows: any[];
+    try {
+    bookingRows = await this.dataSource.query(
       `INSERT INTO public.bookings
        (id, tenant_id, booking_reference, booking_source,
         customer_first_name, customer_last_name, customer_email,
@@ -302,6 +310,9 @@ export class BookingService {
         dto.booster_seats ?? 0,
       ],
     );
+    } catch (err: any) {
+      throw new Error(`Booking INSERT failed: ${err?.message ?? String(err)}`);
+    }
 
     await this.dataSource.query(
       `INSERT INTO public.booking_status_history
