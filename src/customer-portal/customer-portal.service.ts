@@ -219,13 +219,13 @@ export class CustomerPortalService {
       const payload = session.payload;
       const req     = payload.request ?? {};
 
-      pickupAddress   = pickupAddress   ?? req.pickup_address ?? req.pickup_address_text;
-      dropoffAddress  = dropoffAddress  ?? req.dropoff_address ?? req.dropoff_address_text;
-      pickupAtUtc     = pickupAtUtc     ?? req.pickup_at_utc ?? req.pickup_at;
-      serviceTypeId   = serviceTypeId   ?? req.service_type_id ?? null;
+      pickupAddress   = pickupAddress   ?? req.pickupAddress  ?? req.pickup_address ?? req.pickup_address_text;
+      dropoffAddress  = dropoffAddress  ?? req.dropoffAddress ?? req.dropoff_address ?? req.dropoff_address_text;
+      pickupAtUtc     = pickupAtUtc     ?? req.pickupAtUtc    ?? req.pickup_at_utc  ?? req.pickup_at;
+      serviceTypeId   = serviceTypeId   ?? req.serviceTypeId  ?? req.service_type_id ?? null;
       vehicleClassId  = dto.vehicleClassId ?? null;
       currency        = currency        ?? payload.currency ?? 'AUD';
-      passengerCount  = passengerCount  ?? req.passenger_count ?? 1;
+      passengerCount  = passengerCount  ?? req.passengers     ?? req.passenger_count ?? 1;
       quoteSessionId  = session.id;
 
       // Get final price from quote result for requested car type
@@ -640,7 +640,7 @@ export class CustomerPortalService {
     let dropoffAddress = dto.dropoffAddress;
     let pickupAtUtc    = dto.pickupAtUtc;
     let serviceTypeId  = dto.serviceTypeId ?? null;
-    let serviceClassId = dto.vehicleClassId ?? null;
+    let serviceClassId = dto.vehicleClassId ?? dto.carTypeId ?? null;
     let totalMinor     = dto.totalPriceMinor ?? 0;
     let currency       = dto.currency ?? 'AUD';
     let passengerCount = dto.passengerCount ?? 1;
@@ -654,16 +654,17 @@ export class CustomerPortalService {
       );
       if (session) {
         const req = session.payload?.request ?? {};
-        pickupAddress  = pickupAddress  ?? req.pickup_address ?? req.pickup_address_text;
-        dropoffAddress = dropoffAddress ?? req.dropoff_address ?? req.dropoff_address_text;
-        pickupAtUtc    = pickupAtUtc    ?? req.pickup_at_utc ?? req.pickup_at;
-        serviceTypeId  = serviceTypeId  ?? req.service_type_id ?? null;
-        passengerCount = passengerCount ?? req.passenger_count ?? 1;
+        pickupAddress  = pickupAddress  ?? req.pickupAddress  ?? req.pickup_address ?? req.pickup_address_text;
+        dropoffAddress = dropoffAddress ?? req.dropoffAddress ?? req.dropoff_address ?? req.dropoff_address_text;
+        pickupAtUtc    = pickupAtUtc    ?? req.pickupAtUtc    ?? req.pickup_at_utc  ?? req.pickup_at;
+        serviceTypeId  = serviceTypeId  ?? req.serviceTypeId  ?? req.service_type_id ?? null;
+        passengerCount = passengerCount ?? req.passengers     ?? req.passenger_count ?? 1;
         currency       = currency       ?? session.payload?.currency ?? 'AUD';
         quoteSessionId = session.id;
 
-        if (dto.vehicleClassId && session.payload?.results?.length) {
-          const result = session.payload.results.find((r: any) => r.service_class_id === dto.vehicleClassId)
+        const resolvedClassId = dto.vehicleClassId ?? dto.carTypeId;
+        if (resolvedClassId && session.payload?.results?.length) {
+          const result = session.payload.results.find((r: any) => r.service_class_id === resolvedClassId)
             ?? session.payload.results[0];
           if (result) totalMinor = dto.totalPriceMinor ?? result.estimated_total_minor ?? totalMinor;
         }
