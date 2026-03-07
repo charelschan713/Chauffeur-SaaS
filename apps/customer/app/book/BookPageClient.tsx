@@ -145,8 +145,8 @@ function CardSetupForm({ onSuccess, isGuest, billingName, submitLabel, submittin
         <div className="rounded-[--radius] border border-[hsl(var(--input-border))] bg-[hsl(var(--input))] px-3 py-3.5">
           <CardElement options={{
             style: {
-              base: { fontSize: '15px', color: 'hsl(216 33% 97%)', '::placeholder': { color: 'hsl(217 11% 45%)' } },
-              invalid: { color: 'hsl(0 84% 60%)' },
+              base: { fontSize: '15px', color: '#e2e8f0', '::placeholder': { color: '#64748b' } },
+              invalid: { color: '#ef4444' },
             },
           }} />
         </div>
