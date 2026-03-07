@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
@@ -292,8 +292,15 @@ export function BookPageClient() {
   const searchParams = useSearchParams();
   const { token, hydrate } = useAuthStore();
 
-  const quoteId    = searchParams.get('quote_id');
-  const carTypeId  = searchParams.get('car_type_id');
+  // Use refs so quoteId/carTypeId never become null during Stripe processing re-renders
+  const quoteIdRef   = useRef<string | null>(null);
+  const carTypeIdRef = useRef<string | null>(null);
+  const rawQuoteId   = searchParams.get('quote_id');
+  const rawCarTypeId = searchParams.get('car_type_id');
+  if (rawQuoteId)   quoteIdRef.current   = rawQuoteId;
+  if (rawCarTypeId) carTypeIdRef.current = rawCarTypeId;
+  const quoteId   = quoteIdRef.current;
+  const carTypeId = carTypeIdRef.current;
 
   const [step, setStep]             = useState<Step>('loading');
   const [session, setSession]       = useState<QuoteSession | null>(null);
