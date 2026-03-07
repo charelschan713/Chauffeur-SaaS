@@ -359,7 +359,7 @@ export class NotificationService {
     };
     const admins = await this.getAdminContacts(tenantId);
     for (const admin of admins) {
-      await this.sendBoth(tenantId, 'AdminDriverRejected', vars, admin.email, admin.phone, booking.id).catch(() => {});
+      await this.sendBoth(tenantId, 'AdminDriverRejected', vars, admin.email, null, booking.id).catch(() => {});
     }
   }
 
@@ -947,7 +947,7 @@ export class NotificationService {
     const admins = await this.getAdminContacts(tenantId);
     for (const admin of admins) {
       await this.sendBoth(tenantId, 'AdminNewBooking', this.bookingVars(booking),
-        admin.email, admin.phone, booking.id);
+        admin.email, null, booking.id);
     }
   }
 
@@ -960,7 +960,7 @@ export class NotificationService {
     };
     const admins = await this.getAdminContacts(tenantId);
     for (const admin of admins) {
-      await this.sendBoth(tenantId, 'AdminBookingPendingConfirm', vars, admin.email, admin.phone, booking.id).catch(() => {});
+      await this.sendBoth(tenantId, 'AdminBookingPendingConfirm', vars, admin.email, null, booking.id).catch(() => {});
     }
   }
 
@@ -972,7 +972,7 @@ export class NotificationService {
     };
     const admins = await this.getAdminContacts(tenantId);
     for (const admin of admins) {
-      await this.sendBoth(tenantId, 'AdminDriverRejected', vars, admin.email, admin.phone, payload.booking_id);
+      await this.sendBoth(tenantId, 'AdminDriverRejected', vars, admin.email, null, payload.booking_id);
     }
   }
 
@@ -980,7 +980,7 @@ export class NotificationService {
     const vars = { partner_name: payload.partner_name ?? '', reject_reason: payload.reject_reason ?? '', booking_reference: payload.booking_reference ?? '' };
     const admins = await this.getAdminContacts(tenantId);
     for (const admin of admins) {
-      await this.sendBoth(tenantId, 'AdminPartnerRejected', vars, admin.email, admin.phone);
+      await this.sendBoth(tenantId, 'AdminPartnerRejected', vars, admin.email, null);
     }
   }
 
@@ -988,7 +988,7 @@ export class NotificationService {
     const vars = { source_tenant: payload.source_tenant ?? '', booking_reference: payload.booking_reference ?? '', transfer_price: payload.transfer_price ?? '' };
     const admins = await this.getAdminContacts(tenantId);
     for (const admin of admins) {
-      await this.sendBoth(tenantId, 'AdminTransferRequest', vars, admin.email, admin.phone);
+      await this.sendBoth(tenantId, 'AdminTransferRequest', vars, admin.email, null);
     }
   }
 
@@ -996,7 +996,7 @@ export class NotificationService {
     const vars = { partner_name: payload.partner_name ?? '', booking_reference: payload.booking_reference ?? '' };
     const admins = await this.getAdminContacts(tenantId);
     for (const admin of admins) {
-      await this.sendBoth(tenantId, 'AdminPartnerAccepted', vars, admin.email, admin.phone);
+      await this.sendBoth(tenantId, 'AdminPartnerAccepted', vars, admin.email, null);
     }
   }
 
@@ -1004,7 +1004,7 @@ export class NotificationService {
     const vars = { source_tenant: payload.source_tenant ?? '' };
     const admins = await this.getAdminContacts(tenantId);
     for (const admin of admins) {
-      await this.sendBoth(tenantId, 'AdminCollabRequest', vars, admin.email, admin.phone);
+      await this.sendBoth(tenantId, 'AdminCollabRequest', vars, admin.email, null);
     }
   }
 
@@ -1012,7 +1012,7 @@ export class NotificationService {
     const vars = { partner_name: payload.partner_name ?? '' };
     const admins = await this.getAdminContacts(tenantId);
     for (const admin of admins) {
-      await this.sendBoth(tenantId, 'AdminCollabApproved', vars, admin.email, admin.phone);
+      await this.sendBoth(tenantId, 'AdminCollabApproved', vars, admin.email, null);
     }
   }
 
@@ -1020,7 +1020,7 @@ export class NotificationService {
     const vars = { driver_name: payload.driver_name ?? '', review_status: payload.review_status ?? '' };
     const admins = await this.getAdminContacts(tenantId);
     for (const admin of admins) {
-      await this.sendBoth(tenantId, 'AdminDriverReview', vars, admin.email, admin.phone);
+      await this.sendBoth(tenantId, 'AdminDriverReview', vars, admin.email, null);
     }
   }
 
@@ -1028,7 +1028,7 @@ export class NotificationService {
     const vars = { invoice_number: payload.invoice_number ?? '', amount: payload.amount ?? '' };
     const admins = await this.getAdminContacts(tenantId);
     for (const admin of admins) {
-      await this.sendBoth(tenantId, 'AdminInvoicePaid', vars, admin.email, admin.phone);
+      await this.sendBoth(tenantId, 'AdminInvoicePaid', vars, admin.email, null);
     }
   }
 
@@ -1036,7 +1036,7 @@ export class NotificationService {
     const vars = { booking_reference: payload.booking_reference ?? '' };
     const admins = await this.getAdminContacts(tenantId);
     for (const admin of admins) {
-      await this.sendBoth(tenantId, 'AdminPaymentFailed', vars, admin.email, admin.phone);
+      await this.sendBoth(tenantId, 'AdminPaymentFailed', vars, admin.email, null);
     }
   }
 
@@ -1044,7 +1044,7 @@ export class NotificationService {
     const vars = { booking_reference: payload.booking_reference ?? '', settlement_result: payload.settlement_result ?? '' };
     const admins = await this.getAdminContacts(tenantId);
     for (const admin of admins) {
-      await this.sendBoth(tenantId, 'AdminSettlement', vars, admin.email, admin.phone);
+      await this.sendBoth(tenantId, 'AdminSettlement', vars, admin.email, null);
     }
   }
 
