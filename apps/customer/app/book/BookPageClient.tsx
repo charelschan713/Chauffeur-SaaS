@@ -405,10 +405,10 @@ export function BookPageClient() {
   // Load quote session — always reads from URL at effect time (client-side guaranteed)
   const loadQuoteSession = useCallback(() => {
     const params = new URLSearchParams(window.location.search);
-    const qid  = params.get('quote_id')  || quoteIdRef.current;
-    const ctid = params.get('car_type_id') || carTypeIdRef.current;
-    if (qid)   quoteIdRef.current   = qid;
-    if (ctid)  carTypeIdRef.current = ctid;
+    const qid  = params.get('quote_id')  || sessionStorage.getItem('book_quote_id')  || quoteIdRef.current;
+    const ctid = params.get('car_type_id') || sessionStorage.getItem('book_car_type_id') || carTypeIdRef.current;
+    if (qid)  { quoteIdRef.current   = qid;  sessionStorage.setItem('book_quote_id',   qid); }
+    if (ctid) { carTypeIdRef.current = ctid; sessionStorage.setItem('book_car_type_id', ctid); }
     if (!qid) {
       setQuoteError('No quote found. Please get a new quote.');
       setStep('details');
@@ -443,10 +443,10 @@ export function BookPageClient() {
   useEffect(() => {
     // Re-read from URL here inside effect — guaranteed client-side, window is available
     const params = new URLSearchParams(window.location.search);
-    const qid  = params.get('quote_id')  || quoteIdRef.current;
-    const ctid = params.get('car_type_id') || carTypeIdRef.current;
-    if (qid)   quoteIdRef.current   = qid;
-    if (ctid)  carTypeIdRef.current = ctid;
+    const qid  = params.get('quote_id')  || sessionStorage.getItem('book_quote_id')  || quoteIdRef.current;
+    const ctid = params.get('car_type_id') || sessionStorage.getItem('book_car_type_id') || carTypeIdRef.current;
+    if (qid)  { quoteIdRef.current   = qid;  sessionStorage.setItem('book_quote_id',   qid); }
+    if (ctid) { carTypeIdRef.current = ctid; sessionStorage.setItem('book_car_type_id', ctid); }
     loadQuoteSession();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loadQuoteSession]);
@@ -620,6 +620,8 @@ export function BookPageClient() {
 
       // Mark quote as converted
       await fetch(`${API_URL}/public/pricing/quote/${quoteIdRef.current}`, { method: 'PATCH' }).catch(() => {});
+      sessionStorage.removeItem('book_quote_id');
+      sessionStorage.removeItem('book_car_type_id');
       setStep('done');
     } catch (err: any) {
       const errData = err?.response?.data ?? err;
