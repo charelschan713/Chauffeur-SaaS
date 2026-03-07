@@ -1155,7 +1155,7 @@ export function BookPageClient() {
 
             {/* Booking details */}
             {step === 'details' && (
-              <form onSubmit={handleDetailsSubmit} className="space-y-6">
+              <div className="space-y-6">
 
                 {/* Login reminder for guest users */}
                 {!token && (
@@ -1311,7 +1311,7 @@ export function BookPageClient() {
                   )}
                 </div>
 
-              </form>
+              </div>
             )}
 
           </CardContent>
