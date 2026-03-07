@@ -154,13 +154,13 @@ export class PublicTenantService {
   async getAutoDiscount(tenantSlug: string) {
     const tenant = await this.resolveTenantBySlug(tenantSlug);
     const [row] = await this.db.query(
-      `SELECT name, discount_type, discount_value
+      `SELECT name, type AS discount_type, value AS discount_value
        FROM public.tenant_discounts
        WHERE tenant_id = $1
-         AND is_active = true
+         AND active = true
          AND (code IS NULL OR code = '')
-         AND (valid_from IS NULL OR valid_from <= now())
-         AND (valid_until IS NULL OR valid_until >= now())
+         AND (start_at IS NULL OR start_at <= now())
+         AND (end_at IS NULL OR end_at >= now())
        ORDER BY created_at ASC
        LIMIT 1`,
       [tenant.id],

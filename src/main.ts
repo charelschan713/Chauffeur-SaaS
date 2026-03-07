@@ -28,9 +28,11 @@ async function bootstrap() {
         /^https?:\/\/127\.0\.0\.1(:\d+)?$/,
       ];
       if (!origin) return callback(null, true); // server-to-server
+      const normalised = origin.replace(/\/+$/, ''); // strip trailing slashes
       const ok = allowed.some((p) =>
-        typeof p === 'string' ? p === origin : p.test(origin),
+        typeof p === 'string' ? p === normalised : p.test(normalised),
       );
+      if (!ok) console.error(`[CORS] Blocked origin: "${origin}"`);
       callback(ok ? null : new Error('CORS: origin not allowed'), ok);
     },
     credentials: true,
