@@ -527,7 +527,12 @@ export function BookPageClient() {
 
   // Card confirmed: NOW create the booking (only after payment card saved)
   const handleCardConfirmed = useCallback(async (setupIntentId: string) => {
-    if (!session || !selectedResult) return;
+    if (!session || !selectedResult) {
+      console.error('[handleCardConfirmed] missing session or selectedResult', { session: !!session, selectedResult: !!selectedResult });
+      setSubmitError('Session expired — please get a new quote.');
+      setStep('details');
+      return;
+    }
     setSubmitError('');
     try {
       const req = session.payload.request;
