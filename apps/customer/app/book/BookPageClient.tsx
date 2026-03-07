@@ -14,6 +14,7 @@ import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
 import { BackButton } from '@/components/BackButton';
 import { PhoneCountrySelect } from '@/components/PhoneCountrySelect';
+import { BookDebugPanel } from '@/components/BookDebugPanel';
 import {
   MapPin, Clock, Users, Car, ChevronRight,
   AlertCircle, CheckCircle2, Timer, ArrowLeft,
@@ -1311,6 +1312,17 @@ export function BookPageClient() {
         </Card>
 
       </main>
+
+      <BookDebugPanel
+        step={step}
+        session={session}
+        selectedResult={selectedResult}
+        token={token}
+        guestData={guestData}
+        quoteId={quoteIdRef.current}
+        carTypeId={carTypeIdRef.current}
+        submitError={submitError}
+      />
     </div>
   );
 }
