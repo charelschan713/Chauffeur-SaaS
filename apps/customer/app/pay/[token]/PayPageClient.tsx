@@ -112,6 +112,7 @@ function PayForm({ token, amount, currency }: { token: string; amount: number; c
         <label className="text-sm font-medium text-gray-700">Card Details</label>
         <div className="border border-gray-300 rounded-lg p-3 bg-white">
           <CardElement options={{
+            hidePostalCode: true,
             style: {
               base: { fontSize: '15px', color: '#1a1a2e', '::placeholder': { color: '#9ca3af' } },
               invalid: { color: '#ef4444' },
