@@ -668,6 +668,13 @@ export class CustomerPortalService {
 
     // ── Create or find customer by email ────────────────────────────────────
     const email = dto.email?.toLowerCase?.() ?? null;
+
+    // Split phone into country code + number (e.g. "+61412345678" → "+61", "412345678")
+    const rawPhone: string = dto.phone ?? '';
+    const phoneMatch = rawPhone.match(/^(\+\d{1,3})(.*)/);
+    const phoneCode   = phoneMatch ? phoneMatch[1] : null;
+    const phoneNumber = phoneMatch ? phoneMatch[2].trim() : (rawPhone || null);
+
     let customerId: string;
     const existing = await this.db.query(
       `SELECT id FROM public.customers WHERE tenant_id=$1 AND email=$2 LIMIT 1`,
@@ -678,9 +685,11 @@ export class CustomerPortalService {
     } else {
       const [c] = await this.db.query(
         `INSERT INTO public.customers
-           (tenant_id, email, first_name, last_name, phone_number, is_guest, created_at, updated_at)
-         VALUES ($1,$2,$3,$4,$5,true,now(),now()) RETURNING id`,
-        [tenantId, email, dto.firstName, dto.lastName, dto.phone ?? null],
+           (tenant_id, email, first_name, last_name,
+            phone_country_code, phone_number,
+            is_guest, created_at, updated_at)
+         VALUES ($1,$2,$3,$4,$5,$6,true,now(),now()) RETURNING id`,
+        [tenantId, email, dto.firstName, dto.lastName, phoneCode, phoneNumber],
       );
       customerId = c.id;
     }
@@ -768,7 +777,7 @@ export class CustomerPortalService {
           tenantId, customerId,
           ref,
           email, dto.firstName, dto.lastName,
-          null, dto.phone ?? null,
+          phoneCode, phoneNumber,
           pickupAddress, dropoffAddress,
           pickupAtUtc,
           serviceTypeId, serviceClassId,
