@@ -389,14 +389,16 @@ export function BookPageClient() {
   // Hydrate auth on mount
   useEffect(() => { hydrate(); }, [hydrate]);
 
-  // Load quote session
+  // Load quote session — runs ONCE on mount only, uses stable ref values
   useEffect(() => {
+    const qid = quoteIdRef.current;
+    const ctid = carTypeIdRef.current;
     // No quote_id at all → nothing to book, send back to quote page immediately
-    if (!quoteId) {
+    if (!qid) {
       router.replace('/quote');
       return;
     }
-    fetch(`${API_URL}/public/pricing/quote/${quoteId}`)
+    fetch(`${API_URL}/public/pricing/quote/${qid}`)
       .then(r => r.ok ? r.json() : null)
       .then(data => {
         if (!data) {
@@ -406,8 +408,9 @@ export function BookPageClient() {
           return;
         }
         setSession(data);
-        const result = data.payload.results.find((r: any) => r.service_class_id === carTypeId)
-          ?? data.payload.results[0];
+        const result = data.results
+          ? (data.results.find((r: any) => r.service_class_id === ctid) ?? data.results[0])
+          : (data.payload?.results?.find((r: any) => r.service_class_id === ctid) ?? data.payload?.results?.[0]);
         setSelectedResult(result);
         if (token) {
           setStep('details');
@@ -418,7 +421,8 @@ export function BookPageClient() {
         setQuoteError('Could not load quote details. Please check your connection.');
         setStep('details');
       });
-  }, [quoteId, carTypeId, token]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Mount only — quoteId/carTypeId/token read from refs or stable values
 
   // Handle 3DS return — Stripe redirects back with setup_intent + setup_intent_client_secret
   useEffect(() => {
