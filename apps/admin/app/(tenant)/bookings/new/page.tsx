@@ -313,7 +313,7 @@ export default function CreateBookingPage() {
         waypoints: waypoints.filter(Boolean).map((w) => ({ address: w })),
         waypoints_count: waypoints.filter(Boolean).length,
         passenger_first_name: values.passenger_is_customer ? firstName : (values.passenger_first_name ?? firstName),
-        passenger_last_name: values.passenger_is_customer ? (rest.join(' ') || 'Customer') : (values.passenger_last_name ?? rest.join(' ') || 'Customer'),
+        passenger_last_name: values.passenger_is_customer ? (rest.join(' ') || 'Customer') : ((values.passenger_last_name ?? rest.join(' ')) || 'Customer'),
         passenger_is_customer: values.passenger_is_customer,
         passenger_phone_country_code: values.passenger_is_customer
           ? (values.customer_phone_country_code || '+61')
@@ -709,12 +709,56 @@ export default function CreateBookingPage() {
               {selectedCarType && (
                 <div className="flex gap-2">
                   <span className="text-gray-400 w-5 shrink-0">🚘</span>
-                  <span className="text-gray-900">
-                    {selectedCarType.name}
-                    {quote.status === 'success' && quote.estimates[selectedCarType.id]
-                      ? <span className="ml-1 text-blue-600 font-semibold">${toDisplay(quote.estimates[selectedCarType.id])}</span>
-                      : null}
-                  </span>
+                  <div className="flex-1">
+                    <span className="text-gray-900 font-medium">{selectedCarType.name}</span>
+                    {quote.status === 'success' && (() => {
+                      const bd = quote.breakdowns[selectedCarType.id] ?? {};
+                      const total = quote.estimates[selectedCarType.id] ?? 0;
+                      return total > 0 ? (
+                        <div className="mt-1 space-y-0.5 text-xs">
+                          {(bd.base_calculated_minor ?? 0) > 0 && (
+                            <div className="flex justify-between text-gray-500">
+                              <span>Base fare</span><span>${toDisplay(bd.base_calculated_minor)}</span>
+                            </div>
+                          )}
+                          {(bd.waypoints_minor ?? 0) > 0 && (
+                            <div className="flex justify-between text-gray-500">
+                              <span>+ {waypoints.filter(Boolean).length} waypoint stop{waypoints.filter(Boolean).length > 1 ? 's' : ''}</span>
+                              <span>+${toDisplay(bd.waypoints_minor)}</span>
+                            </div>
+                          )}
+                          {(bd.baby_seats_minor ?? 0) > 0 && (
+                            <div className="flex justify-between text-gray-500">
+                              <span>Baby seats</span><span>+${toDisplay(bd.baby_seats_minor)}</span>
+                            </div>
+                          )}
+                          {(bd.surcharge_items ?? []).map((s: any, i: number) => (
+                            <div key={i} className="flex justify-between text-amber-600">
+                              <span>⏱ {s.label}</span><span>+${toDisplay(s.amount_minor)}</span>
+                            </div>
+                          ))}
+                          {(bd.toll_minor ?? 0) > 0 && (
+                            <div className="flex justify-between text-amber-600">
+                              <span>🛣️ Road tolls</span><span>+${toDisplay(bd.toll_minor)}</span>
+                            </div>
+                          )}
+                          {(bd.parking_minor ?? 0) > 0 && (
+                            <div className="flex justify-between text-amber-600">
+                              <span>🅿️ Airport parking</span><span>+${toDisplay(bd.parking_minor)}</span>
+                            </div>
+                          )}
+                          {!(bd.toll_minor) && !(bd.parking_minor) && (bd.toll_parking_minor ?? 0) > 0 && (
+                            <div className="flex justify-between text-amber-600">
+                              <span>Tolls / Parking</span><span>+${toDisplay(bd.toll_parking_minor)}</span>
+                            </div>
+                          )}
+                          <div className="flex justify-between text-blue-600 font-semibold pt-1 border-t border-gray-200 mt-1">
+                            <span>Total</span><span>${toDisplay(total)}</span>
+                          </div>
+                        </div>
+                      ) : null;
+                    })()}
+                  </div>
                 </div>
               )}
               {/* Pax */}
