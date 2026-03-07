@@ -1,701 +1,850 @@
-// Shared inline styles
-const BASE = `font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:24px;color:#1a1a1a`;
-const TABLE = `width:100%;border-collapse:collapse;margin:16px 0;border:1px solid #e5e7eb;border-radius:6px`;
-const TD_L = `padding:10px 12px;color:#666;width:42%`;
-const TD_R = `padding:10px 12px;font-weight:500`;
-const TR_ALT = `background:#f9fafb`;
-const BTN = (color: string) =>
-  `display:inline-block;background:${color};color:#fff;padding:12px 28px;border-radius:6px;text-decoration:none;font-weight:bold;font-size:15px;margin:8px 4px`;
-const DIVIDER = `border:none;border-top:2px solid #e5e7eb;margin:16px 0`;
+// ─────────────────────────────────────────────────────────────────────────────
+// Chauffeur Solutions — Platform Default Notification Templates
+// All 33 events | inline styles | 600px max-width | en-AU locale
+// ─────────────────────────────────────────────────────────────────────────────
 
-function bookingSummaryRows(hasPricing = true): string {
-  return `
-  <tr><td style="${TD_L}">Date &amp; Time</td><td style="${TD_R}"><strong>{{pickup_time}}</strong></td></tr>
-  <tr style="${TR_ALT}"><td style="${TD_L}">Pickup</td><td style="${TD_R}">{{pickup_address}}</td></tr>
-  {{#if waypoint_count}}<tr><td style="${TD_L}">Via</td><td style="${TD_R}">{{waypoints}}</td></tr>{{/if}}
-  <tr><td style="${TD_L}">Dropoff</td><td style="${TD_R}">{{dropoff_address}}</td></tr>
-  <tr style="${TR_ALT}"><td style="${TD_L}">Vehicle</td><td style="${TD_R}">{{car_type_name}}</td></tr>
-  <tr><td style="${TD_L}">Passengers</td><td style="${TD_R}">{{passenger_count}}</td></tr>
-  ${hasPricing ? `
-  <tr style="${TR_ALT}"><td style="${TD_L}">Base Fare</td><td style="${TD_R}">{{currency}} {{base_fare}}</td></tr>
-  <tr><td style="${TD_L}">Toll / Parking</td><td style="${TD_R}">{{currency}} {{toll_parking_total}}</td></tr>
-  <tr style="border-top:2px solid #e5e7eb"><td style="${TD_L};font-weight:bold">Total</td><td style="${TD_R};font-weight:bold;font-size:16px">{{currency}} {{total_amount}}</td></tr>` : ''}`;
-}
+// ── Shared style tokens ───────────────────────────────────────────────────────
+const S = {
+  wrap: 'font-family:Arial,Helvetica,sans-serif;max-width:600px;margin:0 auto;padding:32px 24px;color:#1a1a1a;background:#ffffff',
+  h2: 'font-size:22px;font-weight:700;margin:0 0 16px',
+  p: 'font-size:15px;line-height:1.6;margin:0 0 12px;color:#374151',
+  table: 'width:100%;border-collapse:collapse;margin:20px 0;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden',
+  tdL: 'padding:11px 14px;color:#6b7280;font-size:14px;width:42%;border-bottom:1px solid #f3f4f6',
+  tdR: 'padding:11px 14px;font-weight:500;font-size:14px;border-bottom:1px solid #f3f4f6',
+  tdLAlt: 'padding:11px 14px;color:#6b7280;font-size:14px;width:42%;border-bottom:1px solid #f3f4f6;background:#f9fafb',
+  tdRAlt: 'padding:11px 14px;font-weight:500;font-size:14px;border-bottom:1px solid #f3f4f6;background:#f9fafb',
+  tdTotal: 'padding:13px 14px;font-weight:700;font-size:16px;border-top:2px solid #e5e7eb',
+  divider: 'border:none;border-top:2px solid #e5e7eb;margin:24px 0',
+  footer: 'font-size:12px;color:#9ca3af;text-align:center;margin-top:32px;padding-top:16px;border-top:1px solid #f3f4f6',
+};
 
-export const PLATFORM_DEFAULT_TEMPLATES: Record<string, { email?: { subject: string; body: string }; sms?: { body: string } }> = {
+const btn = (label: string, color = '#2563eb') =>
+  `<a href="{{${label.toLowerCase().replace(/\s+/g, '_')}_url}}" style="display:inline-block;background:${color};color:#ffffff;padding:13px 30px;border-radius:8px;text-decoration:none;font-weight:700;font-size:15px;margin:4px 6px">${label}</a>`;
 
-  // ══════════════════════════════════════════════════════════════════════════
+const btnUrl = (label: string, url: string, color = '#2563eb') =>
+  `<a href="${url}" style="display:inline-block;background:${color};color:#ffffff;padding:13px 30px;border-radius:8px;text-decoration:none;font-weight:700;font-size:15px;margin:4px 6px">${label}</a>`;
+
+const cta = (inner: string) =>
+  `<p style="text-align:center;margin:28px 0">${inner}</p>`;
+
+const footer = () =>
+  `<p style="${S.footer}">Thank you for choosing <strong>{{company_name}}</strong>. Questions? Contact us at any time.</p>`;
+
+// ── Booking summary rows (shared across multiple templates) ───────────────────
+const bookingRows = (includePricing = true) => `
+  <tr><td style="${S.tdL}">Booking Reference</td><td style="${S.tdR}"><strong>{{booking_reference}}</strong></td></tr>
+  <tr><td style="${S.tdLAlt}">Date &amp; Time</td><td style="${S.tdRAlt}"><strong>{{pickup_time}}</strong></td></tr>
+  <tr><td style="${S.tdL}">Pickup</td><td style="${S.tdR}">{{pickup_address}}</td></tr>
+  {{#if waypoint_count}}<tr><td style="${S.tdLAlt}">Via (Stops)</td><td style="${S.tdRAlt}">{{waypoints}}</td></tr>{{/if}}
+  <tr><td style="${S.tdL}">Dropoff</td><td style="${S.tdR}">{{dropoff_address}}</td></tr>
+  <tr><td style="${S.tdLAlt}">Vehicle</td><td style="${S.tdRAlt}">{{car_type_name}}</td></tr>
+  <tr><td style="${S.tdL}">Passengers</td><td style="${S.tdR}">{{passenger_count}}</td></tr>
+  ${includePricing ? `
+  <tr><td style="${S.tdLAlt}">Base Fare</td><td style="${S.tdRAlt}">{{currency}} {{base_fare}}</td></tr>
+  <tr><td style="${S.tdL}">Toll / Parking</td><td style="${S.tdR}">{{currency}} {{toll_parking_total}}</td></tr>
+  <tr><td style="${S.tdLAlt}">Extras</td><td style="${S.tdRAlt}">{{currency}} {{extras_amount}}</td></tr>
+  <tr><td style="${S.tdTotal}" colspan="2" style="background:#f0fdf4">
+    <span style="color:#6b7280;font-size:14px">Total</span>
+    &nbsp;&nbsp;
+    <strong style="font-size:18px">{{currency}} {{total_amount}}</strong>
+  </td></tr>` : ''}`;
+
+// ─────────────────────────────────────────────────────────────────────────────
+export const PLATFORM_DEFAULT_TEMPLATES: Record<
+  string,
+  { email?: { subject: string; body: string }; sms?: { body: string } }
+> = {
+
+  // ══════════════════════════════════════════════════════════════════════
   // 1. BOOKING CREATED
-  // ══════════════════════════════════════════════════════════════════════════
+  // ══════════════════════════════════════════════════════════════════════
 
-  // Admin creates booking → Payment Request email to customer
-  PaymentRequest: {
+  /** Admin creates booking → Payment Request to customer */
+  AdminCreatedPaymentRequest: {
     email: {
       subject: 'Payment Required — {{booking_reference}}',
-      body: `<div style="${BASE}">
-<h2 style="color:#1a1a1a">Payment Required 💳</h2>
-<p>Hi {{customer_first_name}},</p>
-<p>Your booking has been created. Please review the details and complete payment to confirm.</p>
-<table style="${TABLE}">${bookingSummaryRows()}</table>
-<p style="text-align:center;margin:28px 0">
-  <a href="{{pay_url}}" style="${BTN('#2563eb')}">Review &amp; Pay →</a>
-</p>
-<p style="color:#888;font-size:12px;text-align:center">This link is valid for 24 hours.</p>
+      body: `<div style="${S.wrap}">
+<h2 style="${S.h2}">Payment Required 💳</h2>
+<p style="${S.p}">Hi {{customer_first_name}},</p>
+<p style="${S.p}">Your booking has been created by <strong>{{company_name}}</strong>. Please review the details below and complete payment to confirm your reservation.</p>
+<table style="${S.table}">${bookingRows()}</table>
+<p style="${S.p}">This payment link is valid for <strong>24 hours</strong>.</p>
+${cta(btnUrl('Review &amp; Pay →', '{{payment_url}}'))}
+${footer()}
 </div>`,
     },
-    sms: { body: '{{company_name}}: Payment required for booking {{booking_reference}} ({{currency}} {{total_amount}}). Pay here: {{pay_url}}' },
   },
 
-  // Customer creates booking → Booking Received email to customer
-  BookingReceived: {
+  /** Customer creates booking → Booking Received confirmation to customer */
+  CustomerCreatedBookingReceived: {
     email: {
       subject: 'Booking Received — {{booking_reference}}',
-      body: `<div style="${BASE}">
-<h2 style="color:#1a1a1a">Booking Received ✅</h2>
-<p>Hi {{customer_first_name}},</p>
-<p>We have received your booking. Our team will review and confirm shortly. Your card will be charged <strong>{{currency}} {{total_amount}}</strong> upon confirmation.</p>
-<table style="${TABLE}">${bookingSummaryRows()}</table>
-<p style="color:#666;font-size:13px">You will receive a confirmation email once reviewed. Contact {{company_name}} with any questions.</p>
+      body: `<div style="${S.wrap}">
+<h2 style="${S.h2}">Booking Received ✅</h2>
+<p style="${S.p}">Hi {{customer_first_name}},</p>
+<p style="${S.p}">We have received your booking request. Our team will review and confirm your reservation shortly.</p>
+<p style="${S.p}">Once confirmed, <strong>{{currency}} {{total_amount}}</strong> will be charged to your saved payment method.</p>
+<table style="${S.table}">${bookingRows()}</table>
+<p style="${S.p}" style="color:#6b7280;font-size:13px">You will receive a confirmation email as soon as your booking is reviewed. Please contact {{company_name}} if you have any urgent questions.</p>
+${footer()}
 </div>`,
     },
-    sms: { body: '{{company_name}}: Booking {{booking_reference}} received. We will confirm shortly. Total: {{currency}} {{total_amount}}.' },
+    sms: { body: '{{company_name}}: Booking {{booking_reference}} received. We will confirm shortly. Total {{currency}} {{total_amount}}.' },
   },
 
-  // Customer creates booking → New Booking email to admin (with Confirm & Charge / Reject buttons)
-  AdminNewBooking: {
+  /** Customer creates booking → Alert to admins */
+  AdminNewBookingAlert: {
     email: {
-      subject: '🆕 New Booking — {{booking_reference}}',
-      body: `<div style="${BASE}">
-<h2>New Booking — Action Required 🆕</h2>
-<p>A new booking has been submitted. The customer has saved their payment method.</p>
-<table style="${TABLE}">
-  <tr><td style="${TD_L}">Reference</td><td style="${TD_R}"><strong>{{booking_reference}}</strong></td></tr>
-  <tr style="${TR_ALT}"><td style="${TD_L}">Customer</td><td style="${TD_R}"><strong>{{customer_name}}</strong></td></tr>
-  ${bookingSummaryRows()}
+      subject: 'New Booking — {{booking_reference}}',
+      body: `<div style="${S.wrap}">
+<h2 style="${S.h2}">🆕 New Booking — Action Required</h2>
+<p style="${S.p}">A new booking has been submitted. The customer has saved their payment method and is awaiting confirmation.</p>
+<table style="${S.table}">
+  <tr><td style="${S.tdL}">Customer</td><td style="${S.tdR}"><strong>{{customer_name}}</strong></td></tr>
+  <tr><td style="${S.tdLAlt}">Email</td><td style="${S.tdRAlt}">{{customer_email}}</td></tr>
+  <tr><td style="${S.tdL}">Phone</td><td style="${S.tdR}">{{customer_phone}}</td></tr>
+  ${bookingRows()}
 </table>
-<p style="text-align:center;margin:28px 0">
-  <a href="{{admin_booking_url}}" style="${BTN('#16a34a')}">✅ Confirm &amp; Charge</a>
-  <a href="{{admin_booking_url}}" style="${BTN('#dc2626')}">✕ Reject Booking</a>
-</p>
-<p style="color:#888;font-size:12px;text-align:center">Log in to the admin portal to action this booking.</p>
+${cta(
+  btnUrl('✅ Confirm &amp; Charge', '{{admin_booking_url}}', '#16a34a') +
+  btnUrl('✕ Reject Booking', '{{admin_booking_url}}', '#dc2626')
+)}
+<p style="${S.p};font-size:13px;color:#6b7280;text-align:center">Log in to the admin portal to action this booking.</p>
+${footer()}
 </div>`,
     },
-    sms: { body: 'New booking {{booking_reference}}: {{customer_name}} on {{pickup_time}}. Total {{currency}} {{total_amount}}. Login to confirm.' },
+    sms: { body: '{{company_name}}: New booking {{booking_reference}} from {{customer_name}} on {{pickup_time}}. {{currency}} {{total_amount}}. Login to confirm.' },
   },
 
-  // ══════════════════════════════════════════════════════════════════════════
-  // 2. BOOKING CONFIRMED (Admin Confirm & Charge success)
-  // ══════════════════════════════════════════════════════════════════════════
+  // ══════════════════════════════════════════════════════════════════════
+  // 2. BOOKING CONFIRMED
+  // ══════════════════════════════════════════════════════════════════════
 
-  BookingConfirmed: {
+  /** Admin confirms and charges → email to customer, SMS to passenger */
+  BookingConfirmedCustomer: {
     email: {
       subject: 'Booking Confirmed — {{booking_reference}}',
-      body: `<div style="${BASE}">
-<h2 style="color:#16a34a">Booking Confirmed ✅</h2>
-<p>Hi {{customer_first_name}},</p>
-<p>Your booking <strong>{{booking_reference}}</strong> is confirmed and payment has been processed.</p>
-<table style="${TABLE}">${bookingSummaryRows()}</table>
-<table style="${TABLE}">
-  <tr><td style="${TD_L}">Amount Charged</td><td style="${TD_R}"><strong>{{currency}} {{total_amount}}</strong></td></tr>
-  <tr style="${TR_ALT}"><td style="${TD_L}">Payment</td><td style="${TD_R}">{{card_brand}} ****{{card_last4}}</td></tr>
+      body: `<div style="${S.wrap}">
+<h2 style="${S.h2};color:#16a34a">Booking Confirmed ✅</h2>
+<p style="${S.p}">Hi {{customer_first_name}},</p>
+<p style="${S.p}">Your booking <strong>{{booking_reference}}</strong> is confirmed. Payment has been processed successfully.</p>
+<table style="${S.table}">${bookingRows()}</table>
+<table style="${S.table}">
+  <tr><td style="${S.tdL}">Amount Charged</td><td style="${S.tdR}"><strong>{{currency}} {{total_amount}}</strong></td></tr>
+  <tr><td style="${S.tdLAlt}">Charged To</td><td style="${S.tdRAlt}">{{card_brand}} ****{{card_last4}}</td></tr>
 </table>
-<p style="color:#666;font-size:13px">To modify or cancel, please contact {{company_name}}.</p>
+<p style="${S.p};color:#6b7280;font-size:13px">To modify or cancel, please contact {{company_name}} as soon as possible.</p>
+${footer()}
 </div>`,
     },
-    sms: { body: '{{company_name}}: Dear {{passenger_name}}, booking {{booking_reference}} confirmed. {{pickup_time}} from {{pickup_address}}. Charged {{currency}} {{total_amount}}.' },
+    sms: { body: '{{company_name}}: Booking {{booking_reference}} confirmed. {{pickup_time}} from {{pickup_address}}. Charged {{currency}} {{total_amount}}. See you soon!' },
   },
 
-  // ══════════════════════════════════════════════════════════════════════════
+  // ══════════════════════════════════════════════════════════════════════
   // 2a. BOOKING REJECTED
-  // ══════════════════════════════════════════════════════════════════════════
+  // ══════════════════════════════════════════════════════════════════════
 
+  /** Admin rejects booking → email to customer */
   BookingRejected: {
     email: {
-      subject: 'Booking Rejected — {{booking_reference}}',
-      body: `<div style="${BASE}">
-<h2 style="color:#dc2626">Booking Rejected</h2>
-<p>Hi {{customer_first_name}},</p>
-<p>Unfortunately we were unable to confirm your booking <strong>{{booking_reference}}</strong>.</p>
-<p><strong>Reason:</strong> {{rejection_reason}}</p>
-<p>No charge has been made to your payment method.</p>
-<table style="${TABLE}">
-  <tr><td style="${TD_L}">Date &amp; Time</td><td style="${TD_R}">{{pickup_time}}</td></tr>
-  <tr style="${TR_ALT}"><td style="${TD_L}">Route</td><td style="${TD_R}">{{pickup_address}} → {{dropoff_address}}</td></tr>
+      subject: 'Booking Not Confirmed — {{booking_reference}}',
+      body: `<div style="${S.wrap}">
+<h2 style="${S.h2};color:#dc2626">Booking Not Confirmed</h2>
+<p style="${S.p}">Hi {{customer_first_name}},</p>
+<p style="${S.p}">Unfortunately we were unable to confirm your booking <strong>{{booking_reference}}</strong>.</p>
+<table style="${S.table}">
+  <tr><td style="${S.tdL}">Reason</td><td style="${S.tdR}">{{rejection_reason}}</td></tr>
+  <tr><td style="${S.tdLAlt}">Date &amp; Time</td><td style="${S.tdRAlt}">{{pickup_time}}</td></tr>
+  <tr><td style="${S.tdL}">Route</td><td style="${S.tdR}">{{pickup_address}} → {{dropoff_address}}</td></tr>
 </table>
-<p style="text-align:center;margin:28px 0">
-  <a href="{{booking_url}}" style="${BTN('#2563eb')}">Book Again →</a>
-</p>
-<p style="color:#666;font-size:13px">Contact {{company_name}} if you need further assistance.</p>
+<p style="${S.p}"><strong>No charge has been made</strong> to your payment method.</p>
+${cta(btnUrl('Book Again →', '{{booking_url}}'))}
+<p style="${S.p};color:#6b7280;font-size:13px;text-align:center">Need assistance? Contact {{company_name}} and we'll be happy to help.</p>
+${footer()}
 </div>`,
     },
     sms: { body: '{{company_name}}: Booking {{booking_reference}} could not be confirmed. No charge made. Please contact us to rebook.' },
   },
 
-  // ══════════════════════════════════════════════════════════════════════════
+  // ══════════════════════════════════════════════════════════════════════
   // 2b. BOOKING MODIFIED
-  // ══════════════════════════════════════════════════════════════════════════
+  // ══════════════════════════════════════════════════════════════════════
 
-  // Admin modifies → customer review & confirm
-  BookingModified: {
+  /** Admin modifies booking → email to customer */
+  BookingModifiedCustomer: {
     email: {
       subject: 'Booking Updated — {{booking_reference}}',
-      body: `<div style="${BASE}">
-<h2>Booking Updated 📝</h2>
-<p>Hi {{customer_first_name}},</p>
-<p>Your booking <strong>{{booking_reference}}</strong> has been updated by our team. Please review the new details below.</p>
-<table style="${TABLE}">${bookingSummaryRows()}</table>
-<p style="text-align:center;margin:28px 0">
-  <a href="{{admin_booking_url}}" style="${BTN('#2563eb')}">Review &amp; Confirm →</a>
-</p>
-<p style="color:#666;font-size:13px">Contact {{company_name}} if you have any questions.</p>
+      body: `<div style="${S.wrap}">
+<h2 style="${S.h2}">Booking Updated 📝</h2>
+<p style="${S.p}">Hi {{customer_first_name}},</p>
+<p style="${S.p}">Your booking <strong>{{booking_reference}}</strong> has been updated by our team. Please review the new details and confirm.</p>
+<table style="${S.table}">${bookingRows()}</table>
+${cta(btnUrl('Review &amp; Confirm →', '{{admin_booking_url}}'))}
+<p style="${S.p};color:#6b7280;font-size:13px;text-align:center">Contact {{company_name}} if you have any questions about the changes.</p>
+${footer()}
 </div>`,
     },
-    sms: { body: '{{company_name}}: Your booking {{booking_reference}} has been updated. Please check your email and confirm the new details.' },
+    sms: { body: '{{company_name}}: Booking {{booking_reference}} updated. Please check your email and confirm the new details.' },
   },
 
-  // Customer requests modification → admin
-  ModificationRequest: {
+  /** Customer requests modification → email to admins */
+  BookingModificationRequestAdmin: {
     email: {
       subject: 'Modification Request — {{booking_reference}}',
-      body: `<div style="${BASE}">
-<h2>Modification Request 📝</h2>
-<p>A customer has requested changes to booking <strong>{{booking_reference}}</strong>.</p>
-<table style="${TABLE}">
-  <tr><td style="${TD_L}">Customer</td><td style="${TD_R}"><strong>{{customer_name}}</strong></td></tr>
-  <tr style="${TR_ALT}"><td style="${TD_L}">Reference</td><td style="${TD_R}"><strong>{{booking_reference}}</strong></td></tr>
-  <tr><td style="${TD_L}">Modification Note</td><td style="${TD_R}">{{modification_note}}</td></tr>
+      body: `<div style="${S.wrap}">
+<h2 style="${S.h2}">Modification Request 📝</h2>
+<p style="${S.p}">A customer has requested changes to an existing booking.</p>
+<table style="${S.table}">
+  <tr><td style="${S.tdL}">Customer</td><td style="${S.tdR}"><strong>{{customer_name}}</strong></td></tr>
+  <tr><td style="${S.tdLAlt}">Booking Reference</td><td style="${S.tdRAlt}"><strong>{{booking_reference}}</strong></td></tr>
+  <tr><td style="${S.tdL}">Date &amp; Time</td><td style="${S.tdR}">{{pickup_time}}</td></tr>
+  <tr><td style="${S.tdLAlt}">Route</td><td style="${S.tdRAlt}">{{pickup_address}} → {{dropoff_address}}</td></tr>
+  <tr><td style="${S.tdL}">Modification Details</td><td style="${S.tdR}">{{modification_details}}</td></tr>
 </table>
-<p style="text-align:center;margin:28px 0">
-  <a href="{{admin_booking_url}}" style="${BTN('#2563eb')}">Review Booking →</a>
-</p>
+${cta(btnUrl('Review Booking →', '{{admin_booking_url}}'))}
+${footer()}
 </div>`,
     },
-    sms: { body: 'Modification request for booking {{booking_reference}} from {{customer_name}}. Login to review.' },
+    sms: { body: '{{company_name}}: Modification request for {{booking_reference}} from {{customer_name}}. Login to review.' },
   },
 
-  // ══════════════════════════════════════════════════════════════════════════
-  // 3. DRIVER ON THE WAY
-  // ══════════════════════════════════════════════════════════════════════════
+  // ══════════════════════════════════════════════════════════════════════
+  // 3. DRIVER STATUS
+  // ══════════════════════════════════════════════════════════════════════
 
-  // Driver en route → SMS to passenger only
+  /** Driver en route → SMS to passenger only */
   DriverEnRoute: {
-    sms: { body: '{{company_name}}: Dear {{passenger_name}}, your driver {{driver_name}} is on the way — ETA {{eta_minutes}} min. Vehicle: {{vehicle_make}} {{vehicle_model}} ({{vehicle_plate}}).' },
+    sms: { body: '{{company_name}}: {{passenger_name}}, your driver {{driver_name}} is on the way — ETA {{eta_minutes}} min. {{vehicle_make}} {{vehicle_model}} ({{vehicle_plate}}).' },
   },
 
-  // Driver arrived → SMS to passenger only
+  /** Driver arrived → SMS to passenger only */
   DriverArrived: {
-    sms: { body: '{{company_name}}: Dear {{passenger_name}}, your driver has arrived at {{pickup_address}}. {{vehicle_make}} {{vehicle_model}} — Plate: {{vehicle_plate}} — Colour: {{vehicle_colour}}.' },
+    sms: { body: '{{company_name}}: {{passenger_name}}, your driver has arrived at {{pickup_address}}. {{vehicle_make}} {{vehicle_model}} — Plate: {{vehicle_plate}} — Colour: {{vehicle_colour}}.' },
   },
 
-  // Trip started (internal trigger)
-  TripStarted: {
-    sms: { body: '{{company_name}}: Dear {{passenger_name}}, your trip {{booking_reference}} has started. Enjoy your ride!' },
-  },
-
-  // ══════════════════════════════════════════════════════════════════════════
+  // ══════════════════════════════════════════════════════════════════════
   // 4. JOB FULFILLED
-  // ══════════════════════════════════════════════════════════════════════════
+  // ══════════════════════════════════════════════════════════════════════
+
+  /** Trip completed → full report email to customer */
+  JobFulfilled: {
+    email: {
+      subject: 'Trip Complete — {{booking_reference}}',
+      body: `<div style="${S.wrap}">
+<h2 style="${S.h2}">Trip Complete 🏁</h2>
+<p style="${S.p}">Hi {{customer_first_name}}, your trip is complete. Here is your final summary.</p>
+
+<h3 style="font-size:15px;font-weight:600;margin:24px 0 8px;color:#374151">Trip Summary</h3>
+<table style="${S.table}">
+  <tr><td style="${S.tdL}">Date &amp; Time</td><td style="${S.tdR}">{{pickup_time}}</td></tr>
+  <tr><td style="${S.tdLAlt}">Pickup</td><td style="${S.tdRAlt}">{{pickup_address}}</td></tr>
+  {{#if waypoint_count}}<tr><td style="${S.tdL}">Via</td><td style="${S.tdR}">{{waypoints}}</td></tr>{{/if}}
+  <tr><td style="${S.tdL}">Dropoff</td><td style="${S.tdR}">{{dropoff_address}}</td></tr>
+  <tr><td style="${S.tdLAlt}">Driver</td><td style="${S.tdRAlt}">{{driver_name}}</td></tr>
+  <tr><td style="${S.tdL}">Vehicle</td><td style="${S.tdR}">{{vehicle_make}} {{vehicle_model}} ({{vehicle_plate}})</td></tr>
+</table>
+
+<h3 style="font-size:15px;font-weight:600;margin:24px 0 8px;color:#374151">Fare Breakdown</h3>
+<table style="${S.table}">
+  <tr><td style="${S.tdL}">Base Fare</td><td style="${S.tdR}">{{currency}} {{actual_base_fare}}</td></tr>
+  <tr><td style="${S.tdLAlt}">Toll / Parking</td><td style="${S.tdRAlt}">{{currency}} {{actual_toll_parking}}</td></tr>
+  <tr><td style="${S.tdL}">Waiting Time</td><td style="${S.tdR}">{{currency}} {{waiting_time_fee}}</td></tr>
+  <tr><td style="${S.tdLAlt}">Extras</td><td style="${S.tdRAlt}">{{currency}} {{extras_amount}}</td></tr>
+  <tr><td style="${S.tdL}" colspan="2"><hr style="${S.divider};margin:4px 0"></td></tr>
+  <tr><td style="${S.tdL}">Part A — Pre-authorised</td><td style="${S.tdR}">{{currency}} {{prepay_amount}}</td></tr>
+  <tr><td style="${S.tdLAlt}">Part B — Actual Trip Cost</td><td style="${S.tdRAlt}">{{currency}} {{actual_amount}}</td></tr>
+  <tr><td style="${S.tdL}">Adjustment</td><td style="${S.tdR}">{{currency}} {{adjustment_amount}}</td></tr>
+  <tr style="border-top:3px solid #e5e7eb">
+    <td style="${S.tdTotal}">Grand Total Paid</td>
+    <td style="${S.tdTotal};color:#16a34a">{{currency}} {{total_paid}}</td>
+  </tr>
+</table>
+
+<table style="${S.table}">
+  <tr><td style="${S.tdL}">Payment Method</td><td style="${S.tdR}">{{card_brand}} ****{{card_last4}}</td></tr>
+</table>
+
+<p style="${S.p};color:#6b7280;font-size:13px">A PDF invoice has been attached to this email for your records.</p>
+${footer()}
+</div>`,
+    },
+    sms: { body: '{{company_name}}: Trip {{booking_reference}} complete. Total paid {{currency}} {{total_paid}}. Thank you!' },
+  },
+
+  // ══════════════════════════════════════════════════════════════════════
+  // 5. PAYMENT FAILED
+  // ══════════════════════════════════════════════════════════════════════
+
+  /** Payment failed → email + SMS to customer */
+  PaymentFailedCustomer: {
+    email: {
+      subject: 'Payment Failed — {{booking_reference}}',
+      body: `<div style="${S.wrap}">
+<h2 style="${S.h2};color:#dc2626">Payment Failed ⚠️</h2>
+<p style="${S.p}">Hi {{customer_first_name}},</p>
+<p style="${S.p}">We were unable to process a payment of <strong>{{currency}} {{amount}}</strong> for booking <strong>{{booking_reference}}</strong>.</p>
+<p style="${S.p}">Please update your payment method to avoid any disruption to your booking.</p>
+${cta(btnUrl('Update Payment Method →', '{{payment_url}}'))}
+<p style="${S.p};color:#6b7280;font-size:13px;text-align:center">Contact {{company_name}} if you need immediate assistance.</p>
+${footer()}
+</div>`,
+    },
+    sms: { body: '{{company_name}}: Payment FAILED for {{booking_reference}} ({{currency}} {{amount}}). Update payment method urgently: {{payment_url}}' },
+  },
+
+  /** Payment failed → email to admins */
+  PaymentFailedAdmin: {
+    email: {
+      subject: 'Payment Failed — {{booking_reference}}',
+      body: `<div style="${S.wrap}">
+<h2 style="${S.h2};color:#dc2626">Customer Payment Failed ⚠️</h2>
+<p style="${S.p}">A payment for the following booking could not be processed.</p>
+<table style="${S.table}">
+  <tr><td style="${S.tdL}">Customer</td><td style="${S.tdR}"><strong>{{customer_name}}</strong></td></tr>
+  <tr><td style="${S.tdLAlt}">Booking Reference</td><td style="${S.tdRAlt}"><strong>{{booking_reference}}</strong></td></tr>
+  <tr><td style="${S.tdL}">Amount</td><td style="${S.tdR}"><strong style="color:#dc2626">{{currency}} {{amount}}</strong></td></tr>
+  <tr><td style="${S.tdLAlt}">Date &amp; Time</td><td style="${S.tdRAlt}">{{pickup_time}}</td></tr>
+</table>
+${cta(btnUrl('View Booking →', '{{admin_booking_url}}'))}
+<p style="${S.p};color:#6b7280;font-size:13px;text-align:center">Please contact the customer to arrange payment.</p>
+${footer()}
+</div>`,
+    },
+    sms: { body: '{{company_name}}: Payment FAILED — {{booking_reference}}, {{customer_name}}, {{currency}} {{amount}}. Login to action.' },
+  },
+
+  // ══════════════════════════════════════════════════════════════════════
+  // 6. ADJUSTMENT
+  // ══════════════════════════════════════════════════════════════════════
+
+  /** Part B > Part A → additional charge to customer */
+  AdditionalCharge: {
+    email: {
+      subject: 'Additional Charge — {{booking_reference}}',
+      body: `<div style="${S.wrap}">
+<h2 style="${S.h2}">Additional Charge Applied 💳</h2>
+<p style="${S.p}">Hi {{customer_first_name}},</p>
+<p style="${S.p}">Based on the final trip details for booking <strong>{{booking_reference}}</strong>, an additional charge has been applied.</p>
+<table style="${S.table}">
+  <tr><td style="${S.tdL}">Part A — Pre-authorised</td><td style="${S.tdR}">{{currency}} {{prepay_amount}}</td></tr>
+  <tr><td style="${S.tdLAlt}">Part B — Actual Cost</td><td style="${S.tdRAlt}">{{currency}} {{actual_amount}}</td></tr>
+  <tr style="border-top:2px solid #e5e7eb">
+    <td style="${S.tdTotal}">Additional Charge</td>
+    <td style="${S.tdTotal};color:#dc2626">{{currency}} {{adjustment_amount}}</td>
+  </tr>
+</table>
+<table style="${S.table}">
+  <tr><td style="${S.tdL}">Charged To</td><td style="${S.tdR}">{{card_brand}} ****{{card_last4}}</td></tr>
+</table>
+<p style="${S.p};color:#6b7280;font-size:13px">Contact {{company_name}} if you have any questions about this charge.</p>
+${footer()}
+</div>`,
+    },
+    sms: { body: '{{company_name}}: Additional {{currency}} {{adjustment_amount}} charged for {{booking_reference}} (Part B adjustment). Questions? Contact us.' },
+  },
+
+  /** Part B < Part A → refund to customer */
+  RefundIssued: {
+    email: {
+      subject: 'Refund Issued — {{booking_reference}}',
+      body: `<div style="${S.wrap}">
+<h2 style="${S.h2};color:#16a34a">Refund Issued 💰</h2>
+<p style="${S.p}">Hi {{customer_first_name}},</p>
+<p style="${S.p}">A refund has been processed for booking <strong>{{booking_reference}}</strong>.</p>
+<table style="${S.table}">
+  <tr><td style="${S.tdL}">Part A — Pre-authorised</td><td style="${S.tdR}">{{currency}} {{prepay_amount}}</td></tr>
+  <tr><td style="${S.tdLAlt}">Part B — Actual Cost</td><td style="${S.tdRAlt}">{{currency}} {{actual_amount}}</td></tr>
+  <tr style="border-top:2px solid #e5e7eb">
+    <td style="${S.tdTotal}">Refund Amount</td>
+    <td style="${S.tdTotal};color:#16a34a">{{currency}} {{refund_amount}}</td>
+  </tr>
+</table>
+<p style="${S.p}">Please allow <strong>5–10 business days</strong> for the funds to appear in your account.</p>
+${footer()}
+</div>`,
+    },
+    sms: { body: '{{company_name}}: Refund {{currency}} {{refund_amount}} issued for {{booking_reference}}. Allow 5-10 business days.' },
+  },
+
+  /** Adjustment charge failed → email to admins */
+  AdjustmentFailedAdmin: {
+    email: {
+      subject: 'Adjustment Failed — {{booking_reference}}',
+      body: `<div style="${S.wrap}">
+<h2 style="${S.h2};color:#dc2626">Adjustment Charge Failed ⚠️</h2>
+<p style="${S.p}">The post-trip adjustment charge for the following booking could not be processed. Manual action is required.</p>
+<table style="${S.table}">
+  <tr><td style="${S.tdL}">Customer</td><td style="${S.tdR}"><strong>{{customer_name}}</strong></td></tr>
+  <tr><td style="${S.tdLAlt}">Booking Reference</td><td style="${S.tdRAlt}"><strong>{{booking_reference}}</strong></td></tr>
+  <tr><td style="${S.tdL}">Amount</td><td style="${S.tdR}"><strong style="color:#dc2626">{{currency}} {{adjustment_amount}}</strong></td></tr>
+</table>
+${cta(btnUrl('View Booking →', '{{admin_booking_url}}'))}
+<p style="${S.p};color:#6b7280;font-size:13px;text-align:center">Please contact the customer to arrange manual payment of the outstanding amount.</p>
+${footer()}
+</div>`,
+    },
+    sms: { body: '{{company_name}}: Adjustment FAILED — {{booking_reference}}, {{customer_name}}, {{currency}} {{adjustment_amount}}. Manual action required.' },
+  },
+
+  // ══════════════════════════════════════════════════════════════════════
+  // 7. INVOICE
+  // ══════════════════════════════════════════════════════════════════════
+
+  /** Invoice sent → email + SMS to customer */
+  InvoiceSent: {
+    email: {
+      subject: 'Invoice {{invoice_number}} — {{company_name}}',
+      body: `<div style="${S.wrap}">
+<h2 style="${S.h2}">Invoice 📄</h2>
+<p style="${S.p}">Hi {{customer_first_name}},</p>
+<p style="${S.p}">Please find your invoice details below.</p>
+<table style="${S.table}">
+  <tr><td style="${S.tdL}">Invoice Number</td><td style="${S.tdR}"><strong>{{invoice_number}}</strong></td></tr>
+  <tr><td style="${S.tdLAlt}">Amount Due</td><td style="${S.tdRAlt}"><strong>{{currency}} {{total_amount}}</strong></td></tr>
+  <tr><td style="${S.tdL}">Due Date</td><td style="${S.tdR};color:#dc2626"><strong>{{due_date}}</strong></td></tr>
+</table>
+<p style="${S.p};color:#6b7280;font-size:13px">A PDF invoice is attached to this email for your records.</p>
+${cta(btnUrl('Pay Now →', '{{pay_url}}'))}
+${footer()}
+</div>`,
+    },
+    sms: { body: '{{company_name}}: Invoice {{invoice_number}} — {{currency}} {{total_amount}} due {{due_date}}. Pay: {{pay_url}}' },
+  },
+
+  /** Invoice overdue → email + SMS to customer */
+  InvoiceOverdue: {
+    email: {
+      subject: 'Invoice Overdue — {{invoice_number}}',
+      body: `<div style="${S.wrap}">
+<h2 style="${S.h2};color:#dc2626">Invoice Overdue ⚠️</h2>
+<p style="${S.p}">Hi {{customer_first_name}},</p>
+<p style="${S.p}">Invoice <strong>{{invoice_number}}</strong> is now overdue. Please action immediately to avoid further penalties.</p>
+<table style="${S.table}">
+  <tr><td style="${S.tdL}">Invoice Number</td><td style="${S.tdR}"><strong>{{invoice_number}}</strong></td></tr>
+  <tr><td style="${S.tdLAlt}">Amount Overdue</td><td style="${S.tdRAlt}"><strong style="color:#dc2626">{{currency}} {{total_amount}}</strong></td></tr>
+  <tr><td style="${S.tdL}">Original Due Date</td><td style="${S.tdR}">{{due_date}}</td></tr>
+</table>
+${cta(btnUrl('Pay Now →', '{{pay_url}}', '#dc2626'))}
+${footer()}
+</div>`,
+    },
+    sms: { body: '{{company_name}}: OVERDUE — Invoice {{invoice_number}} {{currency}} {{total_amount}} was due {{due_date}}. Pay now: {{pay_url}}' },
+  },
+
+  /** Invoice paid → email to admins only */
+  InvoicePaidAdmin: {
+    email: {
+      subject: 'Invoice Paid — {{invoice_number}}',
+      body: `<div style="${S.wrap}">
+<h2 style="${S.h2};color:#16a34a">Invoice Paid ✅</h2>
+<p style="${S.p}">Payment has been received for the following invoice.</p>
+<table style="${S.table}">
+  <tr><td style="${S.tdL}">Invoice Number</td><td style="${S.tdR}"><strong>{{invoice_number}}</strong></td></tr>
+  <tr><td style="${S.tdLAlt}">Customer</td><td style="${S.tdRAlt}"><strong>{{customer_name}}</strong></td></tr>
+  <tr><td style="${S.tdL}">Amount Received</td><td style="${S.tdR}"><strong>{{currency}} {{total_amount}}</strong></td></tr>
+</table>
+${footer()}
+</div>`,
+    },
+    sms: { body: '{{company_name}}: Invoice {{invoice_number}} paid — {{currency}} {{total_amount}} from {{customer_name}}.' },
+  },
+
+  // ══════════════════════════════════════════════════════════════════════
+  // 8. AUTH
+  // ══════════════════════════════════════════════════════════════════════
+
+  /** New account → email + SMS to customer */
+  CustomerRegistered: {
+    email: {
+      subject: 'Welcome to {{company_name}}',
+      body: `<div style="${S.wrap}">
+<h2 style="${S.h2}">Welcome to {{company_name}}! 🎉</h2>
+<p style="${S.p}">Hi {{customer_first_name}},</p>
+<p style="${S.p}">Your account has been created. You can now book, manage and track your rides online.</p>
+${cta(btnUrl('Book a Ride →', '{{booking_url}}'))}
+<p style="${S.p};color:#6b7280;font-size:13px;text-align:center">Need help? Contact {{company_name}} at any time — we're here 24/7.</p>
+${footer()}
+</div>`,
+    },
+    sms: { body: '{{company_name}}: Welcome {{customer_first_name}}! Your account is ready. Book your ride anytime at {{booking_url}}' },
+  },
+
+  /** Forgot password → email only */
+  CustomerForgotPassword: {
+    email: {
+      subject: 'Reset Your Password — {{company_name}}',
+      body: `<div style="${S.wrap}">
+<h2 style="${S.h2}">Reset Your Password 🔐</h2>
+<p style="${S.p}">Hi {{customer_first_name}},</p>
+<p style="${S.p}">We received a request to reset your password. Click below — this link is valid for <strong>1 hour</strong>.</p>
+${cta(btnUrl('Reset Password →', '{{reset_url}}'))}
+<p style="${S.p};color:#6b7280;font-size:13px;text-align:center">If you did not request a password reset, you can safely ignore this email. Your account remains secure.</p>
+${footer()}
+</div>`,
+    },
+  },
+
+  /** OTP → SMS only */
+  CustomerOtpSent: {
+    sms: { body: '{{company_name}}: Your verification code is {{otp_code}}. Valid for 10 minutes. Do not share this code with anyone.' },
+  },
+
+  // ══════════════════════════════════════════════════════════════════════
+  // 9. DRIVER EVENTS
+  // ══════════════════════════════════════════════════════════════════════
+
+  /** Driver assigned → email + SMS */
+  DriverJobAssigned: {
+    email: {
+      subject: 'New Job — {{booking_reference}}',
+      body: `<div style="${S.wrap}">
+<h2 style="${S.h2}">New Job Assignment 🚗</h2>
+<p style="${S.p}">Hi {{driver_name}}, you have a new job. Please confirm or decline in the app.</p>
+<table style="${S.table}">
+  <tr><td style="${S.tdL}">Booking Reference</td><td style="${S.tdR}"><strong>{{booking_reference}}</strong></td></tr>
+  <tr><td style="${S.tdLAlt}">Date &amp; Time</td><td style="${S.tdRAlt}"><strong>{{pickup_time}}</strong></td></tr>
+  <tr><td style="${S.tdL}">Pickup</td><td style="${S.tdR}"><strong>{{pickup_address}}</strong></td></tr>
+  {{#if waypoint_count}}<tr><td style="${S.tdLAlt}">Via</td><td style="${S.tdRAlt}">{{waypoints}}</td></tr>{{/if}}
+  <tr><td style="${S.tdL}">Dropoff</td><td style="${S.tdR}"><strong>{{dropoff_address}}</strong></td></tr>
+  <tr><td style="${S.tdLAlt}">Passenger</td><td style="${S.tdRAlt}"><strong>{{passenger_name}}</strong> — {{passenger_phone}}</td></tr>
+  <tr><td style="${S.tdL}">Pax / Luggage</td><td style="${S.tdR}">{{passenger_count}} pax / {{luggage_count}} bags</td></tr>
+  <tr><td style="${S.tdLAlt}">Special Requests</td><td style="${S.tdRAlt}">{{special_requests}}</td></tr>
+</table>
+<h3 style="font-size:15px;font-weight:600;margin:24px 0 8px;color:#374151">Your Pay</h3>
+<table style="${S.table}">
+  <tr><td style="${S.tdL}">Base Pay</td><td style="${S.tdR}">{{currency}} {{driver_pay_amount}}</td></tr>
+  <tr><td style="${S.tdLAlt}">Toll / Parking Reimbursement</td><td style="${S.tdRAlt}">{{currency}} {{driver_toll_parking}}</td></tr>
+  <tr style="border-top:2px solid #e5e7eb">
+    <td style="${S.tdTotal}">Your Total</td>
+    <td style="${S.tdTotal};color:#16a34a">{{currency}} {{driver_total}}</td>
+  </tr>
+</table>
+${footer()}
+</div>`,
+    },
+    sms: { body: '{{company_name}}: New job {{booking_reference}} on {{pickup_time}}. Pick up {{passenger_name}} from {{pickup_address}}. Pay: {{currency}} {{driver_total}}. Confirm in app.' },
+  },
+
+  /** Job cancelled → email + SMS to driver */
+  DriverJobCancelled: {
+    email: {
+      subject: 'Job Cancelled — {{booking_reference}}',
+      body: `<div style="${S.wrap}">
+<h2 style="${S.h2};color:#dc2626">Job Cancelled</h2>
+<p style="${S.p}">Hi {{driver_name}},</p>
+<p style="${S.p}">Job <strong>{{booking_reference}}</strong> ({{pickup_time}}) has been cancelled.</p>
+<table style="${S.table}">
+  <tr><td style="${S.tdL}">Reason</td><td style="${S.tdR}">{{cancellation_reason}}</td></tr>
+</table>
+${footer()}
+</div>`,
+    },
+    sms: { body: '{{company_name}}: Job {{booking_reference}} ({{pickup_time}}) cancelled. Reason: {{cancellation_reason}}' },
+  },
+
+  /** Pay updated → email + SMS to driver */
+  DriverPayUpdated: {
+    email: {
+      subject: 'Pay Updated — {{booking_reference}}',
+      body: `<div style="${S.wrap}">
+<h2 style="${S.h2}">Pay Updated 💰</h2>
+<p style="${S.p}">Hi {{driver_name}},</p>
+<p style="${S.p}">The pay for job <strong>{{booking_reference}}</strong> has been updated. Please review and re-confirm in the app.</p>
+<table style="${S.table}">
+  <tr><td style="${S.tdL}">Base Pay</td><td style="${S.tdR}">{{currency}} {{driver_pay_amount}}</td></tr>
+  <tr><td style="${S.tdLAlt}">Toll / Parking</td><td style="${S.tdRAlt}">{{currency}} {{driver_toll_parking}}</td></tr>
+  <tr style="border-top:2px solid #e5e7eb">
+    <td style="${S.tdTotal}">New Total</td>
+    <td style="${S.tdTotal};color:#16a34a">{{currency}} {{driver_total}}</td>
+  </tr>
+</table>
+${footer()}
+</div>`,
+    },
+    sms: { body: '{{company_name}}: Pay updated for {{booking_reference}} — new total {{currency}} {{driver_total}}. Please re-confirm in app.' },
+  },
+
+  /** Document expiry soon → email + SMS to driver */
+  DriverDocumentExpirySoon: {
+    email: {
+      subject: 'Document Expiry Reminder — {{document_type}}',
+      body: `<div style="${S.wrap}">
+<h2 style="${S.h2};color:#d97706">Document Expiring Soon ⚠️</h2>
+<p style="${S.p}">Hi {{driver_name}},</p>
+<p style="${S.p}">Your <strong>{{document_type}}</strong> is due to expire on <strong>{{expiry_date}}</strong>. Please renew and upload the updated document before it expires to avoid account suspension.</p>
+${footer()}
+</div>`,
+    },
+    sms: { body: '{{company_name}}: Your {{document_type}} expires {{expiry_date}}. Please renew now to avoid account suspension.' },
+  },
+
+  /** Account suspended → email + SMS to driver */
+  DriverAccountSuspended: {
+    email: {
+      subject: 'Account Suspended',
+      body: `<div style="${S.wrap}">
+<h2 style="${S.h2};color:#dc2626">Account Suspended ❌</h2>
+<p style="${S.p}">Hi {{driver_name}},</p>
+<p style="${S.p}">Your account has been suspended due to an expired <strong>{{document_type}}</strong>. Please upload the updated document immediately to reactivate your account.</p>
+${footer()}
+</div>`,
+    },
+    sms: { body: '{{company_name}}: Account SUSPENDED — {{document_type}} expired. Upload updated document immediately to reactivate.' },
+  },
+
+  /** Document approved → email + SMS to driver */
+  DriverDocumentApproved: {
+    email: {
+      subject: 'Document Approved — {{document_type}}',
+      body: `<div style="${S.wrap}">
+<h2 style="${S.h2};color:#16a34a">Document Approved ✅</h2>
+<p style="${S.p}">Hi {{driver_name}},</p>
+<p style="${S.p}">Your <strong>{{document_type}}</strong> has been reviewed and approved. Your account is fully active.</p>
+${footer()}
+</div>`,
+    },
+    sms: { body: '{{company_name}}: Your {{document_type}} has been approved. Account is active — ready to take jobs!' },
+  },
+
+  /** Document rejected → email + SMS to driver */
+  DriverDocumentRejected: {
+    email: {
+      subject: 'Document Rejected — {{document_type}}',
+      body: `<div style="${S.wrap}">
+<h2 style="${S.h2};color:#dc2626">Document Rejected ❌</h2>
+<p style="${S.p}">Hi {{driver_name}},</p>
+<p style="${S.p}">Your <strong>{{document_type}}</strong> was rejected. Please re-upload the correct document.</p>
+<table style="${S.table}">
+  <tr><td style="${S.tdL}">Reason</td><td style="${S.tdR}">{{rejection_reason}}</td></tr>
+</table>
+${footer()}
+</div>`,
+    },
+    sms: { body: '{{company_name}}: {{document_type}} rejected — {{rejection_reason}}. Please re-upload the correct document.' },
+  },
+
+  // ══════════════════════════════════════════════════════════════════════
+  // 10. PLATFORM / SUPER ADMIN
+  // ══════════════════════════════════════════════════════════════════════
+
+  /** New driver review → email + SMS to Super Admin */
+  PlatformNewDriverReview: {
+    email: {
+      subject: 'New Driver Review — {{driver_name}}',
+      body: `<div style="${S.wrap}">
+<h2 style="${S.h2}">New Driver Review 🔍</h2>
+<p style="${S.p}">A new driver has applied for certification and requires review.</p>
+<table style="${S.table}">
+  <tr><td style="${S.tdL}">Driver</td><td style="${S.tdR}"><strong>{{driver_name}}</strong></td></tr>
+  <tr><td style="${S.tdLAlt}">Tenant</td><td style="${S.tdRAlt}"><strong>{{tenant_name}}</strong></td></tr>
+</table>
+${footer()}
+</div>`,
+    },
+    sms: { body: 'New driver review: {{driver_name}} ({{tenant_name}}). Login to review.' },
+  },
+
+  /** New connection request → email + SMS to Super Admin */
+  PlatformNewConnectionReview: {
+    email: {
+      subject: 'New Connection Request',
+      body: `<div style="${S.wrap}">
+<h2 style="${S.h2}">New Partnership Review 🔗</h2>
+<p style="${S.p}">Two tenants have requested a partnership and require platform approval.</p>
+<table style="${S.table}">
+  <tr><td style="${S.tdL}">Tenant A</td><td style="${S.tdR}"><strong>{{tenant_name}}</strong></td></tr>
+  <tr><td style="${S.tdLAlt}">Tenant B</td><td style="${S.tdRAlt}"><strong>{{partner_name}}</strong></td></tr>
+</table>
+${footer()}
+</div>`,
+    },
+    sms: { body: 'New connection review: {{tenant_name}} + {{partner_name}}. Login to approve.' },
+  },
+
+  /** New tenant registered → email + SMS to Super Admin */
+  PlatformNewTenant: {
+    email: {
+      subject: 'New Tenant Registration — {{tenant_name}}',
+      body: `<div style="${S.wrap}">
+<h2 style="${S.h2}">New Tenant Registration 🏢</h2>
+<p style="${S.p}"><strong>{{tenant_name}}</strong> has registered on the platform. Please review and activate their account.</p>
+${footer()}
+</div>`,
+    },
+    sms: { body: 'New tenant registered: {{tenant_name}}. Login to activate.' },
+  },
+
+  /** Partnership approved → email + SMS to tenant Admin */
+  AdminConnectionApproved: {
+    email: {
+      subject: 'Partnership Approved — {{partner_name}}',
+      body: `<div style="${S.wrap}">
+<h2 style="${S.h2};color:#16a34a">Partnership Established ✅</h2>
+<p style="${S.p}">Your partnership with <strong>{{partner_name}}</strong> has been approved by the platform. You can now transfer bookings between each other.</p>
+${footer()}
+</div>`,
+    },
+    sms: { body: '{{company_name}}: Partnership with {{partner_name}} approved. You can now share and receive bookings!' },
+  },
+
+  /** Transfer received → email + SMS to tenant Admin */
+  AdminTransferReceived: {
+    email: {
+      subject: 'Transfer Request — {{booking_reference}}',
+      body: `<div style="${S.wrap}">
+<h2 style="${S.h2}">Transfer Request 📦</h2>
+<p style="${S.p}"><strong>{{from_tenant_name}}</strong> has transferred a booking to your company. Please accept or decline in the admin portal.</p>
+<table style="${S.table}">
+  <tr><td style="${S.tdL}">Booking Reference</td><td style="${S.tdR}"><strong>{{booking_reference}}</strong></td></tr>
+  <tr><td style="${S.tdLAlt}">From</td><td style="${S.tdRAlt}"><strong>{{from_tenant_name}}</strong></td></tr>
+  ${bookingRows(false)}
+  <tr style="border-top:2px solid #e5e7eb">
+    <td style="${S.tdTotal}">Transfer Price</td>
+    <td style="${S.tdTotal};color:#16a34a">{{currency}} {{transfer_price}}</td>
+  </tr>
+</table>
+${cta(btnUrl('Accept Transfer →', '{{admin_booking_url}}', '#16a34a'))}
+${footer()}
+</div>`,
+    },
+    sms: { body: '{{company_name}}: Transfer request — {{booking_reference}} from {{from_tenant_name}} on {{pickup_time}}. Price {{currency}} {{transfer_price}}. Login to accept.' },
+  },
+
+  // ══════════════════════════════════════════════════════════════════════
+  // Legacy / internal aliases (kept for backward compat)
+  // ══════════════════════════════════════════════════════════════════════
+
+  BookingConfirmed: {
+    email: {
+      subject: 'Booking Confirmed — {{booking_reference}}',
+      body: `<div style="${S.wrap}"><h2 style="${S.h2};color:#16a34a">Booking Confirmed ✅</h2><p style="${S.p}">Hi {{customer_first_name}},</p><p style="${S.p}">Booking <strong>{{booking_reference}}</strong> is confirmed. Total charged: <strong>{{currency}} {{total_amount}}</strong>.</p>${footer()}</div>`,
+    },
+    sms: { body: '{{company_name}}: Booking {{booking_reference}} confirmed. {{pickup_time}} from {{pickup_address}}.' },
+  },
+
+  BookingCancelled: {
+    email: {
+      subject: 'Booking Cancelled {{cancelled_by_label}}— {{booking_reference}}',
+      body: `<div style="${S.wrap}"><h2 style="${S.h2};color:#dc2626">Booking Cancelled</h2><p style="${S.p}">Hi {{customer_first_name}},</p><p style="${S.p}">Booking <strong>{{booking_reference}}</strong> has been cancelled{{cancellation_reason_line}}. No charge has been made.</p>${footer()}</div>`,
+    },
+    sms: { body: '{{company_name}}: Booking {{booking_reference}} cancelled. Contact us if you need help.' },
+  },
+
+  AdminNewBooking: {
+    email: {
+      subject: '🆕 New Booking — {{booking_reference}}',
+      body: `<div style="${S.wrap}"><h2 style="${S.h2}">New Booking Received</h2><p style="${S.p}">Customer <strong>{{customer_name}}</strong> submitted booking <strong>{{booking_reference}}</strong> on {{pickup_time}}.</p>${cta(btnUrl('View Booking →', '{{admin_booking_url}}'))}${footer()}</div>`,
+    },
+    sms: { body: '{{company_name}}: New booking {{booking_reference}} from {{customer_name}}. Login to action.' },
+  },
+
+  AdminBookingPendingConfirm: {
+    email: {
+      subject: '⏳ Pending Confirmation — {{booking_reference}}',
+      body: `<div style="${S.wrap}"><h2 style="${S.h2}">Booking Pending Confirmation ⏳</h2><p style="${S.p}">Booking <strong>{{booking_reference}}</strong> from <strong>{{customer_name}}</strong> is awaiting your action.</p>${cta(btnUrl('Confirm &amp; Charge →', '{{admin_booking_url}}', '#16a34a'))}${footer()}</div>`,
+    },
+    sms: { body: '{{company_name}}: Booking {{booking_reference}} pending confirmation. Login to action.' },
+  },
 
   JobCompleted: {
     email: {
       subject: 'Trip Complete — {{booking_reference}}',
-      body: `<div style="${BASE}">
-<h2>Trip Complete 🏁</h2>
-<p>Hi {{customer_first_name}},</p>
-<p>Your trip <strong>{{booking_reference}}</strong> is complete. Here is your final summary.</p>
-<table style="${TABLE}">
-  <tr><td style="${TD_L}">Date &amp; Time</td><td style="${TD_R}">{{pickup_time}}</td></tr>
-  <tr style="${TR_ALT}"><td style="${TD_L}">Pickup</td><td style="${TD_R}">{{pickup_address}}</td></tr>
-  {{#if waypoint_count}}<tr><td style="${TD_L}">Via</td><td style="${TD_R}">{{waypoints}}</td></tr>{{/if}}
-  <tr><td style="${TD_L}">Dropoff</td><td style="${TD_R}">{{dropoff_address}}</td></tr>
-  <tr style="${TR_ALT}"><td style="${TD_L}">Driver</td><td style="${TD_R}">{{driver_name}}</td></tr>
-  <tr><td style="${TD_L}">Vehicle</td><td style="${TD_R}">{{vehicle_make}} {{vehicle_model}} ({{vehicle_plate}})</td></tr>
-</table>
-<hr style="${DIVIDER}">
-<table style="${TABLE}">
-  <tr><td style="${TD_L}">Base Fare</td><td style="${TD_R}">{{currency}} {{base_fare}}</td></tr>
-  <tr style="${TR_ALT}"><td style="${TD_L}">Toll / Parking</td><td style="${TD_R}">{{currency}} {{toll_parking_total}}</td></tr>
-  <tr><td style="${TD_L}">Waiting Time</td><td style="${TD_R}">{{currency}} {{waiting_time_fee}}</td></tr>
-  <tr style="${TR_ALT}"><td style="${TD_L}">Extras</td><td style="${TD_R}">{{currency}} {{extras_amount}}</td></tr>
-  <tr><td style="${TD_L}">Part A (Pre-auth)</td><td style="${TD_R}">{{currency}} {{prepay_amount}}</td></tr>
-  <tr style="${TR_ALT}"><td style="${TD_L}">Part B (Actual)</td><td style="${TD_R}">{{currency}} {{actual_amount}}</td></tr>
-  <tr><td style="${TD_L}">Adjustment</td><td style="${TD_R}">{{currency}} {{adjustment_amount}}</td></tr>
-  <tr style="border-top:2px solid #e5e7eb"><td style="${TD_L};font-weight:bold">Grand Total Paid</td><td style="${TD_R};font-weight:bold;font-size:16px">{{currency}} {{total_amount}}</td></tr>
-</table>
-<table style="${TABLE}">
-  <tr><td style="${TD_L}">Payment</td><td style="${TD_R}">{{card_brand}} ****{{card_last4}}</td></tr>
-</table>
-<p style="color:#666;font-size:13px;text-align:center">Thank you for choosing {{company_name}}!</p>
-</div>`,
+      body: `<div style="${S.wrap}"><h2 style="${S.h2}">Trip Complete 🏁</h2><p style="${S.p}">Hi {{customer_first_name}}, your trip is complete. Total: <strong>{{currency}} {{total_amount}}</strong>. Thank you!</p>${footer()}</div>`,
     },
-    sms: { body: '{{company_name}}: Trip {{booking_reference}} complete. Total paid {{currency}} {{total_amount}}. Thank you for choosing {{company_name}}!' },
+    sms: { body: '{{company_name}}: Trip {{booking_reference}} complete. Total {{currency}} {{total_amount}}. Thank you!' },
   },
 
-  // ══════════════════════════════════════════════════════════════════════════
-  // 5. PAYMENT FAILED
-  // ══════════════════════════════════════════════════════════════════════════
+  PaymentRequest: {
+    email: {
+      subject: 'Payment Required — {{booking_reference}}',
+      body: `<div style="${S.wrap}"><h2 style="${S.h2}">Payment Required 💳</h2><p style="${S.p}">Hi {{customer_first_name}}, please complete payment for booking <strong>{{booking_reference}}</strong>.</p>${cta(btnUrl('Pay Now →', '{{payment_url}}'))}${footer()}</div>`,
+    },
+    sms: { body: '{{company_name}}: Payment required for {{booking_reference}}. Pay: {{payment_url}}' },
+  },
+
+  TripStarted: {
+    sms: { body: '{{company_name}}: {{passenger_name}}, your trip {{booking_reference}} has started. Enjoy your ride!' },
+  },
+
+  DriverInvitationSent: {
+    email: {
+      subject: 'New Job — {{booking_reference}}',
+      body: `<div style="${S.wrap}"><h2 style="${S.h2}">New Job Assignment 🚗</h2><p style="${S.p}">Hi {{driver_name}}, job <strong>{{booking_reference}}</strong> on {{pickup_time}}. Pickup: {{pickup_address}}.</p>${footer()}</div>`,
+    },
+    sms: { body: '{{company_name}}: New job {{booking_reference}} on {{pickup_time}}. Pickup: {{pickup_address}}. Confirm in app.' },
+  },
+
+  DriverAcceptedAssignment: {},
+
+  DriverRejectedAssignment: {
+    email: {
+      subject: '⚠️ Driver Rejected Job — {{booking_reference}}',
+      body: `<div style="${S.wrap}"><h2 style="${S.h2};color:#dc2626">Driver Rejected Job ⚠️</h2><p style="${S.p}"><strong>{{driver_name}}</strong> rejected booking <strong>{{booking_reference}}</strong>. Please reassign immediately.</p>${cta(btnUrl('Reassign →', '{{admin_booking_url}}', '#dc2626'))}${footer()}</div>`,
+    },
+    sms: { body: 'ALERT: {{driver_name}} rejected job {{booking_reference}}. Please reassign.' },
+  },
+
+  PaymentSuccess: {
+    email: {
+      subject: 'Payment Confirmed — {{booking_reference}}',
+      body: `<div style="${S.wrap}"><h2 style="${S.h2};color:#16a34a">Payment Confirmed ✅</h2><p style="${S.p}">Hi {{customer_first_name}}, payment of <strong>{{currency}} {{total_amount}}</strong> confirmed for booking <strong>{{booking_reference}}</strong>.</p>${footer()}</div>`,
+    },
+    sms: { body: '{{company_name}}: Payment {{currency}} {{total_amount}} confirmed for {{booking_reference}}.' },
+  },
 
   PaymentFailed: {
     email: {
       subject: 'Payment Failed — {{booking_reference}}',
-      body: `<div style="${BASE}">
-<h2 style="color:#dc2626">Payment Failed ⚠️</h2>
-<p>Hi {{customer_first_name}},</p>
-<p>We were unable to process payment of <strong>{{currency}} {{amount}}</strong> for booking <strong>{{booking_reference}}</strong>.</p>
-<p style="text-align:center;margin:28px 0">
-  <a href="{{payment_url}}" style="${BTN('#2563eb')}">Update Payment Method →</a>
-</p>
-<p style="color:#666;font-size:13px">Contact {{company_name}} if you need assistance.</p>
-</div>`,
+      body: `<div style="${S.wrap}"><h2 style="${S.h2};color:#dc2626">Payment Failed ⚠️</h2><p style="${S.p}">Hi {{customer_first_name}}, payment failed for booking <strong>{{booking_reference}}</strong>. Please update your payment method.</p>${cta(btnUrl('Update Payment →', '{{payment_url}}'))}${footer()}</div>`,
     },
-    sms: { body: '{{company_name}}: Payment failed for booking {{booking_reference}}. Please update your payment method or contact us urgently.' },
+    sms: { body: '{{company_name}}: Payment failed for {{booking_reference}}. Update payment: {{payment_url}}' },
   },
 
   AdminPaymentFailed: {
     email: {
       subject: '⚠️ Payment Failed — {{booking_reference}}',
-      body: `<div style="${BASE}">
-<h2 style="color:#dc2626">Customer Payment Failed ⚠️</h2>
-<p>Payment for booking <strong>{{booking_reference}}</strong> could not be processed.</p>
-<table style="${TABLE}">
-  <tr><td style="${TD_L}">Customer</td><td style="${TD_R}"><strong>{{customer_name}}</strong></td></tr>
-  <tr style="${TR_ALT}"><td style="${TD_L}">Amount</td><td style="${TD_R}"><strong>{{currency}} {{amount}}</strong></td></tr>
-  <tr><td style="${TD_L}">Date &amp; Time</td><td style="${TD_R}">{{pickup_time}}</td></tr>
-</table>
-<p style="text-align:center;margin:28px 0">
-  <a href="{{admin_booking_url}}" style="${BTN('#2563eb')}">Review Booking →</a>
-</p>
-<p>Please contact the customer to arrange payment.</p>
-</div>`,
+      body: `<div style="${S.wrap}"><h2 style="${S.h2};color:#dc2626">Customer Payment Failed ⚠️</h2><p style="${S.p}"><strong>{{customer_name}}</strong> — payment of <strong>{{currency}} {{total_amount}}</strong> failed for booking <strong>{{booking_reference}}</strong>.</p>${cta(btnUrl('View Booking →', '{{admin_booking_url}}'))}${footer()}</div>`,
     },
-    sms: { body: 'Payment failed for booking {{booking_reference}} ({{customer_name}}). Please follow up.' },
-  },
-
-  // ══════════════════════════════════════════════════════════════════════════
-  // 6. ADJUSTMENT (Part B settlement)
-  // ══════════════════════════════════════════════════════════════════════════
-
-  // Additional charge (Part B > Part A)
-  AdditionalCharge: {
-    email: {
-      subject: 'Additional Charge — {{booking_reference}}',
-      body: `<div style="${BASE}">
-<h2>Additional Charge Processed 💳</h2>
-<p>Hi {{customer_first_name}},</p>
-<p>An additional charge has been applied to booking <strong>{{booking_reference}}</strong> based on the final trip total.</p>
-<table style="${TABLE}">
-  <tr><td style="${TD_L}">Part A (Pre-auth)</td><td style="${TD_R}">{{currency}} {{prepay_amount}}</td></tr>
-  <tr style="${TR_ALT}"><td style="${TD_L}">Part B (Actual)</td><td style="${TD_R}">{{currency}} {{actual_amount}}</td></tr>
-  <tr style="border-top:2px solid #e5e7eb"><td style="${TD_L};font-weight:bold">Additional Charge</td><td style="${TD_R};font-weight:bold;color:#dc2626">{{currency}} {{adjustment_amount}}</td></tr>
-</table>
-<table style="${TABLE}">
-  <tr><td style="${TD_L}">Charged To</td><td style="${TD_R}">{{card_brand}} ****{{card_last4}}</td></tr>
-</table>
-<p style="color:#666;font-size:13px">Contact {{company_name}} if you have any questions.</p>
-</div>`,
-    },
-    sms: { body: '{{company_name}}: Additional charge of {{currency}} {{adjustment_amount}} applied to booking {{booking_reference}}. Contact us if you have questions.' },
-  },
-
-  // Refund issued (Part B < Part A)
-  RefundIssued: {
-    email: {
-      subject: 'Refund Issued — {{booking_reference}}',
-      body: `<div style="${BASE}">
-<h2>Refund Issued 💰</h2>
-<p>Hi {{customer_first_name}},</p>
-<p>A refund has been processed for booking <strong>{{booking_reference}}</strong>.</p>
-<table style="${TABLE}">
-  <tr><td style="${TD_L}">Part A (Pre-auth)</td><td style="${TD_R}">{{currency}} {{prepay_amount}}</td></tr>
-  <tr style="${TR_ALT}"><td style="${TD_L}">Part B (Actual)</td><td style="${TD_R}">{{currency}} {{actual_amount}}</td></tr>
-  <tr style="border-top:2px solid #e5e7eb"><td style="${TD_L};font-weight:bold">Refund Amount</td><td style="${TD_R};font-weight:bold;color:#16a34a">{{currency}} {{refund_amount}}</td></tr>
-</table>
-<p>Please allow 5–10 business days for the funds to appear in your account.</p>
-</div>`,
-    },
-    sms: { body: '{{company_name}}: Refund of {{currency}} {{refund_amount}} issued for booking {{booking_reference}}. Allow 5-10 business days.' },
-  },
-
-  // Adjustment charge failed
-  AdjustmentFailed: {
-    email: {
-      subject: '⚠️ Adjustment Failed — {{booking_reference}}',
-      body: `<div style="${BASE}">
-<h2 style="color:#dc2626">Adjustment Charge Failed ⚠️</h2>
-<p>The additional charge for booking <strong>{{booking_reference}}</strong> could not be processed.</p>
-<table style="${TABLE}">
-  <tr><td style="${TD_L}">Customer</td><td style="${TD_R}"><strong>{{customer_name}}</strong></td></tr>
-  <tr style="${TR_ALT}"><td style="${TD_L}">Amount</td><td style="${TD_R}"><strong>{{currency}} {{adjustment_amount}}</strong></td></tr>
-</table>
-<p style="text-align:center;margin:28px 0">
-  <a href="{{admin_booking_url}}" style="${BTN('#2563eb')}">Review Booking →</a>
-</p>
-<p>Please contact the customer to arrange manual payment.</p>
-</div>`,
-    },
-    sms: { body: 'Adjustment charge FAILED for booking {{booking_reference}} ({{customer_name}}). Amount: {{currency}} {{adjustment_amount}}. Manual action required.' },
-  },
-
-  // ══════════════════════════════════════════════════════════════════════════
-  // 7. INVOICE
-  // ══════════════════════════════════════════════════════════════════════════
-
-  InvoiceSent: {
-    email: {
-      subject: 'Invoice {{invoice_number}} — {{company_name}}',
-      body: `<div style="${BASE}">
-<h2>Invoice 📄</h2>
-<p>Hi {{customer_first_name}},</p>
-<table style="${TABLE}">
-  <tr><td style="${TD_L}">Invoice #</td><td style="${TD_R}"><strong>{{invoice_number}}</strong></td></tr>
-  <tr style="${TR_ALT}"><td style="${TD_L}">Amount Due</td><td style="${TD_R}"><strong>{{currency}} {{total_amount}}</strong></td></tr>
-  <tr><td style="${TD_L}">Due Date</td><td style="${TD_R};color:#dc2626"><strong>{{due_date}}</strong></td></tr>
-</table>
-<p style="text-align:center;margin:28px 0">
-  <a href="{{pay_url}}" style="${BTN('#2563eb')}">Pay Now →</a>
-</p>
-<p style="color:#666;font-size:12px;text-align:center">A PDF invoice is attached to this email.</p>
-</div>`,
-    },
-    sms: { body: '{{company_name}}: Invoice {{invoice_number}} for {{currency}} {{total_amount}} due {{due_date}}. Pay: {{pay_url}}' },
-  },
-
-  InvoiceOverdue: {
-    email: {
-      subject: 'Invoice Overdue — {{invoice_number}}',
-      body: `<div style="${BASE}">
-<h2 style="color:#dc2626">Invoice Overdue ⚠️</h2>
-<p>Hi {{customer_first_name}},</p>
-<p>Invoice <strong>{{invoice_number}}</strong> was due on <strong>{{due_date}}</strong> and remains unpaid.</p>
-<table style="${TABLE}">
-  <tr><td style="${TD_L}">Invoice #</td><td style="${TD_R}"><strong>{{invoice_number}}</strong></td></tr>
-  <tr style="${TR_ALT}"><td style="${TD_L}">Amount Overdue</td><td style="${TD_R};color:#dc2626"><strong>{{currency}} {{total_amount}}</strong></td></tr>
-  <tr><td style="${TD_L}">Original Due Date</td><td style="${TD_R}">{{due_date}}</td></tr>
-</table>
-<p style="text-align:center;margin:28px 0">
-  <a href="{{pay_url}}" style="${BTN('#dc2626')}">Pay Now →</a>
-</p>
-</div>`,
-    },
-    sms: { body: '{{company_name}}: Invoice {{invoice_number}} {{currency}} {{total_amount}} is OVERDUE (due {{due_date}}). Pay now: {{pay_url}}' },
-  },
-
-  AdminInvoicePaid: {
-    email: {
-      subject: 'Invoice Paid — {{invoice_number}}',
-      body: `<div style="${BASE}">
-<h2 style="color:#16a34a">Invoice Paid ✅</h2>
-<p>Invoice <strong>{{invoice_number}}</strong> has been paid by <strong>{{customer_name}}</strong>.</p>
-<table style="${TABLE}">
-  <tr><td style="${TD_L}">Invoice #</td><td style="${TD_R}"><strong>{{invoice_number}}</strong></td></tr>
-  <tr style="${TR_ALT}"><td style="${TD_L}">Amount Received</td><td style="${TD_R}"><strong>{{currency}} {{total_amount}}</strong></td></tr>
-</table>
-</div>`,
-    },
-    sms: { body: 'Invoice {{invoice_number}} paid: {{currency}} {{total_amount}} from {{customer_name}}.' },
-  },
-
-  PaymentReceived: {
-    email: {
-      subject: 'Payment Received — {{invoice_number}}',
-      body: `<div style="${BASE}"><h2 style="color:#16a34a">Payment Received ✅</h2><p>Hi {{customer_first_name}},</p><p>Payment of <strong>{{currency}} {{total_amount}}</strong> for invoice <strong>{{invoice_number}}</strong> has been received. Thank you!</p></div>`,
-    },
-    sms: { body: '{{company_name}}: Payment {{currency}} {{total_amount}} received (Invoice {{invoice_number}}). Thank you!' },
-  },
-
-  // ══════════════════════════════════════════════════════════════════════════
-  // 8. AUTH
-  // ══════════════════════════════════════════════════════════════════════════
-
-  CustomerRegistered: {
-    email: {
-      subject: 'Welcome to {{company_name}}',
-      body: `<div style="${BASE}">
-<h2>Welcome to {{company_name}}! 🎉</h2>
-<p>Hi {{customer_first_name}},</p>
-<p>Your account has been created successfully. You can now book your rides online.</p>
-<p style="text-align:center;margin:28px 0">
-  <a href="{{booking_url}}" style="${BTN('#2563eb')}">Book a Ride →</a>
-</p>
-<p style="color:#666;font-size:13px">Need help? Contact {{company_name}} at any time.</p>
-</div>`,
-    },
-    sms: { body: '{{company_name}}: Welcome {{customer_first_name}}! Your account is ready. Book your ride anytime.' },
-  },
-
-  CustomerForgotPassword: {
-    email: {
-      subject: 'Reset Your Password — {{company_name}}',
-      body: `<div style="${BASE}">
-<h2>Reset Your Password 🔐</h2>
-<p>Hi {{customer_first_name}},</p>
-<p>Click the button below to reset your password. This link is valid for <strong>1 hour</strong>.</p>
-<p style="text-align:center;margin:28px 0">
-  <a href="{{reset_url}}" style="${BTN('#2563eb')}">Reset Password →</a>
-</p>
-<p style="color:#666;font-size:13px">If you did not request this, please ignore this email. Your account is safe.</p>
-</div>`,
-    },
-    sms: { body: '{{company_name}}: Password reset link sent to your email. Valid for 1 hour.' },
-  },
-
-  CustomerOtpSent: {
-    sms: { body: '{{company_name}}: Your verification code is {{otp_code}}. Valid for 10 minutes. Do not share this code.' },
-  },
-
-  // ══════════════════════════════════════════════════════════════════════════
-  // DRIVER EVENTS
-  // ══════════════════════════════════════════════════════════════════════════
-
-  DriverInvitationSent: {
-    email: {
-      subject: 'New Job — {{booking_reference}}',
-      body: `<div style="${BASE}">
-<h2>New Job Assignment 🚗</h2>
-<p>{{driver_name}}, you have been assigned a new job. Please confirm via the app.</p>
-<table style="${TABLE}">
-  <tr><td style="${TD_L}">Booking</td><td style="${TD_R}"><strong>{{booking_reference}}</strong></td></tr>
-  <tr style="${TR_ALT}"><td style="${TD_L}">Date &amp; Time</td><td style="${TD_R}"><strong>{{pickup_time}}</strong></td></tr>
-  <tr><td style="${TD_L}">Pickup</td><td style="${TD_R}"><strong>{{pickup_address}}</strong></td></tr>
-  {{#if waypoint_count}}<tr style="${TR_ALT}"><td style="${TD_L}">Via</td><td style="${TD_R}">{{waypoints}}</td></tr>{{/if}}
-  <tr><td style="${TD_L}">Dropoff</td><td style="${TD_R}">{{dropoff_address}}</td></tr>
-  <tr style="${TR_ALT}"><td style="${TD_L}">Passenger</td><td style="${TD_R}"><strong>{{passenger_name}}</strong> — {{passenger_phone}}</td></tr>
-  <tr><td style="${TD_L}">Pax / Luggage</td><td style="${TD_R}">{{passenger_count}} pax / {{luggage_count}} bags</td></tr>
-  <tr style="${TR_ALT}"><td style="${TD_L}">Special Requests</td><td style="${TD_R}">{{special_requests}}</td></tr>
-  <tr style="border-top:2px solid #e5e7eb"><td style="${TD_L};font-weight:bold">Your Pay</td><td style="${TD_R};font-weight:bold;color:#16a34a;font-size:16px">{{currency}} {{driver_total}}</td></tr>
-</table>
-</div>`,
-    },
-    sms: { body: '{{company_name}}: New job {{booking_reference}}. {{pickup_time}} — Pick up {{passenger_name}} from {{pickup_address}}. Pay: {{currency}} {{driver_total}}. Confirm in app.' },
-  },
-
-  DriverAcceptedAssignment: {
-    // Internal only — no notification sent
-  },
-
-  DriverRejectedAssignment: {
-    email: {
-      subject: '⚠️ Driver Rejected Job — {{booking_reference}}',
-      body: `<div style="${BASE}"><h2 style="color:#dc2626">Driver Rejected Job ⚠️</h2><p>Driver <strong>{{driver_name}}</strong> has rejected booking <strong>{{booking_reference}}</strong>. Please log in to reassign a driver immediately.</p><p style="text-align:center;margin:28px 0"><a href="{{admin_booking_url}}" style="${BTN('#dc2626')}">Reassign Driver →</a></p></div>`,
-    },
-    sms: { body: 'ALERT: Driver {{driver_name}} rejected job {{booking_reference}}. Please reassign immediately.' },
-  },
-
-  DriverJobCancelled: {
-    email: {
-      subject: 'Job Cancelled — {{booking_reference}}',
-      body: `<div style="${BASE}"><h2>Job Cancelled</h2><p>{{driver_name}}, job <strong>{{booking_reference}}</strong> has been cancelled. Reason: {{cancellation_reason}}</p></div>`,
-    },
-    sms: { body: '{{company_name}}: Job {{booking_reference}} cancelled. {{cancellation_reason}}' },
-  },
-
-  DriverPayUpdated: {
-    email: {
-      subject: 'Pay Updated — {{booking_reference}}',
-      body: `<div style="${BASE}">
-<h2>Job Pay Updated 💰</h2>
-<p>{{driver_name}}, pay for <strong>{{booking_reference}}</strong> has been updated. Please re-confirm in the app.</p>
-<table style="${TABLE}">
-  <tr><td style="${TD_L}">Base Pay</td><td style="${TD_R}">{{currency}} {{driver_pay_amount}}</td></tr>
-  <tr style="${TR_ALT}"><td style="${TD_L}">Toll / Parking</td><td style="${TD_R}">{{currency}} {{driver_toll_parking}}</td></tr>
-  <tr style="border-top:2px solid #e5e7eb"><td style="${TD_L};font-weight:bold">Your Total</td><td style="${TD_R};font-weight:bold;color:#16a34a">{{currency}} {{driver_total}}</td></tr>
-</table>
-</div>`,
-    },
-    sms: { body: '{{company_name}}: Job {{booking_reference}} pay updated to {{currency}} {{driver_total}}. Please re-confirm in app.' },
-  },
-
-  DriverDocumentExpirySoon: {
-    email: {
-      subject: 'Document Expiry Reminder — {{document_type}}',
-      body: `<div style="${BASE}"><h2 style="color:#d97706">Document Expiring Soon ⚠️</h2><p>{{driver_name}}, your <strong>{{document_type}}</strong> expires on <strong>{{expiry_date}}</strong>. Please renew before it expires to avoid account suspension.</p></div>`,
-    },
-    sms: { body: '{{company_name}}: Your {{document_type}} expires {{expiry_date}}. Please renew now to avoid suspension.' },
-  },
-
-  DriverDocumentExpired: {
-    email: {
-      subject: 'Document Expired — {{document_type}}',
-      body: `<div style="${BASE}"><h2 style="color:#dc2626">Document Expired ❌</h2><p>{{driver_name}}, your <strong>{{document_type}}</strong> has expired. Your account has been suspended. Please upload the updated document immediately.</p></div>`,
-    },
-    sms: { body: '{{company_name}}: Your {{document_type}} expired. Account suspended. Upload updated document immediately.' },
-  },
-
-  DriverAccountSuspended: {
-    email: {
-      subject: 'Account Suspended',
-      body: `<div style="${BASE}"><h2 style="color:#dc2626">Account Suspended</h2><p>{{driver_name}}, your account has been suspended due to expired documents. Please upload updated documents for review.</p></div>`,
-    },
-    sms: { body: '{{company_name}}: Account suspended. Please upload updated documents to reactivate.' },
-  },
-
-  DriverDocumentApproved: {
-    email: {
-      subject: 'Document Approved — {{document_type}}',
-      body: `<div style="${BASE}"><h2 style="color:#16a34a">Document Approved ✅</h2><p>{{driver_name}}, your <strong>{{document_type}}</strong> has been approved! Your account is active.</p></div>`,
-    },
-    sms: { body: '{{company_name}}: Your {{document_type}} approved! Account is active.' },
-  },
-
-  DriverDocumentRejected: {
-    email: {
-      subject: 'Document Rejected — {{document_type}}',
-      body: `<div style="${BASE}"><h2 style="color:#dc2626">Document Rejected ❌</h2><p>{{driver_name}}, your <strong>{{document_type}}</strong> was rejected. Reason: {{rejection_reason}}</p><p>Please re-upload the correct document.</p></div>`,
-    },
-    sms: { body: '{{company_name}}: Your {{document_type}} rejected. Reason: {{rejection_reason}}. Please re-upload.' },
-  },
-
-  // ══════════════════════════════════════════════════════════════════════════
-  // ADMIN / PLATFORM
-  // ══════════════════════════════════════════════════════════════════════════
-
-  AdminBookingPendingConfirm: {
-    email: {
-      subject: '⏳ Booking Pending Confirmation — {{booking_reference}}',
-      body: `<div style="${BASE}">
-<h2>Booking Pending Confirmation ⏳</h2>
-<p>Booking <strong>{{booking_reference}}</strong> from <strong>{{customer_name}}</strong> is awaiting your action.</p>
-<table style="${TABLE}">
-  <tr><td style="${TD_L}">Reference</td><td style="${TD_R}"><strong>{{booking_reference}}</strong></td></tr>
-  <tr style="${TR_ALT}"><td style="${TD_L}">Customer</td><td style="${TD_R}"><strong>{{customer_name}}</strong></td></tr>
-  ${bookingSummaryRows()}
-</table>
-<p style="text-align:center;margin:28px 0">
-  <a href="{{admin_booking_url}}" style="${BTN('#16a34a')}">✅ Confirm &amp; Charge</a>
-  <a href="{{admin_booking_url}}" style="${BTN('#dc2626')}">✕ Reject</a>
-</p>
-</div>`,
-    },
-    sms: { body: 'Booking {{booking_reference}} pending confirmation. {{customer_name}} on {{pickup_time}}. Login to action.' },
-  },
-
-  // Cancellation (by customer or admin)
-  BookingCancelled: {
-    email: {
-      subject: 'Booking Cancelled {{cancelled_by_label}}— {{booking_reference}}',
-      body: `<div style="${BASE}">
-<h2 style="color:#dc2626">Booking Cancelled</h2>
-<p>Hi {{customer_first_name}},</p>
-<p>Your booking <strong>{{booking_reference}}</strong> has been cancelled{{cancellation_reason_line}}.</p>
-<table style="${TABLE}">
-  <tr><td style="${TD_L}">Date &amp; Time</td><td style="${TD_R}">{{pickup_time}}</td></tr>
-  <tr style="${TR_ALT}"><td style="${TD_L}">Route</td><td style="${TD_R}">{{pickup_address}} → {{dropoff_address}}</td></tr>
-</table>
-<p>No charge has been made. Contact {{company_name}} if you need to rebook.</p>
-</div>`,
-    },
-    sms: { body: '{{company_name}}: Dear {{passenger_name}}, booking {{booking_reference}} has been cancelled. Contact us if you need help.' },
+    sms: { body: '{{company_name}}: Payment failed {{booking_reference}} ({{customer_name}} {{currency}} {{total_amount}}). Login to action.' },
   },
 
   AdminDriverRejected: {
     email: {
       subject: '⚠️ Driver Rejected Job — {{booking_reference}}',
-      body: `<div style="${BASE}"><h2 style="color:#dc2626">Driver Rejected Job ⚠️</h2><p>Driver <strong>{{driver_name}}</strong> rejected booking <strong>{{booking_reference}}</strong>. Please log in to reassign.</p><p style="text-align:center;margin:28px 0"><a href="{{admin_booking_url}}" style="${BTN('#dc2626')}">Reassign Driver →</a></p></div>`,
+      body: `<div style="${S.wrap}"><h2 style="${S.h2};color:#dc2626">Driver Rejected ⚠️</h2><p style="${S.p}"><strong>{{driver_name}}</strong> rejected booking <strong>{{booking_reference}}</strong>.</p>${cta(btnUrl('Reassign →', '{{admin_booking_url}}', '#dc2626'))}${footer()}</div>`,
     },
-    sms: { body: 'Driver {{driver_name}} rejected {{booking_reference}}. Please reassign.' },
-  },
-
-  AdminPartnerRejected: {
-    email: {
-      subject: '⚠️ Partner Rejected Job — {{booking_reference}}',
-      body: `<div style="${BASE}"><h2 style="color:#dc2626">Partner Rejected ⚠️</h2><p><strong>{{partner_name}}</strong> rejected booking <strong>{{booking_reference}}</strong>. Reason: {{rejection_reason}}</p></div>`,
-    },
-    sms: { body: '{{partner_name}} rejected {{booking_reference}}. Please reassign.' },
-  },
-
-  AdminTransferReceived: {
-    email: {
-      subject: 'Transfer Request — {{booking_reference}}',
-      body: `<div style="${BASE}"><h2>Transfer Request</h2><p><strong>{{from_tenant_name}}</strong> transferred booking <strong>{{booking_reference}}</strong> to you ({{pickup_time}}, Price: {{currency}} {{transfer_price}}). Log in to accept or reject.</p></div>`,
-    },
-    sms: { body: '{{from_tenant_name}} transferred booking {{booking_reference}} to you. Price {{currency}} {{transfer_price}}. Login to process.' },
-  },
-
-  AdminPartnerAccepted: {
-    email: {
-      subject: 'Partner Accepted Job — {{booking_reference}}',
-      body: `<div style="${BASE}"><h2 style="color:#16a34a">Partner Accepted ✅</h2><p><strong>{{partner_name}}</strong> accepted booking <strong>{{booking_reference}}</strong>.</p></div>`,
-    },
-    sms: { body: '{{partner_name}} accepted {{booking_reference}}.' },
-  },
-
-  AdminConnectionRequest: {
-    email: {
-      subject: 'New Partnership Request — {{from_tenant_name}}',
-      body: `<div style="${BASE}"><h2>Partnership Invitation</h2><p><strong>{{from_tenant_name}}</strong> has sent you a partnership invitation. Log in to accept or decline.</p></div>`,
-    },
-    sms: { body: '{{from_tenant_name}} sent you a partnership invitation. Login to process.' },
-  },
-
-  AdminConnectionApproved: {
-    email: {
-      subject: 'Partnership Approved',
-      body: `<div style="${BASE}"><h2 style="color:#16a34a">Partnership Established ✅</h2><p>Your partnership with <strong>{{partner_name}}</strong> has been approved.</p></div>`,
-    },
-    sms: { body: 'Partnership with {{partner_name}} approved!' },
-  },
-
-  AdminDriverVerificationResult: {
-    email: {
-      subject: 'Driver Verification Result — {{driver_name}}',
-      body: `<div style="${BASE}"><h2>Driver Verification</h2><p>Driver <strong>{{driver_name}}</strong> — Result: <strong>{{verification_status}}</strong>.</p></div>`,
-    },
-    sms: { body: 'Driver {{driver_name}} verification: {{verification_status}}.' },
+    sms: { body: '{{driver_name}} rejected {{booking_reference}}. Please reassign.' },
   },
 
   AdminSettlement: {
     email: {
-      subject: 'Settlement Summary',
-      body: `<div style="${BASE}"><h2>Settlement Processed</h2><p>Settlement of <strong>{{currency}} {{total_amount}}</strong> has been processed.</p></div>`,
+      subject: 'Settlement Processed',
+      body: `<div style="${S.wrap}"><h2 style="${S.h2}">Settlement Processed 💰</h2><p style="${S.p}">Settlement of <strong>{{currency}} {{total_amount}}</strong> has been processed.</p>${footer()}</div>`,
     },
     sms: { body: 'Settlement processed: {{currency}} {{total_amount}}.' },
   },
 
-  PlatformNewDriverReview: {
+  SuperAdminDriverReview: {
     email: {
-      subject: 'New Driver Review — {{driver_name}}',
-      body: `<div style="${BASE}"><h2>New Driver Review</h2><p>Driver <strong>{{driver_name}}</strong> ({{tenant_name}}) has applied for certification. Please review.</p></div>`,
+      subject: 'Driver Review — {{driver_name}}',
+      body: `<div style="${S.wrap}"><h2 style="${S.h2}">Driver Review</h2><p style="${S.p}">Driver <strong>{{driver_name}}</strong> ({{tenant_name}}) requires platform review.</p>${footer()}</div>`,
     },
-    sms: { body: 'New driver review: {{driver_name}} ({{tenant_name}}).' },
+    sms: { body: 'Driver review: {{driver_name}} ({{tenant_name}}).' },
   },
 
-  PlatformNewConnectionReview: {
+  SuperAdminCollabReview: {
     email: {
-      subject: 'New Partnership Review',
-      body: `<div style="${BASE}"><h2>Partnership Review</h2><p><strong>{{tenant_name}}</strong> and <strong>{{partner_name}}</strong> have applied to partner. Please review.</p></div>`,
+      subject: 'Partnership Review',
+      body: `<div style="${S.wrap}"><h2 style="${S.h2}">Partnership Review</h2><p style="${S.p}"><strong>{{tenant_name}}</strong> + <strong>{{partner_name}}</strong> partnership review required.</p>${footer()}</div>`,
     },
-    sms: { body: 'New partnership review: {{tenant_name}} + {{partner_name}}.' },
+    sms: { body: 'Partnership review: {{tenant_name}} + {{partner_name}}.' },
   },
 
-  PlatformNewTenant: {
+  SuperAdminNewTenant: {
     email: {
       subject: 'New Tenant — {{tenant_name}}',
-      body: `<div style="${BASE}"><h2>New Tenant Registered</h2><p><strong>{{tenant_name}}</strong> has registered. Please review and activate.</p></div>`,
+      body: `<div style="${S.wrap}"><h2 style="${S.h2}">New Tenant Registration</h2><p style="${S.p}"><strong>{{tenant_name}}</strong> has registered. Please review and activate.</p>${footer()}</div>`,
     },
-    sms: { body: 'New tenant: {{tenant_name}}. Please review.' },
-  },
-
-  // Legacy aliases
-  BookingCancelledByCustomer: {
-    email: { subject: 'Booking Cancelled — {{booking_reference}}', body: `<div style="${BASE}"><h2 style="color:#dc2626">Booking Cancelled</h2><p>Hi {{customer_first_name}},</p><p>Booking <strong>{{booking_reference}}</strong> has been cancelled as requested. No charge has been made.</p></div>` },
-    sms: { body: '{{company_name}}: Booking {{booking_reference}} cancelled. Contact us if you need help.' },
-  },
-
-  BookingCancelledByAdmin: {
-    email: { subject: 'Booking Cancelled — {{booking_reference}}', body: `<div style="${BASE}"><h2 style="color:#dc2626">Booking Cancelled</h2><p>Hi {{customer_first_name}},</p><p>Booking <strong>{{booking_reference}}</strong> has been cancelled. Reason: {{cancellation_reason}}</p></div>` },
-    sms: { body: '{{company_name}}: Booking {{booking_reference}} cancelled. {{cancellation_reason}}.' },
-  },
-
-  JobStarted: {
-    sms: { body: '{{company_name}}: Your trip {{booking_reference}} has started. Enjoy your ride!' },
-  },
-
-  DriverAssigned: {
-    sms: { body: '{{company_name}}: Driver {{driver_name}} assigned to booking {{booking_reference}}.' },
-  },
-
-  PaymentSuccess: {
-    email: { subject: 'Payment Confirmed — {{booking_reference}}', body: `<div style="${BASE}"><h2 style="color:#16a34a">Payment Confirmed ✅</h2><p>Hi {{customer_first_name}},</p><p>Payment of <strong>{{currency}} {{total_amount}}</strong> for booking <strong>{{booking_reference}}</strong> confirmed.</p></div>` },
-    sms: { body: '{{company_name}}: Payment {{currency}} {{total_amount}} confirmed for booking {{booking_reference}}.' },
+    sms: { body: 'New tenant: {{tenant_name}}. Login to activate.' },
   },
 };

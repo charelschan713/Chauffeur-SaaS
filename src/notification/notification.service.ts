@@ -117,14 +117,32 @@ export class NotificationService {
       case 'SuperAdminDriverReview': await this.onSuperAdminDriverReview(payload); break;
       case 'SuperAdminCollabReview': await this.onSuperAdminCollabReview(payload); break;
       case 'SuperAdminNewTenant':  await this.onSuperAdminNewTenant(payload); break;
-      // New events
-      case 'BookingReceived':      await this.onBookingReceived(tenantId, payload); break;
-      case 'BookingRejected':      await this.onBookingRejected(tenantId, payload); break;
-      case 'BookingModified':      await this.onBookingModified(tenantId, payload); break;
-      case 'ModificationRequest':  await this.onModificationRequest(tenantId, payload); break;
-      case 'AdditionalCharge':     await this.onAdditionalCharge(tenantId, payload); break;
-      case 'AdjustmentFailed':     await this.onAdjustmentFailed(tenantId, payload); break;
-      case 'DriverEnRoute':        await this.onDriverEnRoute(tenantId, payload); break;
+      // New canonical event names
+      case 'AdminCreatedPaymentRequest':     await this.onPaymentRequest(tenantId, payload); break;
+      case 'CustomerCreatedBookingReceived': await this.onBookingReceived(tenantId, payload); break;
+      case 'AdminNewBookingAlert':           await this.onAdminNewBooking(tenantId, payload); break;
+      case 'BookingConfirmedCustomer':       await this.onBookingConfirmed(tenantId, payload); break;
+      case 'BookingRejected':               await this.onBookingRejected(tenantId, payload); break;
+      case 'BookingModifiedCustomer':        await this.onBookingModified(tenantId, payload); break;
+      case 'BookingModificationRequestAdmin':await this.onModificationRequest(tenantId, payload); break;
+      case 'BookingReceived':               await this.onBookingReceived(tenantId, payload); break;
+      case 'BookingModified':               await this.onBookingModified(tenantId, payload); break;
+      case 'ModificationRequest':           await this.onModificationRequest(tenantId, payload); break;
+      case 'AdditionalCharge':              await this.onAdditionalCharge(tenantId, payload); break;
+      case 'AdjustmentFailed':              await this.onAdjustmentFailed(tenantId, payload); break;
+      case 'AdjustmentFailedAdmin':         await this.onAdjustmentFailed(tenantId, payload); break;
+      case 'JobFulfilled':                  await this.onJobFulfilledWithExtras(tenantId, payload); break;
+      case 'PaymentFailedCustomer':         await this.onPaymentFailed(tenantId, payload); break;
+      case 'PaymentFailedAdmin':            await this.onAdminPaymentFailed(tenantId, payload); break;
+      case 'InvoicePaidAdmin':              await this.onAdminInvoicePaid(tenantId, payload); break;
+      case 'DriverJobAssigned':             await this.onDriverInvitation(tenantId, payload); break;
+      case 'DriverJobCancelled':            await this.onAssignmentCancelled(tenantId, payload); break;
+      case 'DriverEnRoute':                 await this.onDriverEnRoute(tenantId, payload); break;
+      case 'AdminConnectionApproved':       await this.onAdminCollabApproved(tenantId, payload); break;
+      case 'AdminTransferReceived':         await this.onAdminTransferRequest(tenantId, payload); break;
+      case 'PlatformNewDriverReview':       await this.onSuperAdminDriverReview(payload); break;
+      case 'PlatformNewConnectionReview':   await this.onSuperAdminCollabReview(payload); break;
+      case 'PlatformNewTenant':             await this.onSuperAdminNewTenant(payload); break;
     }
   }
 
@@ -461,6 +479,8 @@ export class NotificationService {
       customer_first_name: booking.customer_first_name ?? '',
       customer_last_name: booking.customer_last_name ?? '',
       customer_name: `${booking.customer_first_name ?? ''} ${booking.customer_last_name ?? ''}`.trim(),
+      customer_email: booking.customer_email ?? '',
+      customer_phone: toE164(booking.customer_phone_country_code, booking.customer_phone_number) ?? '',
       pickup_address: booking.pickup_address_text,
       dropoff_address: booking.dropoff_address_text,
       pickup_time: booking.pickup_time_local ?? (booking.pickup_at_utc
@@ -476,14 +496,48 @@ export class NotificationService {
       car_type_name: booking.car_type_name ?? booking.vehicle_make ?? '',
       base_fare: NotificationService.formatMinor(snapshot.subtotalMinor ?? snapshot.base_price_minor ?? snapshot.totalPriceMinor ?? booking.total_price_minor ?? 0),
       toll_parking_total: NotificationService.formatMinor((snapshot.toll_minor ?? 0) + (snapshot.parking_minor ?? 0) + (snapshot.toll_parking_minor ?? 0)),
+      extras_amount: NotificationService.formatMinor((snapshot.extras_minor ?? 0) + (snapshot.baby_seats_minor ?? 0) + (snapshot.waypoints_minor ?? 0)),
       total_amount: NotificationService.formatMinor(booking.total_price_minor ?? 0),
+      // Adjustment / Part A + B (set by caller via payload merge)
+      prepay_amount: '',
+      actual_amount: '',
+      actual_base_fare: '',
+      actual_toll_parking: '',
+      waiting_time_fee: '',
+      adjustment_amount: '',
+      refund_amount: '',
+      total_paid: NotificationService.formatMinor(booking.total_price_minor ?? 0),
+      // Payment
+      card_brand: '',
+      card_last4: '',
+      // URLs — resolved from tenant config or default
+      payment_url: '',
+      admin_booking_url: `https://chauffeur-saa-s.vercel.app/bookings/${booking.id ?? ''}`,
+      pay_url: '',
+      booking_url: 'https://aschauffeured.chauffeurssolution.com/quote',
+      reset_url: '',
+      // Modification
+      modification_details: '',
+      // Rejection
+      rejection_reason: '',
+      // Cancellation
+      cancelled_by_label: '',
+      cancellation_reason_line: '',
+      cancellation_reason: '',
+      // Driver
       driver_name: driver?.full_name ?? driver?.name ?? '',
       vehicle_make: booking.vehicle_make ?? '',
       vehicle_model: booking.vehicle_model ?? '',
       vehicle_plate: booking.vehicle_plate ?? '',
       vehicle_colour: booking.vehicle_colour ?? '',
+      eta_minutes: '',
+      // Passenger
       passenger_name: booking.passenger_name ?? [booking.passenger_first_name, booking.passenger_last_name].filter(Boolean).join(' '),
       passenger_phone: toE164(booking.passenger_phone_country_code, booking.passenger_phone_number) ?? undefined,
+      // Invoice
+      invoice_number: '',
+      due_date: '',
+      amount: '',
     };
 
     // Waypoint slots

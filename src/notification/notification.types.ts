@@ -1,9 +1,14 @@
 export interface TemplateVariables {
   company_name?: string;
   booking_url?: string;
+  payment_url?: string;
+  admin_booking_url?: string;
+  pay_url?: string;
   customer_name?: string;
   customer_first_name?: string;
   customer_last_name?: string;
+  customer_email?: string;
+  customer_phone?: string;
   booking_reference?: string;
   pickup_time?: string;
   pickup_address?: string;
@@ -38,6 +43,20 @@ export interface TemplateVariables {
   subtotal?: string;
   tax_amount?: string;
   total_amount?: string;
+  prepay_amount?: string;
+  actual_amount?: string;
+  actual_base_fare?: string;
+  actual_toll_parking?: string;
+  waiting_time_fee?: string;
+  adjustment_amount?: string;
+  refund_amount?: string;
+  total_paid?: string;
+  amount?: string;
+  card_brand?: string;
+  card_last4?: string;
+  modification_details?: string;
+  cancelled_by_label?: string;
+  cancellation_reason_line?: string;
   driver_pay_amount?: string;
   driver_toll_parking?: string;
   driver_total?: string;
