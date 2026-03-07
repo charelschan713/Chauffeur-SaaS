@@ -16,7 +16,6 @@ export class NotificationTemplateController {
 
   /** DEV/TEST: Fire any notification event manually */
   @Post('fire-test')
-  @TenantRoles('ADMIN', 'SUPER_ADMIN')
   async fireTest(@Req() req: any, @Body() body: { eventType: string; payload?: Record<string, any> }) {
     const tenantId = req.user.tenant_id;
     const payload = { tenant_id: tenantId, ...(body.payload ?? {}) };
