@@ -134,7 +134,9 @@ function CardSetupForm({ onSuccess, onCancel, isGuest, guestName }: {
         clientSecret = si.clientSecret;
       }
 
-      const returnUrl = `${window.location.origin}/book/3ds-return?redirect=${encodeURIComponent(window.location.href)}`;
+      // return_url is required for redirect-based 3DS (some banks redirect instead of iframe)
+      // For iframe-based 3DS, confirmCardSetup handles it automatically and returns 'succeeded'
+      const returnUrl = `${window.location.origin}/book?quote_id=${new URLSearchParams(window.location.search).get('quote_id') ?? ''}&3ds=1`;
       const { setupIntent, error: stripeErr } = await stripe.confirmCardSetup(clientSecret, {
         payment_method: {
           card: elements.getElement(CardElement)!,
@@ -142,17 +144,9 @@ function CardSetupForm({ onSuccess, onCancel, isGuest, guestName }: {
         },
         return_url: returnUrl,
       });
+      // confirmCardSetup handles 3DS inline — if it returns, authentication is complete or failed
       if (stripeErr) throw new Error(stripeErr.message);
-      if (!setupIntent) throw new Error('Card setup failed');
-      // 3DS may redirect and come back — handle requires_action
-      if (setupIntent.status === 'requires_action' || setupIntent.status === 'requires_confirmation') {
-        const { setupIntent: si2, error: err2 } = await stripe.confirmCardSetup(clientSecret);
-        if (err2) throw new Error(err2.message);
-        if (!si2 || si2.status !== 'succeeded') throw new Error('3DS authentication failed');
-        onSuccess(si2.id);
-        return;
-      }
-      if (setupIntent.status !== 'succeeded') throw new Error('Card setup failed');
+      if (!setupIntent || setupIntent.status !== 'succeeded') throw new Error('Card verification failed. Please try again.');
       onSuccess(setupIntent.id);
     } catch (err: any) {
       setError(err.message ?? 'Card setup failed');
