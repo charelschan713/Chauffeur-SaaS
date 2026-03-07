@@ -387,4 +387,117 @@ export const PLATFORM_DEFAULT_TEMPLATES: Record<string, { email?: { subject: str
     },
     sms: { body: 'New tenant: {{tenant_name}}. Please review.' },
   },
+
+  // ── Missing booking lifecycle templates ──────────────────────────────────
+
+  BookingCancelled: {
+    email: {
+      subject: 'Booking Cancelled — {{booking_reference}}',
+      body: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto">
+<h2 style="color:#dc2626">Booking Cancelled</h2>
+<p>Hi {{customer_first_name}},</p>
+<p>Your booking <strong>{{booking_reference}}</strong> has been cancelled.</p>
+<table style="width:100%;border-collapse:collapse;margin:16px 0">
+  <tr><td style="padding:6px;color:#666">Pickup</td><td style="padding:6px"><strong>{{pickup_address}}</strong></td></tr>
+  <tr><td style="padding:6px;color:#666">Date &amp; Time</td><td style="padding:6px"><strong>{{pickup_time}}</strong></td></tr>
+</table>
+<p>If you have any questions, please contact {{company_name}}.</p>
+</div>`,
+    },
+    sms: { body: '{{company_name}}: Booking {{booking_reference}} has been cancelled. Contact us if you need help.' },
+  },
+
+  AdminBookingPendingConfirm: {
+    email: {
+      subject: '⏳ New Booking Pending — {{booking_reference}}',
+      body: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto">
+<h2>New Booking Requires Confirmation</h2>
+<p>A new booking has been submitted and requires your confirmation.</p>
+<table style="width:100%;border-collapse:collapse;margin:16px 0">
+  <tr><td style="padding:6px;color:#666">Reference</td><td style="padding:6px"><strong>{{booking_reference}}</strong></td></tr>
+  <tr><td style="padding:6px;color:#666">Customer</td><td style="padding:6px"><strong>{{customer_name}}</strong></td></tr>
+  <tr><td style="padding:6px;color:#666">Pickup</td><td style="padding:6px"><strong>{{pickup_address}}</strong></td></tr>
+  <tr><td style="padding:6px;color:#666">Dropoff</td><td style="padding:6px"><strong>{{dropoff_address}}</strong></td></tr>
+  <tr><td style="padding:6px;color:#666">Date &amp; Time</td><td style="padding:6px"><strong>{{pickup_time}}</strong></td></tr>
+  <tr><td style="padding:6px;color:#666">Total</td><td style="padding:6px"><strong>{{currency}} {{total_amount}}</strong></td></tr>
+</table>
+<p>Log in to your admin portal to confirm or reject this booking.</p>
+</div>`,
+    },
+    sms: { body: 'New booking {{booking_reference}} from {{customer_name}} on {{pickup_time}}. Login to confirm.' },
+  },
+
+  DriverInvitationSent: {
+    email: {
+      subject: 'Driver Assigned — {{booking_reference}}',
+      body: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto">
+<h2>A Driver Has Been Assigned</h2>
+<p>Hi {{customer_first_name}},</p>
+<p>A driver has been assigned to your booking <strong>{{booking_reference}}</strong>. You will be notified once they accept the job.</p>
+<table style="width:100%;border-collapse:collapse;margin:16px 0">
+  <tr><td style="padding:6px;color:#666">Pickup</td><td style="padding:6px"><strong>{{pickup_address}}</strong></td></tr>
+  <tr><td style="padding:6px;color:#666">Date &amp; Time</td><td style="padding:6px"><strong>{{pickup_time}}</strong></td></tr>
+</table>
+</div>`,
+    },
+    sms: { body: '{{company_name}}: A driver has been assigned to booking {{booking_reference}} on {{pickup_time}}.' },
+  },
+
+  DriverAcceptedAssignment: {
+    email: {
+      subject: 'Your Driver is Confirmed — {{booking_reference}}',
+      body: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto">
+<h2>Your Driver is Ready</h2>
+<p>Hi {{customer_first_name}},</p>
+<p>Your driver has accepted the job for booking <strong>{{booking_reference}}</strong>.</p>
+<table style="width:100%;border-collapse:collapse;margin:16px 0">
+  <tr><td style="padding:6px;color:#666">Driver</td><td style="padding:6px"><strong>{{driver_name}}</strong></td></tr>
+  <tr><td style="padding:6px;color:#666">Vehicle</td><td style="padding:6px"><strong>{{vehicle_make}} {{vehicle_model}}</strong></td></tr>
+  <tr><td style="padding:6px;color:#666">Pickup</td><td style="padding:6px"><strong>{{pickup_address}}</strong></td></tr>
+  <tr><td style="padding:6px;color:#666">Date &amp; Time</td><td style="padding:6px"><strong>{{pickup_time}}</strong></td></tr>
+</table>
+</div>`,
+    },
+    sms: { body: '{{company_name}}: Driver {{driver_name}} confirmed for booking {{booking_reference}} on {{pickup_time}}.' },
+  },
+
+  DriverRejectedAssignment: {
+    email: {
+      subject: 'Driver Update — {{booking_reference}}',
+      body: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto"><h2>Driver Update</h2><p>Hi {{customer_first_name}},</p><p>We are reassigning a driver for your booking <strong>{{booking_reference}}</strong>. You will receive an update shortly.</p></div>`,
+    },
+    sms: { body: '{{company_name}}: We are reassigning a driver for booking {{booking_reference}}. Stay tuned.' },
+  },
+
+  TripStarted: {
+    email: {
+      subject: 'Your Ride Has Started — {{booking_reference}}',
+      body: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto"><h2>Your Ride Has Started</h2><p>Hi {{customer_first_name}},</p><p>Your chauffeur is on the way for booking <strong>{{booking_reference}}</strong>.</p></div>`,
+    },
+    sms: { body: '{{company_name}}: Your chauffeur is on the way for booking {{booking_reference}}.' },
+  },
+
+  PaymentSuccess: {
+    email: {
+      subject: 'Payment Received — {{booking_reference}}',
+      body: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto"><h2>Payment Confirmed</h2><p>Hi {{customer_first_name}},</p><p>Payment of <strong>{{currency}} {{total_amount}}</strong> for booking <strong>{{booking_reference}}</strong> has been received. Thank you.</p></div>`,
+    },
+    sms: { body: '{{company_name}}: Payment of {{currency}} {{total_amount}} received for booking {{booking_reference}}. Thank you.' },
+  },
+
+  PaymentFailed: {
+    email: {
+      subject: 'Payment Failed — {{booking_reference}}',
+      body: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto"><h2 style="color:#dc2626">Payment Failed</h2><p>Hi {{customer_first_name}},</p><p>We were unable to process payment for booking <strong>{{booking_reference}}</strong>. Please contact us or update your payment details.</p></div>`,
+    },
+    sms: { body: '{{company_name}}: Payment failed for booking {{booking_reference}}. Please contact us.' },
+  },
+
+  RefundIssued: {
+    email: {
+      subject: 'Refund Issued — {{booking_reference}}',
+      body: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto"><h2>Refund Processed</h2><p>Hi {{customer_first_name}},</p><p>A refund of <strong>{{currency}} {{total_amount}}</strong> has been issued for booking <strong>{{booking_reference}}</strong>. Allow 3–5 business days.</p></div>`,
+    },
+    sms: { body: '{{company_name}}: Refund issued for booking {{booking_reference}}. Allow 3-5 business days.' },
+  },
 };

@@ -362,6 +362,19 @@ export class BookingService {
       [randomUUID(), booking.tenant_id, bookingId, booking.operational_status, newStatus, userId, reason ?? null, new Date().toISOString()],
     );
 
+    // Fire notifications based on new status
+    const notifPayload = { tenant_id: booking.tenant_id, booking_id: bookingId };
+    if (newStatus === 'CONFIRMED') {
+      this.notificationService.handleEvent('BookingConfirmed', notifPayload)
+        .catch((e) => console.error('[Notification] BookingConfirmed (transition) FAILED:', e?.message));
+    } else if (newStatus === 'CANCELLED') {
+      this.notificationService.handleEvent('BookingCancelled', notifPayload)
+        .catch((e) => console.error('[Notification] BookingCancelled (transition) FAILED:', e?.message));
+    } else if (newStatus === 'COMPLETED' || newStatus === 'FULFILLED') {
+      this.notificationService.handleEvent('JobCompleted', notifPayload)
+        .catch((e) => console.error('[Notification] JobCompleted (transition) FAILED:', e?.message));
+    }
+
     return { success: true };
   }
 
