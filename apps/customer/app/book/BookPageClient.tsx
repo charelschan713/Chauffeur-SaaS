@@ -400,15 +400,13 @@ export function BookPageClient() {
   // Hydrate auth on mount
   useEffect(() => { hydrate(); }, [hydrate]);
 
-  // Load quote session — runs ONCE on mount only (client-side only)
-  useEffect(() => {
-    // Re-read from URL here inside effect — guaranteed client-side, window is available
+  // Load quote session — always reads from URL at effect time (client-side guaranteed)
+  const loadQuoteSession = useCallback(() => {
     const params = new URLSearchParams(window.location.search);
     const qid  = params.get('quote_id')  || quoteIdRef.current;
     const ctid = params.get('car_type_id') || carTypeIdRef.current;
     if (qid)   quoteIdRef.current   = qid;
     if (ctid)  carTypeIdRef.current = ctid;
-    // No quote_id — show error banner instead of auto-redirecting (auto-redirect was triggered by Stripe URL changes)
     if (!qid) {
       setQuoteError('No quote found. Please get a new quote.');
       setStep('details');
@@ -418,7 +416,6 @@ export function BookPageClient() {
       .then(r => r.ok ? r.json() : null)
       .then(data => {
         if (!data) {
-          // quote_id exists but server says invalid/expired → inline banner, keep form
           setQuoteError('This quote has expired. Prices may have changed — you can get a new quote or continue.');
           setStep('details');
           return;
@@ -428,17 +425,24 @@ export function BookPageClient() {
           ? (data.results.find((r: any) => r.service_class_id === ctid) ?? data.results[0])
           : (data.payload?.results?.find((r: any) => r.service_class_id === ctid) ?? data.payload?.results?.[0]);
         setSelectedResult(result);
-        if (token) {
-          setStep('details');
-        } else setStep('auth');
+        setStep(token ? 'details' : 'auth');
       })
       .catch(() => {
-        // Network error → inline banner, don't kick user out
         setQuoteError('Could not load quote details. Please check your connection.');
         setStep('details');
       });
+  }, [token]);
+
+  useEffect(() => {
+    // Re-read from URL here inside effect — guaranteed client-side, window is available
+    const params = new URLSearchParams(window.location.search);
+    const qid  = params.get('quote_id')  || quoteIdRef.current;
+    const ctid = params.get('car_type_id') || carTypeIdRef.current;
+    if (qid)   quoteIdRef.current   = qid;
+    if (ctid)  carTypeIdRef.current = ctid;
+    loadQuoteSession();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Mount only — quoteId/carTypeId/token read from refs or stable values
+  }, [loadQuoteSession]);
 
   // Handle 3DS return — Stripe redirects back with setup_intent + setup_intent_client_secret
   useEffect(() => {
