@@ -23,8 +23,13 @@ api.interceptors.response.use(
   (r) => r,
   (err) => {
     if (err.response?.status === 401 && typeof window !== 'undefined') {
-      localStorage.removeItem('customer_token');
-      window.location.href = '/login';
+      // Only force-redirect to login on protected pages, NOT on public pages like /quote or /book
+      const publicPaths = ['/quote', '/book', '/login', '/register', '/no-tenant', '/reset-password'];
+      const isPublic = publicPaths.some(p => window.location.pathname.startsWith(p));
+      if (!isPublic) {
+        localStorage.removeItem('customer_token');
+        window.location.href = '/login';
+      }
     }
     return Promise.reject(err);
   },
