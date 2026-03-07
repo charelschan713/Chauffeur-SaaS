@@ -432,7 +432,7 @@ export function BookPageClient() {
 
   // Fetch loyalty discount once logged in and result is available
   useEffect(() => {
-    if (token && selectedResult && (step === 'details' || step === 'card')) {
+    if (token && selectedResult && step === 'details') {
       fetchLoyaltyDiscount();
     }
   }, [token, selectedResult, step, fetchLoyaltyDiscount]);
