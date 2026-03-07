@@ -6,7 +6,8 @@ import { loadStripe } from '@stripe/stripe-js';
 import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import api from '@/lib/api';
 import { cn } from '@/lib/utils';
-import { ArrowLeft, CreditCard, Plus, Trash2, CheckCircle2, AlertCircle } from 'lucide-react';
+import { CreditCard, Plus, Trash2, CheckCircle2, AlertCircle } from 'lucide-react';
+import { BackButton } from '@/components/BackButton';
 
 const STRIPE_PK = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? '';
 
@@ -119,9 +120,7 @@ export default function PaymentMethodsPage() {
           paddingBottom: 12,
         }}
       >
-        <button onClick={() => router.back()} className="text-white/50 hover:text-white transition-colors">
-          <ArrowLeft className="h-5 w-5" />
-        </button>
+        <BackButton fallback="/profile" />
         <h1 className="font-semibold text-white flex-1">Payment Methods</h1>
         <button onClick={() => setShowAdd(v => !v)}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[hsl(var(--primary)/0.15)] border border-[hsl(var(--primary)/0.3)] text-[hsl(var(--primary))] text-xs font-semibold">

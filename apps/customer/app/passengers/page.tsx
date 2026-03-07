@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { cn, fmtMoney } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { BackButton } from '@/components/BackButton';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -268,13 +269,25 @@ export default function PassengersPage() {
   }
 
   return (
-    <div className="max-w-2xl mx-auto space-y-4 py-6 px-4">
-
-      {/* Header */}
-      <div className="flex items-center justify-between mb-2">
-        <div>
-          <h1 className="font-display text-2xl font-medium text-[hsl(var(--foreground))]">Passengers</h1>
-          <p className="text-sm text-[hsl(var(--muted-foreground))] mt-0.5">Manage saved passengers and their preferences</p>
+    <div className="min-h-screen bg-[#0d0f14]" style={{ paddingBottom: 'calc(96px + env(safe-area-inset-bottom, 0px))' }}>
+      {/* Sticky Header */}
+      <div
+        className="sticky top-0 z-20 border-b border-white/[0.07] px-4"
+        style={{
+          background: 'rgba(13,15,20,0.97)',
+          backdropFilter: 'blur(20px)',
+          WebkitBackdropFilter: 'blur(20px)',
+          paddingTop: 'max(12px, env(safe-area-inset-top))',
+          paddingBottom: 12,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 12,
+        }}
+      >
+        <div className="flex items-center gap-3 min-w-0">
+          <BackButton fallback="/profile" />
+          <h1 className="font-semibold text-white">Passengers</h1>
         </div>
         {editingId !== 'new' && (
           <Button size="md" onClick={openNew}>
@@ -282,6 +295,8 @@ export default function PassengersPage() {
           </Button>
         )}
       </div>
+
+      <div className="max-w-2xl mx-auto space-y-4 py-5 px-4">
 
       {/* New passenger form */}
       {editingId === 'new' && renderForm()}
@@ -405,6 +420,7 @@ export default function PassengersPage() {
           )}
         </div>
       ))}
+      </div>
     </div>
   );
 }

@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
 import { cn, fmtMoney } from '@/lib/utils';
 import { ArrowLeft, MapPin, CalendarDays, Car, User, Phone, AlertCircle, CheckCircle2, Clock, XCircle } from 'lucide-react';
+import { BackButton } from '@/components/BackButton';
 
 const OP_STATUS: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
   PENDING_CUSTOMER_CONFIRMATION: { label: 'Pending Confirmation', color: 'text-amber-400',  icon: <Clock className="h-4 w-4" /> },
@@ -102,9 +103,7 @@ export function BookingDetailClient({ id }: { id: string }) {
           paddingBottom: 12,
         }}
       >
-        <button onClick={() => router.back()} className="w-9 h-9 flex items-center justify-center rounded-full text-white/40 active:bg-white/8 transition-colors shrink-0">
-          <ArrowLeft className="h-5 w-5" />
-        </button>
+        <BackButton fallback="/bookings" />
         <div className="flex-1 min-w-0">
           <h1 className="font-semibold text-white">Booking Detail</h1>
           <p className="text-xs font-mono text-white/40">{booking.booking_reference}</p>

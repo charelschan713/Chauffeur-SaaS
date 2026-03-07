@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
 import { BottomNav } from '@/components/BottomNav';
+import { BackButton } from '@/components/BackButton';
 
 export default function InvoicesPage() {
   const router = useRouter();
@@ -25,14 +26,7 @@ export default function InvoicesPage() {
         }}
       >
         <div className="max-w-lg mx-auto flex items-center gap-3">
-          <button
-            onClick={() => router.back()}
-            className="w-9 h-9 flex items-center justify-center rounded-full text-[hsl(var(--muted-foreground))] active:bg-white/8 transition-colors"
-          >
-            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7"/>
-            </svg>
-          </button>
+          <BackButton fallback="/dashboard" />
           <h1 className="text-lg font-semibold text-[hsl(var(--foreground))]">Invoices</h1>
         </div>
       </header>

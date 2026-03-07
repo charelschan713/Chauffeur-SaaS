@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
+import { BackButton } from '@/components/BackButton';
 import {
   MapPin, Clock, Users, Car, ChevronRight,
   AlertCircle, CheckCircle2, Timer, ArrowLeft,
@@ -874,7 +875,7 @@ export function BookPageClient() {
           <p className="text-sm text-[hsl(var(--muted-foreground))]">
             This quote has expired or is no longer valid. Please return to get a new quote.
           </p>
-          <Button size="lg" className="w-full" onClick={() => window.history.back()}>
+          <Button size="lg" className="w-full" onClick={() => router.push('/quote')}>
             Get a New Quote
           </Button>
         </div>
@@ -930,12 +931,7 @@ export function BookPageClient() {
         }}
       >
         <div className="max-w-lg mx-auto px-4 pb-4 flex items-center gap-3">
-          <button
-            onClick={() => window.history.back()}
-            className="w-9 h-9 flex items-center justify-center rounded-full text-[hsl(var(--muted-foreground))] active:bg-white/8 transition-colors"
-          >
-            <ArrowLeft className="h-5 w-5" />
-          </button>
+          <BackButton fallback="/quote" />
           <h1 className="font-serif text-lg font-medium text-[hsl(var(--foreground))]">Complete Booking</h1>
         </div>
       </header>
