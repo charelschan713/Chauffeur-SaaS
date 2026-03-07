@@ -816,9 +816,13 @@ export class CustomerPortalService {
 
     // Fire notifications (non-blocking — never fail the booking on notification error)
     const notifPayload = { tenant_id: tenantId, booking_id: booking.id };
-    this.notificationService.handleEvent('AdminNewBooking', notifPayload).catch(() => {});
-    this.notificationService.handleEvent('AdminBookingPendingConfirm', notifPayload).catch(() => {});
-    this.notificationService.handleEvent('BookingConfirmed', notifPayload).catch(() => {});
+    this.notificationService.handleEvent('BookingConfirmed', notifPayload)
+      .then(() => console.log(`[Notification] BookingConfirmed sent for ${booking.id}`))
+      .catch((e) => console.error(`[Notification] BookingConfirmed FAILED for ${booking.id}:`, e?.message ?? e));
+    this.notificationService.handleEvent('AdminNewBooking', notifPayload)
+      .catch((e) => console.error(`[Notification] AdminNewBooking FAILED:`, e?.message ?? e));
+    this.notificationService.handleEvent('AdminBookingPendingConfirm', notifPayload)
+      .catch((e) => console.error(`[Notification] AdminBookingPendingConfirm FAILED:`, e?.message ?? e));
 
     return { booking, customerId };
   }
