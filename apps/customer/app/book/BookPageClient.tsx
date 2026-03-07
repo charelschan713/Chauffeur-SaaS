@@ -118,7 +118,8 @@ function CardSetupForm({ onSuccess, isGuest, billingName, submitLabel, submittin
     setError('');
     try {
 
-      const returnUrl = `${window.location.origin}/book?quote_id=${new URLSearchParams(window.location.search).get('quote_id') ?? ''}&3ds=1`;
+      const sp = new URLSearchParams(window.location.search);
+      const returnUrl = `${window.location.origin}/book?quote_id=${sp.get('quote_id') ?? ''}&car_type_id=${sp.get('car_type_id') ?? ''}&3ds=1`;
       const { setupIntent, error: stripeErr } = await stripe.confirmCardSetup(clientSecret, {
         payment_method: {
           card: elements.getElement(CardElement)!,
@@ -402,6 +403,25 @@ export function BookPageClient() {
         setStep('details');
       });
   }, [quoteId, carTypeId, token]);
+
+  // Handle 3DS return — Stripe redirects back with setup_intent + setup_intent_client_secret
+  useEffect(() => {
+    const is3dsReturn = searchParams.get('3ds') === '1';
+    const siClientSecret = searchParams.get('setup_intent_client_secret');
+    if (!is3dsReturn || !siClientSecret || step === 'loading' || step === 'done') return;
+    // Retrieve the SetupIntent to confirm it succeeded, then complete booking
+    const stripe = (window as any).Stripe?.(process.env.NEXT_PUBLIC_STRIPE_PK ?? 'pk_test_51PuUzlB3pdczuXMq89dEizofOSKDjaMOiJmnn8PXHvqA9pLrNeFRXqdzImtLUC07r1JYOYT581R33wr7sEosE3j100Z67sRtjn');
+    if (!stripe) return;
+    stripe.retrieveSetupIntent(siClientSecret).then(({ setupIntent }: any) => {
+      if (setupIntent?.status === 'succeeded') {
+        handleCardConfirmed(setupIntent.id);
+      } else {
+        setSubmitError('3D Secure verification failed. Please try again.');
+        setStep('details');
+      }
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step]);
 
   // Handle quote expiry — show inline banner, don't redirect
   useEffect(() => {
