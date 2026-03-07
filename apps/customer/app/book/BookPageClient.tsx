@@ -94,11 +94,12 @@ function useCountdown(expiresAt: string) {
 }
 
 // ── Card setup form ────────────────────────────────────────────────────────
-function CardSetupForm({ onSuccess, onCancel, isGuest, guestName }: {
+function CardSetupForm({ onSuccess, isGuest, guestName, submitLabel, submitting: externalSubmitting }: {
   onSuccess: (setupIntentId: string) => void;
-  onCancel: () => void;
   isGuest?: boolean;
   guestName?: string;
+  submitLabel?: string;
+  submitting?: boolean;
 }) {
   const stripe   = useStripe();
   const elements = useElements();
@@ -186,17 +187,14 @@ function CardSetupForm({ onSuccess, onCancel, isGuest, guestName }: {
         </div>
       </div>
       <div className="flex items-start gap-2 p-3 rounded-lg bg-[hsl(var(--muted))] text-xs text-[hsl(var(--muted-foreground))]">
-        🔒 Your card will be <strong className="text-[hsl(var(--foreground))]">saved but not charged</strong> now.
-        Admin will review and charge once confirmed.
+        🔒 Secured by Stripe · Your card details are encrypted. Your bank may prompt for 3D Secure verification.
       </div>
-      <div className="flex gap-3">
-        <Button type="submit" size="lg" className="flex-1" disabled={loading || !stripe}>
-          {loading ? <><Spinner className="h-4 w-4 mr-2" /> Saving...</> : 'Save Card & Submit Booking'}
-        </Button>
-        <Button type="button" variant="outline" size="lg" onClick={onCancel}>
-          <ArrowLeft className="h-4 w-4" />
-        </Button>
-      </div>
+      <Button type="submit" size="lg" className="w-full" disabled={loading || externalSubmitting || !stripe}>
+        {loading || externalSubmitting
+          ? <><Spinner className="h-4 w-4 mr-2" /> Processing…</>
+          : submitLabel ?? 'Confirm & Pay'
+        }
+      </Button>
     </form>
   );
 }
@@ -305,7 +303,7 @@ function GuestForm({ onSuccess, onBack }: { onSuccess: (guestData: any) => void;
 }
 
 // ── Main component ─────────────────────────────────────────────────────────
-type Step = 'loading' | 'expired' | 'auth' | 'login' | 'guest' | 'details' | 'card' | 'done';
+type Step = 'loading' | 'expired' | 'auth' | 'login' | 'guest' | 'details' | 'done';
 
 export function BookPageClient() {
   const router       = useRouter();
@@ -375,6 +373,12 @@ export function BookPageClient() {
   // Passenger details (pre-filled from profile or guest form)
   const [passengerDetails, setPassengerDetails] = useState({
     firstName: '', lastName: '', email: '', phoneCode: '+61', phoneNumber: '',
+  });
+
+  // "Is the passenger the same person?" toggle
+  const [samePassenger, setSamePassenger]     = useState(true);
+  const [passengerOverride, setPassengerOverride] = useState({
+    firstName: '', lastName: '', phoneCode: '+61', phoneNumber: '',
   });
 
   // Extra booking details
@@ -472,14 +476,11 @@ export function BookPageClient() {
     }
   }, [token, guestData]);
 
-  // ── Submit booking details ──
-  // Details step: just validate + move to card (no booking created yet)
+  // Details form submit — handled inside CardSetupForm; this is just a no-op wrapper
   const handleDetailsSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!session || !selectedResult) return;
-    setSubmitError('');
-    setStep('card');
-  }, [session, selectedResult]);
+    // Card setup form has its own submit; outer form submit is a fallback no-op
+  }, []);
 
   // Card confirmed: NOW create the booking (only after payment card saved)
   const handleCardConfirmed = useCallback(async (setupIntentId: string) => {
@@ -506,9 +507,12 @@ export function BookPageClient() {
         boosterSeats: req.booster_seats ?? 0,
         quoteId: session.id,
         setupIntentId,
-        passengerFirstName: passengerDetails.firstName || undefined,
-        passengerLastName:  passengerDetails.lastName  || undefined,
-        passengerPhone:     (passengerDetails.phoneCode + passengerDetails.phoneNumber).trim() || undefined,
+        passengerFirstName: (!samePassenger ? passengerOverride.firstName : passengerDetails.firstName) || undefined,
+        passengerLastName:  (!samePassenger ? passengerOverride.lastName  : passengerDetails.lastName)  || undefined,
+        passengerPhone:     (!samePassenger
+          ? (passengerOverride.phoneCode + passengerOverride.phoneNumber).trim()
+          : (passengerDetails.phoneCode + passengerDetails.phoneNumber).trim()
+        ) || undefined,
         ...(guestData && {
           guestCheckout: true,
           firstName: passengerDetails.firstName || guestData.firstName,
@@ -968,8 +972,7 @@ export function BookPageClient() {
 
             {/* Booking details */}
             {step === 'details' && (
-              <form onSubmit={handleDetailsSubmit} className="space-y-5">
-                <h2 className="font-semibold text-[hsl(var(--foreground))]">Contact Details</h2>
+              <form onSubmit={handleDetailsSubmit} className="space-y-6">
 
                 {/* Login reminder for guest users */}
                 {!token && (
@@ -992,115 +995,122 @@ export function BookPageClient() {
                   </div>
                 )}
 
-                {/* Passenger name */}
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <Label>First Name *</Label>
-                    <Input
-                      value={passengerDetails.firstName}
-                      onChange={e => setPassengerDetails(p => ({ ...p, firstName: e.target.value }))}
-                      placeholder="John"
-                      required
-                    />
+                {/* ── Your Details ── */}
+                <div className="space-y-4">
+                  <h2 className="font-semibold text-[hsl(var(--foreground))]">Your Details</h2>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <Label>First Name *</Label>
+                      <Input value={passengerDetails.firstName} onChange={e => setPassengerDetails(p => ({ ...p, firstName: e.target.value }))} placeholder="John" required />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Last Name *</Label>
+                      <Input value={passengerDetails.lastName} onChange={e => setPassengerDetails(p => ({ ...p, lastName: e.target.value }))} placeholder="Smith" required />
+                    </div>
                   </div>
                   <div className="space-y-1.5">
-                    <Label>Last Name *</Label>
-                    <Input
-                      value={passengerDetails.lastName}
-                      onChange={e => setPassengerDetails(p => ({ ...p, lastName: e.target.value }))}
-                      placeholder="Smith"
-                      required
+                    <Label>Email *</Label>
+                    <Input type="email" value={passengerDetails.email}
+                      onChange={e => setPassengerDetails(p => ({ ...p, email: e.target.value }))}
+                      placeholder="you@email.com" required={!!guestData}
+                      readOnly={!!token && !guestData}
+                      className={token && !guestData ? 'opacity-60 cursor-default' : ''}
                     />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Phone <span className="text-[hsl(var(--muted-foreground))] font-normal normal-case">(optional)</span></Label>
+                    <div className="flex gap-2">
+                      <Input className="w-20 shrink-0" value={passengerDetails.phoneCode} onChange={e => setPassengerDetails(p => ({ ...p, phoneCode: e.target.value }))} placeholder="+61" />
+                      <Input type="tel" className="flex-1" value={passengerDetails.phoneNumber} onChange={e => setPassengerDetails(p => ({ ...p, phoneNumber: e.target.value }))} placeholder="400 000 000" />
+                    </div>
                   </div>
                 </div>
 
-                {/* Email — shown for logged-in too (read-only hint) */}
-                <div className="space-y-1.5">
-                  <Label>Email *</Label>
-                  <Input
-                    type="email"
-                    value={passengerDetails.email}
-                    onChange={e => setPassengerDetails(p => ({ ...p, email: e.target.value }))}
-                    placeholder="passenger@email.com"
-                    required={!!guestData}
-                    readOnly={!!token && !guestData}
-                    className={token && !guestData ? 'opacity-60 cursor-default' : ''}
-                  />
-                </div>
-
-                {/* Phone */}
-                <div className="space-y-1.5">
-                  <Label>Phone <span className="text-[hsl(var(--muted-foreground))] font-normal normal-case">(optional)</span></Label>
-                  <div className="flex gap-2">
-                    <Input
-                      className="w-20 shrink-0"
-                      value={passengerDetails.phoneCode}
-                      onChange={e => setPassengerDetails(p => ({ ...p, phoneCode: e.target.value }))}
-                      placeholder="+61"
-                    />
-                    <Input
-                      type="tel"
-                      className="flex-1"
-                      value={passengerDetails.phoneNumber}
-                      onChange={e => setPassengerDetails(p => ({ ...p, phoneNumber: e.target.value }))}
-                      placeholder="400 000 000"
-                    />
+                {/* ── Passenger ── */}
+                <div className="space-y-3 border-t border-[hsl(var(--border))] pt-5">
+                  <h2 className="font-semibold text-[hsl(var(--foreground))]">Passenger</h2>
+                  <div className="flex flex-col gap-2">
+                    <label className="flex items-center gap-3 cursor-pointer">
+                      <input type="radio" name="samePassenger" checked={samePassenger}
+                        onChange={() => setSamePassenger(true)}
+                        className="accent-[hsl(var(--primary))] w-4 h-4"
+                      />
+                      <span className="text-sm text-[hsl(var(--foreground))]">I am the passenger</span>
+                    </label>
+                    <label className="flex items-center gap-3 cursor-pointer">
+                      <input type="radio" name="samePassenger" checked={!samePassenger}
+                        onChange={() => setSamePassenger(false)}
+                        className="accent-[hsl(var(--primary))] w-4 h-4"
+                      />
+                      <span className="text-sm text-[hsl(var(--foreground))]">Booking for someone else</span>
+                    </label>
                   </div>
+
+                  {!samePassenger && (
+                    <div className="space-y-3 pt-1">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1.5">
+                          <Label>Passenger First Name *</Label>
+                          <Input value={passengerOverride.firstName} onChange={e => setPassengerOverride(p => ({ ...p, firstName: e.target.value }))} placeholder="Jane" required />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label>Passenger Last Name *</Label>
+                          <Input value={passengerOverride.lastName} onChange={e => setPassengerOverride(p => ({ ...p, lastName: e.target.value }))} placeholder="Smith" required />
+                        </div>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label>Passenger Phone <span className="text-[hsl(var(--muted-foreground))] font-normal normal-case">(optional)</span></Label>
+                        <div className="flex gap-2">
+                          <Input className="w-20 shrink-0" value={passengerOverride.phoneCode} onChange={e => setPassengerOverride(p => ({ ...p, phoneCode: e.target.value }))} placeholder="+61" />
+                          <Input type="tel" className="flex-1" value={passengerOverride.phoneNumber} onChange={e => setPassengerOverride(p => ({ ...p, phoneNumber: e.target.value }))} placeholder="400 000 000" />
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
-                <div className="border-t border-[hsl(var(--border))] pt-4 space-y-4">
-                  {/* Flight number */}
+                {/* ── Flight / Special Requests ── */}
+                <div className="space-y-3 border-t border-[hsl(var(--border))] pt-5">
                   <div className="space-y-1.5">
                     <Label>Flight Number <span className="text-[hsl(var(--muted-foreground))] font-normal normal-case">(optional)</span></Label>
                     <Input value={flightNumber} onChange={e => setFlightNumber(e.target.value)} placeholder="e.g. QF401" />
                   </div>
-
-                  {/* Special requests */}
                   <div className="space-y-1.5">
                     <Label>Special Requests <span className="text-[hsl(var(--muted-foreground))] font-normal normal-case">(optional)</span></Label>
                     <textarea
                       className="w-full h-20 rounded-[--radius] border border-[hsl(var(--input-border))] bg-[hsl(var(--input))] px-3 py-2.5 text-sm text-[hsl(var(--foreground))] placeholder:text-[hsl(var(--muted-foreground))] resize-none focus:outline-none focus:border-[hsl(var(--primary))] focus:ring-2 focus:ring-[hsl(var(--primary)/0.15)] transition-colors"
                       placeholder="Preferred temperature, music, special requirements..."
-                      value={specialRequests}
-                      onChange={e => setSpecialRequests(e.target.value)}
+                      value={specialRequests} onChange={e => setSpecialRequests(e.target.value)}
                     />
                   </div>
                 </div>
 
-                <Button type="submit" size="lg" className="w-full" disabled={submitting}>
-                  {submitting
-                    ? <><Spinner className="h-4 w-4 mr-2" /> Processing...</>
-                    : <>Continue to Payment <ChevronRight className="h-4 w-4 ml-1" /></>
-                  }
-                </Button>
-              </form>
-            )}
+                {/* ── Payment ── */}
+                <div className="space-y-3 border-t border-[hsl(var(--border))] pt-5">
+                  <h2 className="font-semibold text-[hsl(var(--foreground))]">Payment</h2>
+                  {stripePromise ? (
+                    <Elements stripe={stripePromise}>
+                      <CardSetupForm
+                        onSuccess={handleCardConfirmed}
+                        isGuest={!!guestData}
+                        guestName={passengerDetails.firstName
+                          ? `${passengerDetails.firstName} ${passengerDetails.lastName}`.trim()
+                          : guestData ? `${guestData.firstName ?? ''} ${guestData.lastName ?? ''}`.trim() : undefined}
+                        submitLabel={`Confirm & Pay ${fmtMoney(
+                          loyaltyDiscount?.finalFareMinor ?? selectedResult?.estimated_total_minor ?? 0,
+                          selectedResult?.currency ?? 'AUD',
+                        )}`}
+                        submitting={submitting}
+                      />
+                    </Elements>
+                  ) : (
+                    <div className="flex items-center justify-center py-8 text-sm text-muted-foreground gap-2">
+                      <Spinner className="h-4 w-4" /> Loading payment…
+                    </div>
+                  )}
+                </div>
 
-            {/* Card setup */}
-            {step === 'card' && (
-              <div className="space-y-4">
-                <h2 className="font-semibold text-[hsl(var(--foreground))]">Save Payment Card</h2>
-                {submitError && (
-                  <div className="flex items-start gap-2 p-3 rounded-lg bg-[hsl(var(--destructive)/0.1)] border border-[hsl(var(--destructive)/0.3)] text-sm text-[hsl(var(--destructive))]">
-                    <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
-                    {submitError}
-                  </div>
-                )}
-                {stripePromise ? (
-                  <Elements stripe={stripePromise}>
-                    <CardSetupForm
-                      onSuccess={handleCardConfirmed}
-                      onCancel={() => setStep('details')}
-                      isGuest={!!guestData}
-                      guestName={guestData ? `${guestData.firstName ?? ''} ${guestData.lastName ?? ''}`.trim() : undefined}
-                    />
-                  </Elements>
-                ) : (
-                  <div className="flex items-center justify-center py-8 text-sm text-muted-foreground gap-2">
-                    <Spinner className="h-4 w-4" /> Loading payment…
-                  </div>
-                )}
-              </div>
+              </form>
             )}
 
           </CardContent>
