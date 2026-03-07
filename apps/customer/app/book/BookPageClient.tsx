@@ -134,14 +134,25 @@ function CardSetupForm({ onSuccess, onCancel, isGuest, guestName }: {
         clientSecret = si.clientSecret;
       }
 
+      const returnUrl = `${window.location.origin}/book/3ds-return?redirect=${encodeURIComponent(window.location.href)}`;
       const { setupIntent, error: stripeErr } = await stripe.confirmCardSetup(clientSecret, {
         payment_method: {
           card: elements.getElement(CardElement)!,
           billing_details: { name: cardholderName.trim() },
         },
+        return_url: returnUrl,
       });
       if (stripeErr) throw new Error(stripeErr.message);
-      if (!setupIntent || setupIntent.status !== 'succeeded') throw new Error('Card setup failed');
+      if (!setupIntent) throw new Error('Card setup failed');
+      // 3DS may redirect and come back — handle requires_action
+      if (setupIntent.status === 'requires_action' || setupIntent.status === 'requires_confirmation') {
+        const { setupIntent: si2, error: err2 } = await stripe.confirmCardSetup(clientSecret);
+        if (err2) throw new Error(err2.message);
+        if (!si2 || si2.status !== 'succeeded') throw new Error('3DS authentication failed');
+        onSuccess(si2.id);
+        return;
+      }
+      if (setupIntent.status !== 'succeeded') throw new Error('Card setup failed');
       onSuccess(setupIntent.id);
     } catch (err: any) {
       setError(err.message ?? 'Card setup failed');

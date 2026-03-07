@@ -400,13 +400,18 @@ export class CustomerPortalService {
     );
   }
 
-  /** Public setup intent for guest checkout — no Stripe customer created, just a bare intent */
+  /** Public setup intent for guest checkout — on_session (card added during active session) */
   async createGuestSetupIntent(tenantSlug: string) {
     const tenant = await this.getTenantInfo(tenantSlug);
     const stripe = await this.getStripe(tenant.id);
     const si = await stripe.setupIntents.create({
       payment_method_types: ['card'],
+      // on_session: customer is present now; admin will charge off_session later
+      // 3DS handled at setup time → reduces friction at charge time
       usage: 'off_session',
+      payment_method_options: {
+        card: { request_three_d_secure: 'automatic' },
+      },
     });
     return { clientSecret: si.client_secret };
   }
@@ -531,7 +536,7 @@ export class CustomerPortalService {
 
   async payViaToken(token: string, dto: { paymentMethodId: string }) {
     const rows = await this.db.query(
-      `SELECT b.id, b.tenant_id, b.total_price_minor, b.currency, b.payment_status
+      `SELECT b.id, b.tenant_id, b.total_price_minor, b.currency, b.payment_status, b.booking_reference
        FROM public.bookings b WHERE b.payment_link_token=$1`,
       [token],
     );
@@ -540,25 +545,61 @@ export class CustomerPortalService {
     if (b.payment_status === 'PAID') throw new BadRequestException('Already paid');
 
     const stripe = await this.getStripe(b.tenant_id);
+    const appUrl = process.env.CUSTOMER_APP_URL ?? 'https://aschauffeured.chauffeurssolution.com';
     const pi = await stripe.paymentIntents.create({
       amount: b.total_price_minor,
       currency: b.currency.toLowerCase(),
       payment_method: dto.paymentMethodId,
       confirm: true,
-      return_url: `${process.env.CUSTOMER_APP_URL ?? 'http://localhost:3001'}/pay/success`,
+      // Required for 3DS redirect flow
+      return_url: `${appUrl}/pay/${token}?3ds=true`,
+      // Request 3DS when card supports it (recommended for AU compliance)
+      payment_method_options: {
+        card: { request_three_d_secure: 'automatic' },
+      },
     });
 
+    // Immediately succeeded (no 3DS required)
     if (pi.status === 'succeeded') {
-      await this.db.query(
-        `UPDATE public.bookings
-         SET status='CONFIRMED', payment_status='PAID',
-             stripe_payment_intent_id=$1, payment_captured_at=now(), updated_at=now()
-         WHERE id=$2`,
-        [pi.id, b.id],
-      );
+      await this.markBookingPaid(b.id, pi.id);
     }
 
-    return { success: pi.status === 'succeeded', status: pi.status, clientSecret: pi.client_secret };
+    // 3DS required — return clientSecret so frontend can call handleNextAction
+    return {
+      success: pi.status === 'succeeded',
+      status: pi.status,
+      clientSecret: pi.client_secret,
+      paymentIntentId: pi.id,
+    };
+  }
+
+  /** Called after frontend completes 3DS via handleNextAction */
+  async confirm3ds(token: string, dto: { paymentIntentId: string }) {
+    const rows = await this.db.query(
+      `SELECT b.id, b.tenant_id, b.payment_status
+       FROM public.bookings b WHERE b.payment_link_token=$1`,
+      [token],
+    );
+    if (!rows.length) throw new NotFoundException('Booking not found');
+    const b = rows[0];
+    if (b.payment_status === 'PAID') return { success: true };
+
+    const stripe = await this.getStripe(b.tenant_id);
+    const pi = await stripe.paymentIntents.retrieve(dto.paymentIntentId);
+    if (pi.status !== 'succeeded') throw new BadRequestException(`Payment not completed: ${pi.status}`);
+
+    await this.markBookingPaid(b.id, pi.id);
+    return { success: true };
+  }
+
+  private async markBookingPaid(bookingId: string, paymentIntentId: string) {
+    await this.db.query(
+      `UPDATE public.bookings
+       SET operational_status='CONFIRMED', payment_status='PAID',
+           stripe_payment_intent_id=$1, payment_captured_at=now(), updated_at=now()
+       WHERE id=$2`,
+      [paymentIntentId, bookingId],
+    );
   }
 
   // ── Invoices ──────────────────────────────────────────────────────────────

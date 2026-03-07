@@ -57,6 +57,12 @@ export class CustomerPortalController {
     return this.svc.payViaToken(token, body);
   }
 
+  /** Called by frontend after 3DS completes via handleNextAction */
+  @Post('payments/token/:token/confirm-3ds')
+  confirm3ds(@Param('token') token: string, @Body() body: any) {
+    return this.svc.confirm3ds(token, body);
+  }
+
   @Post('guest/checkout')
   guestCheckout(@Body() body: any) {
     return this.svc.guestCheckout(body.tenantSlug, body);
