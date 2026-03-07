@@ -292,13 +292,24 @@ export function BookPageClient() {
   const searchParams = useSearchParams();
   const { token, hydrate } = useAuthStore();
 
-  // Use refs so quoteId/carTypeId never become null during Stripe processing re-renders
+  // Read directly from window.location to avoid useSearchParams returning null during Stripe re-renders
   const quoteIdRef   = useRef<string | null>(null);
   const carTypeIdRef = useRef<string | null>(null);
-  const rawQuoteId   = searchParams.get('quote_id');
-  const rawCarTypeId = searchParams.get('car_type_id');
-  if (rawQuoteId)   quoteIdRef.current   = rawQuoteId;
-  if (rawCarTypeId) carTypeIdRef.current = rawCarTypeId;
+  if (!quoteIdRef.current) {
+    // Try useSearchParams first, fall back to direct URL parse (works even when Suspense returns null)
+    const fromSearchParams = searchParams.get('quote_id');
+    const fromUrl = typeof window !== 'undefined'
+      ? new URLSearchParams(window.location.search).get('quote_id')
+      : null;
+    quoteIdRef.current = fromSearchParams || fromUrl;
+  }
+  if (!carTypeIdRef.current) {
+    const fromSearchParams = searchParams.get('car_type_id');
+    const fromUrl = typeof window !== 'undefined'
+      ? new URLSearchParams(window.location.search).get('car_type_id')
+      : null;
+    carTypeIdRef.current = fromSearchParams || fromUrl;
+  }
   const quoteId   = quoteIdRef.current;
   const carTypeId = carTypeIdRef.current;
 
