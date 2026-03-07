@@ -240,7 +240,12 @@ export class CustomerPortalService {
       }
     }
 
-    const ref = `BK-${Date.now().toString(36).toUpperCase()}`;
+    const [tenantRow] = await this.db.query(
+      `SELECT booking_ref_prefix FROM public.tenants WHERE id=$1 LIMIT 1`,
+      [tenantId],
+    );
+    const refPrefix = (tenantRow?.booking_ref_prefix ?? 'BK').trim().toUpperCase();
+    const ref = `${refPrefix}-${Math.random().toString(36).slice(2, 10).toUpperCase()}`;
 
     // Load customer info for passenger fields
     const [customer] = await this.db.query(
