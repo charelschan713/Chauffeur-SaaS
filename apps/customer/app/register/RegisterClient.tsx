@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
 import { useAuthStore } from '@/lib/auth-store';
+import { PhoneCountrySelect } from '@/components/PhoneCountrySelect';
 import Link from 'next/link';
 import { AuthShell, AuthLogo, AuthCard, GoldButton, ErrorAlert, inputCls, labelCls } from '@/components/AuthLogo';
 
@@ -66,7 +67,7 @@ export function RegisterClient() {
           <div>
             <label className={labelCls}>Phone <span className="normal-case text-white/20 text-xs">(optional)</span></label>
             <div className="flex gap-2">
-              <input className={`${inputCls} w-20 shrink-0`} value={form.phoneCountryCode} onChange={f('phoneCountryCode')} placeholder="+61" />
+              <PhoneCountrySelect value={form.phoneCountryCode} onChange={v => setForm(p => ({ ...p, phoneCountryCode: v }))} className="w-28 shrink-0" />
               <input type="tel" className={`${inputCls} flex-1`} value={form.phoneNumber} onChange={f('phoneNumber')} placeholder="4xx xxx xxx" />
             </div>
           </div>

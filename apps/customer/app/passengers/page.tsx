@@ -3,6 +3,7 @@ import { useState, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { cn, fmtMoney } from '@/lib/utils';
+import { PhoneCountrySelect } from '@/components/PhoneCountrySelect';
 import { Button } from '@/components/ui/button';
 import { BackButton } from '@/components/BackButton';
 import { Card, CardContent } from '@/components/ui/card';
@@ -174,7 +175,7 @@ export default function PassengersPage() {
           <div className="space-y-1.5">
             <Label>Phone</Label>
             <div className="flex gap-2">
-              <Input className="w-20 shrink-0" value={form.phone_country_code} onChange={(e) => set('phone_country_code', e.target.value)} placeholder="+61" />
+              <PhoneCountrySelect value={form.phone_country_code ?? '+61'} onChange={v => set('phone_country_code', v)} className="w-28 shrink-0" />
               <Input className="flex-1" value={form.phone_number} onChange={(e) => set('phone_number', e.target.value)} placeholder="400 000 000" />
             </div>
           </div>

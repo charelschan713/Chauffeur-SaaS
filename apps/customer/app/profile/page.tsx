@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
 import { useAuthStore } from '@/lib/auth-store';
+import { PhoneCountrySelect } from '@/components/PhoneCountrySelect';
 import { CreditCard, Users, User, ChevronRight, LogOut, Edit2, Check, X } from 'lucide-react';
 
 export default function ProfilePage() {
@@ -94,12 +95,7 @@ export default function ProfilePage() {
                   />
                 </div>
                 <div className="flex gap-2">
-                  <input
-                    className="w-20 shrink-0 h-11 px-3 rounded-xl bg-white/6 border border-white/12 text-sm text-white placeholder:text-white/25 focus:outline-none focus:border-[hsl(var(--primary)/0.5)]"
-                    placeholder="+61"
-                    value={form.phoneCode}
-                    onChange={e => setForm(f => ({ ...f, phoneCode: e.target.value }))}
-                  />
+                  <PhoneCountrySelect value={form.phoneCode} onChange={v => setForm(f => ({ ...f, phoneCode: v }))} className="w-28 shrink-0" />
                   <input
                     type="tel"
                     className="flex-1 h-11 px-3 rounded-xl bg-white/6 border border-white/12 text-sm text-white placeholder:text-white/25 focus:outline-none focus:border-[hsl(var(--primary)/0.5)]"

@@ -13,6 +13,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
 import { BackButton } from '@/components/BackButton';
+import { PhoneCountrySelect } from '@/components/PhoneCountrySelect';
 import {
   MapPin, Clock, Users, Car, ChevronRight,
   AlertCircle, CheckCircle2, Timer, ArrowLeft,
@@ -258,7 +259,7 @@ function GuestForm({ onSuccess, onBack }: { onSuccess: (guestData: any) => void;
       <div className="space-y-1.5">
         <Label>Phone</Label>
         <div className="flex gap-2">
-          <Input className="w-20 shrink-0" value={form.phoneCode} onChange={f('phoneCode')} placeholder="+61" />
+          <PhoneCountrySelect value={form.phoneCode} onChange={v => setForm(p => ({ ...p, phoneCode: v }))} className="w-28 shrink-0" />
           <Input type="tel" className="flex-1" value={form.phoneNumber} onChange={f('phoneNumber')} placeholder="400 000 000" />
         </div>
       </div>
@@ -1050,7 +1051,7 @@ export function BookPageClient() {
                   <div className="space-y-1.5">
                     <Label>Phone <span className="text-[hsl(var(--muted-foreground))] font-normal normal-case">(optional)</span></Label>
                     <div className="flex gap-2">
-                      <Input className="w-20 shrink-0" value={passengerDetails.phoneCode} onChange={e => setPassengerDetails(p => ({ ...p, phoneCode: e.target.value }))} placeholder="+61" />
+                      <PhoneCountrySelect value={passengerDetails.phoneCode} onChange={v => setPassengerDetails(p => ({ ...p, phoneCode: v }))} className="w-28 shrink-0" />
                       <Input type="tel" className="flex-1" value={passengerDetails.phoneNumber} onChange={e => setPassengerDetails(p => ({ ...p, phoneNumber: e.target.value }))} placeholder="400 000 000" />
                     </div>
                   </div>
@@ -1091,7 +1092,7 @@ export function BookPageClient() {
                       <div className="space-y-1.5">
                         <Label>Passenger Phone <span className="text-[hsl(var(--muted-foreground))] font-normal normal-case">(optional)</span></Label>
                         <div className="flex gap-2">
-                          <Input className="w-20 shrink-0" value={passengerOverride.phoneCode} onChange={e => setPassengerOverride(p => ({ ...p, phoneCode: e.target.value }))} placeholder="+61" />
+                          <PhoneCountrySelect value={passengerOverride.phoneCode} onChange={v => setPassengerOverride(p => ({ ...p, phoneCode: v }))} className="w-28 shrink-0" />
                           <Input type="tel" className="flex-1" value={passengerOverride.phoneNumber} onChange={e => setPassengerOverride(p => ({ ...p, phoneNumber: e.target.value }))} placeholder="400 000 000" />
                         </div>
                       </div>
