@@ -117,6 +117,14 @@ export class NotificationService {
       case 'SuperAdminDriverReview': await this.onSuperAdminDriverReview(payload); break;
       case 'SuperAdminCollabReview': await this.onSuperAdminCollabReview(payload); break;
       case 'SuperAdminNewTenant':  await this.onSuperAdminNewTenant(payload); break;
+      // New events
+      case 'BookingReceived':      await this.onBookingReceived(tenantId, payload); break;
+      case 'BookingRejected':      await this.onBookingRejected(tenantId, payload); break;
+      case 'BookingModified':      await this.onBookingModified(tenantId, payload); break;
+      case 'ModificationRequest':  await this.onModificationRequest(tenantId, payload); break;
+      case 'AdditionalCharge':     await this.onAdditionalCharge(tenantId, payload); break;
+      case 'AdjustmentFailed':     await this.onAdjustmentFailed(tenantId, payload); break;
+      case 'DriverEnRoute':        await this.onDriverEnRoute(tenantId, payload); break;
     }
   }
 
@@ -1073,6 +1081,117 @@ export class NotificationService {
     const admins = await this.getSuperAdminContacts();
     for (const admin of admins) {
       if (admin.email) await this.sendFromTemplate('platform', 'SuperAdminNewTenant', 'email', vars, admin.email).catch(() => {});
+    }
+  }
+
+  // ── New event handlers ───────────────────────────────────────────────────
+
+  // Customer creates booking → email to customer (Booking Received) + email to admins (New Booking)
+  private async onBookingReceived(tenantId: string, payload: any) {
+    const booking = await this.getBooking(payload.booking_id);
+    if (!booking) return;
+    const vars: Record<string, string> = {
+      ...this.bookingVars(booking),
+      admin_booking_url: `https://chauffeur-saa-s.vercel.app/bookings/${payload.booking_id}`,
+    };
+    // Email → customer
+    await this.sendBoth(tenantId, 'BookingReceived', vars, booking.customer_email, null, booking.id).catch(() => {});
+    // Email → admins
+    const admins = await this.getAdminContacts(tenantId);
+    for (const admin of admins) {
+      if (admin.email) await this.sendFromTemplate(tenantId, 'AdminNewBooking', 'email', vars, admin.email, booking.id).catch(() => {});
+    }
+  }
+
+  // Admin rejects booking → email to customer
+  private async onBookingRejected(tenantId: string, payload: any) {
+    const booking = await this.getBooking(payload.booking_id);
+    if (!booking) return;
+    const vars: Record<string, string> = {
+      ...this.bookingVars(booking),
+      rejection_reason: payload.reason ?? 'No reason provided',
+      booking_url: `https://aschauffeured.chauffeurssolution.com/quote`,
+    };
+    await this.sendBoth(tenantId, 'BookingRejected', vars, booking.customer_email, null, booking.id).catch(() => {});
+  }
+
+  // Admin modifies booking → email to customer
+  private async onBookingModified(tenantId: string, payload: any) {
+    const booking = await this.getBooking(payload.booking_id);
+    if (!booking) return;
+    const vars: Record<string, string> = {
+      ...this.bookingVars(booking),
+      admin_booking_url: `https://chauffeur-saa-s.vercel.app/bookings/${payload.booking_id}`,
+    };
+    await this.sendBoth(tenantId, 'BookingModified', vars, booking.customer_email, null, booking.id).catch(() => {});
+  }
+
+  // Customer requests modification → email to admins only
+  private async onModificationRequest(tenantId: string, payload: any) {
+    const booking = await this.getBooking(payload.booking_id);
+    if (!booking) return;
+    const vars: Record<string, string> = {
+      ...this.bookingVars(booking),
+      modification_note: payload.note ?? '',
+      admin_booking_url: `https://chauffeur-saa-s.vercel.app/bookings/${payload.booking_id}`,
+    };
+    const admins = await this.getAdminContacts(tenantId);
+    for (const admin of admins) {
+      if (admin.email) await this.sendFromTemplate(tenantId, 'ModificationRequest', 'email', vars, admin.email, booking.id).catch(() => {});
+    }
+  }
+
+  // Part B > Part A → additional charge to customer
+  private async onAdditionalCharge(tenantId: string, payload: any) {
+    const booking = await this.getBooking(payload.booking_id);
+    if (!booking) return;
+    const vars: Record<string, string> = {
+      ...this.bookingVars(booking),
+      prepay_amount: payload.prepay_amount ?? '',
+      actual_amount: payload.actual_amount ?? '',
+      adjustment_amount: payload.adjustment_amount ?? '',
+      card_brand: payload.card_brand ?? '',
+      card_last4: payload.card_last4 ?? '',
+    };
+    await this.sendBoth(tenantId, 'AdditionalCharge', vars, booking.customer_email, null, booking.id).catch(() => {});
+  }
+
+  // Adjustment charge failed → email to admins only
+  private async onAdjustmentFailed(tenantId: string, payload: any) {
+    const booking = await this.getBooking(payload.booking_id);
+    if (!booking) return;
+    const vars: Record<string, string> = {
+      ...this.bookingVars(booking),
+      adjustment_amount: payload.adjustment_amount ?? '',
+      admin_booking_url: `https://chauffeur-saa-s.vercel.app/bookings/${payload.booking_id}`,
+    };
+    const admins = await this.getAdminContacts(tenantId);
+    for (const admin of admins) {
+      if (admin.email) await this.sendFromTemplate(tenantId, 'AdjustmentFailed', 'email', vars, admin.email, booking.id).catch(() => {});
+    }
+  }
+
+  // Driver en route → SMS to passenger only
+  private async onDriverEnRoute(tenantId: string, payload: any) {
+    const booking = await this.getBooking(payload.booking_id);
+    if (!booking) return;
+    const driver = payload.driver_id ? await this.getDriver(payload.driver_id) : null;
+    const vars: Record<string, string> = {
+      ...this.buildTemplateVariables(booking, driver ?? undefined) as Record<string, string>,
+      passenger_name: booking.passenger_name ?? `${booking.customer_first_name ?? ''} ${booking.customer_last_name ?? ''}`.trim(),
+      driver_name: driver?.full_name ?? payload.driver_name ?? 'Your driver',
+      eta_minutes: payload.eta_minutes ?? '',
+      vehicle_make: booking.vehicle_make ?? '',
+      vehicle_model: booking.vehicle_model ?? '',
+      vehicle_plate: payload.vehicle_plate ?? '',
+    };
+    const smsIntegration = await this.integrationResolver.resolve(tenantId, 'twilio');
+    if (smsIntegration) {
+      const passengerPhone = toE164(
+        booking.passenger_phone_country_code ?? booking.customer_phone_country_code,
+        booking.passenger_phone_number ?? booking.customer_phone_number,
+      );
+      if (passengerPhone) await this.sendFromTemplate(tenantId, 'DriverEnRoute', 'sms', vars, passengerPhone, booking.id).catch(() => {});
     }
   }
 
