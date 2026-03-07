@@ -332,7 +332,7 @@ export class CustomerPortalService {
       [bookingId],
     );
     // Fire cancellation notification (non-blocking)
-    this.notificationService.handleEvent('BookingCancelled', { tenant_id: tenantId, booking_id: bookingId })
+    this.notificationService.handleEvent('BookingCancelled', { tenant_id: tenantId, booking_id: bookingId, cancelled_by: 'customer' })
       .catch((e) => console.error('[Notification] BookingCancelled FAILED:', e?.message ?? e));
     return { success: true };
   }

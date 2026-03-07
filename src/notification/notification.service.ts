@@ -89,6 +89,7 @@ export class NotificationService {
       case 'CustomerForgotPassword': await this.onForgotPassword(tenantId, payload); break;
       case 'CustomerOtp':          await this.onCustomerOtp(payload); break;
       case 'TripStarted':          await this.onTripStarted(tenantId, payload); break;
+      case 'DriverArrived':        await this.onDriverArrived(tenantId, payload); break;
       case 'RefundIssued':         await this.onRefundIssued(tenantId, payload); break;
       case 'InvoiceSent':          await this.onInvoiceSent(tenantId, payload); break;
       case 'InvoiceOverdue':       await this.onInvoiceOverdue(tenantId, payload); break;
@@ -123,126 +124,37 @@ export class NotificationService {
     const booking = await this.getBooking(payload.booking_id);
     if (!booking) { console.error(`[BookingConfirmed] booking not found: ${payload.booking_id}`); return; }
 
-    const emailIntegration =
-      (await this.integrationResolver.resolve(tenantId, 'resend')) ??
-      (await this.integrationResolver.resolve(tenantId, 'sendgrid')) ??
-      (await this.integrationResolver.resolve(tenantId, 'mailgun'));
-    console.log(`[BookingConfirmed] emailIntegration=${emailIntegration?.provider ?? 'null'} booking=${booking.booking_reference} to=${booking.customer_email}`);
-    const smsIntegration = await this.integrationResolver.resolve(
-      tenantId,
-      'twilio',
-    );
+    const vars = {
+      ...this.buildTemplateVariables(booking) as Record<string, string>,
+      // SMS goes to PASSENGER (not necessarily the booker)
+      passenger_name: booking.passenger_name ?? `${booking.customer_first_name ?? ''} ${booking.customer_last_name ?? ''}`.trim(),
+    };
 
-    const templateVars = this.buildTemplateVariables(booking);
+    console.log(`[BookingConfirmed] booking=${booking.booking_reference} to=${booking.customer_email}`);
 
-    if (emailIntegration) {
-      const platformTemplate = bookingConfirmedEmail({
-        bookingReference: booking.booking_reference,
-        customerName: booking.customer_first_name,
-        pickupAddress: booking.pickup_address_text,
-        dropoffAddress: booking.dropoff_address_text,
-        pickupTime: booking.pickup_time_local,
-      });
+    // Email → customer
+    await this.sendBoth(tenantId, 'BookingConfirmed', vars, booking.customer_email, null, booking.id).catch(() => {});
 
-      const emailTemplate = await this.templateResolver.resolve(
-        tenantId,
-        'BookingConfirmed',
-        'email',
-      );
-
-      const subject = renderTemplate(
-        emailTemplate.subject || platformTemplate.subject,
-        templateVars,
-      );
-      const body = renderTemplate(emailTemplate.body || platformTemplate.html, templateVars);
-
-      await this.sendEmailWithLog(tenantId, 'BookingConfirmed', emailIntegration, {
-        to: booking.customer_email,
-        subject,
-        html: body,
-        fromAddress: emailIntegration.config.from_address,
-        fromName: emailIntegration.config.from_name,
-      }, booking.id, templateVars as Record<string,string>).catch(() => {});
+    // SMS → passenger phone
+    const smsIntegration = await this.integrationResolver.resolve(tenantId, 'twilio');
+    if (smsIntegration) {
+      const passengerPhone = toE164(booking.passenger_phone_country_code ?? booking.customer_phone_country_code, booking.passenger_phone_number ?? booking.customer_phone_number);
+      if (passengerPhone) {
+        await this.sendFromTemplate(tenantId, 'BookingConfirmed', 'sms', vars, passengerPhone, booking.id).catch(() => {});
+      }
     }
 
-    if (smsIntegration) {
-      const platformBody = bookingConfirmedSms({
-        bookingReference: booking.booking_reference,
-        pickupTime: booking.pickup_time_local,
-      });
-
-      const smsTemplate = await this.templateResolver.resolve(
-        tenantId,
-        'BookingConfirmed',
-        'sms',
-      );
-
-      const body = renderTemplate(smsTemplate.body || platformBody, templateVars);
-
-      const customerPhone = toE164(booking.customer_phone_country_code, booking.customer_phone_number);
-      if (customerPhone) await this.sendSmsWithLog(tenantId, 'BookingConfirmed', smsIntegration, customerPhone, body, booking.id).catch(() => {});
+    // Also notify admins (email only)
+    const admins = await this.getAdminContacts(tenantId);
+    for (const admin of admins) {
+      if (admin.email) await this.sendFromTemplate(tenantId, 'AdminNewBooking', 'email', vars, admin.email, booking.id).catch(() => {});
     }
   }
 
   private async onDriverAccepted(tenantId: string, payload: any) {
-    const eventType = 'DriverAcceptedAssignment';
-    const booking = await this.getBooking(payload.booking_id);
-    if (!booking) return;
-    const driver = await this.getDriver(payload.driver_id);
-    if (!driver) return;
-
-    const emailIntegration =
-      (await this.integrationResolver.resolve(tenantId, 'resend')) ??
-      (await this.integrationResolver.resolve(tenantId, 'sendgrid')) ??
-      (await this.integrationResolver.resolve(tenantId, 'mailgun'));
-    const smsIntegration = await this.integrationResolver.resolve(
-      tenantId,
-      'twilio',
-    );
-
-    const templateVars = this.buildTemplateVariables(booking, driver);
-
-    if (emailIntegration) {
-      const platformTemplate = driverAcceptedEmail({
-        bookingReference: booking.booking_reference,
-        customerName: booking.customer_first_name,
-        driverName: driver.full_name,
-        vehicleMake: booking.vehicle_make,
-        vehicleModel: booking.vehicle_model,
-      });
-
-      const emailTemplate = await this.templateResolver.resolve(
-        tenantId,
-        'DriverAcceptedAssignment',
-        'email',
-      );
-
-      const subject = renderTemplate(
-        emailTemplate.subject || platformTemplate.subject,
-        templateVars,
-      );
-      const body = renderTemplate(emailTemplate.body || platformTemplate.html, templateVars);
-
-      await this.sendEmailWithLog(tenantId, eventType, emailIntegration, { to: booking.customer_email, subject, html: body, fromAddress: emailIntegration.config.from_address, fromName: emailIntegration.config.from_name }, booking.id, templateVars as Record<string,string>).catch(() => {});
-    }
-
-    if (smsIntegration) {
-      const platformBody = driverAcceptedSms({
-        bookingReference: booking.booking_reference,
-        driverName: driver.full_name,
-      });
-
-      const smsTemplate = await this.templateResolver.resolve(
-        tenantId,
-        'DriverAcceptedAssignment',
-        'sms',
-      );
-
-      const body = renderTemplate(smsTemplate.body || platformBody, templateVars);
-
-      const customerPhone = toE164(booking.customer_phone_country_code, booking.customer_phone_number);
-      if (customerPhone) await this.sendSmsWithLog(tenantId, eventType, smsIntegration, customerPhone, body, booking.id).catch(() => {});
-    }
+    // DriverAcceptedAssignment — internal only, no customer/passenger notification needed
+    // Admin can see driver status in booking detail page
+    console.log(`[DriverAcceptedAssignment] driver accepted booking ${payload.booking_id} — no notification sent (internal)`);
   }
 
   private async onDriverInvitation(tenantId: string, payload: any) {
@@ -398,112 +310,56 @@ export class NotificationService {
   }
 
   private async onBookingCancelled(tenantId: string, payload: any) {
-    const eventType = 'BookingCancelled';
     const booking = await this.getBooking(payload.booking_id);
     if (!booking) return;
 
-    const emailIntegration =
-      (await this.integrationResolver.resolve(tenantId, 'resend')) ??
-      (await this.integrationResolver.resolve(tenantId, 'sendgrid')) ??
-      (await this.integrationResolver.resolve(tenantId, 'mailgun'));
-    const smsIntegration = await this.integrationResolver.resolve(
-      tenantId,
-      'twilio',
-    );
+    // Determine who cancelled for subject line
+    const cancelledBy: string = payload.cancelled_by ?? 'admin'; // 'customer' | 'admin'
+    const cancelledByLabel = cancelledBy === 'customer' ? 'by Customer ' : 'by Admin ';
+    const reason: string = payload.reason ?? '';
 
-    const templateVars = this.buildTemplateVariables(booking);
+    const vars: Record<string, string> = {
+      ...this.buildTemplateVariables(booking) as Record<string, string>,
+      passenger_name: booking.passenger_name ?? `${booking.customer_first_name ?? ''} ${booking.customer_last_name ?? ''}`.trim(),
+      cancelled_by_label: cancelledByLabel,
+      cancellation_reason_line: reason ? ` — Reason: ${reason}` : '',
+      cancellation_reason: reason,
+    };
 
-    if (emailIntegration) {
-      const platformTemplate = bookingCancelledEmail({
-        bookingReference: booking.booking_reference,
-        customerName: booking.customer_first_name,
-      });
+    // Email → customer
+    await this.sendBoth(tenantId, 'BookingCancelled', vars, booking.customer_email, null, booking.id).catch(() => {});
 
-      const emailTemplate = await this.templateResolver.resolve(
-        tenantId,
-        'BookingCancelled',
-        'email',
+    // SMS → passenger
+    const smsIntegration = await this.integrationResolver.resolve(tenantId, 'twilio');
+    if (smsIntegration) {
+      const passengerPhone = toE164(
+        booking.passenger_phone_country_code ?? booking.customer_phone_country_code,
+        booking.passenger_phone_number ?? booking.customer_phone_number,
       );
-
-      const subject = renderTemplate(
-        emailTemplate.subject || platformTemplate.subject,
-        templateVars,
-      );
-      const body = renderTemplate(emailTemplate.body || platformTemplate.html, templateVars);
-
-      await this.sendEmailWithLog(tenantId, eventType, emailIntegration, { to: booking.customer_email, subject, html: body, fromAddress: emailIntegration.config.from_address, fromName: emailIntegration.config.from_name }, booking.id, templateVars as Record<string,string>).catch(() => {});
+      if (passengerPhone) {
+        await this.sendFromTemplate(tenantId, 'BookingCancelled', 'sms', vars, passengerPhone, booking.id).catch(() => {});
+      }
     }
 
-    if (smsIntegration) {
-      const platformBody = bookingCancelledSms({
-        bookingReference: booking.booking_reference,
-      });
-
-      const smsTemplate = await this.templateResolver.resolve(
-        tenantId,
-        'BookingCancelled',
-        'sms',
-      );
-
-      const body = renderTemplate(smsTemplate.body || platformBody, templateVars);
-
-      const customerPhone = toE164(booking.customer_phone_country_code, booking.customer_phone_number);
-      if (customerPhone) await this.sendSmsWithLog(tenantId, eventType, smsIntegration, customerPhone, body, booking.id).catch(() => {});
+    // Email → all admins
+    const admins = await this.getAdminContacts(tenantId);
+    for (const admin of admins) {
+      if (admin.email) await this.sendFromTemplate(tenantId, 'BookingCancelled', 'email', vars, admin.email, booking.id).catch(() => {});
     }
   }
 
   private async onDriverRejectedAssignment(tenantId: string, payload: any) {
-    const eventType = 'DriverRejectedAssignment';
+    // Send to ADMIN ONLY — customer does not need to know about internal reassignment
     const booking = await this.getBooking(payload.booking_id);
     if (!booking) return;
     const driver = await this.getDriver(payload.driver_id);
-    if (!driver) return;
-
-    const emailIntegration =
-      (await this.integrationResolver.resolve(tenantId, 'resend')) ??
-      (await this.integrationResolver.resolve(tenantId, 'sendgrid')) ??
-      (await this.integrationResolver.resolve(tenantId, 'mailgun'));
-    const smsIntegration = await this.integrationResolver.resolve(
-      tenantId,
-      'twilio',
-    );
-
-    const templateVars = this.buildTemplateVariables(booking, driver);
-
-    if (emailIntegration) {
-      const platformTemplate = driverRejectedAdminEmail({
-        bookingReference: booking.booking_reference,
-        driverName: driver.full_name,
-      });
-
-      const emailTemplate = await this.templateResolver.resolve(
-        tenantId,
-        'DriverRejectedAssignment',
-        'email',
-      );
-
-      const subject = renderTemplate(
-        emailTemplate.subject || platformTemplate.subject,
-        templateVars,
-      );
-      const body = renderTemplate(emailTemplate.body || platformTemplate.html, templateVars);
-
-      await this.sendEmailWithLog(tenantId, eventType, emailIntegration, { to: booking.customer_email, subject, html: body, fromAddress: emailIntegration.config.from_address, fromName: emailIntegration.config.from_name }, booking.id, templateVars as Record<string,string>).catch(() => {});
-    }
-
-    if (smsIntegration) {
-      const platformBody = driverRejectedAdminSms();
-
-      const smsTemplate = await this.templateResolver.resolve(
-        tenantId,
-        'DriverRejectedAssignment',
-        'sms',
-      );
-
-      const body = renderTemplate(smsTemplate.body || platformBody, templateVars);
-
-      const customerPhone = toE164(booking.customer_phone_country_code, booking.customer_phone_number);
-      if (customerPhone) await this.sendSmsWithLog(tenantId, eventType, smsIntegration, customerPhone, body, booking.id).catch(() => {});
+    const vars = {
+      ...this.buildTemplateVariables(booking, driver ?? undefined) as Record<string, string>,
+      driver_name: driver?.full_name ?? payload.driver_name ?? 'Driver',
+    };
+    const admins = await this.getAdminContacts(tenantId);
+    for (const admin of admins) {
+      await this.sendBoth(tenantId, 'AdminDriverRejected', vars, admin.email, admin.phone, booking.id).catch(() => {});
     }
   }
 
@@ -931,14 +787,44 @@ export class NotificationService {
   }
 
   private async onTripStarted(tenantId: string, payload: any) {
+    // SMS to PASSENGER only — no email
     const booking = await this.getBooking(payload.booking_id);
     if (!booking) return;
-    const vars = this.bookingVars(booking);
-    await this.sendBoth(tenantId, 'TripStarted', vars,
-      booking.customer_email,
-      booking.customer_phone_number ? `${booking.customer_phone_country_code}${booking.customer_phone_number}` : null,
-      booking.id,
-    );
+    const vars: Record<string, string> = {
+      ...this.bookingVars(booking),
+      passenger_name: booking.passenger_name ?? `${booking.customer_first_name ?? ''} ${booking.customer_last_name ?? ''}`.trim(),
+    };
+    const smsIntegration = await this.integrationResolver.resolve(tenantId, 'twilio');
+    if (smsIntegration) {
+      const passengerPhone = toE164(
+        booking.passenger_phone_country_code ?? booking.customer_phone_country_code,
+        booking.passenger_phone_number ?? booking.customer_phone_number,
+      );
+      if (passengerPhone) await this.sendFromTemplate(tenantId, 'TripStarted', 'sms', vars, passengerPhone, booking.id).catch(() => {});
+    }
+  }
+
+  private async onDriverArrived(tenantId: string, payload: any) {
+    // SMS to PASSENGER only — driver has arrived at pickup
+    const booking = await this.getBooking(payload.booking_id);
+    if (!booking) return;
+    const driver = payload.driver_id ? await this.getDriver(payload.driver_id) : null;
+    const vars: Record<string, string> = {
+      ...this.buildTemplateVariables(booking, driver ?? undefined) as Record<string, string>,
+      passenger_name: booking.passenger_name ?? `${booking.customer_first_name ?? ''} ${booking.customer_last_name ?? ''}`.trim(),
+      driver_name: driver?.full_name ?? payload.driver_name ?? 'Your driver',
+      vehicle_make: booking.vehicle_make ?? driver?.vehicle_make ?? '',
+      vehicle_model: booking.vehicle_model ?? driver?.vehicle_model ?? '',
+      vehicle_plate: payload.vehicle_plate ?? '',
+    };
+    const smsIntegration = await this.integrationResolver.resolve(tenantId, 'twilio');
+    if (smsIntegration) {
+      const passengerPhone = toE164(
+        booking.passenger_phone_country_code ?? booking.customer_phone_country_code,
+        booking.passenger_phone_number ?? booking.customer_phone_number,
+      );
+      if (passengerPhone) await this.sendFromTemplate(tenantId, 'DriverArrived', 'sms', vars, passengerPhone, booking.id).catch(() => {});
+    }
   }
 
   private async onRefundIssued(tenantId: string, payload: any) {
@@ -1068,10 +954,13 @@ export class NotificationService {
   private async onAdminBookingPendingConfirm(tenantId: string, payload: any) {
     const booking = await this.getBooking(payload.booking_id);
     if (!booking) return;
+    const vars: Record<string, string> = {
+      ...this.bookingVars(booking),
+      admin_booking_url: `https://chauffeur-saa-s.vercel.app/bookings/${payload.booking_id}`,
+    };
     const admins = await this.getAdminContacts(tenantId);
     for (const admin of admins) {
-      await this.sendBoth(tenantId, 'AdminBookingPendingConfirm', this.bookingVars(booking),
-        admin.email, admin.phone, booking.id);
+      await this.sendBoth(tenantId, 'AdminBookingPendingConfirm', vars, admin.email, admin.phone, booking.id).catch(() => {});
     }
   }
 

@@ -368,7 +368,7 @@ export class BookingService {
       this.notificationService.handleEvent('BookingConfirmed', notifPayload)
         .catch((e) => console.error('[Notification] BookingConfirmed (transition) FAILED:', e?.message));
     } else if (newStatus === 'CANCELLED') {
-      this.notificationService.handleEvent('BookingCancelled', notifPayload)
+      this.notificationService.handleEvent('BookingCancelled', { ...notifPayload, cancelled_by: 'admin' })
         .catch((e) => console.error('[Notification] BookingCancelled (transition) FAILED:', e?.message));
     } else if (newStatus === 'COMPLETED' || newStatus === 'FULFILLED') {
       this.notificationService.handleEvent('JobCompleted', notifPayload)
@@ -413,7 +413,7 @@ export class BookingService {
       );
 
       // Fire cancellation notification (non-blocking)
-      this.notificationService.handleEvent('BookingCancelled', { tenant_id: tenantId, booking_id: bookingId })
+      this.notificationService.handleEvent('BookingCancelled', { tenant_id: booking.tenant_id ?? tenantId, booking_id: bookingId, cancelled_by: 'admin' })
         .catch((e) => console.error('[Notification] BookingCancelled FAILED:', e?.message ?? e));
 
       return { success: true };
