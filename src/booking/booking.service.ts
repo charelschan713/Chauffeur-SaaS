@@ -102,7 +102,13 @@ export class BookingService {
 
   async getBookingDetail(tenantId: string, bookingId: string) {
     const bookings = await this.dataSource.query(
-      `SELECT * FROM public.bookings WHERE id = $1 AND tenant_id = $2`,
+      `SELECT b.*,
+              tst.name  AS service_type_name,
+              tsc.name  AS service_class_name
+         FROM public.bookings b
+         LEFT JOIN public.tenant_service_types tst ON tst.id = b.service_type_id
+         LEFT JOIN public.tenant_service_classes tsc ON tsc.id = b.service_class_id
+        WHERE b.id = $1 AND b.tenant_id = $2`,
       [bookingId, tenantId],
     );
     if (!bookings.length) throw new NotFoundException('Booking not found');
