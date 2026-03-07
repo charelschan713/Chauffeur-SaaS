@@ -12,7 +12,7 @@ export default function ProfilePage() {
   const qc     = useQueryClient();
   const { clearAuth } = useAuthStore();
   const [editing, setEditing] = useState(false);
-  const [form, setForm]       = useState({ firstName: '', lastName: '', phone: '' });
+  const [form, setForm]       = useState({ firstName: '', lastName: '', phoneCode: '+61', phoneNumber: '' });
 
   const { data: profile, isLoading } = useQuery({
     queryKey: ['profile'],
@@ -20,12 +20,13 @@ export default function ProfilePage() {
   });
 
   useEffect(() => {
-    if (profile) setForm({ firstName: profile.first_name, lastName: profile.last_name, phone: profile.phone ?? '' });
+    if (profile) setForm({ firstName: profile.first_name, lastName: profile.last_name, phoneCode: profile.phone_country_code ?? '+61', phoneNumber: profile.phone_number ?? '' });
   }, [profile]);
 
   const updateMut = useMutation({
     mutationFn: (data: typeof form) => api.put('/customer-portal/profile', {
-      firstName: data.firstName, lastName: data.lastName, phone: data.phone,
+      firstName: data.firstName, lastName: data.lastName,
+      phoneCountryCode: data.phoneCode, phoneNumber: data.phoneNumber,
     }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['profile'] }); setEditing(false); },
   });
@@ -73,8 +74,12 @@ export default function ProfilePage() {
                 <input className="flex-1 h-9 px-3 rounded-lg bg-white/8 border border-white/15 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-[hsl(var(--primary)/0.5)]"
                   placeholder="Last" value={form.lastName} onChange={e => setForm(f => ({ ...f, lastName: e.target.value }))} />
               </div>
-              <input className="w-full h-9 px-3 rounded-lg bg-white/8 border border-white/15 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-[hsl(var(--primary)/0.5)]"
-                placeholder="Phone" value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} />
+              <div className="flex gap-2">
+                <input className="w-20 shrink-0 h-9 px-3 rounded-lg bg-white/8 border border-white/15 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-[hsl(var(--primary)/0.5)]"
+                  placeholder="+61" value={form.phoneCode} onChange={e => setForm(f => ({ ...f, phoneCode: e.target.value }))} />
+                <input type="tel" className="flex-1 h-9 px-3 rounded-lg bg-white/8 border border-white/15 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-[hsl(var(--primary)/0.5)]"
+                  placeholder="4xx xxx xxx" value={form.phoneNumber} onChange={e => setForm(f => ({ ...f, phoneNumber: e.target.value }))} />
+              </div>
               <div className="flex gap-2">
                 <button onClick={() => updateMut.mutate(form)} disabled={updateMut.isPending}
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] text-xs font-semibold disabled:opacity-50">
@@ -90,7 +95,7 @@ export default function ProfilePage() {
             <div>
               <p className="font-semibold text-white text-base">{profile?.first_name} {profile?.last_name}</p>
               <p className="text-sm text-white/50">{profile?.email}</p>
-              {profile?.phone && <p className="text-sm text-white/40">{profile?.phone}</p>}
+              {profile?.phone_number && <p className="text-sm text-white/40">{profile?.phone_country_code} {profile?.phone_number}</p>}
             </div>
           )}
         </div>

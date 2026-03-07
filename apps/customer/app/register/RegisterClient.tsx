@@ -9,7 +9,7 @@ import { AuthShell, AuthLogo, AuthCard, GoldButton, ErrorAlert, inputCls, labelC
 export function RegisterClient() {
   const router = useRouter();
   const setAuth = useAuthStore((s) => s.setAuth);
-  const [form, setForm] = useState({ firstName: '', lastName: '', email: '', password: '', phone: '' });
+  const [form, setForm] = useState({ firstName: '', lastName: '', email: '', password: '', phoneCountryCode: '+61', phoneNumber: '' });
   const [tenantSlug, setTenantSlug] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -65,7 +65,10 @@ export function RegisterClient() {
           </div>
           <div>
             <label className={labelCls}>Phone <span className="normal-case text-white/20 text-xs">(optional)</span></label>
-            <input type="tel" className={inputCls} value={form.phone} onChange={f('phone')} placeholder="+61 4xx xxx xxx" />
+            <div className="flex gap-2">
+              <input className={`${inputCls} w-20 shrink-0`} value={form.phoneCountryCode} onChange={f('phoneCountryCode')} placeholder="+61" />
+              <input type="tel" className={`${inputCls} flex-1`} value={form.phoneNumber} onChange={f('phoneNumber')} placeholder="4xx xxx xxx" />
+            </div>
           </div>
           <div>
             <label className={labelCls}>Password</label>
