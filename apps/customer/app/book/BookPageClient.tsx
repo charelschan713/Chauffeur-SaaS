@@ -404,9 +404,10 @@ export function BookPageClient() {
   useEffect(() => {
     const qid = quoteIdRef.current;
     const ctid = carTypeIdRef.current;
-    // No quote_id at all → nothing to book, send back to quote page immediately
+    // No quote_id — show error banner instead of auto-redirecting (auto-redirect was triggered by Stripe URL changes)
     if (!qid) {
-      router.replace('/quote');
+      setQuoteError('No quote found. Please get a new quote.');
+      setStep('details');
       return;
     }
     fetch(`${API_URL}/public/pricing/quote/${qid}`)
@@ -600,7 +601,7 @@ export function BookPageClient() {
       setCreatedBooking(data?.booking ?? data);
 
       // Mark quote as converted
-      await fetch(`${API_URL}/public/pricing/quote/${quoteId}`, { method: 'PATCH' }).catch(() => {});
+      await fetch(`${API_URL}/public/pricing/quote/${quoteIdRef.current}`, { method: 'PATCH' }).catch(() => {});
       setStep('done');
     } catch (err: any) {
       const errData = err?.response?.data ?? err;
