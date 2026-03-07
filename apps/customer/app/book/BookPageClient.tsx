@@ -976,15 +976,26 @@ export function BookPageClient() {
 
                 {/* Login reminder for guest users */}
                 {!token && (
-                  <div className="flex items-center justify-between gap-3 px-4 py-3 rounded-lg bg-[hsl(var(--primary)/0.08)] border border-[hsl(var(--primary)/0.2)] text-sm">
-                    <span className="text-[hsl(var(--muted-foreground))]">Already have an account? Get your loyalty discount.</span>
+                  <div className="rounded-xl border border-[hsl(var(--primary)/0.35)] bg-[hsl(var(--primary)/0.07)] px-4 py-4 space-y-2">
+                    <div className="flex items-center gap-2 text-[hsl(var(--primary))]">
+                      <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                      </svg>
+                      <span className="text-sm font-semibold">Have an account?</span>
+                    </div>
+                    <p className="text-xs text-[hsl(var(--muted-foreground))]">
+                      Sign in to apply your loyalty discount, save your details and track this booking.
+                    </p>
                     <button
                       type="button"
                       onClick={() => setStep('auth')}
-                      className="shrink-0 font-semibold text-[hsl(var(--primary))] hover:underline"
+                      className="w-full mt-1 rounded-lg border border-[hsl(var(--primary)/0.5)] bg-[hsl(var(--primary)/0.12)] py-2 text-sm font-semibold text-[hsl(var(--primary))] hover:bg-[hsl(var(--primary)/0.2)] transition-colors"
                     >
-                      Sign In
+                      Sign In / Create Account
                     </button>
+                    <p className="text-center text-[10px] text-[hsl(var(--muted-foreground)/0.7)]">
+                      Or continue below as a guest
+                    </p>
                   </div>
                 )}
 
