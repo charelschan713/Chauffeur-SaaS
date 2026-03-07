@@ -371,16 +371,17 @@ export function BookPageClient() {
 
   // Load quote session
   useEffect(() => {
+    // No quote_id at all → nothing to book, send back to quote page immediately
     if (!quoteId) {
-      setQuoteError('No quote found. Please start a new quote.');
-      setStep('details');
+      router.replace('/quote');
       return;
     }
     fetch(`${API_URL}/public/pricing/quote/${quoteId}`)
       .then(r => r.ok ? r.json() : null)
       .then(data => {
         if (!data) {
-          setQuoteError('This quote is no longer valid. You can still proceed or get a new quote.');
+          // quote_id exists but server says invalid/expired → inline banner, keep form
+          setQuoteError('This quote has expired. Prices may have changed — you can get a new quote or continue.');
           setStep('details');
           return;
         }
@@ -393,7 +394,8 @@ export function BookPageClient() {
         } else setStep('auth');
       })
       .catch(() => {
-        setQuoteError('Could not load quote. Please check your connection.');
+        // Network error → inline banner, don't kick user out
+        setQuoteError('Could not load quote details. Please check your connection.');
         setStep('details');
       });
   }, [quoteId, carTypeId, token]);
