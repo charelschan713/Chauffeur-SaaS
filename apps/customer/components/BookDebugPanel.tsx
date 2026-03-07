@@ -26,7 +26,10 @@ interface Props {
   submitError: string | null;
 }
 
-const DEBUG = process.env.NEXT_PUBLIC_DEBUG_MODE === 'true' || process.env.NODE_ENV === 'development';
+const DEBUG =
+  process.env.NEXT_PUBLIC_DEBUG_MODE === 'true' ||
+  process.env.NODE_ENV === 'development' ||
+  (typeof window !== 'undefined' && localStorage.getItem('__debug') === '1');
 
 export function BookDebugPanel(props: Props) {
   const [lastRequestId, setLastRequestId] = useState<string | null>(null);
