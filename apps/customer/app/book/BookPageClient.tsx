@@ -315,6 +315,8 @@ export function BookPageClient() {
 
   const [step, setStep]             = useState<Step>('loading');
   const [session, setSession]       = useState<QuoteSession | null>(null);
+  const sessionRef = useRef<QuoteSession | null>(null);
+  const selectedResultRef = useRef<any>(null);
   const [quoteError, setQuoteError] = useState<string | null>(null); // inline error banner, no redirect
 
   // Stripe promise — loaded dynamically so we always get the real key
@@ -423,9 +425,11 @@ export function BookPageClient() {
           return;
         }
         setSession(data);
+        sessionRef.current = data;
         const results = data.results ?? data.payload?.results ?? [];
         const result = results.find((r: any) => r.service_class_id === ctid) ?? results[0];
         setSelectedResult(result);
+        selectedResultRef.current = result;
         setStep(currentToken ? 'details' : 'auth');
       })
       .catch(() => {
@@ -560,24 +564,27 @@ export function BookPageClient() {
 
   // Card confirmed: NOW create the booking (only after payment card saved)
   const handleCardConfirmed = useCallback(async (setupIntentId: string) => {
-    if (!session || !selectedResult) {
-      console.error('[handleCardConfirmed] missing session or selectedResult', { session: !!session, selectedResult: !!selectedResult });
+    // Always read from refs to avoid stale closure issues
+    const currentSession = sessionRef.current;
+    const currentResult = selectedResultRef.current;
+    if (!currentSession || !currentResult) {
+      console.error('[handleCardConfirmed] missing session or selectedResult', { session: !!currentSession, selectedResult: !!currentResult });
       setSubmitError('Session expired — please get a new quote.');
       setStep('details');
       return;
     }
     setSubmitError('');
     try {
-      const req = session.payload.request;
+      const req = currentSession.payload.request;
       const payload = {
         pickupAddress: req.pickup_address,
         dropoffAddress: req.dropoff_address,
         pickupAtUtc: req.pickup_at_utc,
         serviceTypeId: req.service_type_id,
-        vehicleClassId: selectedResult.service_class_id,
-        totalPriceMinor: loyaltyDiscount?.finalFareMinor ?? selectedResult.estimated_total_minor,
+        vehicleClassId: currentResult.service_class_id,
+        totalPriceMinor: loyaltyDiscount?.finalFareMinor ?? currentResult.estimated_total_minor,
         discountMinor:   loyaltyDiscount?.discountMinor ?? 0,
-        currency: selectedResult.currency,
+        currency: currentResult.currency,
         passengerCount: req.passenger_count,
         luggageCount: req.luggage_count ?? 0,
         flightNumber: flightNumber || undefined,
@@ -586,7 +593,7 @@ export function BookPageClient() {
         infantSeats: req.infant_seats ?? 0,
         toddlerSeats: req.toddler_seats ?? 0,
         boosterSeats: req.booster_seats ?? 0,
-        quoteId: session.id,
+        quoteId: currentSession.id,
         setupIntentId,
         passengerFirstName: (!samePassenger ? passengerOverride.firstName : passengerDetails.firstName) || undefined,
         passengerLastName:  (!samePassenger ? passengerOverride.lastName  : passengerDetails.lastName)  || undefined,
@@ -621,7 +628,9 @@ export function BookPageClient() {
       setSubmitError(`Booking failed: ${msg}`);
       setStep('details');
     }
-  }, [session, selectedResult, loyaltyDiscount, flightNumber, specialRequests, guestData, passengerDetails, quoteId]);
+  // sessionRef + selectedResultRef are refs — no need in deps; always latest value
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loyaltyDiscount, flightNumber, specialRequests, guestData, passengerDetails, quoteId]);
 
   // ── Render helpers ──
   const [cityName, setCityName]           = useState('');
