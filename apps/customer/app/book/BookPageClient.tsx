@@ -400,10 +400,14 @@ export function BookPageClient() {
   // Hydrate auth on mount
   useEffect(() => { hydrate(); }, [hydrate]);
 
-  // Load quote session — runs ONCE on mount only, uses stable ref values
+  // Load quote session — runs ONCE on mount only (client-side only)
   useEffect(() => {
-    const qid = quoteIdRef.current;
-    const ctid = carTypeIdRef.current;
+    // Re-read from URL here inside effect — guaranteed client-side, window is available
+    const params = new URLSearchParams(window.location.search);
+    const qid  = params.get('quote_id')  || quoteIdRef.current;
+    const ctid = params.get('car_type_id') || carTypeIdRef.current;
+    if (qid)   quoteIdRef.current   = qid;
+    if (ctid)  carTypeIdRef.current = ctid;
     // No quote_id — show error banner instead of auto-redirecting (auto-redirect was triggered by Stripe URL changes)
     if (!qid) {
       setQuoteError('No quote found. Please get a new quote.');
