@@ -764,13 +764,11 @@ export class NotificationService {
           COALESCE(b.passenger_phone_country_code, b.customer_phone_country_code) AS passenger_phone_country_code,
           COALESCE(b.passenger_phone_number, b.customer_phone_number) AS passenger_phone_number,
           b.service_class_id,
-          b.city_id,
-          ci.name as city_name,
+          sc.name as city_name,
           sc.name as vehicle_make,
           NULL::text as vehicle_model,
           to_char(b.pickup_at_utc AT TIME ZONE COALESCE(b.timezone, 'UTC'), 'Dy DD Mon YYYY HH12:MI AM') AS pickup_time_local
        FROM public.bookings b
-       LEFT JOIN public.cities ci ON ci.id = b.city_id
        LEFT JOIN public.tenant_service_classes sc ON sc.id = b.service_class_id
        WHERE b.id = $1
        LIMIT 1`,
