@@ -611,9 +611,24 @@ export function BookPageClient() {
         }),
       };
 
-      const endpoint = guestData
+      // If no token in localStorage, treat as guest regardless of guestData state
+      const currentToken = typeof window !== 'undefined' ? localStorage.getItem('customer_token') : null;
+      const isGuest = !currentToken;
+      const endpoint = (guestData || isGuest)
         ? '/customer-portal/guest/checkout'
         : '/customer-portal/bookings';
+
+      // For implicit guest (token lost), build guestData from passengerDetails
+      if (isGuest && !payload.guestCheckout) {
+        Object.assign(payload, {
+          guestCheckout: true,
+          tenantSlug: process.env.NEXT_PUBLIC_TENANT_SLUG ?? 'aschauffeured',
+          firstName: passengerDetails.firstName,
+          lastName:  passengerDetails.lastName,
+          email:     passengerDetails.email,
+          phone:     (passengerDetails.phoneCode + passengerDetails.phoneNumber).trim(),
+        });
+      }
 
       const { data } = await api.post(endpoint, payload);
       setCreatedBooking(data?.booking ?? data);
