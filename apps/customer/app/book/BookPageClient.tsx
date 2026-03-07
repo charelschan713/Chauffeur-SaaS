@@ -412,6 +412,8 @@ export function BookPageClient() {
       setStep('details');
       return;
     }
+    // Read token from localStorage directly to avoid stale closure
+    const currentToken = typeof window !== 'undefined' ? localStorage.getItem('customer_token') : null;
     fetch(`${API_URL}/public/pricing/quote/${qid}`)
       .then(r => r.ok ? r.json() : null)
       .then(data => {
@@ -421,17 +423,18 @@ export function BookPageClient() {
           return;
         }
         setSession(data);
-        const result = data.results
-          ? (data.results.find((r: any) => r.service_class_id === ctid) ?? data.results[0])
-          : (data.payload?.results?.find((r: any) => r.service_class_id === ctid) ?? data.payload?.results?.[0]);
+        const results = data.results ?? data.payload?.results ?? [];
+        const result = results.find((r: any) => r.service_class_id === ctid) ?? results[0];
         setSelectedResult(result);
-        setStep(token ? 'details' : 'auth');
+        setStep(currentToken ? 'details' : 'auth');
       })
       .catch(() => {
         setQuoteError('Could not load quote details. Please check your connection.');
         setStep('details');
       });
-  }, [token]);
+  // no deps — reads everything from refs/localStorage at call time
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     // Re-read from URL here inside effect — guaranteed client-side, window is available
