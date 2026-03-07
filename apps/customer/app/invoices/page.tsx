@@ -2,7 +2,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
-import BottomNav from '@/components/BottomNav';
+import { BottomNav } from '@/components/BottomNav';
 
 export default function InvoicesPage() {
   const router = useRouter();

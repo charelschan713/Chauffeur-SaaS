@@ -94,16 +94,16 @@ function useCountdown(expiresAt: string) {
 }
 
 // ── Card setup form ────────────────────────────────────────────────────────
-function CardSetupForm({ onSuccess, isGuest, billingName, submitLabel, submitting: externalSubmitting }: {
+function CardSetupForm({ onSuccess, isGuest, billingName, submitLabel, submitting: externalSubmitting, clientSecret }: {
   onSuccess: (setupIntentId: string) => void;
   isGuest?: boolean;
   billingName?: string;
   submitLabel?: string;
   submitting?: boolean;
+  clientSecret: string;
 }) {
   const stripe   = useStripe();
   const elements = useElements();
-  const { token } = useAuthStore();
   const [loading, setLoading] = useState(false);
   const [error, setError]     = useState('');
 
@@ -113,29 +113,7 @@ function CardSetupForm({ onSuccess, isGuest, billingName, submitLabel, submittin
     setLoading(true);
     setError('');
     try {
-      let clientSecret: string;
-      if (isGuest || !token) {
-        // Guest: use public endpoint (no auth)
-        const slug = typeof window !== 'undefined'
-          ? (document.cookie.split('; ').find(r => r.startsWith('tenant_slug='))?.split('=')[1]
-              || window.location.hostname.split('.')[0]
-              || 'aschauffeured')
-          : 'aschauffeured';
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL ?? 'https://chauffeur-saas-production.up.railway.app'}/customer-portal/payments/guest-setup-intent`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ slug }),
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.message ?? 'Failed to initialise payment');
-        clientSecret = data.clientSecret;
-      } else {
-        const { data: si } = await api.post('/customer-portal/payments/setup-intent');
-        clientSecret = si.clientSecret;
-      }
 
-      // return_url is required for redirect-based 3DS (some banks redirect instead of iframe)
-      // For iframe-based 3DS, confirmCardSetup handles it automatically and returns 'succeeded'
       const returnUrl = `${window.location.origin}/book?quote_id=${new URLSearchParams(window.location.search).get('quote_id') ?? ''}&3ds=1`;
       const { setupIntent, error: stripeErr } = await stripe.confirmCardSetup(clientSecret, {
         payment_method: {
@@ -362,6 +340,10 @@ export function BookPageClient() {
     firstName: '', lastName: '', email: '', phoneCode: '+61', phoneNumber: '',
   });
 
+  // Setup intent — fetched eagerly so Stripe iframe mounts with clientSecret
+  const [setupClientSecret, setSetupClientSecret] = useState<string | null>(null);
+  const [setupSecretLoading, setSetupSecretLoading] = useState(false);
+
   // "Is the passenger the same person?" toggle
   const [samePassenger, setSamePassenger]     = useState(true);
   const [passengerOverride, setPassengerOverride] = useState({
@@ -462,6 +444,31 @@ export function BookPageClient() {
       }).catch(() => {});
     }
   }, [token, guestData]);
+
+  // Eagerly fetch setup intent when booking form loads so Stripe iframe has clientSecret
+  useEffect(() => {
+    if (step !== 'details' || setupClientSecret || setupSecretLoading) return;
+    setSetupSecretLoading(true);
+    const API = process.env.NEXT_PUBLIC_API_URL ?? 'https://chauffeur-saas-production.up.railway.app';
+    const fetchSecret = async () => {
+      try {
+        if (token) {
+          const { data } = await api.post('/customer-portal/payments/setup-intent');
+          setSetupClientSecret(data.clientSecret);
+        } else {
+          const res = await fetch(`${API}/customer-portal/payments/guest-setup-intent`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ slug: 'aschauffeured' }),
+          });
+          const data = await res.json();
+          if (data.clientSecret) setSetupClientSecret(data.clientSecret);
+        }
+      } catch { /* silent — CardSetupForm will retry on submit */ }
+      finally { setSetupSecretLoading(false); }
+    };
+    fetchSecret();
+  }, [step, token, setupClientSecret, setupSecretLoading]);
 
   // Details form submit — handled inside CardSetupForm; this is just a no-op wrapper
   const handleDetailsSubmit = useCallback(async (e: React.FormEvent) => {
@@ -1086,12 +1093,13 @@ export function BookPageClient() {
                 {/* ── Payment ── */}
                 <div className="space-y-3 border-t border-[hsl(var(--border))] pt-5">
                   <h2 className="font-semibold text-[hsl(var(--foreground))]">Payment</h2>
-                  {stripePromise ? (
-                    <Elements stripe={stripePromise}>
+                  {stripePromise && setupClientSecret ? (
+                    <Elements stripe={stripePromise} options={{ clientSecret: setupClientSecret }}>
                       <CardSetupForm
                         onSuccess={handleCardConfirmed}
                         isGuest={!!guestData}
                         billingName={`${passengerDetails.firstName} ${passengerDetails.lastName}`.trim() || undefined}
+                        clientSecret={setupClientSecret}
                         submitLabel={`Confirm & Pay ${fmtMoney(
                           loyaltyDiscount?.finalFareMinor ?? selectedResult?.estimated_total_minor ?? 0,
                           selectedResult?.currency ?? 'AUD',
@@ -1100,8 +1108,9 @@ export function BookPageClient() {
                       />
                     </Elements>
                   ) : (
-                    <div className="flex items-center justify-center py-8 text-sm text-muted-foreground gap-2">
-                      <Spinner className="h-4 w-4" /> Loading payment…
+                    <div className="flex items-center justify-center py-8 text-sm text-[hsl(var(--muted-foreground))] gap-2">
+                      <Spinner className="h-4 w-4" />
+                      {setupSecretLoading ? 'Loading payment…' : 'Initialising payment…'}
                     </div>
                   )}
                 </div>
