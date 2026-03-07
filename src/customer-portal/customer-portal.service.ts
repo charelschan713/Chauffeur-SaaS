@@ -338,26 +338,28 @@ export class CustomerPortalService {
   }
 
   // ── Profile ───────────────────────────────────────────────────────────────
-  async getProfile(customerId: string) {
+  async getProfile(customerId: string, tenantId?: string) {
     const rows = await this.db.query(
-      `SELECT id, first_name, last_name, email, phone_country_code, phone_number, created_at FROM public.customers WHERE id=$1`,
-      [customerId],
+      `SELECT id, first_name, last_name, email, phone_country_code, phone_number, created_at
+       FROM public.customers
+       WHERE id=$1 ${tenantId ? 'AND tenant_id=$2' : ''}`,
+      tenantId ? [customerId, tenantId] : [customerId],
     );
     if (!rows.length) throw new NotFoundException('Customer not found');
     return rows[0];
   }
 
-  async updateProfile(customerId: string, dto: any) {
+  async updateProfile(customerId: string, tenantId: string, dto: any) {
     await this.db.query(
       `UPDATE public.customers
        SET first_name=COALESCE($1, first_name),
            last_name=COALESCE($2, last_name),
            phone_number=COALESCE($3, phone_number),
            updated_at=now()
-       WHERE id=$4`,
-      [dto.firstName ?? null, dto.lastName ?? null, dto.phone ?? null, customerId],
+       WHERE id=$4 AND tenant_id=$5`,
+      [dto.firstName ?? null, dto.lastName ?? null, dto.phone ?? null, customerId, tenantId],
     );
-    return this.getProfile(customerId);
+    return this.getProfile(customerId, tenantId);
   }
 
   // ── Passengers ────────────────────────────────────────────────────────────

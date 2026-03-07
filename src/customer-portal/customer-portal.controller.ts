@@ -102,13 +102,13 @@ export class CustomerPortalController {
   @Get('profile')
   @UseGuards(CustomerAuthGuard)
   getProfile(@Req() req: any) {
-    return this.svc.getProfile(req.customer.sub);
+    return this.svc.getProfile(req.customer.sub, req.customer.tenant_id);
   }
 
   @Put('profile')
   @UseGuards(CustomerAuthGuard)
   updateProfile(@Req() req: any, @Body() body: any) {
-    return this.svc.updateProfile(req.customer.sub, body);
+    return this.svc.updateProfile(req.customer.sub, req.customer.tenant_id, body);
   }
 
   /**
