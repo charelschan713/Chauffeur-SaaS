@@ -1,4 +1,29 @@
+# Dependencies
 node_modules
+apps/admin/node_modules
+apps/customer/node_modules
+apps/admin/.next
+apps/customer/.next
+
+# Build output
 dist
+
+# Environment files
 .env
+.env.*
 *.local
+
+# Dev/CI
+.git
+.github
+*.md
+coverage
+.nyc_output
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
