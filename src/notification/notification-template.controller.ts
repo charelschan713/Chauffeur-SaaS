@@ -4,11 +4,25 @@ import { JwtGuard } from '../common/guards/jwt.guard';
 import { TenantRoleGuard, TenantRoles } from '../common/guards/tenant-role.guard';
 import { renderTemplate } from './template.renderer';
 import { PLATFORM_DEFAULT_TEMPLATES } from './templates/default-templates';
+import { NotificationService } from './notification.service';
 
 @Controller('notification-templates')
 @UseGuards(JwtGuard, TenantRoleGuard)
 export class NotificationTemplateController {
-  constructor(private readonly dataSource: DataSource) {}
+  constructor(
+    private readonly dataSource: DataSource,
+    private readonly notificationService: NotificationService,
+  ) {}
+
+  /** DEV/TEST: Fire any notification event manually */
+  @Post('fire-test')
+  @TenantRoles('ADMIN', 'SUPER_ADMIN')
+  async fireTest(@Req() req: any, @Body() body: { eventType: string; payload?: Record<string, any> }) {
+    const tenantId = req.user.tenant_id;
+    const payload = { tenant_id: tenantId, ...(body.payload ?? {}) };
+    await this.notificationService.handleEvent(body.eventType, payload);
+    return { fired: body.eventType, tenant_id: tenantId, payload };
+  }
 
   @Get()
   async list(@Req() req: any) {
