@@ -455,7 +455,7 @@ function BookingDetailInner() {
 
           {/* Status Timeline */}
           <Card title="Status Timeline">
-            <BookingStatusTimeline status={booking.operational_status} />
+            <BookingStatusTimeline status={booking.operational_status} statusHistory={booking.status_history} />
           </Card>
 
           {/* Actions */}
