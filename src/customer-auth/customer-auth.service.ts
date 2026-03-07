@@ -8,12 +8,14 @@ import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
+import { NotificationService } from '../notification/notification.service';
 
 @Injectable()
 export class CustomerAuthService {
   constructor(
     @InjectDataSource() private readonly db: DataSource,
     private readonly jwt: JwtService,
+    private readonly notificationSvc: NotificationService,
   ) {}
 
   // ── Register ───────────────────────────────────────────────────────────────
@@ -142,6 +144,21 @@ export class CustomerAuthService {
   // ── Forgot Password ────────────────────────────────────────────────────────
   async forgotPassword(dto: { tenantSlug: string; email: string }) {
     const tenant = await this.getTenantBySlug(dto.tenantSlug);
+    const email = dto.email.toLowerCase();
+
+    // Look up customer_auth + customer profile
+    const [auth] = await this.db.query(
+      `SELECT ca.customer_id, ca.email, c.first_name, c.last_name
+       FROM public.customer_auth ca
+       JOIN public.customers c ON c.id = ca.customer_id
+       WHERE ca.tenant_id=$1 AND ca.email=$2
+       LIMIT 1`,
+      [tenant.id, email],
+    );
+
+    // Always return success to prevent email enumeration
+    if (!auth) return { sent: true };
+
     const token = crypto.randomBytes(32).toString('hex');
     const expires = new Date(Date.now() + 60 * 60 * 1000);
 
@@ -149,12 +166,23 @@ export class CustomerAuthService {
       `UPDATE public.customer_auth
        SET reset_token=$1, reset_token_expires_at=$2, updated_at=now()
        WHERE tenant_id=$3 AND email=$4`,
-      [token, expires, tenant.id, dto.email.toLowerCase()],
+      [token, expires, tenant.id, email],
     );
 
-    // In production: send email with reset link
-    const isDev = process.env.NODE_ENV !== 'production';
-    return { sent: true, ...(isDev ? { token } : {}) };
+    // Send password reset email
+    const portalUrl = process.env.CUSTOMER_PORTAL_URL ?? 'https://aschauffeured.chauffeurssolution.com';
+    const resetUrl = `${portalUrl}/reset-password?token=${token}`;
+
+    await this.notificationSvc.handleEvent('CustomerForgotPassword', {
+      tenant_id: tenant.id,
+      email,
+      name: `${auth.first_name ?? ''} ${auth.last_name ?? ''}`.trim(),
+      customer_first_name: auth.first_name ?? '',
+      reset_url: resetUrl,
+      reset_link: resetUrl,
+    }).catch(() => {});
+
+    return { sent: true };
   }
 
   // ── Reset Password ─────────────────────────────────────────────────────────

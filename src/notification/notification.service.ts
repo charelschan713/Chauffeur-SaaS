@@ -846,7 +846,13 @@ export class NotificationService {
   }
 
   private async onForgotPassword(tenantId: string, payload: any) {
-    const vars = { customer_name: payload.name ?? '', reset_link: payload.reset_link ?? '', expires: '1 hour' };
+    const vars = {
+      customer_first_name: payload.customer_first_name ?? payload.name ?? '',
+      customer_name: payload.name ?? '',
+      reset_url: payload.reset_url ?? payload.reset_link ?? '',
+      reset_link: payload.reset_link ?? payload.reset_url ?? '',
+      expires: '1 hour',
+    };
     await this.sendBoth(tenantId, 'CustomerForgotPassword', vars, payload.email, payload.phone);
   }
 
