@@ -534,7 +534,8 @@ export function BookPageClient() {
 
   // Eagerly fetch setup intent when booking form loads so Stripe iframe has clientSecret
   useEffect(() => {
-    if (step !== 'details' || setupClientSecret || setupSecretLoading) return;
+    const formVisible = step === 'details' || (step === 'auth' && !!guestData);
+    if (!formVisible || setupClientSecret || setupSecretLoading) return;
     setSetupSecretLoading(true);
     const API = process.env.NEXT_PUBLIC_API_URL ?? 'https://chauffeur-saas-production.up.railway.app';
     const fetchSecret = async () => {
@@ -551,8 +552,9 @@ export function BookPageClient() {
           const data = await res.json();
           if (data.clientSecret) setSetupClientSecret(data.clientSecret);
         }
-      } catch { /* silent — CardSetupForm will retry on submit */ }
-      finally { setSetupSecretLoading(false); }
+      } catch (e: any) {
+        console.error('[SETUP_INTENT_FAILED]', e?.message ?? e);
+      } finally { setSetupSecretLoading(false); }
     };
     fetchSecret();
   }, [step, token, setupClientSecret, setupSecretLoading]);
