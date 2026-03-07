@@ -498,6 +498,8 @@ export class NotificationService {
       toll_parking_total: NotificationService.formatMinor((snapshot.toll_minor ?? 0) + (snapshot.parking_minor ?? 0) + (snapshot.toll_parking_minor ?? 0)),
       extras_amount: NotificationService.formatMinor((snapshot.extras_minor ?? 0) + (snapshot.baby_seats_minor ?? 0) + (snapshot.waypoints_minor ?? 0)),
       total_amount: NotificationService.formatMinor(booking.total_price_minor ?? 0),
+      total_price:  NotificationService.formatMinor(booking.total_price_minor ?? 0), // alias for custom templates
+      city:         booking.city_name ?? booking.city ?? '',
       // Adjustment / Part A + B (set by caller via payload merge)
       prepay_amount: '',
       actual_amount: '',
@@ -691,9 +693,16 @@ export class NotificationService {
           COALESCE(b.passenger_first_name, b.customer_first_name) AS passenger_name,
           COALESCE(b.passenger_phone_country_code, b.customer_phone_country_code) AS passenger_phone_country_code,
           COALESCE(b.passenger_phone_number, b.customer_phone_number) AS passenger_phone_number,
-          to_char(b.pickup_at_utc AT TIME ZONE COALESCE(b.timezone, 'UTC'), 'Dy DD Mon YYYY HH12:MI AM') AS pickup_time_local
+          to_char(b.pickup_at_utc AT TIME ZONE COALESCE(b.timezone, 'UTC'), 'Dy DD Mon YYYY HH12:MI AM') AS pickup_time_local,
+          c.name AS city_name
        FROM public.bookings b
        LEFT JOIN public.tenant_service_classes sc ON sc.id = b.service_class_id
+       LEFT JOIN public.cities c ON c.id = (
+         SELECT id FROM public.cities
+         WHERE b.pickup_address_text ILIKE '%' || name || '%'
+           AND tenant_id = b.tenant_id
+         LIMIT 1
+       )
        WHERE b.id = $1
        LIMIT 1`,
       [id],
