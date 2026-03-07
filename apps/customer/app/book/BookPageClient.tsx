@@ -137,7 +137,7 @@ function CardSetupForm({ onSuccess, isGuest, billingName, submitLabel, submittin
         return_url: returnUrl,
       });
       // confirmCardSetup handles 3DS inline — if it returns, authentication is complete or failed
-      if (stripeErr) throw new Error(stripeErr.message);
+      if (stripeErr) { console.error('[CardSetupForm] stripeErr:', stripeErr); throw new Error(stripeErr.message); }
       if (!setupIntent || setupIntent.status !== 'succeeded') throw new Error('Card verification failed. Please try again.');
       onSuccess(setupIntent.id);
     } catch (err: any) {
@@ -577,8 +577,10 @@ export function BookPageClient() {
       await fetch(`${API_URL}/public/pricing/quote/${quoteId}`, { method: 'PATCH' }).catch(() => {});
       setStep('done');
     } catch (err: any) {
-      console.error('[handleCardConfirmed] booking error:', err?.response?.data ?? err);
-      setSubmitError(err.response?.data?.message ?? err?.message ?? 'Failed to create booking. Please try again.');
+      const errData = err?.response?.data ?? err;
+      console.error('[handleCardConfirmed] booking error:', JSON.stringify(errData));
+      const msg = err.response?.data?.message ?? err?.message ?? 'Failed to create booking. Please try again.';
+      setSubmitError(`Booking failed: ${msg}`);
       setStep('details');
     }
   }, [session, selectedResult, loyaltyDiscount, flightNumber, specialRequests, guestData, passengerDetails, quoteId]);
