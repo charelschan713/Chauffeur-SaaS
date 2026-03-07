@@ -117,9 +117,11 @@ export class DriverController {
     // driverId here is the membership driver_id (= user_id)
     const rows = await this.db.query(
       `SELECT
-          u.id, u.email, u.first_name, u.last_name,
+          u.id, u.email, u.full_name,
+          -- split full_name into first/last for UI compatibility
+          split_part(u.full_name, ' ', 1) AS first_name,
+          substr(u.full_name, strpos(u.full_name, ' ') + 1) AS last_name,
           u.phone_country_code, u.phone_number,
-          u.dob, u.address_line1, u.address_line2, u.city, u.state, u.postcode,
           u.avatar_url, u.abn, u.notes,
           u.driver_license_number, u.driver_license_state,
           u.driver_license_expiry, u.driver_license_class,
