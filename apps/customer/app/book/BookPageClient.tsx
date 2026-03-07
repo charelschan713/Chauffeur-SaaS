@@ -526,6 +526,7 @@ export function BookPageClient() {
         ) || undefined,
         ...(guestData && {
           guestCheckout: true,
+          tenantSlug: process.env.NEXT_PUBLIC_TENANT_SLUG ?? 'aschauffeured',
           firstName: passengerDetails.firstName || guestData.firstName,
           lastName:  passengerDetails.lastName  || guestData.lastName,
           email:     passengerDetails.email     || guestData.email,

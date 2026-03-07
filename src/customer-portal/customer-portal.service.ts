@@ -298,13 +298,14 @@ export class CustomerPortalService {
   // ── Cancel booking ────────────────────────────────────────────────────────
   async cancelBooking(customerId: string, tenantId: string, bookingId: string) {
     const rows = await this.db.query(
-      `SELECT id, status, pickup_at_utc FROM public.bookings
+      `SELECT id, operational_status, pickup_at_utc FROM public.bookings
        WHERE id=$1 AND customer_id=$2 AND tenant_id=$3`,
       [bookingId, customerId, tenantId],
     );
     if (!rows.length) throw new NotFoundException('Booking not found');
     const b = rows[0];
-    if (!['DRAFT', 'PENDING', 'CONFIRMED', 'AWAITING_CONFIRMATION'].includes(b.status)) {
+    const cancelable = ['PENDING_CUSTOMER_CONFIRMATION', 'PENDING', 'CONFIRMED', 'AWAITING_CONFIRMATION'];
+    if (!cancelable.includes(b.operational_status)) {
       throw new BadRequestException('Booking cannot be cancelled in its current state');
     }
 
@@ -323,7 +324,7 @@ export class CustomerPortalService {
     }
 
     await this.db.query(
-      `UPDATE public.bookings SET status='CANCELLED', updated_at=now() WHERE id=$1`,
+      `UPDATE public.bookings SET operational_status='CANCELLED', updated_at=now() WHERE id=$1`,
       [bookingId],
     );
     return { success: true };
@@ -486,16 +487,15 @@ export class CustomerPortalService {
       ],
     );
 
-    // If booking attached, update to AWAITING_CONFIRMATION
+    // If booking attached, update operational_status to PENDING_CUSTOMER_CONFIRMATION
     if (dto.bookingId) {
       await this.db.query(
         `UPDATE public.bookings
-         SET status='AWAITING_CONFIRMATION',
-             stripe_setup_intent_id=$1,
-             updated_at=now()
-         WHERE id=$2 AND customer_id=$3 AND tenant_id=$4`,
-        [dto.setupIntentId, dto.bookingId, customerId, tenantId],
-      );
+         SET operational_status = 'PENDING_CUSTOMER_CONFIRMATION',
+             updated_at = now()
+         WHERE id=$1 AND customer_id=$2 AND tenant_id=$3`,
+        [dto.bookingId, customerId, tenantId],
+      ).catch(() => {});
     }
 
     return { success: true, paymentMethod: saved };
@@ -624,50 +624,181 @@ export class CustomerPortalService {
   // ── Guest checkout ────────────────────────────────────────────────────────
   async guestCheckout(tenantSlug: string, dto: any) {
     const tenant = await this.db.query(
-      `SELECT id FROM public.tenants WHERE slug=$1 LIMIT 1`,
+      `SELECT id, booking_ref_prefix FROM public.tenants WHERE slug=$1 LIMIT 1`,
       [tenantSlug],
     );
     if (!tenant.length) throw new NotFoundException('Tenant not found');
     const tenantId = tenant[0].id;
+    const refPrefix = (tenant[0].booking_ref_prefix ?? 'BK').trim().toUpperCase();
 
-    // Create or find customer by email
+    // ── Resolve quote session details ──────────────────────────────────────
+    let pickupAddress  = dto.pickupAddress;
+    let dropoffAddress = dto.dropoffAddress;
+    let pickupAtUtc    = dto.pickupAtUtc;
+    let serviceTypeId  = dto.serviceTypeId ?? null;
+    let serviceClassId = dto.vehicleClassId ?? null;
+    let totalMinor     = dto.totalPriceMinor ?? 0;
+    let currency       = dto.currency ?? 'AUD';
+    let passengerCount = dto.passengerCount ?? 1;
+    let quoteSessionId: string | null = null;
+
+    if (dto.quoteId) {
+      const [session] = await this.db.query(
+        `SELECT id, payload FROM public.quote_sessions
+         WHERE id = $1 AND tenant_id = $2 AND expires_at > now() LIMIT 1`,
+        [dto.quoteId, tenantId],
+      );
+      if (session) {
+        const req = session.payload?.request ?? {};
+        pickupAddress  = pickupAddress  ?? req.pickup_address ?? req.pickup_address_text;
+        dropoffAddress = dropoffAddress ?? req.dropoff_address ?? req.dropoff_address_text;
+        pickupAtUtc    = pickupAtUtc    ?? req.pickup_at_utc ?? req.pickup_at;
+        serviceTypeId  = serviceTypeId  ?? req.service_type_id ?? null;
+        passengerCount = passengerCount ?? req.passenger_count ?? 1;
+        currency       = currency       ?? session.payload?.currency ?? 'AUD';
+        quoteSessionId = session.id;
+
+        if (dto.vehicleClassId && session.payload?.results?.length) {
+          const result = session.payload.results.find((r: any) => r.service_class_id === dto.vehicleClassId)
+            ?? session.payload.results[0];
+          if (result) totalMinor = dto.totalPriceMinor ?? result.estimated_total_minor ?? totalMinor;
+        }
+      }
+    }
+
+    // ── Create or find customer by email ────────────────────────────────────
+    const email = dto.email?.toLowerCase?.() ?? null;
     let customerId: string;
     const existing = await this.db.query(
       `SELECT id FROM public.customers WHERE tenant_id=$1 AND email=$2 LIMIT 1`,
-      [tenantId, dto.email?.toLowerCase()],
+      [tenantId, email],
     );
     if (existing.length) {
       customerId = existing[0].id;
     } else {
       const [c] = await this.db.query(
-        `INSERT INTO public.customers (tenant_id, email, first_name, last_name, phone_number, is_guest, created_at, updated_at)
+        `INSERT INTO public.customers
+           (tenant_id, email, first_name, last_name, phone_number, is_guest, created_at, updated_at)
          VALUES ($1,$2,$3,$4,$5,true,now(),now()) RETURNING id`,
-        [tenantId, dto.email?.toLowerCase(), dto.firstName, dto.lastName, dto.phone ?? null],
+        [tenantId, email, dto.firstName, dto.lastName, dto.phone ?? null],
       );
       customerId = c.id;
     }
 
-    // Create booking
-    const ref = `BK-${Date.now().toString(36).toUpperCase()}`;
-    const [booking] = await this.db.query(
-      `INSERT INTO public.bookings
-         (tenant_id, customer_id, customer_email, customer_first_name, customer_last_name, customer_phone,
-          pickup_address, dropoff_address, pickup_at_utc, service_type_id, vehicle_class_id,
-          total_price_minor, currency, status, payment_status, booked_by, booking_reference,
-          passenger_count, notes, created_at, updated_at)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,'AWAITING_CONFIRMATION','UNPAID','CUSTOMER',$14,$15,$16,now(),now())
-       RETURNING *`,
-      [
-        tenantId, customerId,
-        dto.email?.toLowerCase(), dto.firstName, dto.lastName, dto.phone ?? null,
-        dto.pickupAddress, dto.dropoffAddress, dto.pickupAtUtc,
-        dto.serviceTypeId ?? null, dto.vehicleClassId ?? null,
-        dto.totalPriceMinor ?? 0, dto.currency ?? 'AUD',
-        ref,
-        dto.passengerCount ?? 1,
-        dto.notes ?? null,
-      ],
-    );
+    // Save Stripe payment method for guest if setupIntentId provided
+    if (dto.setupIntentId) {
+      try {
+        const stripe = await this.getStripe(tenantId);
+        const si = await stripe.setupIntents.retrieve(dto.setupIntentId);
+        if (si.status === 'succeeded' && si.payment_method) {
+          const pm = await stripe.paymentMethods.retrieve(si.payment_method as string);
+
+          // Attach PM to a Stripe customer for future off-session use
+          let stripeCustomerId: string | null = null;
+          const scRows = await this.db.query(
+            `SELECT stripe_customer_id FROM public.customers WHERE id=$1`,
+            [customerId],
+          );
+          if (scRows[0]?.stripe_customer_id) {
+            stripeCustomerId = scRows[0].stripe_customer_id;
+          } else {
+            const sc = await stripe.customers.create({ email: email ?? undefined, name: `${dto.firstName} ${dto.lastName}` });
+            await this.db.query(`UPDATE public.customers SET stripe_customer_id=$1 WHERE id=$2`, [sc.id, customerId]);
+            stripeCustomerId = sc.id;
+          }
+
+          // Attach the PM to this Stripe customer
+          await stripe.paymentMethods.attach(pm.id, { customer: stripeCustomerId! }).catch(() => {});
+
+          await this.db.query(
+            `INSERT INTO public.saved_payment_methods
+               (customer_id, tenant_id, stripe_payment_method_id, last4, brand, exp_month, exp_year, is_default)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,
+               NOT EXISTS (SELECT 1 FROM public.saved_payment_methods WHERE customer_id=$1 AND tenant_id=$2))
+             ON CONFLICT DO NOTHING`,
+            [customerId, tenantId, pm.id, pm.card?.last4, pm.card?.brand, pm.card?.exp_month, pm.card?.exp_year],
+          );
+        }
+      } catch (_e) { /* non-fatal — booking still created */ }
+    }
+
+    // ── Create booking ────────────────────────────────────────────────────
+    const ref = `${refPrefix}-${Math.random().toString(36).slice(2,10).toUpperCase()}`;
+    const now = new Date().toISOString();
+
+    let bookingRows: any[];
+    try {
+      bookingRows = await this.db.query(
+        `INSERT INTO public.bookings
+           (id, tenant_id, customer_id,
+            booking_reference, booking_source,
+            customer_email, customer_first_name, customer_last_name,
+            customer_phone_country_code, customer_phone_number,
+            passenger_first_name, passenger_last_name,
+            passenger_phone_country_code, passenger_phone_number,
+            passenger_is_customer,
+            pickup_address_text, dropoff_address_text,
+            pickup_at_utc, timezone,
+            service_type_id, service_class_id,
+            total_price_minor, currency,
+            operational_status, payment_status,
+            passenger_count, luggage_count,
+            flight_number, special_requests,
+            infant_seats, toddler_seats, booster_seats,
+            created_at, updated_at)
+         VALUES
+           (gen_random_uuid(), $1, $2,
+            $3, 'WIDGET',
+            $4, $5, $6,
+            $7, $8,
+            $5, $6,
+            $7, $8,
+            true,
+            $9, $10,
+            $11, 'Australia/Sydney',
+            $12, $13,
+            $14, $15,
+            'PENDING_CUSTOMER_CONFIRMATION', 'UNPAID',
+            $16, $17,
+            $18, $19,
+            $20, $21, $22,
+            now(), now())
+         RETURNING *`,
+        [
+          tenantId, customerId,
+          ref,
+          email, dto.firstName, dto.lastName,
+          null, dto.phone ?? null,
+          pickupAddress, dropoffAddress,
+          pickupAtUtc,
+          serviceTypeId, serviceClassId,
+          totalMinor, currency,
+          passengerCount, dto.luggageCount ?? 0,
+          dto.flightNumber ?? null, dto.notes ?? null,
+          dto.infantSeats ?? 0, dto.toddlerSeats ?? 0, dto.boosterSeats ?? 0,
+        ],
+      );
+    } catch (err: any) {
+      throw new Error(`Guest booking INSERT failed: ${err?.message ?? String(err)}`);
+    }
+
+    const booking = bookingRows[0];
+
+    // Status history
+    await this.db.query(
+      `INSERT INTO public.booking_status_history
+         (id, tenant_id, booking_id, previous_status, new_status, triggered_by, reason, created_at)
+       VALUES (gen_random_uuid(),$1,$2,NULL,'PENDING_CUSTOMER_CONFIRMATION',NULL,NULL,now())`,
+      [tenantId, booking.id],
+    ).catch(() => {});
+
+    // Mark quote as converted
+    if (quoteSessionId) {
+      await this.db.query(
+        `UPDATE public.quote_sessions SET converted_at=now() WHERE id=$1`,
+        [quoteSessionId],
+      ).catch(() => {});
+    }
 
     return { booking, customerId };
   }
