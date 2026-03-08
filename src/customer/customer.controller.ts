@@ -12,6 +12,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { DataSource } from 'typeorm';
+import * as bcrypt from 'bcrypt';
 import { JwtGuard } from '../common/guards/jwt.guard';
 
 @Controller('customers')
@@ -236,6 +237,20 @@ export class CustomerController {
        ORDER BY created_at DESC`,
       [req.user.tenant_id, id],
     );
+  }
+
+  @Post(':id/reset-password')
+  async resetCustomerPassword(@Req() req: any, @Param('id') id: string, @Body() body: { newPassword: string }) {
+    if (!body.newPassword || body.newPassword.length < 8) {
+      throw new BadRequestException('Password must be at least 8 characters');
+    }
+    const hash = await bcrypt.hash(body.newPassword, 12);
+    await this.dataSource.query(
+      `UPDATE public.customer_auth SET password_hash = $1
+       WHERE customer_id = $2 AND tenant_id = $3`,
+      [hash, id, req.user.tenant_id],
+    );
+    return { success: true };
   }
 
   @Post(':id/passengers')
