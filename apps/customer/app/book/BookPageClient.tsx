@@ -1219,7 +1219,7 @@ export function BookPageClient() {
       <header
         className="sticky top-0 z-20 border-b border-[hsl(var(--border))]"
         style={{
-          background: '#fff',
+          background: 'hsl(var(--background))',
           backdropFilter: 'blur(20px)',
           WebkitBackdropFilter: 'blur(20px)',
           paddingTop: 'max(12px, env(safe-area-inset-top))',
@@ -1530,7 +1530,7 @@ export function BookPageClient() {
       {(['details', 'auth', 'login', 'guest'] as const).includes(step as any) && !useNewCard && selectedSavedCard && selectedResult && (
         <div className="fixed bottom-0 left-0 right-0 z-30 px-4 pb-safe"
           style={{
-            background: '#fff',
+            background: 'hsl(var(--background))',
             borderTop: '1px solid hsl(var(--border))',
             paddingBottom: 'calc(16px + env(safe-area-inset-bottom, 0px))',
             paddingTop: '12px',

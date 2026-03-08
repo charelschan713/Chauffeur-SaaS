@@ -48,9 +48,9 @@ export default function BookingsPage() {
 
       {/* Sticky header */}
       <div
-        className="sticky top-0 z-20 border-b border-gray-100"
+        className="sticky top-0 z-20 border-b border-[hsl(var(--border))]"
         style={{
-          background: '#fff',
+          background: 'hsl(var(--background))',
           backdropFilter: 'blur(20px)',
           WebkitBackdropFilter: 'blur(20px)',
           paddingTop: 'max(16px, env(safe-area-inset-top))',

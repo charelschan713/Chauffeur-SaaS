@@ -275,7 +275,7 @@ export default function PassengersPage() {
       <div
         className="sticky top-0 z-20 border-b border-gray-100 px-4"
         style={{
-          background: '#fff',
+          background: 'hsl(var(--background))',
           backdropFilter: 'blur(20px)',
           WebkitBackdropFilter: 'blur(20px)',
           paddingTop: 'max(12px, env(safe-area-inset-top))',
