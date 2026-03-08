@@ -158,20 +158,46 @@ export class CustomerController {
   @Delete('bulk/all')
   async deleteAll(@Req() req: any) {
     const tenantId = req.user.tenant_id;
-    // Only delete customers with no active bookings
-    const result = await this.dataSource.query(
-      `DELETE FROM public.customers
-       WHERE tenant_id = $1
-         AND id NOT IN (
-           SELECT DISTINCT customer_id FROM public.bookings
-           WHERE tenant_id = $1
-             AND customer_id IS NOT NULL
-             AND operational_status NOT IN ('CANCELLED','COMPLETED','JOB_COMPLETED')
-         )
-       RETURNING id, email`,
+    // Get IDs to delete (no active bookings)
+    const toDelete = await this.dataSource.query(
+      `SELECT c.id, c.email FROM public.customers c
+       WHERE c.tenant_id = $1
+         AND NOT EXISTS (
+           SELECT 1 FROM public.bookings b
+           WHERE b.customer_id = c.id
+             AND b.tenant_id = $1
+             AND b.operational_status NOT IN ('CANCELLED','COMPLETED','JOB_COMPLETED')
+         )`,
       [tenantId],
     );
-    return { deleted: result.length, customers: result };
+
+    const deleted: any[] = [];
+    for (const c of toDelete) {
+      try {
+        // Nullify FK references first
+        await this.dataSource.query(
+          `UPDATE public.bookings SET customer_id = NULL WHERE customer_id = $1 AND tenant_id = $2`,
+          [c.id, tenantId],
+        );
+        await this.dataSource.query(
+          `DELETE FROM public.saved_payment_methods WHERE customer_id = $1`,
+          [c.id],
+        );
+        await this.dataSource.query(
+          `DELETE FROM public.customer_passengers WHERE customer_id = $1`,
+          [c.id],
+        );
+        await this.dataSource.query(
+          `DELETE FROM public.customers WHERE id = $1 AND tenant_id = $2`,
+          [c.id, tenantId],
+        );
+        deleted.push({ id: c.id, email: c.email });
+      } catch (e: any) {
+        // Log but continue
+        console.error(`Failed to delete customer ${c.email}:`, e.message);
+      }
+    }
+    return { deleted: deleted.length, customers: deleted };
   }
 
   @Delete(':id')
