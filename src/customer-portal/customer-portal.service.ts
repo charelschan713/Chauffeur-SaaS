@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Injectable,
   NotFoundException,
+  OnModuleInit,
 } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
@@ -10,12 +11,22 @@ import { NotificationService } from '../notification/notification.service';
 import { DebugTraceService } from '../debug/debug-trace.service';
 
 @Injectable()
-export class CustomerPortalService {
+export class CustomerPortalService implements OnModuleInit {
   constructor(
     @InjectDataSource() private readonly db: DataSource,
     private readonly notificationService: NotificationService,
     private readonly trace: DebugTraceService,
   ) {}
+
+  async onModuleInit() {
+    // Auto-apply email verification migration
+    await this.db.query(`
+      ALTER TABLE public.customers
+        ADD COLUMN IF NOT EXISTS email_verified boolean NOT NULL DEFAULT false,
+        ADD COLUMN IF NOT EXISTS email_otp text,
+        ADD COLUMN IF NOT EXISTS email_otp_expires_at timestamptz
+    `).catch(() => { /* columns may already exist */ });
+  }
 
   // ── Stripe helper ─────────────────────────────────────────────────────────
   private async getStripe(tenantId: string): Promise<Stripe> {
