@@ -44,14 +44,14 @@ export default function ProfilePage() {
   ];
 
   if (isLoading) return (
-    <div className="min-h-screen bg-[#f5f5f5] flex items-center justify-center">
+    <div className="min-h-screen bg-[hsl(var(--background))] flex items-center justify-center">
       <div className="w-7 h-7 border-2 border-gray-100 border-t-[hsl(var(--primary))] rounded-full animate-spin" />
     </div>
   );
 
   return (
     <div
-      className="min-h-screen bg-[#f5f5f5] text-white"
+      className="min-h-screen bg-[hsl(var(--background))] text-white"
       style={{ paddingBottom: 'calc(96px + env(safe-area-inset-bottom, 0px))' }}
     >
       {/* Header */}
@@ -82,13 +82,13 @@ export default function ProfilePage() {
               <div className="flex-1 space-y-2.5">
                 <div className="flex gap-2">
                   <input
-                    className="flex-1 h-11 px-3 rounded-xl bg-white border border-gray-100 text-sm text-[#1a1a1a] placeholder:text-white/25 focus:outline-none focus:border-[hsl(var(--primary)/0.5)]"
+                    className="flex-1 h-11 px-3 rounded-xl bg-[hsl(var(--card))] border border-[hsl(var(--border))] text-sm text-[hsl(var(--foreground))] placeholder:text-white/25 focus:outline-none focus:border-[hsl(var(--primary)/0.5)]"
                     placeholder="First name"
                     value={form.firstName}
                     onChange={e => setForm(f => ({ ...f, firstName: e.target.value }))}
                   />
                   <input
-                    className="flex-1 h-11 px-3 rounded-xl bg-white border border-gray-100 text-sm text-[#1a1a1a] placeholder:text-white/25 focus:outline-none focus:border-[hsl(var(--primary)/0.5)]"
+                    className="flex-1 h-11 px-3 rounded-xl bg-[hsl(var(--card))] border border-[hsl(var(--border))] text-sm text-[hsl(var(--foreground))] placeholder:text-white/25 focus:outline-none focus:border-[hsl(var(--primary)/0.5)]"
                     placeholder="Last name"
                     value={form.lastName}
                     onChange={e => setForm(f => ({ ...f, lastName: e.target.value }))}
@@ -98,7 +98,7 @@ export default function ProfilePage() {
                   <PhoneCountrySelect value={form.phoneCode} onChange={v => setForm(f => ({ ...f, phoneCode: v }))} className="w-28 shrink-0" />
                   <input
                     type="tel"
-                    className="flex-1 h-11 px-3 rounded-xl bg-white border border-gray-100 text-sm text-[#1a1a1a] placeholder:text-white/25 focus:outline-none focus:border-[hsl(var(--primary)/0.5)]"
+                    className="flex-1 h-11 px-3 rounded-xl bg-[hsl(var(--card))] border border-[hsl(var(--border))] text-sm text-[hsl(var(--foreground))] placeholder:text-white/25 focus:outline-none focus:border-[hsl(var(--primary)/0.5)]"
                     placeholder="4xx xxx xxx"
                     value={form.phoneNumber}
                     onChange={e => setForm(f => ({ ...f, phoneNumber: e.target.value }))}
@@ -122,10 +122,10 @@ export default function ProfilePage() {
               </div>
             ) : (
               <div className="min-w-0">
-                <p className="font-semibold text-[#1a1a1a] text-base">{profile?.first_name} {profile?.last_name}</p>
+                <p className="font-semibold text-[hsl(var(--foreground))] text-base">{profile?.first_name} {profile?.last_name}</p>
                 <p className="text-sm text-white/45 mt-0.5 truncate">{profile?.email}</p>
                 {profile?.phone_number && (
-                  <p className="text-sm text-gray-400 mt-0.5">{profile?.phone_country_code} {profile?.phone_number}</p>
+                  <p className="text-sm text-[hsl(var(--muted-foreground))] mt-0.5">{profile?.phone_country_code} {profile?.phone_number}</p>
                 )}
               </div>
             )}
@@ -135,19 +135,19 @@ export default function ProfilePage() {
 
       <div className="max-w-4xl mx-auto px-4 pt-5 space-y-3">
         {/* Nav links */}
-        <div className="rounded-2xl bg-white border border-gray-100 overflow-hidden divide-y divide-white/[0.05]">
+        <div className="rounded-2xl bg-[hsl(var(--card))] border border-[hsl(var(--border))] overflow-hidden divide-y divide-white/[0.05]">
           {NAV_LINKS.map(item => (
             <a
               key={item.href}
               href={item.href}
-              className="flex items-center gap-4 px-4 py-4 min-h-[64px] active:bg-white transition-colors"
+              className="flex items-center gap-4 px-4 py-4 min-h-[64px] active:bg-[hsl(var(--card))] transition-colors"
             >
               <div className="w-10 h-10 rounded-xl bg-[hsl(var(--primary)/0.1)] border border-[hsl(var(--primary)/0.18)] flex items-center justify-center text-[hsl(var(--primary))] shrink-0">
                 {item.icon}
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-[#1a1a1a]">{item.label}</p>
-                <p className="text-xs text-gray-400 mt-0.5">{item.desc}</p>
+                <p className="text-sm font-medium text-[hsl(var(--foreground))]">{item.label}</p>
+                <p className="text-xs text-[hsl(var(--muted-foreground))] mt-0.5">{item.desc}</p>
               </div>
               <ChevronRight className="h-4 w-4 text-gray-300 shrink-0" />
             </a>
@@ -155,7 +155,7 @@ export default function ProfilePage() {
         </div>
 
         {/* App version / misc */}
-        <div className="rounded-2xl bg-white border border-gray-100 px-4 py-3 flex items-center justify-between">
+        <div className="rounded-2xl bg-[hsl(var(--card))] border border-[hsl(var(--border))] px-4 py-3 flex items-center justify-between">
           <span className="text-xs text-white/25">Customer Portal</span>
           <span className="text-xs text-gray-300">v1.0</span>
         </div>

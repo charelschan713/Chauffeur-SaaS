@@ -12,7 +12,7 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; dot: string 
   CONFIRMED:                     { label: 'Confirmed',  color: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/25', dot: 'bg-emerald-400' },
   ASSIGNED:                      { label: 'Assigned',   color: 'bg-blue-500/15 text-blue-400 border-blue-500/25',       dot: 'bg-blue-400' },
   IN_PROGRESS:                   { label: 'Ongoing',    color: 'bg-purple-500/15 text-purple-400 border-purple-500/25', dot: 'bg-purple-400 animate-pulse' },
-  COMPLETED:                     { label: 'Completed',  color: 'bg-white text-gray-400 border-gray-100',              dot: 'bg-white' },
+  COMPLETED:                     { label: 'Completed',  color: 'bg-[hsl(var(--muted)/0.2)] text-[hsl(var(--muted-foreground))] border-[hsl(var(--border))]',              dot: 'bg-white' },
   CANCELLED:                     { label: 'Cancelled',  color: 'bg-red-500/15 text-red-400 border-red-500/25',          dot: 'bg-red-400' },
   PAYMENT_FAILED:                { label: 'Pay Failed', color: 'bg-red-500/15 text-red-400 border-red-500/25',          dot: 'bg-red-400' },
 };
@@ -44,7 +44,7 @@ export default function BookingsPage() {
   const bookings: any[] = data?.data ?? [];
 
   return (
-    <div className="min-h-screen bg-[#f5f5f5] text-white" style={{ paddingBottom: 'calc(96px + env(safe-area-inset-bottom, 0px))' }}>
+    <div className="min-h-screen bg-[hsl(var(--background))] text-white" style={{ paddingBottom: 'calc(96px + env(safe-area-inset-bottom, 0px))' }}>
 
       {/* Sticky header */}
       <div
@@ -101,7 +101,7 @@ export default function BookingsPage() {
               <Car className="h-7 w-7 text-[hsl(var(--primary)/0.5)]" />
             </div>
             <div>
-              <p className="text-gray-500 text-sm font-medium">No {tab.toLowerCase()} bookings</p>
+              <p className="text-[hsl(var(--muted-foreground))] text-sm font-medium">No {tab.toLowerCase()} bookings</p>
               <p className="text-white/25 text-xs mt-1">Your trips will appear here</p>
             </div>
             <Link
@@ -114,12 +114,12 @@ export default function BookingsPage() {
         )}
 
         {bookings.map((b: any) => {
-          const s = STATUS_CONFIG[b.status] ?? { label: b.status?.replace(/_/g, ' '), color: 'bg-white text-gray-400 border-gray-100', dot: 'bg-white' };
+          const s = STATUS_CONFIG[b.status] ?? { label: b.status?.replace(/_/g, ' '), color: 'bg-[hsl(var(--muted)/0.2)] text-[hsl(var(--muted-foreground))] border-[hsl(var(--border))]', dot: 'bg-white' };
           return (
             <Link
               key={b.id}
               href={`/bookings/${b.id}`}
-              className="flex items-center gap-3 p-4 rounded-2xl bg-white border border-gray-100 active:scale-[0.99] active:bg-white transition-all"
+              className="flex items-center gap-3 p-4 rounded-2xl bg-[hsl(var(--card))] border border-[hsl(var(--border))] active:scale-[0.99] active:bg-white transition-all"
             >
               {/* Status dot */}
               <div className={cn('w-2.5 h-2.5 rounded-full shrink-0', s.dot)} />
@@ -132,13 +132,13 @@ export default function BookingsPage() {
                   </span>
                 </div>
 
-                <div className="flex items-center gap-1.5 text-xs text-gray-500">
+                <div className="flex items-center gap-1.5 text-xs text-[hsl(var(--muted-foreground))]">
                   <CalendarDays className="h-3 w-3 shrink-0" />
                   <span>{fmtDate(b.pickup_at_utc, b.timezone)}</span>
                 </div>
 
                 {b.pickup_address && (
-                  <div className="flex items-start gap-1.5 text-xs text-gray-400">
+                  <div className="flex items-start gap-1.5 text-xs text-[hsl(var(--muted-foreground))]">
                     <MapPin className="h-3 w-3 mt-0.5 shrink-0" />
                     <span className="truncate">{b.pickup_address}</span>
                   </div>
@@ -149,7 +149,7 @@ export default function BookingsPage() {
                 </p>
               </div>
 
-              <ChevronRight className="h-4 w-4 text-gray-300 shrink-0" />
+              <ChevronRight className="h-4 w-4 text-[hsl(var(--muted-foreground))/50] shrink-0" />
             </Link>
           );
         })}

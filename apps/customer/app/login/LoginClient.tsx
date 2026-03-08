@@ -26,10 +26,10 @@ const tabCls = (active: boolean) =>
   `flex-1 py-2 text-sm font-medium rounded-lg transition-colors ${
     active
       ? 'bg-[#c8a96b] text-black'
-      : 'text-gray-500 hover:text-[#1a1a1a]'
+      : 'text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]'
   }`;
 
-const selectCls = `h-full bg-transparent text-[#1a1a1a] text-sm outline-none cursor-pointer pr-1`;
+const selectCls = `h-full bg-transparent text-[hsl(var(--foreground))] text-sm outline-none cursor-pointer pr-1`;
 
 export function LoginClient() {
   const router   = useRouter();
@@ -114,7 +114,7 @@ export function LoginClient() {
       <AuthLogo subtitle="Sign in to your account" />
       <AuthCard>
         {/* Tabs */}
-        <div className="flex gap-1 bg-white rounded-xl p-1 mb-6">
+        <div className="flex gap-1 bg-[hsl(var(--card))] rounded-xl p-1 mb-6">
           <button type="button" className={tabCls(tab === 'email')} onClick={() => switchTab('email')}>
             Email
           </button>
@@ -169,7 +169,7 @@ export function LoginClient() {
                 </div>
                 <input
                   type="tel"
-                  className="flex-1 bg-transparent text-[#1a1a1a] text-sm px-3 py-3 outline-none placeholder-white/30"
+                  className="flex-1 bg-transparent text-[hsl(var(--foreground))] text-sm px-3 py-3 outline-none placeholder-white/30"
                   value={phoneNum}
                   onChange={e => setPhoneNum(e.target.value.replace(/\D/g, ''))}
                   placeholder="400 000 000"
@@ -189,7 +189,7 @@ export function LoginClient() {
         {tab === 'otp' && otpStep === 'code' && (
           <form onSubmit={verifyOtp} className="space-y-5">
             <div className="text-center text-sm text-gray-500 pb-1">
-              Code sent to <span className="text-[#1a1a1a] font-medium">{phoneCode} {phoneNum}</span>
+              Code sent to <span className="text-[hsl(var(--foreground))] font-medium">{phoneCode} {phoneNum}</span>
               <button
                 type="button"
                 onClick={() => { setOtpStep('phone'); setOtpCode(''); setError(''); }}
