@@ -583,7 +583,7 @@ export class CustomerPortalService {
               b.customer_first_name, b.status, b.payment_status,
               b.pickup_address, b.dropoff_address, b.pickup_at_utc
        FROM public.bookings b
-       WHERE b.payment_link_token=$1`,
+       WHERE b.payment_token=$1 AND b.payment_token_expires_at > NOW()`,
       [token],
     );
     if (!rows.length) throw new NotFoundException('Payment link not found');
@@ -593,7 +593,7 @@ export class CustomerPortalService {
   async payViaToken(token: string, dto: { paymentMethodId: string }) {
     const rows = await this.db.query(
       `SELECT b.id, b.tenant_id, b.total_price_minor, b.currency, b.payment_status, b.booking_reference
-       FROM public.bookings b WHERE b.payment_link_token=$1`,
+       FROM public.bookings b WHERE b.payment_token=$1 AND b.payment_token_expires_at > NOW()`,
       [token],
     );
     if (!rows.length) throw new NotFoundException('Payment link not found');
@@ -633,7 +633,7 @@ export class CustomerPortalService {
   async confirm3ds(token: string, dto: { paymentIntentId: string }) {
     const rows = await this.db.query(
       `SELECT b.id, b.tenant_id, b.payment_status
-       FROM public.bookings b WHERE b.payment_link_token=$1`,
+       FROM public.bookings b WHERE b.payment_token=$1`,
       [token],
     );
     if (!rows.length) throw new NotFoundException('Booking not found');
