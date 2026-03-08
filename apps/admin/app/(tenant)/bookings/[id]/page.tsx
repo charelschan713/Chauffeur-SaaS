@@ -662,6 +662,7 @@ function BookingDetailInner() {
         parkingMinor={booking?.pricing_snapshot?.parking_minor ?? 0}
         totalPriceMinor={booking?.total_price_minor ?? 0}
         currency={booking?.currency ?? 'AUD'}
+        pickupAt={booking?.pickup_at_utc ?? booking?.pickup_at ?? undefined}
         onAssigned={() => {
           setAssignOpen(false);
           refetch();
