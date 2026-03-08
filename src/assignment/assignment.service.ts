@@ -403,4 +403,46 @@ export class AssignmentService {
 
     return { success: true };
   }
+
+  /** Admin: get all jobs for a driver */
+  async getJobsByDriver(tenantId: string, driverId: string, filter: string = 'upcoming') {
+    let whereClause = '';
+    if (filter === 'upcoming') {
+      whereClause = `AND b.pickup_at_utc >= now() AND a.status NOT IN ('CANCELLED','REJECTED')`;
+    } else if (filter === 'completed') {
+      whereClause = `AND a.status = 'JOB_DONE'`;
+    } else if (filter === 'active') {
+      whereClause = `AND a.status IN ('ACCEPTED','ON_THE_WAY','ARRIVED','PASSENGER_ON_BOARD')`;
+    }
+
+    const rows = await this.dataSource.query(
+      `SELECT
+         a.id AS assignment_id,
+         a.status AS assignment_status,
+         a.driver_pay_minor,
+         a.created_at AS assigned_at,
+         b.id AS booking_id,
+         b.reference,
+         b.pickup_at_utc,
+         b.pickup_address,
+         b.dropoff_address,
+         b.operational_status AS booking_status,
+         b.total_price_minor,
+         b.currency,
+         b.passenger_name,
+         b.passenger_phone,
+         sc.name AS service_class_name
+       FROM public.assignments a
+       JOIN public.bookings b ON b.id = a.booking_id
+       LEFT JOIN public.tenant_service_classes sc ON sc.id = b.service_class_id
+       WHERE a.tenant_id = $1
+         AND a.driver_id = $2
+         ${whereClause}
+       ORDER BY b.pickup_at_utc ASC
+       LIMIT 100`,
+      [tenantId, driverId],
+    );
+
+    return { jobs: rows, total: rows.length };
+  }
 }

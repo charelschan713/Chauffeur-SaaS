@@ -10,8 +10,11 @@ import { Badge } from '@/components/ui/Badge';
 import { InlineSpinner } from '@/components/ui/LoadingSpinner';
 
 const AU_STATES = ['NSW','VIC','QLD','WA','SA','TAS','ACT','NT'];
-const TABS = ['Personal','Licence & Accreditation','Emergency Contact','Banking','Notes'] as const;
+const TABS = ['Personal','Licence & Accreditation','Emergency Contact','Banking','Notes','Jobs'] as const;
 type Tab = typeof TABS[number];
+
+const JOB_FILTERS = ['upcoming','active','completed','all'] as const;
+type JobFilter = typeof JOB_FILTERS[number];
 
 function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
   return (
@@ -70,6 +73,13 @@ export default function DriverProfilePage() {
   const router = useRouter();
   const qc = useQueryClient();
   const [activeTab, setActiveTab] = useState<Tab>('Personal');
+  const [jobFilter, setJobFilter] = useState<JobFilter>('upcoming');
+
+  const { data: jobsData, isLoading: jobsLoading } = useQuery({
+    queryKey: ['driver-jobs', id, jobFilter],
+    queryFn: () => api.get(`/assignments/driver/${id}/jobs?filter=${jobFilter}`).then(r => r.data),
+    enabled: activeTab === 'Jobs' && !!id,
+  });
   const [form, setForm] = useState(empty);
   const [toast, setToast] = useState<{ message: string; tone: 'success' | 'error' } | null>(null);
 
@@ -393,6 +403,92 @@ export default function DriverProfilePage() {
           <Button onClick={handleSave} disabled={saveMutation.isPending}>
             {saveMutation.isPending ? <><InlineSpinner /> Saving…</> : 'Save Notes'}
           </Button>
+        </div>
+      )}
+
+      {activeTab === 'Jobs' && (
+        <div className="space-y-4">
+          {/* Filter buttons */}
+          <div className="flex gap-2">
+            {JOB_FILTERS.map(f => (
+              <button key={f} onClick={() => setJobFilter(f)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium capitalize transition-colors ${
+                  jobFilter === f
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}>
+                {f}
+              </button>
+            ))}
+          </div>
+
+          {/* Jobs list */}
+          <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+            {jobsLoading ? (
+              <div className="p-8 text-center text-gray-400 text-sm">Loading jobs…</div>
+            ) : !jobsData?.jobs?.length ? (
+              <div className="p-8 text-center text-gray-400 text-sm">No {jobFilter} jobs found.</div>
+            ) : (
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50 border-b border-gray-200">
+                  <tr>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Ref</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Pickup</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Route</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Passenger</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Status</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Driver Pay</th>
+                    <th className="px-4 py-3"></th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {jobsData.jobs.map((job: any) => (
+                    <tr key={job.assignment_id} className="hover:bg-gray-50 transition-colors">
+                      <td className="px-4 py-3 font-mono text-xs text-gray-700">{job.reference}</td>
+                      <td className="px-4 py-3 text-gray-700 whitespace-nowrap">
+                        {job.pickup_at_utc
+                          ? new Date(job.pickup_at_utc).toLocaleString('en-AU', {
+                              day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit',
+                            })
+                          : '—'}
+                      </td>
+                      <td className="px-4 py-3 text-gray-600 max-w-xs">
+                        <div className="text-xs truncate">{job.pickup_address}</div>
+                        <div className="text-xs text-gray-400 truncate">→ {job.dropoff_address}</div>
+                      </td>
+                      <td className="px-4 py-3 text-gray-700">
+                        <div>{job.passenger_name || '—'}</div>
+                        <div className="text-xs text-gray-400">{job.passenger_phone || ''}</div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                          job.assignment_status === 'JOB_DONE' ? 'bg-green-100 text-green-700' :
+                          job.assignment_status === 'ACCEPTED' ? 'bg-blue-100 text-blue-700' :
+                          job.assignment_status === 'ON_THE_WAY' ? 'bg-yellow-100 text-yellow-700' :
+                          job.assignment_status === 'ASSIGNED' ? 'bg-gray-100 text-gray-600' :
+                          'bg-gray-100 text-gray-500'
+                        }`}>
+                          {job.assignment_status?.replace(/_/g, ' ')}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-gray-700 whitespace-nowrap">
+                        {job.driver_pay_minor
+                          ? `${job.currency ?? 'AUD'} ${(job.driver_pay_minor / 100).toFixed(2)}`
+                          : '—'}
+                      </td>
+                      <td className="px-4 py-3">
+                        <a href={`/bookings/${job.booking_id}`}
+                          className="text-xs text-blue-600 hover:underline whitespace-nowrap">
+                          View Booking →
+                        </a>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+          <p className="text-xs text-gray-400">{jobsData?.total ?? 0} job{jobsData?.total !== 1 ? 's' : ''} found</p>
         </div>
       )}
     </div>

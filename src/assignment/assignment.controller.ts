@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { JwtGuard } from '../common/guards/jwt.guard';
 import { AssignmentService } from './assignment.service';
 
@@ -30,6 +30,16 @@ export class AssignmentController {
   @Patch(':id/driver-pay')
   async updateDriverPay(@Param('id') id: string, @Body() body: any, @Req() req: any) {
     return this.assignmentService.updateDriverPay(req.user.tenant_id, id, body);
+  }
+
+  /** Get all jobs for a specific driver (admin view) */
+  @Get('/driver/:driverId/jobs')
+  async driverJobs(
+    @Param('driverId') driverId: string,
+    @Query('filter') filter: string = 'upcoming',
+    @Req() req: any,
+  ) {
+    return this.assignmentService.getJobsByDriver(req.user.tenant_id, driverId, filter);
   }
 
   // ─── Partner Transfer ──────────────────────────────────────────────────────
