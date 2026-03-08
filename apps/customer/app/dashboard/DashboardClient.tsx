@@ -81,7 +81,7 @@ function LightBookingCard({ booking }: { booking: any }) {
   return (
     <Link
       href={`/bookings/${booking.id}`}
-      className="block bg-white rounded-2xl p-4 transition-all duration-200 active:scale-[0.98]"
+      className="block bg-[hsl(var(--card))] rounded-2xl p-4 transition-all duration-200 active:scale-[0.98]"
       style={{ boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}
     >
       <div className="flex items-center justify-between mb-3">
@@ -140,7 +140,7 @@ export function DashboardClient() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#f5f5f5' }}>
+      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: 'hsl(var(--background))' }}>
         <div className="w-8 h-8 rounded-full border-2 border-[#1a1a1a] border-t-transparent animate-spin" />
       </div>
     );
@@ -150,11 +150,11 @@ export function DashboardClient() {
   const firstName = customer?.first_name ?? 'there';
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: '#f5f5f5', color: '#1a1a1a' }}>
+    <div className="min-h-screen" style={{ backgroundColor: 'hsl(var(--background))', color: 'hsl(var(--foreground))' }}>
 
       {/* ── Header — Logo + Welcome + badges + avatar (1:1 ASDriver) ── */}
       <header
-        className="sticky top-0 z-10 bg-white border-b"
+        className="sticky top-0 z-10 bg-[hsl(var(--card))] border-b border-[hsl(var(--border))]"
         style={{
           borderBottomColor: '#f0f0f0',
           paddingTop: 'max(12px, env(safe-area-inset-top))',
