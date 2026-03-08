@@ -1,6 +1,7 @@
 import {
   ForbiddenException,
   Injectable,
+  Logger,
   OnModuleInit,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -8,6 +9,8 @@ import { JwtService } from '@nestjs/jwt';
 import { DataSource } from 'typeorm';
 import * as crypto from 'crypto';
 import * as bcrypt from 'bcrypt';
+import { SmsProvider } from '../notification/providers/sms.provider';
+import { IntegrationResolver } from '../integration/integration.resolver';
 
 interface UserIdentity {
   sub: string;
@@ -23,9 +26,13 @@ interface JwtPayload {
 
 @Injectable()
 export class AuthService implements OnModuleInit {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     private readonly dataSource: DataSource,
     private readonly jwt: JwtService,
+    private readonly smsProvider: SmsProvider,
+    private readonly integrationResolver: IntegrationResolver,
   ) {}
 
   async onModuleInit() {
@@ -293,27 +300,24 @@ export class AuthService implements OnModuleInit {
       [otp, expiresAt.toISOString(), user.id],
     );
 
-    // Send via Twilio direct (env vars, not tenant integration)
-    const accountSid = process.env.TWILIO_ACCOUNT_SID;
-    const authToken  = process.env.TWILIO_AUTH_TOKEN;
-    const fromNumber = process.env.TWILIO_FROM_NUMBER;
+    // Send via tenant's Twilio integration (same as booking SMS notifications)
+    const smsBody = `ASChauffeured driver code: ${otp}. Expires in 10 minutes.`;
+    const toPhone = (rows[0].full_phone || normalised).trim();
 
-    if (accountSid && authToken && fromNumber) {
-      const body = `ASChauffeured driver code: ${otp}. Expires in 10 minutes.`;
-      await fetch(
-        `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-            Authorization: `Basic ${Buffer.from(`${accountSid}:${authToken}`).toString('base64')}`,
-          },
-          body: new URLSearchParams({ To: rows[0].full_phone || normalised, From: fromNumber, Body: body }),
-        },
-      ).catch(e => console.error('[OTP] Twilio send failed:', e?.message));
-    } else {
-      // Dev: log OTP to console
-      console.log(`[OTP] Driver ${user.full_name} (${normalised}): ${otp}`);
+    try {
+      const smsIntegration = await this.integrationResolver.resolve(
+        'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', // aschauffeured tenant
+        'twilio',
+      );
+      if (smsIntegration) {
+        await this.smsProvider.send(smsIntegration, toPhone, smsBody);
+        this.logger.log(`[OTP] SMS sent to ${toPhone}`);
+      } else {
+        // Dev fallback: log to console
+        this.logger.warn(`[OTP] No Twilio integration — code for ${user.full_name}: ${otp}`);
+      }
+    } catch (e: any) {
+      this.logger.error(`[OTP] SMS failed: ${e?.message}`);
     }
 
     return { sent: true };
