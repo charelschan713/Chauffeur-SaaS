@@ -327,6 +327,37 @@ export class CustomerPortalService implements OnModuleInit {
       ],
     );
 
+    // Save payment method from setupIntentId (new card)
+    if (dto.setupIntentId) {
+      try {
+        const stripe = await this.getStripe(tenantId);
+        const si = await stripe.setupIntents.retrieve(dto.setupIntentId);
+        if (si.status === 'succeeded' && si.payment_method) {
+          const pm = await stripe.paymentMethods.retrieve(si.payment_method as string);
+          let stripeCustomerId: string | null = null;
+          const scRows = await this.db.query(
+            `SELECT stripe_customer_id FROM public.customers WHERE id=$1`, [customerId],
+          );
+          if (scRows[0]?.stripe_customer_id) {
+            stripeCustomerId = scRows[0].stripe_customer_id;
+          } else {
+            const sc = await stripe.customers.create({ email: customer?.email ?? undefined });
+            await this.db.query(`UPDATE public.customers SET stripe_customer_id=$1 WHERE id=$2`, [sc.id, customerId]);
+            stripeCustomerId = sc.id;
+          }
+          await stripe.paymentMethods.attach(pm.id, { customer: stripeCustomerId! }).catch(() => {});
+          await this.db.query(
+            `INSERT INTO public.saved_payment_methods
+               (customer_id, tenant_id, stripe_payment_method_id, last4, brand, exp_month, exp_year, is_default)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,
+               NOT EXISTS (SELECT 1 FROM public.saved_payment_methods WHERE customer_id=$1 AND tenant_id=$2))
+             ON CONFLICT DO NOTHING`,
+            [customerId, tenantId, pm.id, pm.card?.last4, pm.card?.brand, pm.card?.exp_month, pm.card?.exp_year],
+          );
+        }
+      } catch (_e) { /* non-fatal */ }
+    }
+
     // Mark quote as converted
     if (quoteSessionId) {
       await this.db.query(

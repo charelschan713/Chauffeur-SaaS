@@ -341,10 +341,6 @@ export class CustomerAuthService {
       [r.customer_id],
     );
 
-    const accessToken = this.jwt.sign(
-      { sub: r.customer_id, tenant_id: tenant.id, role: 'customer' },
-      { expiresIn: '7d' },
-    );
-    return { accessToken, expiresIn: 604800, customerId: r.customer_id };
+    return this.issueTokens(r.customer_id, tenant.id);
   }
 }

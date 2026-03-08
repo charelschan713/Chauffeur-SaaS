@@ -489,6 +489,9 @@ export function BookPageClient() {
   // Setup intent — fetched eagerly so Stripe iframe mounts with clientSecret
   const [setupClientSecret, setSetupClientSecret] = useState<string | null>(null);
   const [setupSecretLoading, setSetupSecretLoading] = useState(false);
+  const [savedCards, setSavedCards] = useState<any[]>([]);
+  const [selectedSavedCard, setSelectedSavedCard] = useState<string | null>(null); // stripe_payment_method_id
+  const [useNewCard, setUseNewCard] = useState(false);
 
   // "Is the passenger the same person?" toggle
   const [samePassenger, setSamePassenger]     = useState(true);
@@ -639,10 +642,26 @@ export function BookPageClient() {
     }
   }, [token, guestData]);
 
+  // Fetch saved cards when logged in
+  useEffect(() => {
+    if (!token || savedCards.length > 0) return;
+    api.get('/customer-portal/payment-methods').then(r => {
+      const cards = r.data ?? [];
+      setSavedCards(cards);
+      if (cards.length > 0) {
+        const def = cards.find((c: any) => c.is_default) ?? cards[0];
+        setSelectedSavedCard(def.stripe_payment_method_id);
+        setUseNewCard(false);
+      }
+    }).catch(() => {});
+  }, [token]);
+
   // Eagerly fetch setup intent when booking form loads so Stripe iframe has clientSecret
   useEffect(() => {
     const formVisible = step === 'details' || (step === 'auth' && !!guestData);
     if (!formVisible || setupClientSecret || setupSecretLoading) return;
+    // Only need setup intent if using new card (or guest)
+    if (token && savedCards.length > 0 && !useNewCard) return;
     setSetupSecretLoading(true);
     const API = process.env.NEXT_PUBLIC_API_URL ?? 'https://chauffeur-saas-production.up.railway.app';
     const fetchSecret = async () => {
@@ -664,13 +683,20 @@ export function BookPageClient() {
       } finally { setSetupSecretLoading(false); }
     };
     fetchSecret();
-  }, [step, token, setupClientSecret, setupSecretLoading]);
+  }, [step, token, setupClientSecret, setupSecretLoading, savedCards, useNewCard]);
 
   // Details form submit — handled inside CardSetupForm; this is just a no-op wrapper
   const handleDetailsSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     // Card setup form has its own submit; outer form submit is a fallback no-op
   }, []);
+
+  // Saved card pay — skip card setup, just submit booking with existing PM
+  const handleSavedCardPay = useCallback(async () => {
+    if (!selectedSavedCard) return;
+    return handleCardConfirmed('__saved__');
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedSavedCard]);
 
   // Card confirmed: NOW create the booking (only after payment card saved)
   const handleCardConfirmed = useCallback(async (setupIntentId: string) => {
@@ -704,7 +730,9 @@ export function BookPageClient() {
         toddlerSeats: req.toddler_seats ?? 0,
         boosterSeats: req.booster_seats ?? 0,
         quoteId: currentSession.id,
-        setupIntentId,
+        ...(setupIntentId === '__saved__'
+          ? { paymentMethodId: selectedSavedCard }
+          : { setupIntentId }),
         passengerFirstName: (!samePassenger ? passengerOverride.firstName : passengerDetails.firstName) || undefined,
         passengerLastName:  (!samePassenger ? passengerOverride.lastName  : passengerDetails.lastName)  || undefined,
         passengerPhone:     (!samePassenger
@@ -757,7 +785,7 @@ export function BookPageClient() {
     }
   // sessionRef + selectedResultRef are refs — no need in deps; always latest value
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loyaltyDiscount, flightNumber, specialRequests, guestData, passengerDetails, quoteId]);
+  }, [loyaltyDiscount, flightNumber, specialRequests, guestData, passengerDetails, quoteId, selectedSavedCard]);
 
   // ── Render helpers ──
   const [cityName, setCityName]           = useState('');
@@ -1385,37 +1413,90 @@ export function BookPageClient() {
                 {/* ── Payment ── */}
                 <div className="space-y-3 border-t border-[hsl(var(--border))] pt-5">
                   <h2 className="font-semibold text-[hsl(var(--foreground))]">Payment</h2>
-                  {stripePromise && setupClientSecret ? (
-                    <Elements stripe={stripePromise} options={{ locale: 'en-AU' }}>
-                      <CardSetupForm
-                        onSuccess={handleCardConfirmed}
-                        isGuest={!!guestData}
-                        billingName={`${passengerDetails.firstName} ${passengerDetails.lastName}`.trim() || undefined}
-                        clientSecret={setupClientSecret}
-                        submitLabel={`Confirm & Pay ${fmtMoney(
-                          loyaltyDiscount?.finalFareMinor ?? selectedResult?.estimated_total_minor ?? 0,
-                          selectedResult?.currency ?? 'AUD',
-                        )}`}
-                        submitting={submitting}
-                        onValidate={() => {
-                          console.log('[VALIDATE]', passengerDetails);
-                          if (!passengerDetails.firstName.trim()) return 'Please enter your first name.';
-                          if (!passengerDetails.lastName.trim()) return 'Please enter your last name.';
-                          if (!passengerDetails.email.trim() || !/\S+@\S+\.\S+/.test(passengerDetails.email)) return 'Please enter a valid email address.';
-                          if (!passengerDetails.phoneNumber.trim()) return 'Please enter your phone number.';
-                          if (!samePassenger) {
-                            if (!passengerOverride.firstName.trim()) return 'Please enter the passenger\'s first name.';
-                            if (!passengerOverride.lastName.trim()) return 'Please enter the passenger\'s last name.';
-                          }
-                          return null;
-                        }}
-                      />
-                    </Elements>
-                  ) : (
-                    <div className="flex items-center justify-center py-8 text-sm text-[hsl(var(--muted-foreground))] gap-2">
-                      <Spinner className="h-4 w-4" />
-                      {setupSecretLoading ? 'Loading payment…' : 'Initialising payment…'}
+
+                  {/* Saved cards (logged-in only) */}
+                  {token && savedCards.length > 0 && (
+                    <div className="space-y-2">
+                      {savedCards.map((c: any) => (
+                        <button key={c.stripe_payment_method_id} type="button"
+                          onClick={() => { setSelectedSavedCard(c.stripe_payment_method_id); setUseNewCard(false); }}
+                          className={`w-full flex items-center gap-3 p-3 rounded-xl border text-left transition-colors ${
+                            !useNewCard && selectedSavedCard === c.stripe_payment_method_id
+                              ? 'border-[hsl(var(--primary))] bg-[hsl(var(--primary)/0.08)]'
+                              : 'border-[hsl(var(--border))] hover:border-[hsl(var(--primary)/0.5)]'
+                          }`}>
+                          <div className="w-8 h-5 rounded bg-[hsl(var(--muted))] flex items-center justify-center text-[9px] font-bold uppercase text-[hsl(var(--muted-foreground))]">
+                            {c.brand?.slice(0,4)}
+                          </div>
+                          <div className="flex-1">
+                            <span className="text-sm font-medium capitalize">{c.brand}</span>
+                            <span className="text-sm text-[hsl(var(--muted-foreground))] ml-2">•••• {c.last4}</span>
+                          </div>
+                          <span className="text-xs text-[hsl(var(--muted-foreground))]">{c.exp_month}/{c.exp_year}</span>
+                          {!useNewCard && selectedSavedCard === c.stripe_payment_method_id && (
+                            <div className="w-4 h-4 rounded-full border-2 border-[hsl(var(--primary))] flex items-center justify-center">
+                              <div className="w-2 h-2 rounded-full bg-[hsl(var(--primary))]" />
+                            </div>
+                          )}
+                        </button>
+                      ))}
+                      <button type="button"
+                        onClick={() => { setUseNewCard(true); setSelectedSavedCard(null); }}
+                        className={`w-full flex items-center gap-3 p-3 rounded-xl border text-left transition-colors ${
+                          useNewCard
+                            ? 'border-[hsl(var(--primary))] bg-[hsl(var(--primary)/0.08)]'
+                            : 'border-[hsl(var(--border))] hover:border-[hsl(var(--primary)/0.5)]'
+                        }`}>
+                        <span className="text-sm">+ Use a different card</span>
+                      </button>
+
+                      {/* Pay with saved card button */}
+                      {!useNewCard && selectedSavedCard && (
+                        <button type="button" disabled={submitting}
+                          onClick={handleSavedCardPay}
+                          className="w-full bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] rounded-xl py-4 font-semibold text-sm disabled:opacity-60 mt-2">
+                          {submitting ? 'Processing…' : `Confirm & Pay ${fmtMoney(
+                            loyaltyDiscount?.finalFareMinor ?? selectedResult?.estimated_total_minor ?? 0,
+                            selectedResult?.currency ?? 'AUD',
+                          )}`}
+                        </button>
+                      )}
                     </div>
+                  )}
+
+                  {/* New card form (guest or no saved cards or useNewCard) */}
+                  {(!token || savedCards.length === 0 || useNewCard) && (
+                    stripePromise && setupClientSecret ? (
+                      <Elements stripe={stripePromise} options={{ locale: 'en-AU' }}>
+                        <CardSetupForm
+                          onSuccess={handleCardConfirmed}
+                          isGuest={!!guestData}
+                          billingName={`${passengerDetails.firstName} ${passengerDetails.lastName}`.trim() || undefined}
+                          clientSecret={setupClientSecret}
+                          submitLabel={`Confirm & Pay ${fmtMoney(
+                            loyaltyDiscount?.finalFareMinor ?? selectedResult?.estimated_total_minor ?? 0,
+                            selectedResult?.currency ?? 'AUD',
+                          )}`}
+                          submitting={submitting}
+                          onValidate={() => {
+                            if (!passengerDetails.firstName.trim()) return 'Please enter your first name.';
+                            if (!passengerDetails.lastName.trim()) return 'Please enter your last name.';
+                            if (!passengerDetails.email.trim() || !/\S+@\S+\.\S+/.test(passengerDetails.email)) return 'Please enter a valid email address.';
+                            if (!passengerDetails.phoneNumber.trim()) return 'Please enter your phone number.';
+                            if (!samePassenger) {
+                              if (!passengerOverride.firstName.trim()) return 'Please enter the passenger\'s first name.';
+                              if (!passengerOverride.lastName.trim()) return 'Please enter the passenger\'s last name.';
+                            }
+                            return null;
+                          }}
+                        />
+                      </Elements>
+                    ) : (
+                      <div className="flex items-center justify-center py-8 text-sm text-[hsl(var(--muted-foreground))] gap-2">
+                        <Spinner className="h-4 w-4" />
+                        {setupSecretLoading ? 'Loading payment…' : 'Initialising payment…'}
+                      </div>
+                    )
                   )}
                 </div>
 
