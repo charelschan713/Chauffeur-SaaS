@@ -100,7 +100,7 @@ function CalendarPicker({ value, onChange, minDate }: { value: string; onChange:
           return <button type="button" key={i} disabled={isDisabled} onMouseDown={e=>e.preventDefault()} onClick={()=>!isDisabled&&onChange(iso)}
             className={cn('mx-auto flex h-8 w-8 items-center justify-center rounded-full text-sm transition-colors',
               isDisabled&&'text-white/20 cursor-not-allowed',
-              !isDisabled&&!isSelected&&'hover:bg-white/10 text-[#1a1a1a] cursor-pointer',
+              !isDisabled&&!isSelected&&'hover:bg-white/10 text-white cursor-pointer',
               isSelected&&'bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] font-semibold',
               isToday&&!isSelected&&'ring-1 ring-[hsl(var(--primary)/0.6)] text-[hsl(var(--primary))]')}>{day}</button>;
         })}
@@ -116,7 +116,7 @@ function TimePicker({ value, onChange, onConfirm }: { value: string; onChange: (
   const [hour,setHour]=useState(initH12); const [minute,setMinute]=useState(initM); const [period,setPeriod]=useState<'AM'|'PM'>(initP);
   const hours=[...Array(12)].map((_,i)=>i+1); const minutes=[...Array(12)].map((_,i)=>i*5);
   const commit=(h:number,m:number,p:'AM'|'PM')=>{let h24=p==='AM'?(h===12?0:h):(h===12?12:h+12);onChange(`${String(h24).padStart(2,'0')}:${String(m).padStart(2,'0')}`);};
-  const colCls='overflow-y-auto h-40 scroll-smooth'; const itemCls=(sel:boolean)=>cn('px-3 py-2 text-center text-sm cursor-pointer rounded transition-colors',sel?'bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] font-semibold':'text-gray-500 hover:text-white hover:bg-white/8');
+  const colCls='overflow-y-auto h-40 scroll-smooth'; const itemCls=(sel:boolean)=>cn('px-3 py-2 text-center text-sm cursor-pointer rounded transition-colors',sel?'bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] font-semibold':'text-white/70 hover:text-white hover:bg-white/10');
   return (
     <div style={{minWidth:200}}>
       <div className="flex border-b border-gray-100 pb-1 mb-1">
@@ -148,7 +148,7 @@ function DropdownPortal({ anchor, onClose, children }: { anchor: React.RefObject
   useEffect(()=>{ const h=(e:MouseEvent)=>{ if(!anchor.current?.contains(e.target as Node)&&!panelRef.current?.contains(e.target as Node)) onClose(); }; document.addEventListener('mousedown',h,true); return()=>document.removeEventListener('mousedown',h,true); },[anchor,onClose]);
   if (typeof document === 'undefined') return null;
   return createPortal(
-    <div ref={panelRef} style={{position:'fixed',top:pos.top,left:pos.left,width:pos.width,zIndex:9999}} className="rounded-xl border border-gray-100 bg-[hsl(228,10%,8%)] shadow-2xl overflow-hidden" onMouseDown={e=>{e.stopPropagation();e.nativeEvent.stopImmediatePropagation();}}>
+    <div ref={panelRef} style={{position:'fixed',top:pos.top,left:pos.left,width:pos.width,zIndex:9999}} className="rounded-xl border border-white/10 bg-[hsl(228,10%,8%)] shadow-2xl overflow-hidden" onMouseDown={e=>{e.stopPropagation();e.nativeEvent.stopImmediatePropagation();}}>
       {children}
     </div>, document.body
   );
@@ -157,7 +157,7 @@ function DropdownPortal({ anchor, onClose, children }: { anchor: React.RefObject
 function LuxDateTimePicker({ dateValue, timeValue, onDateChange, onTimeChange, minDate }: { dateValue:string; timeValue:string; onDateChange:(v:string)=>void; onTimeChange:(v:string)=>void; minDate?:string }) {
   const [openDate, setOpenDate] = useState(false); const [openTime, setOpenTime] = useState(false);
   const dateRef = useRef<HTMLButtonElement>(null); const timeRef = useRef<HTMLButtonElement>(null);
-  const triggerCls = 'flex items-center gap-2 w-full px-3 py-2.5 rounded-lg border text-sm transition-colors text-left bg-[hsl(228,10%,8%)] border-gray-100 hover:border-gray-100';
+  const triggerCls = 'flex items-center gap-2 w-full px-3 py-2.5 rounded-lg border text-sm transition-colors text-left bg-[hsl(228,10%,8%)] border-white/10 hover:border-white/30';
   return (
     <div className="grid grid-cols-2 gap-3">
       <div>
@@ -678,7 +678,7 @@ export function QuoteClient() {
     {/* Urgent Booking Modal */}
     {showUrgentModal && (
       <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4" onClick={()=>setShowUrgentModal(false)}>
-        <div className="relative w-full max-w-sm rounded-2xl border border-gray-100 bg-[hsl(228,10%,8%)] p-7 shadow-2xl text-center" onClick={e=>e.stopPropagation()}>
+        <div className="relative w-full max-w-sm rounded-2xl border border-white/10 bg-[hsl(228,10%,8%)] p-7 shadow-2xl text-center" onClick={e=>e.stopPropagation()}>
           <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-[hsl(var(--primary)/0.15)] border border-[hsl(var(--primary)/0.3)]">
             <svg className="h-7 w-7 text-[hsl(var(--primary))]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5"><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 01-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 00-1.091-.852H4.5A2.25 2.25 0 002.25 4.5v2.25z"/></svg>
           </div>
