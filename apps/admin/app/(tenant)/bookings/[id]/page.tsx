@@ -99,6 +99,8 @@ function BookingDetailInner() {
   const booking = data?.booking;
   const assignments = data?.assignments ?? [];
   const latestAssignment = useMemo(() => assignments.at(0), [assignments]);
+  const legAAssignment = useMemo(() => assignments.find((a: any) => a.leg === 'A' || !a.leg) ?? assignments.at(0), [assignments]);
+  const legBAssignment = useMemo(() => assignments.find((a: any) => a.leg === 'B'), [assignments]);
   const canCancel = booking && CANCELABLE_STATUSES.has(booking.operational_status);
   const canAssign = booking && !NO_ASSIGN_STATUSES.has(booking.operational_status);
 
@@ -548,6 +550,55 @@ function BookingDetailInner() {
               </div>
             )}
           </Card>
+
+          {/* Return Trip — Leg B Assignment */}
+          {booking.is_return_trip && (
+            <Card title="Return Leg (Leg B)">
+              <div className="text-xs text-gray-500 mb-3">
+                Return pickup: <strong className="text-gray-700">{booking.return_pickup_address_text ?? '—'}</strong>
+                {booking.return_pickup_at_utc && (
+                  <> · <strong className="text-gray-700">{new Date(booking.return_pickup_at_utc).toLocaleString('en-AU', { timeZone: 'Australia/Sydney', weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit', hour12: true })}</strong></>
+                )}
+              </div>
+              {legBAssignment ? (
+                <div className="space-y-2 text-sm">
+                  <div><span className="text-gray-500">Driver:</span> {legBAssignment.driver_name ?? '—'}</div>
+                  <div><span className="text-gray-500">Vehicle:</span> {[legBAssignment.vehicle_make, legBAssignment.vehicle_model, legBAssignment.vehicle_plate].filter(Boolean).join(' ') || '—'}</div>
+                  <div><span className="text-gray-500">Status:</span>{' '}
+                    <Badge variant={getBookingStatusBadge(legBAssignment.status ?? '')}>{legBAssignment.status ?? '—'}</Badge>
+                  </div>
+                  {canAssign && (
+                    <div className="mt-3 flex gap-2">
+                      <Button variant="secondary" className="flex-1"
+                        onClick={() => { setAssignLeg('B'); setAssignOpen(true); }}>
+                        Reassign Leg B
+                      </Button>
+                      <Button variant="ghost" className="flex-1 border border-purple-200 text-purple-700"
+                        onClick={() => { setAssignLeg('B'); setAssignPartnerOpen(true); }}>
+                        Partner Leg B
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <div className="text-sm text-gray-500">No driver assigned for return leg</div>
+                  {canAssign && (
+                    <div className="flex flex-col gap-2">
+                      <Button className="w-full"
+                        onClick={() => { setAssignLeg('B'); setAssignOpen(true); }}>
+                        Assign Driver — Return Leg
+                      </Button>
+                      <Button variant="ghost" className="w-full border border-purple-200 text-purple-700"
+                        onClick={() => { setAssignLeg('B'); setAssignPartnerOpen(true); }}>
+                        Assign Partner — Return Leg
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </Card>
+          )}
 
           {/* Status Timeline */}
           <Card title="Status Timeline">

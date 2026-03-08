@@ -525,6 +525,7 @@ export class DriverAppService implements OnModuleInit {
     a.id,
     a.booking_id,
     a.driver_id,
+    a.leg,
     a.driver_execution_status,
     a.driver_pay_minor,
     a.toll_parking_minor,
@@ -594,11 +595,18 @@ export class DriverAppService implements OnModuleInit {
         ? `${row.passenger_phone_country_code ?? ''}${row.passenger_phone_number}`
         : null;
 
+    // Leg B = return leg: swap pickup↔dropoff, use return_pickup_at as pickup time
+    const isLegB = row.leg === 'B';
+    const pickupAt       = isLegB ? row.return_pickup_at_utc   : row.pickup_at_utc;
+    const pickupLocation = isLegB ? row.return_pickup_address_text : row.pickup_address_text;
+    const dropoffLocation = isLegB ? row.pickup_address_text   : row.dropoff_address_text;
+
     return {
       // Assignment
       id: row.id,
       booking_id: row.booking_id,
       driver_id: row.driver_id,
+      leg: row.leg ?? 'A',
       driver_execution_status: row.driver_execution_status,
       driver_pay_amount: row.driver_pay_minor ? row.driver_pay_minor / 100 : null,
       toll_parking_amount: row.toll_parking_minor ? row.toll_parking_minor / 100 : null,
@@ -607,13 +615,13 @@ export class DriverAppService implements OnModuleInit {
       status_locations: row.status_locations ?? {},
       driver_payout_status: row.driver_payout_status,
       post_job_status: row.post_job_status,
-      // Nested booking (same key as legacy app expects)
+      // Nested booking — Leg B uses return trip addresses/time
       booking: {
         id: row.booking_id,
         booking_number: row.booking_reference,
-        pickup_at: row.pickup_at_utc,
-        pickup_location: row.pickup_address_text,
-        dropoff_location: row.dropoff_address_text,
+        pickup_at: pickupAt,
+        pickup_location: pickupLocation,
+        dropoff_location: dropoffLocation,
         service_type: row.service_type_name,
         order_status: row.operational_status,
         total_price_minor: row.total_price_minor,
@@ -624,6 +632,10 @@ export class DriverAppService implements OnModuleInit {
         admin_note: row.admin_note,
         flight_number: row.flight_number,
         is_return_trip: row.is_return_trip,
+        leg: row.leg ?? 'A',
+        // Keep original fields for reference
+        original_pickup_at: row.pickup_at_utc,
+        original_pickup_location: row.pickup_address_text,
         return_pickup_at: row.return_pickup_at_utc,
         return_pickup_location: row.return_pickup_address_text,
         waypoint_addresses: row.waypoints ?? [],
@@ -632,7 +644,6 @@ export class DriverAppService implements OnModuleInit {
         passenger_name: passengerName,
         passenger_phone: passengerPhone,
         passenger_type: passengerName ? 'other' : 'customer',
-        // Baby seats
         baby_seats: (row.infant_seats ?? 0) + (row.toddler_seats ?? 0) + (row.booster_seats ?? 0),
         infant_seats:  row.infant_seats  ?? 0,
         toddler_seats: row.toddler_seats ?? 0,
@@ -640,7 +651,6 @@ export class DriverAppService implements OnModuleInit {
         vehicle_name:  row.vehicle_name  ?? null,
         vehicle_plate: row.vehicle_plate ?? null,
       },
-      // Also top-level for DriverActiveJobDTO
       vehicle_name:  row.vehicle_name  ?? null,
       vehicle_plate: row.vehicle_plate ?? null,
     };
