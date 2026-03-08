@@ -26,6 +26,13 @@ export class CustomerPortalService implements OnModuleInit {
         ADD COLUMN IF NOT EXISTS email_otp text,
         ADD COLUMN IF NOT EXISTS email_otp_expires_at timestamptz
     `).catch(() => { /* columns may already exist */ });
+
+    // Auto-apply bookings service reference columns
+    await this.db.query(`
+      ALTER TABLE public.bookings
+        ADD COLUMN IF NOT EXISTS service_class_id uuid,
+        ADD COLUMN IF NOT EXISTS service_type_id uuid
+    `).catch(() => { /* columns may already exist */ });
   }
 
   // ── Stripe helper ─────────────────────────────────────────────────────────
