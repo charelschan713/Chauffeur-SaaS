@@ -74,14 +74,6 @@ export function LoginClient() {
     try {
       const { data } = await api.post('/customer-auth/login', { tenantSlug, email, password });
       setAuth(data.accessToken, data.customerId, tenantSlug);
-      // Check email verification
-      try {
-        const vRes = await api.get('/customer-portal/verification-status');
-        if (!vRes.data?.email_verified) {
-          router.push('/verify-email');
-          return;
-        }
-      } catch { /* If check fails, let them in */ }
       router.push('/dashboard');
     } catch (err: any) {
       setError(err.response?.data?.message ?? 'Login failed');
