@@ -168,7 +168,7 @@ export class CustomerController {
            SELECT 1 FROM public.bookings b
            WHERE b.customer_id = c.id
              AND b.tenant_id = $1
-             AND b.operational_status NOT IN ('CANCELLED'::operational_status_enum,'JOB_COMPLETED'::operational_status_enum)
+             AND b.operational_status::text NOT IN ('CANCELLED','JOB_COMPLETED','COMPLETED')
          )`,
       [tenantId],
     );
