@@ -211,23 +211,18 @@ export class CustomerController {
     const rows = await this.dataSource.query(
       `SELECT COUNT(*) FROM public.bookings
        WHERE customer_id = $1 AND tenant_id = $2
-         AND operational_status NOT IN ('CANCELLED','COMPLETED','JOB_COMPLETED')`,
+         AND operational_status::text NOT IN ('CANCELLED','COMPLETED','JOB_COMPLETED')`,
       [id, req.user.tenant_id],
     );
     const activeBookings = Number(rows[0]?.count ?? 0);
     if (activeBookings > 0) {
       throw new BadRequestException('Customer has active bookings and cannot be deleted');
     }
-    await this.dataSource.query(
-      // deleted_at may not exist yet - guard
-      `UPDATE public.customers SET deleted_at = NOW()
-       WHERE id = $1 AND tenant_id = $2
-         AND EXISTS (
-           SELECT 1 FROM information_schema.columns
-           WHERE table_schema = 'public' AND table_name = 'customers' AND column_name = 'deleted_at'
-         )`,
-      [id, req.user.tenant_id],
-    );
+    // Clean FK dependants then hard delete
+    await this.dataSource.query(`UPDATE public.bookings SET customer_id = NULL WHERE customer_id = $1`, [id]);
+    await this.dataSource.query(`DELETE FROM public.saved_payment_methods WHERE customer_id = $1`, [id]);
+    await this.dataSource.query(`DELETE FROM public.customer_passengers WHERE customer_id = $1`, [id]);
+    await this.dataSource.query(`DELETE FROM public.customers WHERE id = $1 AND tenant_id = $2`, [id, req.user.tenant_id]);
     return { success: true };
   }
 
