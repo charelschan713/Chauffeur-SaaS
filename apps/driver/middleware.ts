@@ -13,7 +13,7 @@ export function middleware(request: NextRequest) {
     const parts = hostname.split('.');
     // Need at least 3 parts (sub.domain.tld)
     // Exclude known non-tenant subdomains
-    const excluded = ['www', 'app', 'platform', 'api', 'chauffeur-customer-portal'];
+    const excluded = ['www', 'app', 'platform', 'api', 'driver', 'chauffeur-driver-portal'];
     if (parts.length >= 3 && !excluded.includes(parts[0])) {
       slug = parts[0];
     }
