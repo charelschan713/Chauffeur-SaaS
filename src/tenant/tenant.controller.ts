@@ -93,6 +93,15 @@ export class TenantController {
         req.user.tenant_id,
       ],
     );
+    // Also sync logo_url → tenant_branding (used by public /tenant-info endpoint)
+    if (body.logo_url !== undefined) {
+      await this.dataSource.query(
+        `INSERT INTO public.tenant_branding (tenant_id, logo_url)
+         VALUES ($1, $2)
+         ON CONFLICT (tenant_id) DO UPDATE SET logo_url = EXCLUDED.logo_url`,
+        [req.user.tenant_id, body.logo_url],
+      );
+    }
     return { success: true };
   }
 }
