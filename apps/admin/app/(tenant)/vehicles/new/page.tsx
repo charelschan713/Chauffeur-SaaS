@@ -65,7 +65,7 @@ export default function ClaimVehiclePage() {
       footer={
         <button
           onClick={handleSubmit}
-          disabled={loading}
+          disabled={loading || (step === 'select' && !selectedId)}
           className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-60"
         >
           {loading ? 'Saving...' : step === 'select' ? 'Next' : 'Save Vehicle'}
@@ -79,17 +79,27 @@ export default function ClaimVehiclePage() {
         {step === 'select' && (
           <div className="space-y-2">
             {vehicles.map((v) => (
-              <label key={v.id} className="flex items-center gap-3 p-3 border rounded-lg">
+              <div
+                key={v.id}
+                onClick={() => setSelectedId(v.id)}
+                className={`flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition-colors ${
+                  selectedId === v.id
+                    ? 'border-blue-500 bg-blue-50'
+                    : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                }`}
+              >
                 <input
                   type="radio"
                   name="vehicle"
+                  readOnly
                   checked={selectedId === v.id}
-                  onChange={() => setSelectedId(v.id)}
+                  className="pointer-events-none"
                 />
                 <div>
                   <div className="font-medium text-gray-900">{v.make} {v.model}</div>
+                  {v.year && <div className="text-sm text-gray-500">{v.year}</div>}
                 </div>
-              </label>
+              </div>
             ))}
           </div>
         )}
