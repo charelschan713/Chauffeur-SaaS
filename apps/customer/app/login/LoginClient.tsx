@@ -26,10 +26,10 @@ const tabCls = (active: boolean) =>
   `flex-1 py-2 text-sm font-medium rounded-lg transition-colors ${
     active
       ? 'bg-[#c8a96b] text-black'
-      : 'text-white/50 hover:text-white/80'
+      : 'text-gray-500 hover:text-[#1a1a1a]'
   }`;
 
-const selectCls = `h-full bg-transparent text-white text-sm outline-none cursor-pointer pr-1`;
+const selectCls = `h-full bg-transparent text-[#1a1a1a] text-sm outline-none cursor-pointer pr-1`;
 
 export function LoginClient() {
   const router   = useRouter();
@@ -114,7 +114,7 @@ export function LoginClient() {
       <AuthLogo subtitle="Sign in to your account" />
       <AuthCard>
         {/* Tabs */}
-        <div className="flex gap-1 bg-white/5 rounded-xl p-1 mb-6">
+        <div className="flex gap-1 bg-white rounded-xl p-1 mb-6">
           <button type="button" className={tabCls(tab === 'email')} onClick={() => switchTab('email')}>
             Email
           </button>
@@ -154,7 +154,7 @@ export function LoginClient() {
             <div>
               <label className={labelCls}>Mobile number</label>
               <div className="flex gap-0 rounded-[--radius] border border-[hsl(var(--input-border))] bg-[hsl(var(--input))] overflow-hidden focus-within:ring-1 focus-within:ring-[#c8a96b]/50">
-                <div className="flex items-center pl-3 pr-2 border-r border-white/10">
+                <div className="flex items-center pl-3 pr-2 border-r border-gray-100">
                   <select
                     className={selectCls}
                     value={phoneCode}
@@ -169,7 +169,7 @@ export function LoginClient() {
                 </div>
                 <input
                   type="tel"
-                  className="flex-1 bg-transparent text-white text-sm px-3 py-3 outline-none placeholder-white/30"
+                  className="flex-1 bg-transparent text-[#1a1a1a] text-sm px-3 py-3 outline-none placeholder-white/30"
                   value={phoneNum}
                   onChange={e => setPhoneNum(e.target.value.replace(/\D/g, ''))}
                   placeholder="400 000 000"
@@ -177,7 +177,7 @@ export function LoginClient() {
                   autoComplete="tel"
                 />
               </div>
-              <p className="mt-1.5 text-xs text-white/30">We'll send a 6-digit code via SMS</p>
+              <p className="mt-1.5 text-xs text-gray-400">We'll send a 6-digit code via SMS</p>
             </div>
             <GoldButton type="submit" loading={loading}>
               {loading ? 'Sending…' : 'Send Code'}
@@ -188,8 +188,8 @@ export function LoginClient() {
         {/* ── OTP: enter code ── */}
         {tab === 'otp' && otpStep === 'code' && (
           <form onSubmit={verifyOtp} className="space-y-5">
-            <div className="text-center text-sm text-white/50 pb-1">
-              Code sent to <span className="text-white/80 font-medium">{phoneCode} {phoneNum}</span>
+            <div className="text-center text-sm text-gray-500 pb-1">
+              Code sent to <span className="text-[#1a1a1a] font-medium">{phoneCode} {phoneNum}</span>
               <button
                 type="button"
                 onClick={() => { setOtpStep('phone'); setOtpCode(''); setError(''); }}
@@ -219,7 +219,7 @@ export function LoginClient() {
             </GoldButton>
             <div className="text-center">
               {countdown > 0 ? (
-                <span className="text-xs text-white/30">Resend in {countdown}s</span>
+                <span className="text-xs text-gray-400">Resend in {countdown}s</span>
               ) : (
                 <button
                   type="button"
@@ -235,11 +235,11 @@ export function LoginClient() {
 
         <div className="mt-6 space-y-2 text-center">
           {tab === 'email' && (
-            <p className="text-sm text-white/30">
+            <p className="text-sm text-gray-400">
               <Link href="/forgot-password" className="text-[#c8a96b]/70 hover:text-[#c8a96b] transition-colors">Forgot password?</Link>
             </p>
           )}
-          <p className="text-sm text-white/30">
+          <p className="text-sm text-gray-400">
             No account?{' '}
             <Link href="/register" className="text-[#c8a96b]/70 hover:text-[#c8a96b] transition-colors">Register</Link>
           </p>

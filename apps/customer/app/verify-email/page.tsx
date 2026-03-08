@@ -103,7 +103,7 @@ export default function VerifyEmailPage() {
               </svg>
             </div>
             <p className="text-white font-semibold text-lg">Email Verified</p>
-            <p className="text-white/40 text-sm mt-1">Redirecting to dashboard…</p>
+            <p className="text-gray-400 text-sm mt-1">Redirecting to dashboard…</p>
           </div>
         ) : (
           <div className="space-y-6">
@@ -113,7 +113,7 @@ export default function VerifyEmailPage() {
                   <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
                 </svg>
               </div>
-              <p className="text-white/50 text-sm">
+              <p className="text-gray-500 text-sm">
                 We sent a 6-digit code to your email.<br />Enter it below to verify your account.
               </p>
             </div>
@@ -132,7 +132,7 @@ export default function VerifyEmailPage() {
                   value={digit}
                   onChange={e => handleOtpChange(i, e.target.value)}
                   onKeyDown={e => handleOtpKeyDown(i, e)}
-                  className="w-12 h-14 text-center text-2xl font-bold rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-[#c8a96b]/60 transition-all"
+                  className="w-12 h-14 text-center text-2xl font-bold rounded-xl bg-white border border-gray-100 text-[#1a1a1a] focus:outline-none focus:border-[#c8a96b]/60 transition-all"
                 />
               ))}
             </div>
@@ -145,7 +145,7 @@ export default function VerifyEmailPage() {
               <button
                 onClick={handleSend}
                 disabled={sending || cooldown > 0}
-                className="text-sm text-white/40 hover:text-white/70 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                className="text-sm text-gray-400 hover:text-gray-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               >
                 {sending ? 'Sending…' : cooldown > 0 ? `Resend in ${cooldown}s` : 'Resend code'}
               </button>

@@ -302,17 +302,17 @@ function GuestActivateOtp({
   );
 
   return (
-    <div className="w-full rounded-2xl bg-white/[0.04] border border-white/10 px-5 py-5 space-y-4">
+    <div className="w-full rounded-2xl bg-white border border-gray-100 px-5 py-5 space-y-4">
       <div>
         <p className="text-sm font-semibold text-white">Track your booking</p>
-        <p className="text-xs text-white/50 mt-0.5">
+        <p className="text-xs text-gray-500 mt-0.5">
           Verify your phone number to access your bookings anytime.
         </p>
       </div>
 
       {stage === 'prompt' && (
         <>
-          <div className="rounded-xl bg-white/[0.04] px-4 py-3 text-sm text-white/70">
+          <div className="rounded-xl bg-white px-4 py-3 text-sm text-gray-600">
             {phoneCode} {phone}
           </div>
           {error && <p className="text-xs text-red-400">{error}</p>}
@@ -324,7 +324,7 @@ function GuestActivateOtp({
 
       {stage === 'otp' && (
         <>
-          <p className="text-xs text-white/50">
+          <p className="text-xs text-gray-500">
             Enter the 6-digit code sent to {phoneCode} {phone}
           </p>
           <input
@@ -332,7 +332,7 @@ function GuestActivateOtp({
             onChange={e => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
             placeholder="000000"
             inputMode="numeric"
-            className="w-full text-center text-2xl tracking-[0.5em] font-mono rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-white placeholder-white/20 focus:outline-none focus:border-[hsl(var(--primary)/0.6)]"
+            className="w-full text-center text-2xl tracking-[0.5em] font-mono rounded-xl border border-gray-100 bg-white/5 px-4 py-3 text-[#1a1a1a] placeholder-white/20 focus:outline-none focus:border-[hsl(var(--primary)/0.6)]"
           />
           {error && <p className="text-xs text-red-400">{error}</p>}
           <Button size="lg" className="w-full" onClick={verifyOtp} disabled={loading || otp.length < 6}>
@@ -341,7 +341,7 @@ function GuestActivateOtp({
           <button
             onClick={countdown > 0 ? undefined : sendOtp}
             disabled={countdown > 0}
-            className="w-full text-center text-xs text-white/40 disabled:opacity-50"
+            className="w-full text-center text-xs text-gray-400 disabled:opacity-50"
           >
             {countdown > 0 ? `Resend in ${countdown}s` : 'Resend OTP'}
           </button>
@@ -1146,7 +1146,7 @@ export function BookPageClient() {
 
           <div>
             <h1 className="font-serif text-2xl font-semibold text-white">Thank You!</h1>
-            <p className="text-sm text-white/50 mt-2 leading-relaxed">
+            <p className="text-sm text-gray-500 mt-2 leading-relaxed">
               Your booking is confirmed. A confirmation email has been sent to your inbox.
             </p>
           </div>
@@ -1161,11 +1161,11 @@ export function BookPageClient() {
 
           {/* Trip summary */}
           {pickup && (
-            <div className="w-full rounded-2xl bg-white/[0.04] border border-white/8 px-4 py-4 text-left space-y-3">
+            <div className="w-full rounded-2xl bg-white border border-gray-100 px-4 py-4 text-left space-y-3">
               <div className="flex items-start gap-3">
                 <div className="w-2 h-2 rounded-full bg-emerald-400 mt-1.5 shrink-0" />
                 <div>
-                  <p className="text-[10px] text-white/30 uppercase tracking-wide">Pickup</p>
+                  <p className="text-[10px] text-gray-400 uppercase tracking-wide">Pickup</p>
                   <p className="text-sm text-white/75 leading-snug">{pickup}</p>
                 </div>
               </div>
@@ -1173,13 +1173,13 @@ export function BookPageClient() {
                 <div className="flex items-start gap-3">
                   <div className="w-2 h-2 rounded-full bg-[hsl(var(--primary))] mt-1.5 shrink-0" />
                   <div>
-                    <p className="text-[10px] text-white/30 uppercase tracking-wide">Drop-off</p>
+                    <p className="text-[10px] text-gray-400 uppercase tracking-wide">Drop-off</p>
                     <p className="text-sm text-white/75 leading-snug">{dropoff}</p>
                   </div>
                 </div>
               )}
-              <div className="border-t border-white/8 pt-3 flex items-center justify-between">
-                <span className="text-sm text-white/40">Total charged</span>
+              <div className="border-t border-gray-100 pt-3 flex items-center justify-between">
+                <span className="text-sm text-gray-400">Total charged</span>
                 <span className="font-bold text-[hsl(var(--primary))]">{total}</span>
               </div>
             </div>
@@ -1219,7 +1219,7 @@ export function BookPageClient() {
       <header
         className="sticky top-0 z-20 border-b border-[hsl(var(--border))]"
         style={{
-          background: 'rgba(13,15,20,0.97)',
+          background: '#fff',
           backdropFilter: 'blur(20px)',
           WebkitBackdropFilter: 'blur(20px)',
           paddingTop: 'max(12px, env(safe-area-inset-top))',
@@ -1530,7 +1530,7 @@ export function BookPageClient() {
       {(['details', 'auth', 'login', 'guest'] as const).includes(step as any) && !useNewCard && selectedSavedCard && selectedResult && (
         <div className="fixed bottom-0 left-0 right-0 z-30 px-4 pb-safe"
           style={{
-            background: 'rgba(13,15,20,0.97)',
+            background: '#fff',
             borderTop: '1px solid hsl(var(--border))',
             paddingBottom: 'calc(16px + env(safe-area-inset-bottom, 0px))',
             paddingTop: '12px',

@@ -83,15 +83,15 @@ function CalendarPicker({ value, onChange, minDate }: { value: string; onChange:
   return (
     <div className="select-none w-full" style={{minWidth:264}}>
       <div className="flex items-center justify-between px-3 py-2">
-        <button type="button" onClick={()=>setView(v=>new Date(v.getFullYear(),v.getMonth()-1,1))} className="p-1 rounded hover:bg-white/10 text-white/40 hover:text-white transition-colors">
+        <button type="button" onClick={()=>setView(v=>new Date(v.getFullYear(),v.getMonth()-1,1))} className="p-1 rounded hover:bg-white/10 text-gray-400 hover:text-white transition-colors">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M15 18l-6-6 6-6"/></svg>
         </button>
         <span className="text-sm font-semibold text-white">{MONTHS[month]} {year}</span>
-        <button type="button" onClick={()=>setView(v=>new Date(v.getFullYear(),v.getMonth()+1,1))} className="p-1 rounded hover:bg-white/10 text-white/40 hover:text-white transition-colors">
+        <button type="button" onClick={()=>setView(v=>new Date(v.getFullYear(),v.getMonth()+1,1))} className="p-1 rounded hover:bg-white/10 text-gray-400 hover:text-white transition-colors">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 18l6-6-6-6"/></svg>
         </button>
       </div>
-      <div className="grid grid-cols-7 mb-1">{DAYS.map(d=><div key={d} className="text-center text-[11px] font-medium text-white/30 py-1">{d}</div>)}</div>
+      <div className="grid grid-cols-7 mb-1">{DAYS.map(d=><div key={d} className="text-center text-[11px] font-medium text-gray-400 py-1">{d}</div>)}</div>
       <div className="grid grid-cols-7 gap-y-0.5 px-2 pb-3">
         {cells.map((day,i)=>{
           if(!day) return <div key={i}/>;
@@ -100,7 +100,7 @@ function CalendarPicker({ value, onChange, minDate }: { value: string; onChange:
           return <button type="button" key={i} disabled={isDisabled} onMouseDown={e=>e.preventDefault()} onClick={()=>!isDisabled&&onChange(iso)}
             className={cn('mx-auto flex h-8 w-8 items-center justify-center rounded-full text-sm transition-colors',
               isDisabled&&'text-white/20 cursor-not-allowed',
-              !isDisabled&&!isSelected&&'hover:bg-white/10 text-white cursor-pointer',
+              !isDisabled&&!isSelected&&'hover:bg-white/10 text-[#1a1a1a] cursor-pointer',
               isSelected&&'bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] font-semibold',
               isToday&&!isSelected&&'ring-1 ring-[hsl(var(--primary)/0.6)] text-[hsl(var(--primary))]')}>{day}</button>;
         })}
@@ -116,11 +116,11 @@ function TimePicker({ value, onChange, onConfirm }: { value: string; onChange: (
   const [hour,setHour]=useState(initH12); const [minute,setMinute]=useState(initM); const [period,setPeriod]=useState<'AM'|'PM'>(initP);
   const hours=[...Array(12)].map((_,i)=>i+1); const minutes=[...Array(12)].map((_,i)=>i*5);
   const commit=(h:number,m:number,p:'AM'|'PM')=>{let h24=p==='AM'?(h===12?0:h):(h===12?12:h+12);onChange(`${String(h24).padStart(2,'0')}:${String(m).padStart(2,'0')}`);};
-  const colCls='overflow-y-auto h-40 scroll-smooth'; const itemCls=(sel:boolean)=>cn('px-3 py-2 text-center text-sm cursor-pointer rounded transition-colors',sel?'bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] font-semibold':'text-white/50 hover:text-white hover:bg-white/8');
+  const colCls='overflow-y-auto h-40 scroll-smooth'; const itemCls=(sel:boolean)=>cn('px-3 py-2 text-center text-sm cursor-pointer rounded transition-colors',sel?'bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] font-semibold':'text-gray-500 hover:text-white hover:bg-white/8');
   return (
     <div style={{minWidth:200}}>
-      <div className="flex border-b border-white/10 pb-1 mb-1">
-        {['Hour','Min','Period'].map(l=><div key={l} className="flex-1 text-center text-xs text-white/30 font-medium py-1">{l}</div>)}
+      <div className="flex border-b border-gray-100 pb-1 mb-1">
+        {['Hour','Min','Period'].map(l=><div key={l} className="flex-1 text-center text-xs text-gray-400 font-medium py-1">{l}</div>)}
       </div>
       <div className="flex">
         <div className={cn(colCls,'flex-1')}>{hours.map(h=><div key={h} data-selected={h===hour} className={itemCls(h===hour)} onMouseDown={e=>e.preventDefault()} onClick={()=>{setHour(h);commit(h,minute,period);}}>{String(h).padStart(2,'0')}</div>)}</div>
@@ -148,7 +148,7 @@ function DropdownPortal({ anchor, onClose, children }: { anchor: React.RefObject
   useEffect(()=>{ const h=(e:MouseEvent)=>{ if(!anchor.current?.contains(e.target as Node)&&!panelRef.current?.contains(e.target as Node)) onClose(); }; document.addEventListener('mousedown',h,true); return()=>document.removeEventListener('mousedown',h,true); },[anchor,onClose]);
   if (typeof document === 'undefined') return null;
   return createPortal(
-    <div ref={panelRef} style={{position:'fixed',top:pos.top,left:pos.left,width:pos.width,zIndex:9999}} className="rounded-xl border border-white/10 bg-[hsl(228,10%,8%)] shadow-2xl overflow-hidden" onMouseDown={e=>{e.stopPropagation();e.nativeEvent.stopImmediatePropagation();}}>
+    <div ref={panelRef} style={{position:'fixed',top:pos.top,left:pos.left,width:pos.width,zIndex:9999}} className="rounded-xl border border-gray-100 bg-[hsl(228,10%,8%)] shadow-2xl overflow-hidden" onMouseDown={e=>{e.stopPropagation();e.nativeEvent.stopImmediatePropagation();}}>
       {children}
     </div>, document.body
   );
@@ -157,20 +157,20 @@ function DropdownPortal({ anchor, onClose, children }: { anchor: React.RefObject
 function LuxDateTimePicker({ dateValue, timeValue, onDateChange, onTimeChange, minDate }: { dateValue:string; timeValue:string; onDateChange:(v:string)=>void; onTimeChange:(v:string)=>void; minDate?:string }) {
   const [openDate, setOpenDate] = useState(false); const [openTime, setOpenTime] = useState(false);
   const dateRef = useRef<HTMLButtonElement>(null); const timeRef = useRef<HTMLButtonElement>(null);
-  const triggerCls = 'flex items-center gap-2 w-full px-3 py-2.5 rounded-lg border text-sm transition-colors text-left bg-[hsl(228,10%,8%)] border-white/12 hover:border-white/25';
+  const triggerCls = 'flex items-center gap-2 w-full px-3 py-2.5 rounded-lg border text-sm transition-colors text-left bg-[hsl(228,10%,8%)] border-gray-100 hover:border-gray-100';
   return (
     <div className="grid grid-cols-2 gap-3">
       <div>
         <button ref={dateRef} type="button" className={triggerCls} onClick={()=>{setOpenDate(v=>!v);setOpenTime(false);}}>
-          <CalendarIcon className="h-4 w-4 text-white/40 shrink-0"/>
-          <span className={dateValue?'text-white':'text-white/30'}>{dateValue?fmtDisplayDate(dateValue):'Select date'}</span>
+          <CalendarIcon className="h-4 w-4 text-gray-400 shrink-0"/>
+          <span className={dateValue?'text-white':'text-gray-400'}>{dateValue?fmtDisplayDate(dateValue):'Select date'}</span>
         </button>
         {openDate && <DropdownPortal anchor={dateRef} onClose={()=>setOpenDate(false)}><CalendarPicker value={dateValue} onChange={v=>{onDateChange(v);setOpenDate(false);}} minDate={minDate}/></DropdownPortal>}
       </div>
       <div>
         <button ref={timeRef} type="button" className={triggerCls} onClick={()=>{setOpenTime(v=>!v);setOpenDate(false);}}>
-          <Clock className="h-4 w-4 text-white/40 shrink-0"/>
-          <span className={timeValue?'text-white':'text-white/30'}>{timeValue?fmtDisplayTime(timeValue):'Select time'}</span>
+          <Clock className="h-4 w-4 text-gray-400 shrink-0"/>
+          <span className={timeValue?'text-white':'text-gray-400'}>{timeValue?fmtDisplayTime(timeValue):'Select time'}</span>
         </button>
         {openTime && <DropdownPortal anchor={timeRef} onClose={()=>setOpenTime(false)}><TimePicker value={timeValue} onChange={onTimeChange} onConfirm={()=>setOpenTime(false)}/></DropdownPortal>}
       </div>
@@ -189,7 +189,7 @@ function PlacesAutocomplete({ value='', onChange, placeholder='Enter a location'
   value?: string; onChange?: (v: string) => void; placeholder?: string;
   cityBias?: { lat: number; lng: number }; pinColor?: 'green'|'gold'|'muted';
 }) {
-  const PIN = { green:'text-emerald-400', gold:'text-amber-400', muted:'text-white/30' };
+  const PIN = { green:'text-emerald-400', gold:'text-amber-400', muted:'text-gray-400' };
   const [inputValue, setInputValue] = useState(value);
   const [predictions, setPredictions] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -232,18 +232,18 @@ function PlacesAutocomplete({ value='', onChange, placeholder='Enter a location'
           onChange={e=>{ setInputValue(e.target.value); if(!e.target.value) onChange?.(''); }}
           onKeyDown={e=>{ if(!open||!predictions.length) return; if(e.key==='ArrowDown'){e.preventDefault();setActiveIdx(i=>Math.min(i+1,predictions.length-1));} else if(e.key==='ArrowUp'){e.preventDefault();setActiveIdx(i=>Math.max(i-1,0));} else if(e.key==='Enter'&&activeIdx>=0){e.preventDefault();select(predictions[activeIdx]);} else if(e.key==='Escape'){setOpen(false);setActiveIdx(-1);} }}
           onFocus={()=>{ if(predictions.length>0) setOpen(true); }}
-          className="w-full h-12 pl-9 pr-9 rounded-xl text-sm bg-white/5 border border-white/10 text-white placeholder:text-white/30 focus:outline-none focus:border-amber-400/50 focus:bg-white/8 focus:ring-2 focus:ring-amber-400/10 transition-all"/>
+          className="w-full h-12 pl-9 pr-9 rounded-xl text-sm bg-white/5 border border-gray-100 text-[#1a1a1a] placeholder:text-gray-400 focus:outline-none focus:border-amber-400/50 focus:bg-white/8 focus:ring-2 focus:ring-amber-400/10 transition-all"/>
         <div className="absolute right-3 top-1/2 -translate-y-1/2">
-          {loading ? <Loader2 className="h-4 w-4 text-white/30 animate-spin"/> : inputValue ? <button type="button" onClick={()=>{setInputValue('');setPredictions([]);setOpen(false);onChange?.('');inputRef.current?.focus();}} className="text-white/30 hover:text-white/70 transition-colors p-0.5 rounded"><X className="h-3.5 w-3.5"/></button> : null}
+          {loading ? <Loader2 className="h-4 w-4 text-gray-400 animate-spin"/> : inputValue ? <button type="button" onClick={()=>{setInputValue('');setPredictions([]);setOpen(false);onChange?.('');inputRef.current?.focus();}} className="text-gray-400 hover:text-gray-600 transition-colors p-0.5 rounded"><X className="h-3.5 w-3.5"/></button> : null}
         </div>
       </div>
       {open && predictions.length>0 && (
-        <ul className="absolute z-[200] mt-1.5 w-full bg-[#0f1117] border border-white/10 rounded-xl shadow-2xl overflow-hidden py-1">
+        <ul className="absolute z-[200] mt-1.5 w-full bg-[#f5f5f5] border border-gray-100 rounded-xl shadow-2xl overflow-hidden py-1">
           {predictions.map((pred,idx)=>(
             <li key={pred.place_id} onMouseDown={e=>{e.preventDefault();select(pred);}} onMouseEnter={()=>setActiveIdx(idx)}
               className={cn('flex items-start gap-3 px-3 py-2.5 cursor-pointer transition-colors',idx===activeIdx?'bg-amber-400/10':'hover:bg-white/5')}>
               <MapPin className={`h-4 w-4 mt-0.5 shrink-0 ${idx===activeIdx?'text-amber-400':'text-white/25'}`}/>
-              <p className="text-sm text-white leading-tight">{pred.description||pred.main_text}</p>
+              <p className="text-sm text-[#1a1a1a] leading-tight">{pred.description||pred.main_text}</p>
             </li>
           ))}
         </ul>
@@ -257,18 +257,18 @@ function LuxSelect({ value, onChange, children, placeholder }: { value: string; 
   return (
     <div className="relative">
       <select value={value} onChange={e=>onChange(e.target.value)}
-        className="w-full h-12 pl-4 pr-9 rounded-xl bg-white/5 border border-white/10 text-white text-sm appearance-none focus:outline-none focus:border-amber-400/50 transition-colors cursor-pointer">
+        className="w-full h-12 pl-4 pr-9 rounded-xl bg-white/5 border border-gray-100 text-[#1a1a1a] text-sm appearance-none focus:outline-none focus:border-amber-400/50 transition-colors cursor-pointer">
         {placeholder && <option value="" disabled className="bg-gray-900">{placeholder}</option>}
         {children}
       </select>
-      <ChevronRight className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/30 pointer-events-none rotate-90"/>
+      <ChevronRight className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none rotate-90"/>
     </div>
   );
 }
 
 // ── Field Label ────────────────────────────────────────────────────────────
 function FL({ children }: { children: React.ReactNode }) {
-  return <p className="text-xs font-semibold uppercase tracking-widest text-white/40 flex items-center gap-1.5 mb-2">{children}</p>;
+  return <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 flex items-center gap-1.5 mb-2">{children}</p>;
 }
 
 // ── Main Component ─────────────────────────────────────────────────────────
@@ -414,7 +414,7 @@ export function QuoteClient() {
   if (configError) return (
     <div className="min-h-screen flex items-center justify-center px-4">
       <div className="text-center space-y-4 max-w-sm">
-        <p className="text-white/50 text-sm">Unable to load booking options.</p>
+        <p className="text-gray-500 text-sm">Unable to load booking options.</p>
         <button onClick={() => window.location.reload()}
           className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] text-sm font-medium">
           <Loader2 className="h-4 w-4"/> Retry
@@ -428,9 +428,9 @@ export function QuoteClient() {
     <div className="min-h-screen" style={{ paddingBottom: 'calc(96px + env(safe-area-inset-bottom, 0px))' }}>
       {/* Header */}
       <div
-        className="sticky top-0 z-20 border-b border-white/[0.07]"
+        className="sticky top-0 z-20 border-b border-gray-100"
         style={{
-          background: 'rgba(13,15,20,0.97)',
+          background: '#fff',
           backdropFilter: 'blur(20px)',
           WebkitBackdropFilter: 'blur(20px)',
           paddingTop: 'max(12px, env(safe-area-inset-top))',
@@ -447,7 +447,7 @@ export function QuoteClient() {
       </div>
 
       <div className="max-w-2xl mx-auto px-4 pt-5 pb-8">
-        <div className="rounded-xl border border-white/10 bg-white/2 shadow-2xl p-5 sm:p-8 space-y-6">
+        <div className="rounded-xl border border-gray-100 bg-white/2 shadow-2xl p-5 sm:p-8 space-y-6">
 
           {/* Row 1 — City + Service Type */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
@@ -513,7 +513,7 @@ export function QuoteClient() {
                   <FL><MapPin className="h-3 w-3"/> Stop {idx+1}</FL>
                   <PlacesAutocomplete value={wp} onChange={v=>{const next=[...waypoints];next[idx]=v;setWaypoints(next);clearQuote();}} placeholder="Intermediate stop..." cityBias={selectedCity?.lat&&selectedCity?.lng?{lat:selectedCity.lat,lng:selectedCity.lng}:undefined}/>
                 </div>
-                <button type="button" onClick={()=>{setWaypoints(w=>w.filter((_,i)=>i!==idx));clearQuote();}} className="mt-7 p-2 text-white/30 hover:text-red-400 transition-colors"><X className="h-4 w-4"/></button>
+                <button type="button" onClick={()=>{setWaypoints(w=>w.filter((_,i)=>i!==idx));clearQuote();}} className="mt-7 p-2 text-gray-400 hover:text-red-400 transition-colors"><X className="h-4 w-4"/></button>
               </div>
             ))}
             {waypoints.length < 5 && (
@@ -523,17 +523,17 @@ export function QuoteClient() {
             )}
 
             <div>
-              <FL><MapPin className="h-3 w-3 text-[hsl(var(--primary))]"/> Drop-off Location <span className="normal-case text-white/30 font-normal ml-1">(optional)</span></FL>
+              <FL><MapPin className="h-3 w-3 text-[hsl(var(--primary))]"/> Drop-off Location <span className="normal-case text-gray-400 font-normal ml-1">(optional)</span></FL>
               <PlacesAutocomplete value={dropoff} onChange={v=>{setDropoff(v);clearQuote();}} placeholder="Airport, hotel or destination..." pinColor="gold" cityBias={selectedCity?.lat&&selectedCity?.lng?{lat:selectedCity.lat,lng:selectedCity.lng}:undefined}/>
             </div>
           </div>
 
           {/* Return datetime */}
           {tripType === 'RETURN' && !isHourly(selectedServiceType) && (
-            <div className="space-y-3 pt-2 border-t border-white/10">
+            <div className="space-y-3 pt-2 border-t border-gray-100">
               <p className="text-xs font-semibold uppercase tracking-widest text-[hsl(var(--primary))]">Return Trip</p>
               <LuxDateTimePicker dateValue={returnDate} timeValue={returnTime} onDateChange={v=>{setReturnDate(v);clearQuote();}} onTimeChange={v=>{setReturnTime(v);clearQuote();}} minDate={date||todayISO()}/>
-              <p className="text-xs text-white/30">Return pickup from drop-off location.</p>
+              <p className="text-xs text-gray-400">Return pickup from drop-off location.</p>
             </div>
           )}
 
@@ -545,13 +545,13 @@ export function QuoteClient() {
             ].map(({label,value,set,min,max,suffix})=>(
               <div key={label}>
                 <FL>{label}</FL>
-                <div className="flex items-center h-12 rounded-xl border border-white/10 bg-white/5 overflow-hidden">
-                  <button type="button" onClick={()=>{const v=Math.max(min,Number(value)-1);set(String(v));clearQuote();}} className="h-full w-11 flex items-center justify-center text-white/50 hover:text-white hover:bg-white/8 transition-colors text-lg font-light shrink-0">−</button>
+                <div className="flex items-center h-12 rounded-xl border border-gray-100 bg-white/5 overflow-hidden">
+                  <button type="button" onClick={()=>{const v=Math.max(min,Number(value)-1);set(String(v));clearQuote();}} className="h-full w-11 flex items-center justify-center text-gray-500 hover:text-white hover:bg-white/8 transition-colors text-lg font-light shrink-0">−</button>
                   <div className="flex-1 flex items-center justify-center gap-1.5">
-                    <input type="number" min={min} max={max} value={value} onChange={e=>{const n=Math.max(min,Math.min(max,parseInt(e.target.value)||min));set(String(n));clearQuote();}} className="w-8 bg-transparent text-center text-white text-sm font-semibold focus:outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none"/>
-                    <span className="text-white/40 text-xs">{suffix(Number(value))}</span>
+                    <input type="number" min={min} max={max} value={value} onChange={e=>{const n=Math.max(min,Math.min(max,parseInt(e.target.value)||min));set(String(n));clearQuote();}} className="w-8 bg-transparent text-center text-[#1a1a1a] text-sm font-semibold focus:outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none"/>
+                    <span className="text-gray-400 text-xs">{suffix(Number(value))}</span>
                   </div>
-                  <button type="button" onClick={()=>{const v=Math.min(max,Number(value)+1);set(String(v));clearQuote();}} className="h-full w-11 flex items-center justify-center text-white/50 hover:text-white hover:bg-white/8 transition-colors text-lg font-light shrink-0">+</button>
+                  <button type="button" onClick={()=>{const v=Math.min(max,Number(value)+1);set(String(v));clearQuote();}} className="h-full w-11 flex items-center justify-center text-gray-500 hover:text-white hover:bg-white/8 transition-colors text-lg font-light shrink-0">+</button>
                 </div>
               </div>
             ))}
@@ -559,7 +559,7 @@ export function QuoteClient() {
 
           {/* Baby Seats */}
           <div className="space-y-2">
-            <p className="text-xs font-semibold uppercase tracking-widest text-white/40">Baby Seats <span className="normal-case font-normal">(optional)</span></p>
+            <p className="text-xs font-semibold uppercase tracking-widest text-gray-400">Baby Seats <span className="normal-case font-normal">(optional)</span></p>
             <div className="grid grid-cols-3 gap-3 items-end">
               {[
                 { label:'Infant',  sub:'Rear-facing · 0–6 months',   value:infantSeats,  set:setInfantSeats },
@@ -567,8 +567,8 @@ export function QuoteClient() {
                 { label:'Booster', sub:'4–8 years old',               value:boosterSeats, set:setBoosterSeats },
               ].map(({label,sub,value,set})=>(
                 <div key={label} className="flex flex-col">
-                  <p className="text-[11px] font-medium text-white/70 mb-0.5">{label}</p>
-                  <p className="text-[10px] text-white/30 mb-1.5 leading-tight flex-1">{sub}</p>
+                  <p className="text-[11px] font-medium text-gray-600 mb-0.5">{label}</p>
+                  <p className="text-[10px] text-gray-400 mb-1.5 leading-tight flex-1">{sub}</p>
                   <LuxSelect value={value} onChange={v=>{set(v);clearQuote();}}>
                     {[0,1,2,3].map(n=><option key={n} value={String(n)} className="bg-gray-900">{n}</option>)}
                   </LuxSelect>
@@ -603,7 +603,7 @@ export function QuoteClient() {
         {/* Car Type Cards */}
         {quoteResults.length > 0 && (
           <div ref={resultsRef} className="mt-6 space-y-4">
-            <p className="text-xs font-semibold uppercase tracking-widest text-white/40 text-center">Select Your Vehicle</p>
+            <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 text-center">Select Your Vehicle</p>
             <div className="space-y-3">
               {quoteResults.map(result => {
                 const carType   = carTypes.find(c => c.id === result.service_class_id);
@@ -614,34 +614,34 @@ export function QuoteClient() {
                   <div key={result.service_class_id} onClick={()=>setSelectedCarTypeId(result.service_class_id)}
                     className={cn('cursor-pointer rounded-2xl border transition-all duration-200 overflow-hidden',
                       isSelected ? 'border-[hsl(var(--primary)/0.7)] bg-[hsl(39,46%,60%,0.06)] shadow-[0_0_0_1px_hsl(var(--primary)/0.5),0_8px_24px_rgba(200,169,107,0.12)]'
-                                 : 'border-white/10 bg-white/2 hover:border-[hsl(var(--primary)/0.3)] hover:bg-white/4')}>
+                                 : 'border-gray-100 bg-white/2 hover:border-[hsl(var(--primary)/0.3)] hover:bg-white/4')}>
                     <div className="p-4">
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0 flex-1">
                           {carType?.vehicle_class && <span className="inline-block mb-1 text-[9px] font-semibold tracking-widest uppercase text-[hsl(var(--primary)/0.6)] border border-[hsl(var(--primary)/0.2)] rounded px-1.5 py-0.5">{carType.vehicle_class}</span>}
-                          <p className="font-serif font-semibold text-white text-[15px] leading-snug">{result.service_class_name}</p>
+                          <p className="font-serif font-semibold text-[#1a1a1a] text-[15px] leading-snug">{result.service_class_name}</p>
                         </div>
                         <div className="flex items-start gap-2.5 shrink-0">
                           <div className="text-right">
-                            {hasDiscount && <p className="text-[11px] text-white/30 line-through leading-none mb-0.5">{fmtMoney((preview.pre_discount_total_minor??result.estimated_total_minor+(result.discount?.discount_minor??0)),currency)}</p>}
+                            {hasDiscount && <p className="text-[11px] text-gray-400 line-through leading-none mb-0.5">{fmtMoney((preview.pre_discount_total_minor??result.estimated_total_minor+(result.discount?.discount_minor??0)),currency)}</p>}
                             <p className={cn('text-xl font-bold leading-none', isSelected?'text-gradient-gold':'text-white')}>{fmtMoney(result.estimated_total_minor,currency)}</p>
-                            {hasDiscount ? <p className="text-[10px] text-emerald-400 font-semibold mt-0.5">-{fmtMoney(result.discount!.discount_minor,currency)} off</p> : <p className="text-[10px] text-white/30 mt-0.5">{currency} incl. GST</p>}
+                            {hasDiscount ? <p className="text-[10px] text-emerald-400 font-semibold mt-0.5">-{fmtMoney(result.discount!.discount_minor,currency)} off</p> : <p className="text-[10px] text-gray-400 mt-0.5">{currency} incl. GST</p>}
                           </div>
-                          <div className={cn('w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 mt-0.5 transition-all',isSelected?'border-[hsl(var(--primary))] bg-[hsl(var(--primary))]':'border-white/30')}>
+                          <div className={cn('w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 mt-0.5 transition-all',isSelected?'border-[hsl(var(--primary))] bg-[hsl(var(--primary))]':'border-gray-100')}>
                             {isSelected && <svg className="w-3 h-3 text-[hsl(var(--primary-foreground))]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/></svg>}
                           </div>
                         </div>
                       </div>
                       {/* Specs row */}
-                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-3 text-[11px] text-white/40">
+                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-3 text-[11px] text-gray-400">
                         {(carType?.max_passengers??0)>0 && <span className="flex items-center gap-1"><svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>Up to {carType!.max_passengers} passengers</span>}
                         {(carType?.luggage_capacity??0)>0 && <span className="flex items-center gap-1"><svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>{carType!.luggage_capacity} bags</span>}
                         {preview.toll_parking_minor>0 && <span>Incl. {fmtMoney(preview.toll_parking_minor,currency)} tolls</span>}
-                        {(preview.waypoints_minor??0)>0 && <span className="text-white/50">+{fmtMoney(preview.waypoints_minor!,currency)} stops</span>}
-                        {(preview.baby_seats_minor??0)>0 && <span className="text-white/50">+{fmtMoney(preview.baby_seats_minor!,currency)} seats</span>}
+                        {(preview.waypoints_minor??0)>0 && <span className="text-gray-500">+{fmtMoney(preview.waypoints_minor!,currency)} stops</span>}
+                        {(preview.baby_seats_minor??0)>0 && <span className="text-gray-500">+{fmtMoney(preview.baby_seats_minor!,currency)} seats</span>}
                         {(preview.surcharge_labels?.length??0)>0 && <span className="flex items-center gap-1 text-amber-400/80"><svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>{preview.surcharge_labels!.join(', ')} surcharge incl.</span>}
                       </div>
-                      {carType?.description && <p className="mt-2 text-[11px] text-white/30 line-clamp-1">{carType.description}</p>}
+                      {carType?.description && <p className="mt-2 text-[11px] text-gray-400 line-clamp-1">{carType.description}</p>}
                     </div>
                     {isSelected && <div className="h-px bg-gradient-to-r from-transparent via-[hsl(var(--primary)/0.6)] to-transparent"/>}
                   </div>
@@ -665,7 +665,7 @@ export function QuoteClient() {
               })() : 'Select a vehicle to continue'}
             </button>
 
-            <p className="text-center text-xs text-white/30 leading-relaxed">
+            <p className="text-center text-xs text-gray-400 leading-relaxed">
               Fare is an estimate. Final price confirmed at booking.{' '}
               <span className="text-[hsl(var(--primary)/0.7)]">Quote valid for 30 minutes.</span>
             </p>
@@ -677,17 +677,17 @@ export function QuoteClient() {
     {/* Urgent Booking Modal */}
     {showUrgentModal && (
       <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4" onClick={()=>setShowUrgentModal(false)}>
-        <div className="relative w-full max-w-sm rounded-2xl border border-white/10 bg-[hsl(228,10%,8%)] p-7 shadow-2xl text-center" onClick={e=>e.stopPropagation()}>
+        <div className="relative w-full max-w-sm rounded-2xl border border-gray-100 bg-[hsl(228,10%,8%)] p-7 shadow-2xl text-center" onClick={e=>e.stopPropagation()}>
           <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-[hsl(var(--primary)/0.15)] border border-[hsl(var(--primary)/0.3)]">
             <svg className="h-7 w-7 text-[hsl(var(--primary))]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5"><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 01-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 00-1.091-.852H4.5A2.25 2.25 0 002.25 4.5v2.25z"/></svg>
           </div>
-          <h3 className="text-lg font-semibold text-white mb-2">Short Notice Booking</h3>
-          <p className="text-sm text-white/50 mb-6 leading-relaxed">Bookings require at least <strong className="text-white">12 hours' notice</strong> for online reservations. For urgent requests, please call us directly.</p>
+          <h3 className="text-lg font-semibold text-[#1a1a1a] mb-2">Short Notice Booking</h3>
+          <p className="text-sm text-gray-500 mb-6 leading-relaxed">Bookings require at least <strong className="text-white">12 hours' notice</strong> for online reservations. For urgent requests, please call us directly.</p>
           <a href="tel:+61280091008" className="flex items-center justify-center gap-2 w-full py-3 rounded-xl bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] font-semibold text-sm hover:opacity-90 transition-all mb-3">
             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 01-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 00-1.091-.852H4.5A2.25 2.25 0 002.25 4.5v2.25z"/></svg>
             Call Now: +61 2 8009 1008
           </a>
-          <button onClick={()=>setShowUrgentModal(false)} className="w-full py-2.5 rounded-xl border border-white/10 text-sm text-white/40 hover:text-white hover:border-white/20 transition-colors">Change Date & Time</button>
+          <button onClick={()=>setShowUrgentModal(false)} className="w-full py-2.5 rounded-xl border border-gray-100 text-sm text-gray-400 hover:text-white hover:border-gray-100 transition-colors">Change Date & Time</button>
         </div>
       </div>
     )}

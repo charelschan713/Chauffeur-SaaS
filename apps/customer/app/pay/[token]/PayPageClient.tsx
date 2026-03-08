@@ -59,7 +59,7 @@ function SavedCardForm({ token, card, amount, currency }: {
       {/* Saved card display */}
       <div className="rounded-xl border border-[#c8a96b]/30 bg-[#1a1d24] p-4">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-14 items-center justify-center rounded-lg bg-[#0d0f14] text-xs font-semibold text-gray-400">
+          <div className="flex h-10 w-14 items-center justify-center rounded-lg bg-[#f5f5f5] text-xs font-semibold text-gray-400">
             {brandLabel}
           </div>
           <div>
@@ -155,7 +155,7 @@ function NewCardForm({ token, amount, currency }: { token: string; amount: numbe
           onChange={e => setCardName(e.target.value)}
           placeholder="As it appears on your card"
           autoComplete="cc-name"
-          className="w-full rounded-lg border border-[#2a2d35] bg-[#1a1d24] px-3 py-2.5 text-sm text-white placeholder-gray-500 focus:border-[#c8a96b]/50 focus:outline-none"
+          className="w-full rounded-lg border border-[#2a2d35] bg-[#1a1d24] px-3 py-2.5 text-sm text-[#1a1a1a] placeholder-gray-500 focus:border-[#c8a96b]/50 focus:outline-none"
         />
       </div>
       <div>
@@ -198,7 +198,7 @@ function NewCardForm({ token, amount, currency }: { token: string; amount: numbe
 // ── Success screen ────────────────────────────────────────────────────────────
 function SuccessScreen() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#0d0f14]">
+    <div className="min-h-screen flex items-center justify-center bg-[#f5f5f5]">
       <div className="flex flex-col items-center py-8 text-center px-6">
         <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-500/10">
           <svg className="h-8 w-8 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -235,13 +235,13 @@ export function PayPageClient({ token }: { token: string }) {
   });
 
   if (isLoading) return (
-    <div className="min-h-screen flex items-center justify-center bg-[#0d0f14]">
+    <div className="min-h-screen flex items-center justify-center bg-[#f5f5f5]">
       <div className="animate-spin h-8 w-8 border-4 border-[#c8a96b] border-t-transparent rounded-full" />
     </div>
   );
 
   if (error || !data) return (
-    <div className="min-h-screen flex items-center justify-center bg-[#0d0f14]">
+    <div className="min-h-screen flex items-center justify-center bg-[#f5f5f5]">
       <div className="text-center px-6">
         <div className="mb-3 flex justify-center">
           <svg className="h-10 w-10 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
@@ -261,7 +261,7 @@ export function PayPageClient({ token }: { token: string }) {
   );
 
   if (data.payment_status === 'PAID') return (
-    <div className="min-h-screen flex items-center justify-center bg-[#0d0f14]">
+    <div className="min-h-screen flex items-center justify-center bg-[#f5f5f5]">
       <div className="text-center px-6">
         <div className="mb-4 flex h-16 w-16 mx-auto items-center justify-center rounded-full bg-emerald-500/10">
           <svg className="h-8 w-8 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -294,7 +294,7 @@ export function PayPageClient({ token }: { token: string }) {
   };
 
   return (
-    <div className="min-h-screen bg-[#0d0f14] px-4 py-10">
+    <div className="min-h-screen bg-[#f5f5f5] px-4 py-10">
       <div className="mx-auto max-w-md">
         {/* Header */}
         <div className="mb-8 text-center">

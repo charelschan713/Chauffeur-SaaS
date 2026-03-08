@@ -65,7 +65,7 @@ export function RegisterClient() {
             <input type="email" className={inputCls} value={form.email} onChange={f('email')} placeholder="your@email.com" required />
           </div>
           <div>
-            <label className={labelCls}>Phone <span className="normal-case text-white/20 text-xs">(optional)</span></label>
+            <label className={labelCls}>Phone <span className="normal-case text-gray-300 text-xs">(optional)</span></label>
             <div className="flex gap-2">
               <PhoneCountrySelect value={form.phoneCountryCode} onChange={v => setForm(p => ({ ...p, phoneCountryCode: v }))} className="w-28 shrink-0" />
               <input type="tel" className={`${inputCls} flex-1`} value={form.phoneNumber} onChange={f('phoneNumber')} placeholder="4xx xxx xxx" />
@@ -79,7 +79,7 @@ export function RegisterClient() {
             {loading ? 'Creating…' : 'Create Account'}
           </GoldButton>
         </form>
-        <p className="mt-6 text-sm text-center text-white/30">
+        <p className="mt-6 text-sm text-center text-gray-400">
           Already have an account?{' '}
           <Link href="/login" className="text-[#c8a96b]/70 hover:text-[#c8a96b] transition-colors">Sign in</Link>
         </p>

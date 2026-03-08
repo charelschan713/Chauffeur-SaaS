@@ -54,33 +54,33 @@
 }
 
 :root {
-  /* ── Surface ── */
-  --background:         240 8% 3%;
-  --foreground:         216 33% 97%;
-  --card:               228 10% 8%;
-  --card-foreground:    216 33% 97%;
-  --popover:            228 10% 8%;
-  --popover-foreground: 216 33% 97%;
+  /* ── Surface — ASDriver light theme ── */
+  --background:         0 0% 96%;          /* #f5f5f5 */
+  --foreground:         0 0% 10%;          /* #1a1a1a */
+  --card:               0 0% 100%;         /* #ffffff */
+  --card-foreground:    0 0% 10%;
+  --popover:            0 0% 100%;
+  --popover-foreground: 0 0% 10%;
 
-  /* ── Primary — platform default (gold); tenant overrides this ── */
-  --primary:            39 46% 60%;
-  --primary-foreground: 240 8% 3%;
+  /* ── Primary — gold accent (prices, badges, links) ── */
+  --primary:            39 46% 60%;        /* #c8a96b */
+  --primary-foreground: 0 0% 10%;
 
   /* ── Secondary ── */
-  --secondary:          223 8% 16%;
-  --secondary-foreground: 216 33% 97%;
+  --secondary:          0 0% 94%;          /* #f0f0f0 */
+  --secondary-foreground: 0 0% 10%;
 
   /* ── Muted ── */
-  --muted:              220 9% 18%;
-  --muted-foreground:   217 11% 70%;
+  --muted:              0 0% 94%;
+  --muted-foreground:   0 0% 40%;          /* #666666 */
 
   /* ── Accent ── */
-  --accent:             216 10% 25%;
-  --accent-foreground:  216 33% 97%;
+  --accent:             0 0% 94%;
+  --accent-foreground:  0 0% 10%;
 
   /* ── Status ── */
   --destructive:        0 84% 60%;
-  --destructive-foreground: 216 33% 97%;
+  --destructive-foreground: 0 0% 100%;
   --success:            142 71% 45%;
   --success-foreground: 0 0% 100%;
   --warning:            37 91% 55%;
@@ -89,20 +89,20 @@
   --info-foreground:    0 0% 100%;
 
   /* ── Border / Input ── */
-  --border:             220 9% 18%;
-  --input-border:       218 22% 22%;
-  --input:              228 10% 8%;
+  --border:             0 0% 94%;          /* #f0f0f0 */
+  --input-border:       0 0% 91%;          /* #e8e8e8 */
+  --input:              0 0% 96%;          /* #f5f5f5 */
   --ring:               39 46% 60%;
 
-  /* ── Shadows ── */
-  --shadow-sm:      0 1px 2px rgba(0,0,0,0.3);
-  --shadow-md:      0 4px 12px rgba(0,0,0,0.4);
-  --shadow-lg:      0 12px 32px rgba(0,0,0,0.5);
-  --shadow-luxury:  0 25px 50px -12px rgba(0,0,0,0.6);
-  --shadow-card:    0 20px 40px rgba(0,0,0,0.5);
+  /* ── Shadows — light theme ── */
+  --shadow-sm:      0 1px 3px rgba(0,0,0,0.06);
+  --shadow-md:      0 4px 12px rgba(0,0,0,0.08);
+  --shadow-lg:      0 8px 24px rgba(0,0,0,0.10);
+  --shadow-luxury:  0 12px 32px rgba(0,0,0,0.12);
+  --shadow-card:    0 2px 8px rgba(0,0,0,0.06);
 
   /* ── Gradients ── */
-  --gradient-luxury: linear-gradient(135deg, hsl(240 8% 2%) 0%, hsl(228 10% 8%) 100%);
+  --gradient-luxury: linear-gradient(135deg, #f5f5f5 0%, #ffffff 100%);
   --gradient-gold:   linear-gradient(135deg, hsl(39 46% 60%) 0%, hsl(39 46% 48%) 100%);
 
   /* ── Transitions ── */
