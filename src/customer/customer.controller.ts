@@ -174,19 +174,17 @@ export class CustomerController {
     const deleted: any[] = [];
     for (const c of toDelete) {
       try {
-        // Nullify FK references first
-        await this.dataSource.query(
-          `UPDATE public.bookings SET customer_id = NULL WHERE customer_id = $1 AND tenant_id = $2`,
-          [c.id, tenantId],
-        );
-        await this.dataSource.query(
-          `DELETE FROM public.saved_payment_methods WHERE customer_id = $1`,
-          [c.id],
-        );
-        await this.dataSource.query(
-          `DELETE FROM public.customer_passengers WHERE customer_id = $1`,
-          [c.id],
-        );
+        // Nullify / clean FK references before deleting
+        await this.dataSource.query(`UPDATE public.bookings SET customer_id = NULL WHERE customer_id = $1`, [c.id]);
+        await this.dataSource.query(`DELETE FROM public.saved_payment_methods WHERE customer_id = $1`, [c.id]);
+        await this.dataSource.query(`DELETE FROM public.customer_passengers WHERE customer_id = $1`, [c.id]);
+        // Clean up any other tables that might reference customer_id
+        for (const tbl of ['public.invoices', 'public.customer_invoices', 'public.payments']) {
+          await this.dataSource.query(
+            `UPDATE ${tbl} SET customer_id = NULL WHERE customer_id = $1`,
+            [c.id],
+          ).catch(() => {});
+        }
         await this.dataSource.query(
           `DELETE FROM public.customers WHERE id = $1 AND tenant_id = $2`,
           [c.id, tenantId],
