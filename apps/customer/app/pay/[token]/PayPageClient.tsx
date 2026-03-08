@@ -59,12 +59,12 @@ function SavedCardForm({ token, card, amount, currency }: {
       {/* Saved card display */}
       <div className="rounded-xl border border-[#c8a96b]/30 bg-[#1a1d24] p-4">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-14 items-center justify-center rounded-lg bg-[#f5f5f5] text-xs font-semibold text-gray-400">
+          <div className="flex h-10 w-14 items-center justify-center rounded-lg bg-[hsl(var(--background))] text-xs font-semibold text-[hsl(var(--muted-foreground))]">
             {brandLabel}
           </div>
           <div>
             <p className="text-sm font-semibold text-white">{brandLabel} •••• {card.last4}</p>
-            <p className="text-xs text-gray-400">Expires {String(card.exp_month).padStart(2, '0')}/{card.exp_year}</p>
+            <p className="text-xs text-[hsl(var(--muted-foreground))]">Expires {String(card.exp_month).padStart(2, '0')}/{card.exp_year}</p>
           </div>
           <span className="ml-auto rounded-full bg-[#c8a96b]/10 px-2.5 py-0.5 text-[10px] font-semibold text-[#c8a96b] uppercase tracking-wide">
             Saved
@@ -149,7 +149,7 @@ function NewCardForm({ token, amount, currency }: { token: string; amount: numbe
   return (
     <form onSubmit={pay} className="space-y-4">
       <div>
-        <label className="mb-1.5 block text-xs font-medium text-gray-400">Name on Card</label>
+        <label className="mb-1.5 block text-xs font-medium text-[hsl(var(--muted-foreground))]">Name on Card</label>
         <input
           value={cardName}
           onChange={e => setCardName(e.target.value)}
@@ -159,7 +159,7 @@ function NewCardForm({ token, amount, currency }: { token: string; amount: numbe
         />
       </div>
       <div>
-        <label className="mb-1.5 block text-xs font-medium text-gray-400">Card Details</label>
+        <label className="mb-1.5 block text-xs font-medium text-[hsl(var(--muted-foreground))]">Card Details</label>
         <div className="rounded-lg border border-[#2a2d35] bg-[#1a1d24] p-3">
           <CardElement options={{
             hidePostalCode: true,
@@ -198,7 +198,7 @@ function NewCardForm({ token, amount, currency }: { token: string; amount: numbe
 // ── Success screen ────────────────────────────────────────────────────────────
 function SuccessScreen() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#f5f5f5]">
+    <div className="min-h-screen flex items-center justify-center bg-[hsl(var(--background))]">
       <div className="flex flex-col items-center py-8 text-center px-6">
         <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-500/10">
           <svg className="h-8 w-8 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -206,7 +206,7 @@ function SuccessScreen() {
           </svg>
         </div>
         <h2 className="text-xl font-bold text-white">Payment Successful</h2>
-        <p className="mt-2 text-sm text-gray-400">Your booking is now confirmed. You'll receive a confirmation email shortly.</p>
+        <p className="mt-2 text-sm text-[hsl(var(--muted-foreground))]">Your booking is now confirmed. You'll receive a confirmation email shortly.</p>
         <div className="mt-8 flex flex-col gap-3 w-full max-w-xs">
           <a
             href="/dashboard"
@@ -235,13 +235,13 @@ export function PayPageClient({ token }: { token: string }) {
   });
 
   if (isLoading) return (
-    <div className="min-h-screen flex items-center justify-center bg-[#f5f5f5]">
+    <div className="min-h-screen flex items-center justify-center bg-[hsl(var(--background))]">
       <div className="animate-spin h-8 w-8 border-4 border-[#c8a96b] border-t-transparent rounded-full" />
     </div>
   );
 
   if (error || !data) return (
-    <div className="min-h-screen flex items-center justify-center bg-[#f5f5f5]">
+    <div className="min-h-screen flex items-center justify-center bg-[hsl(var(--background))]">
       <div className="text-center px-6">
         <div className="mb-3 flex justify-center">
           <svg className="h-10 w-10 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
@@ -249,7 +249,7 @@ export function PayPageClient({ token }: { token: string }) {
           </svg>
         </div>
         <h2 className="text-lg font-semibold text-white">Link not found or expired</h2>
-        <p className="mt-2 text-sm text-gray-400">This payment link may have expired. Please contact us for assistance.</p>
+        <p className="mt-2 text-sm text-[hsl(var(--muted-foreground))]">This payment link may have expired. Please contact us for assistance.</p>
         <a
           href="/dashboard"
           className="mt-6 inline-block px-6 py-3 rounded-xl bg-[#c8a96b] text-black text-sm font-semibold hover:bg-[#b8995b] transition-colors"
@@ -261,7 +261,7 @@ export function PayPageClient({ token }: { token: string }) {
   );
 
   if (data.payment_status === 'PAID') return (
-    <div className="min-h-screen flex items-center justify-center bg-[#f5f5f5]">
+    <div className="min-h-screen flex items-center justify-center bg-[hsl(var(--background))]">
       <div className="text-center px-6">
         <div className="mb-4 flex h-16 w-16 mx-auto items-center justify-center rounded-full bg-emerald-500/10">
           <svg className="h-8 w-8 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -269,7 +269,7 @@ export function PayPageClient({ token }: { token: string }) {
           </svg>
         </div>
         <h2 className="text-xl font-bold text-white">Already Paid</h2>
-        <p className="mt-2 text-sm text-gray-400">This booking has been paid in full. Thank you!</p>
+        <p className="mt-2 text-sm text-[hsl(var(--muted-foreground))]">This booking has been paid in full. Thank you!</p>
         <div className="mt-6 flex flex-col gap-3">
           <a
             href="/dashboard"
@@ -294,13 +294,13 @@ export function PayPageClient({ token }: { token: string }) {
   };
 
   return (
-    <div className="min-h-screen bg-[#f5f5f5] px-4 py-10">
+    <div className="min-h-screen bg-[hsl(var(--background))] px-4 py-10">
       <div className="mx-auto max-w-md">
         {/* Header */}
         <div className="mb-8 text-center">
           <p className="text-xs font-semibold uppercase tracking-[3px] text-[#c8a96b]">AS Chauffeured</p>
           <h1 className="mt-2 text-2xl font-bold text-white">Complete Your Booking</h1>
-          <p className="mt-1 text-sm text-gray-400">Review your trip details and complete payment below.</p>
+          <p className="mt-1 text-sm text-[hsl(var(--muted-foreground))]">Review your trip details and complete payment below.</p>
         </div>
 
         {/* Booking summary */}
@@ -380,20 +380,20 @@ export function PayPageClient({ token }: { token: string }) {
           <div className="border-t border-[#2a2d35] pt-3 space-y-1.5">
             {data.prepay_base_fare_minor > 0 && (
               <div className="flex justify-between text-sm">
-                <span className="text-gray-400">Base Fare</span>
+                <span className="text-[hsl(var(--muted-foreground))]">Base Fare</span>
                 <span className="text-white">{data.currency} {(data.prepay_base_fare_minor / 100).toFixed(2)}</span>
               </div>
             )}
             {(data.prepay_toll_minor > 0 || data.prepay_parking_minor > 0) && (
               <div className="flex justify-between text-sm">
-                <span className="text-gray-400">Toll / Parking</span>
+                <span className="text-[hsl(var(--muted-foreground))]">Toll / Parking</span>
                 <span className="text-white">{data.currency} {((data.prepay_toll_minor + data.prepay_parking_minor) / 100).toFixed(2)}</span>
               </div>
             )}
             {data.discount_total_minor > 0 && (
               <>
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-400">Original Price</span>
+                  <span className="text-[hsl(var(--muted-foreground))]">Original Price</span>
                   <span className="text-gray-500 line-through">{data.currency} {((data.total_price_minor + data.discount_total_minor) / 100).toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between text-sm">
@@ -403,7 +403,7 @@ export function PayPageClient({ token }: { token: string }) {
               </>
             )}
             <div className="flex items-center justify-between border-t border-[#2a2d35] pt-2 mt-1">
-              <span className="text-sm text-gray-400">Total</span>
+              <span className="text-sm text-[hsl(var(--muted-foreground))]">Total</span>
               <span className="text-lg font-bold text-white">{data.currency} {(data.total_price_minor / 100).toFixed(2)}</span>
             </div>
           </div>

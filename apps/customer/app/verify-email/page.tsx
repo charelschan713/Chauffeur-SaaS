@@ -132,7 +132,7 @@ export default function VerifyEmailPage() {
                   value={digit}
                   onChange={e => handleOtpChange(i, e.target.value)}
                   onKeyDown={e => handleOtpKeyDown(i, e)}
-                  className="w-12 h-14 text-center text-2xl font-bold rounded-xl bg-white border border-gray-100 text-[#1a1a1a] focus:outline-none focus:border-[#c8a96b]/60 transition-all"
+                  className="w-12 h-14 text-center text-2xl font-bold rounded-xl bg-[hsl(var(--card))] border border-[hsl(var(--border))] text-[hsl(var(--foreground))] focus:outline-none focus:border-[#c8a96b]/60 transition-all"
                 />
               ))}
             </div>

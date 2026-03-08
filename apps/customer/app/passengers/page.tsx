@@ -270,7 +270,7 @@ export default function PassengersPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#f5f5f5]" style={{ paddingBottom: 'calc(96px + env(safe-area-inset-bottom, 0px))' }}>
+    <div className="min-h-screen bg-[hsl(var(--background))]" style={{ paddingBottom: 'calc(96px + env(safe-area-inset-bottom, 0px))' }}>
       {/* Sticky Header */}
       <div
         className="sticky top-0 z-20 border-b border-gray-100 px-4"

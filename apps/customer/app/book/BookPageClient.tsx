@@ -302,7 +302,7 @@ function GuestActivateOtp({
   );
 
   return (
-    <div className="w-full rounded-2xl bg-white border border-gray-100 px-5 py-5 space-y-4">
+    <div className="w-full rounded-2xl bg-[hsl(var(--card))] border border-[hsl(var(--border))] px-5 py-5 space-y-4">
       <div>
         <p className="text-sm font-semibold text-white">Track your booking</p>
         <p className="text-xs text-gray-500 mt-0.5">
@@ -312,7 +312,7 @@ function GuestActivateOtp({
 
       {stage === 'prompt' && (
         <>
-          <div className="rounded-xl bg-white px-4 py-3 text-sm text-gray-600">
+          <div className="rounded-xl bg-[hsl(var(--card))] px-4 py-3 text-sm text-[hsl(var(--muted-foreground))]">
             {phoneCode} {phone}
           </div>
           {error && <p className="text-xs text-red-400">{error}</p>}
@@ -1161,7 +1161,7 @@ export function BookPageClient() {
 
           {/* Trip summary */}
           {pickup && (
-            <div className="w-full rounded-2xl bg-white border border-gray-100 px-4 py-4 text-left space-y-3">
+            <div className="w-full rounded-2xl bg-[hsl(var(--card))] border border-[hsl(var(--border))] px-4 py-4 text-left space-y-3">
               <div className="flex items-start gap-3">
                 <div className="w-2 h-2 rounded-full bg-emerald-400 mt-1.5 shrink-0" />
                 <div>
