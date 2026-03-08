@@ -356,21 +356,15 @@ export class BookingService {
       [randomUUID(), tenantId, id, null, dto.operational_status ?? 'PENDING_CUSTOMER_CONFIRMATION', null, null, now],
     );
 
-    // Fire notifications (non-blocking)
+    // ── Admin-created booking: send ONE email to customer (payment request) ──
+    // Admin knows they created it — no need to notify admin.
+    // If CONFIRMED (e.g. cash booking), send BookingConfirmed instead.
     const notifPayload = { tenant_id: tenantId, booking_id: id };
-    this.notificationService.handleEvent('AdminNewBooking', notifPayload)
-      .catch((e) => console.error('[Notification] AdminNewBooking FAILED:', e?.message));
-    this.notificationService.handleEvent('AdminBookingPendingConfirm', notifPayload)
-      .catch((e) => console.error('[Notification] AdminBookingPendingConfirm FAILED:', e?.message));
-
-    // Auto-generate payment token + send payment request email to customer
-    // Delay slightly to avoid Resend rate limit (2 req/sec) after AdminNewBooking + AdminBookingPendingConfirm
     const status = dto.operational_status ?? 'PENDING_CUSTOMER_CONFIRMATION';
     if (status === 'PENDING_CUSTOMER_CONFIRMATION') {
-      setTimeout(() => {
-        this.sendPaymentLink(tenantId, id)
-          .catch((e) => console.error('[Notification] Auto payment link FAILED:', e?.message));
-      }, 2000);
+      // Generate payment token and send payment request email to customer only
+      this.sendPaymentLink(tenantId, id)
+        .catch((e) => console.error('[Notification] AdminCreatedPaymentRequest FAILED:', e?.message));
     } else if (status === 'CONFIRMED') {
       this.notificationService.handleEvent('BookingConfirmed', notifPayload)
         .catch((e) => console.error('[Notification] BookingConfirmed FAILED:', e?.message));

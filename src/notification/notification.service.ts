@@ -1164,17 +1164,9 @@ export class NotificationService {
   private async onBookingReceived(tenantId: string, payload: any) {
     const booking = await this.getBooking(payload.booking_id);
     if (!booking) return;
-    const vars: Record<string, string> = {
-      ...this.bookingVars(booking),
-      admin_booking_url: `https://chauffeur-saa-s.vercel.app/bookings/${payload.booking_id}`,
-    };
-    // Email → customer
-    await this.sendBoth(tenantId, 'BookingReceived', vars, booking.customer_email, null, booking.id).catch(() => {});
-    // Email → admins
-    const admins = await this.getAdminContacts(tenantId);
-    for (const admin of admins) {
-      if (admin.email) await this.sendFromTemplate(tenantId, 'AdminNewBooking', 'email', vars, admin.email, booking.id).catch(() => {});
-    }
+    const vars: Record<string, string> = this.bookingVars(booking);
+    // Email → customer only ("We received your booking, pending confirmation")
+    await this.sendFromTemplate(tenantId, 'CustomerCreatedBookingReceived', 'email', vars, booking.customer_email, booking.id).catch(() => {});
   }
 
   // Admin rejects booking → email to customer

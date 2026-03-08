@@ -325,14 +325,16 @@ export class CustomerPortalService {
       [tenantId, booking.id],
     ).catch(() => {});
 
-    // Fire notifications (non-blocking)
+    // ── Customer-created booking notifications ──
+    // 1. Customer receives "booking received" email (pending admin confirmation)
+    // 2. Admin receives "new booking" alert
     const notifPayload = { tenant_id: tenantId, booking_id: booking.id };
-    this.notificationService.handleEvent('BookingConfirmed', notifPayload)
-      .catch((e) => console.error(`[Notification] BookingConfirmed FAILED:`, e?.message ?? e));
-    this.notificationService.handleEvent('AdminNewBooking', notifPayload)
-      .catch((e) => console.error(`[Notification] AdminNewBooking FAILED:`, e?.message ?? e));
-    this.notificationService.handleEvent('AdminBookingPendingConfirm', notifPayload)
-      .catch((e) => console.error(`[Notification] AdminBookingPendingConfirm FAILED:`, e?.message ?? e));
+    this.notificationService.handleEvent('CustomerCreatedBookingReceived', notifPayload)
+      .catch((e) => console.error(`[Notification] CustomerCreatedBookingReceived FAILED:`, e?.message ?? e));
+    setTimeout(() => {
+      this.notificationService.handleEvent('AdminNewBooking', notifPayload)
+        .catch((e) => console.error(`[Notification] AdminNewBooking FAILED:`, e?.message ?? e));
+    }, 1500);
 
     return booking;
   }
@@ -878,15 +880,16 @@ export class CustomerPortalService {
       ).catch(() => {});
     }
 
-    // Fire notifications (non-blocking — never fail the booking on notification error)
+    // ── Guest/customer checkout notifications ──
+    // 1. Customer receives "booking received" email
+    // 2. Admin receives "new booking" alert (delayed to avoid rate limit)
     const notifPayload = { tenant_id: tenantId, booking_id: booking.id };
-    this.notificationService.handleEvent('BookingConfirmed', notifPayload)
-      .then(() => console.log(`[Notification] BookingConfirmed sent for ${booking.id}`))
-      .catch((e) => console.error(`[Notification] BookingConfirmed FAILED for ${booking.id}:`, e?.message ?? e));
-    this.notificationService.handleEvent('AdminNewBooking', notifPayload)
-      .catch((e) => console.error(`[Notification] AdminNewBooking FAILED:`, e?.message ?? e));
-    this.notificationService.handleEvent('AdminBookingPendingConfirm', notifPayload)
-      .catch((e) => console.error(`[Notification] AdminBookingPendingConfirm FAILED:`, e?.message ?? e));
+    this.notificationService.handleEvent('CustomerCreatedBookingReceived', notifPayload)
+      .catch((e) => console.error(`[Notification] CustomerCreatedBookingReceived FAILED:`, e?.message ?? e));
+    setTimeout(() => {
+      this.notificationService.handleEvent('AdminNewBooking', notifPayload)
+        .catch((e) => console.error(`[Notification] AdminNewBooking FAILED:`, e?.message ?? e));
+    }, 1500);
 
     this.trace.traceInfo('GUEST_CHECKOUT_SUCCESS', {
       tenant_id: tenantId, booking_id: booking?.id,
