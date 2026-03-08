@@ -424,7 +424,7 @@ export class AssignmentService {
          a.driver_pay_minor,
          a.created_at AS assigned_at,
          b.id AS booking_id,
-         b.reference,
+         b.booking_reference AS reference,
          b.pickup_at_utc,
          b.pickup_address,
          b.dropoff_address,

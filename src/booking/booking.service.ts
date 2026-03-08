@@ -150,10 +150,9 @@ export class BookingService {
       ),
       // Check if customer has a saved Stripe payment method
       booking.customer_id ? this.dataSource.query(
-        `SELECT spm.id, spm.stripe_payment_method_id, spm.card_brand, spm.card_last4, spm.card_exp_month, spm.card_exp_year
+        `SELECT spm.id, spm.stripe_payment_method_id, spm.brand AS card_brand, spm.last4 AS card_last4, spm.exp_month AS card_exp_month, spm.exp_year AS card_exp_year
            FROM public.saved_payment_methods spm
-           JOIN public.customers c ON c.id = spm.customer_id
-          WHERE c.id = $1
+          WHERE spm.customer_id = $1
           ORDER BY spm.created_at DESC LIMIT 1`,
         [booking.customer_id],
       ).catch(() => []) : Promise.resolve([]),
