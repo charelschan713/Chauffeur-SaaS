@@ -92,12 +92,16 @@ export class PublicPricingService {
 
         try {
           const snapshot = await this.pricing.resolve(ctx);
-          const baseFare = snapshot.grand_total_minor ?? snapshot.totalPriceMinor;
+          const grandTotal = snapshot.grand_total_minor ?? snapshot.totalPriceMinor;
 
-          // ── Apply discount (auto-apply or promo code) ──
+          // Tolls + parking are NOT discountable — exclude from discount base
+          const tollParkingMinor = (snapshot.toll_minor ?? 0) + (snapshot.parking_minor ?? 0);
+          const discountableBase = grandTotal - tollParkingMinor;
+
+          // ── Apply discount to discountable base only ──
           const discountResult = await this.discountSvc.resolveDiscount(
             tenant.id,
-            baseFare,
+            discountableBase,
             {
               code:          dto.promo_code,
               serviceTypeId: dto.service_type_id,
@@ -107,7 +111,10 @@ export class PublicPricingService {
           );
 
           const discountMinor  = discountResult?.discountMinor ?? 0;
-          const finalTotal     = discountResult?.finalFareMinor ?? baseFare;
+          // Final = discounted base + non-discountable tolls/parking
+          const finalTotal     = discountResult
+            ? (discountResult.finalFareMinor + tollParkingMinor)
+            : grandTotal;
 
           return {
             service_class_id: ct.id,
@@ -141,7 +148,7 @@ export class PublicPricingService {
               extras_minor: snapshot.extras_minor ?? 0,
               waypoints_minor: snapshot.waypoints_minor ?? 0,
               baby_seats_minor: snapshot.baby_seats_minor ?? 0,
-              pre_discount_total_minor: baseFare,  // true gross before any discount
+              pre_discount_total_minor: discountableBase,  // discountable base (excl. toll/parking)
               discount_amount_minor: discountMinor,
               final_fare_minor: finalTotal,
               grand_total_minor: finalTotal,

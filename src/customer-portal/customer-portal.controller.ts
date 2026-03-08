@@ -137,21 +137,22 @@ export class CustomerPortalController {
       ?? payload.results?.[0];
     if (!result) return { error: 'Car type not found in quote' };
 
-    // True gross = base_calculated_minor + all surcharges (tolls, parking, extras, waypoints, baby seats)
-    // This avoids using pre_discount_total_minor which may already have discount baked in
+    // Discountable base = total fare EXCLUDING tolls/parking (per business rule)
     const snap = result.pricing_snapshot_preview ?? {};
-    const trueGross = snap.base_calculated_minor
-      ? snap.base_calculated_minor
-        + (snap.toll_parking_minor ?? 0)
-        + (snap.surcharge_minor ?? 0)
-        + (snap.time_surcharge_minor ?? 0)
-        + (snap.extras_minor ?? 0)
-        + (snap.waypoints_minor ?? 0)
-        + (snap.baby_seats_minor ?? 0)
-      : null;
-    // Fallback: pre_discount_total + already-applied discount
-    const baseFare = trueGross
-      ?? (((snap.pre_discount_total_minor ?? 0) + (snap.discount_amount_minor ?? 0)) || (result.estimated_total_minor + (snap.discount_amount_minor ?? 0)));
+    const tollParkingMinor = (snap.toll_minor ?? 0) + (snap.parking_minor ?? 0);
+
+    // If pre_discount_total_minor is stored (new quotes), use it directly
+    // Otherwise reconstruct from base + surcharges (excl. tolls/parking)
+    const discountableBase = snap.pre_discount_total_minor
+      ?? (snap.base_calculated_minor
+        ? snap.base_calculated_minor
+          + (snap.surcharge_minor ?? 0)
+          + (snap.time_surcharge_minor ?? 0)
+          + (snap.extras_minor ?? 0)
+          + (snap.waypoints_minor ?? 0)
+          + (snap.baby_seats_minor ?? 0)
+        : Math.max(0, result.estimated_total_minor + (snap.discount_amount_minor ?? 0) - tollParkingMinor));
+    const baseFare = discountableBase;
 
     // Re-resolve discount with customer ID (stacks customer loyalty rate)
     const discount = await this.discountSvc.resolveDiscount(
@@ -164,10 +165,15 @@ export class CustomerPortalController {
       },
     );
 
+    // Final total = discounted base + non-discountable toll/parking
+    const finalFareMinor = discount
+      ? (discount.finalFareMinor + tollParkingMinor)
+      : (baseFare + tollParkingMinor);
+
     return {
-      base_fare_minor:          baseFare,
+      base_fare_minor:          baseFare + tollParkingMinor,  // gross before discount (for display)
       discount_minor:           discount?.discountMinor ?? 0,
-      final_fare_minor:         discount?.finalFareMinor ?? baseFare,
+      final_fare_minor:         finalFareMinor,
       discount_name:            discount?.name ?? null,
       discount_rate:            discount?.value ?? 0,
       capped_by_max:            discount?.cappedByMax ?? false,

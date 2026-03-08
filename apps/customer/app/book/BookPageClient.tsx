@@ -857,10 +857,12 @@ export function BookPageClient() {
                   discountMinor: baseDiscountMinor,
                 } : null);
                 const originalPrice = loyaltyDiscount
-                  // true original = final + full discount amount (avoids double-discount display)
+                  // gross = final + discount (toll/parking already included in both)
                   ? loyaltyDiscount.finalFareMinor + loyaltyDiscount.discountMinor
                   : (selectedResult.pricing_snapshot_preview?.pre_discount_total_minor
-                      ?? selectedResult.estimated_total_minor + baseDiscountMinor);
+                      ? selectedResult.pricing_snapshot_preview.pre_discount_total_minor
+                          + (selectedResult.pricing_snapshot_preview.toll_parking_minor ?? 0)
+                      : selectedResult.estimated_total_minor + baseDiscountMinor);
                 const finalPrice = loyaltyDiscount
                   ? loyaltyDiscount.finalFareMinor
                   : selectedResult.estimated_total_minor;
