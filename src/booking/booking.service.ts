@@ -364,10 +364,13 @@ export class BookingService {
       .catch((e) => console.error('[Notification] AdminBookingPendingConfirm FAILED:', e?.message));
 
     // Auto-generate payment token + send payment request email to customer
+    // Delay slightly to avoid Resend rate limit (2 req/sec) after AdminNewBooking + AdminBookingPendingConfirm
     const status = dto.operational_status ?? 'PENDING_CUSTOMER_CONFIRMATION';
     if (status === 'PENDING_CUSTOMER_CONFIRMATION') {
-      this.sendPaymentLink(tenantId, id)
-        .catch((e) => console.error('[Notification] Auto payment link FAILED:', e?.message));
+      setTimeout(() => {
+        this.sendPaymentLink(tenantId, id)
+          .catch((e) => console.error('[Notification] Auto payment link FAILED:', e?.message));
+      }, 2000);
     } else if (status === 'CONFIRMED') {
       this.notificationService.handleEvent('BookingConfirmed', notifPayload)
         .catch((e) => console.error('[Notification] BookingConfirmed FAILED:', e?.message));
