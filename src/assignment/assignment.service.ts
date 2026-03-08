@@ -408,9 +408,9 @@ export class AssignmentService {
   async getJobsByDriver(tenantId: string, driverId: string, filter: string = 'upcoming', from?: string, to?: string) {
     let whereClause = '';
     if (from && to) {
-      whereClause = `AND b.pickup_at_utc >= '${from}'::timestamptz AND b.pickup_at_utc < '${to}'::timestamptz AND a.status NOT IN ('CANCELLED','REJECTED')`;
+      whereClause = `AND b.pickup_at_utc >= '${from}'::timestamptz AND b.pickup_at_utc < '${to}'::timestamptz AND a.status::text NOT IN ('CANCELLED','REJECTED')`;
     } else if (filter === 'upcoming') {
-      whereClause = `AND b.pickup_at_utc >= now() AND a.status NOT IN ('CANCELLED','REJECTED')`;
+      whereClause = `AND b.pickup_at_utc >= now() AND a.status::text NOT IN ('CANCELLED','REJECTED')`;
     } else if (filter === 'completed') {
       whereClause = `AND a.status = 'JOB_DONE'`;
     } else if (filter === 'active') {

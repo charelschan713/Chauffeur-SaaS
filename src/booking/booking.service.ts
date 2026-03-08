@@ -86,7 +86,7 @@ export class BookingService {
        FROM public.bookings b
        LEFT JOIN public.assignments a
          ON a.booking_id = b.id
-         AND a.status NOT IN ('CANCELLED','DECLINED','EXPIRED')
+         AND a.status::text NOT IN ('CANCELLED','DECLINED','EXPIRED')
        LEFT JOIN public.tenant_service_classes tsc ON tsc.id = b.service_class_id
        LEFT JOIN public.tenant_service_types tst ON tst.id = b.service_type_id
        ${where}
@@ -442,7 +442,7 @@ export class BookingService {
          SET operational_status = 'CANCELLED',
              updated_at = now()
          WHERE id = $1
-           AND operational_status NOT IN ('COMPLETED','FULFILLED','CANCELLED')
+           AND operational_status::text NOT IN ('COMPLETED','FULFILLED','CANCELLED')
          RETURNING id`,
         [bookingId],
       );

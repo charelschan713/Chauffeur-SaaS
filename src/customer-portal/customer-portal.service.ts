@@ -102,7 +102,7 @@ export class CustomerPortalService implements OnModuleInit {
                 service_class_id, special_requests
          FROM public.bookings
          WHERE customer_id=$1 AND tenant_id=$2
-           AND operational_status NOT IN ('CANCELLED','COMPLETED','NO_SHOW')
+           AND operational_status::text NOT IN ('CANCELLED','COMPLETED','NO_SHOW')
            AND pickup_at_utc > now()
          ORDER BY pickup_at_utc ASC LIMIT 5`,
         [customerId, tenantId],

@@ -59,7 +59,7 @@ export class CityController {
     const check = await this.dataSource.query(
       `SELECT COUNT(*) FROM public.bookings
        WHERE city_id = $1 AND tenant_id = $2
-         AND operational_status NOT IN ('CANCELLED','COMPLETED','JOB_COMPLETED')`,
+         AND operational_status::text NOT IN ('CANCELLED','COMPLETED','JOB_COMPLETED')`,
       [id, req.user.tenant_id],
     );
     if (Number(check[0]?.count ?? 0) > 0) {

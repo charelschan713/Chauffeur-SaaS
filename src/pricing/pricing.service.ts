@@ -181,7 +181,7 @@ export class PricingService {
     const conflicts = await this.dataSource.query(
       `SELECT COUNT(*) FROM public.bookings
        WHERE tenant_id = $1 AND service_class_id = $2
-         AND operational_status NOT IN ('COMPLETED','CANCELLED')`,
+         AND operational_status::text NOT IN ('COMPLETED','CANCELLED')`,
       [tenantId, id],
     );
     if (Number(conflicts[0]?.count) > 0) {
