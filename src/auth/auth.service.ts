@@ -1,6 +1,7 @@
 import {
   ForbiddenException,
   Injectable,
+  OnModuleInit,
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
@@ -21,11 +22,20 @@ interface JwtPayload {
 }
 
 @Injectable()
-export class AuthService {
+export class AuthService implements OnModuleInit {
   constructor(
     private readonly dataSource: DataSource,
     private readonly jwt: JwtService,
   ) {}
+
+  async onModuleInit() {
+    // Auto-migrate: add sms_otp columns to users table
+    await this.dataSource.query(`
+      ALTER TABLE public.users
+        ADD COLUMN IF NOT EXISTS sms_otp text,
+        ADD COLUMN IF NOT EXISTS sms_otp_expires_at timestamptz
+    `).catch(() => { /* columns may already exist */ });
+  }
 
   private hashToken(token: string): string {
     return crypto
@@ -250,3 +260,109 @@ export class AuthService {
     return rows[0]?.role ?? null;
   }
 }
+
+  // ── Driver SMS OTP ──────────────────────────────────────────────────────────
+
+  /** Send 6-digit OTP to driver's phone number */
+  async sendDriverOtp(phone: string): Promise<{ sent: boolean }> {
+    // Normalise phone: strip spaces, ensure +61 prefix for AU
+    const normalised = phone.trim().replace(/\s+/g, '');
+
+    // Find user by phone
+    const rows = await this.dataSource.query(
+      `SELECT u.id, u.full_name,
+              u.phone_country_code || u.phone_number AS full_phone
+       FROM public.users u
+       JOIN public.memberships m ON m.user_id = u.id AND m.role = 'driver' AND m.status = 'active'
+       WHERE REPLACE(CONCAT(u.phone_country_code, u.phone_number), ' ', '') = $1
+          OR REPLACE(u.phone_number, ' ', '') = $1
+       LIMIT 1`,
+      [normalised],
+    );
+
+    // Always return sent:true (security — don't reveal if number exists)
+    if (!rows.length) return { sent: true };
+
+    const user = rows[0];
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 min
+
+    await this.dataSource.query(
+      `UPDATE public.users
+       SET sms_otp = $1, sms_otp_expires_at = $2
+       WHERE id = $3`,
+      [otp, expiresAt.toISOString(), user.id],
+    );
+
+    // Send via Twilio direct (env vars, not tenant integration)
+    const accountSid = process.env.TWILIO_ACCOUNT_SID;
+    const authToken  = process.env.TWILIO_AUTH_TOKEN;
+    const fromNumber = process.env.TWILIO_FROM_NUMBER;
+
+    if (accountSid && authToken && fromNumber) {
+      const body = `ASChauffeured driver code: ${otp}. Expires in 10 minutes.`;
+      await fetch(
+        `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            Authorization: `Basic ${Buffer.from(`${accountSid}:${authToken}`).toString('base64')}`,
+          },
+          body: new URLSearchParams({ To: rows[0].full_phone || normalised, From: fromNumber, Body: body }),
+        },
+      ).catch(e => console.error('[OTP] Twilio send failed:', e?.message));
+    } else {
+      // Dev: log OTP to console
+      console.log(`[OTP] Driver ${user.full_name} (${normalised}): ${otp}`);
+    }
+
+    return { sent: true };
+  }
+
+  /** Verify OTP and return tokens */
+  async verifyDriverOtp(phone: string, otp: string) {
+    const normalised = phone.trim().replace(/\s+/g, '');
+
+    const rows = await this.dataSource.query(
+      `SELECT u.id, u.sms_otp, u.sms_otp_expires_at, u.is_platform_admin
+       FROM public.users u
+       JOIN public.memberships m ON m.user_id = u.id AND m.role = 'driver' AND m.status = 'active'
+       WHERE REPLACE(CONCAT(u.phone_country_code, u.phone_number), ' ', '') = $1
+          OR REPLACE(u.phone_number, ' ', '') = $1
+       LIMIT 1`,
+      [normalised],
+    );
+
+    if (!rows.length) throw new UnauthorizedException('Invalid code');
+
+    const user = rows[0];
+    if (!user.sms_otp || user.sms_otp !== otp.trim()) {
+      throw new UnauthorizedException('Invalid code');
+    }
+    if (user.sms_otp_expires_at && new Date(user.sms_otp_expires_at) < new Date()) {
+      throw new UnauthorizedException('Code expired');
+    }
+
+    // Clear OTP
+    await this.dataSource.query(
+      `UPDATE public.users SET sms_otp = NULL, sms_otp_expires_at = NULL WHERE id = $1`,
+      [user.id],
+    );
+
+    // Resolve membership
+    const memberships = await this.dataSource.query(
+      `SELECT m.tenant_id, m.role
+       FROM public.memberships m
+       WHERE m.user_id = $1 AND m.role = 'driver' AND m.status = 'active'
+       LIMIT 1`,
+      [user.id],
+    );
+
+    const tenantId = memberships[0]?.tenant_id ?? null;
+    return this.issueTokens(
+      { sub: user.id, isPlatformAdmin: false },
+      tenantId,
+      'driver',
+    );
+  }

@@ -150,6 +150,24 @@ export class AuthController {
     };
   }
 
+  // ── Driver SMS OTP ────────────────────────────────────────────────────────
+  @Post('mobile/otp/send')
+  async mobileOtpSend(@Body('phone') phone: string) {
+    if (!phone) throw new UnauthorizedException('Phone required');
+    return this.auth.sendDriverOtp(phone);
+  }
+
+  @Post('mobile/otp/verify')
+  async mobileOtpVerify(@Body('phone') phone: string, @Body('otp') otp: string) {
+    if (!phone || !otp) throw new UnauthorizedException('Phone and OTP required');
+    const result = await this.auth.verifyDriverOtp(phone, otp);
+    return {
+      access_token: result.accessToken,
+      refresh_token: result.refreshToken,
+      expires_in: result.expiresIn,
+    };
+  }
+
   @Post('mobile/refresh')
   async mobileRefresh(@Body('refresh_token') refreshToken: string) {
     if (!refreshToken) throw new UnauthorizedException('No refresh token');
