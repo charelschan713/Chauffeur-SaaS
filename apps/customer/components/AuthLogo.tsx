@@ -142,7 +142,7 @@ function BrandPanel() {
   if (logoUrl) {
     return (
       <img src={logoUrl} alt={name}
-        style={{ height: '120px', width: 'auto', objectFit: 'contain' }}
+        style={{ height: '80px', width: 'auto', objectFit: 'contain' }}
         onError={(e) => (e.target as HTMLImageElement).style.display = 'none'} />
     );
   }
