@@ -1000,9 +1000,46 @@ export class NotificationService {
       driver_pay: payload.driver_pay ?? '',
       passenger_preferences: payload.passenger_preferences ?? '',
     };
-    // 'DriverJobAssigned' is the template name; 'DriverNewDispatch' is the event alias
+
+    // 1. Email + SMS
     await this.sendBoth(tenantId, 'DriverJobAssigned', vars,
       driver.email, driver.phone, booking.id);
+
+    // 2. Expo Push Notification
+    this.sendDriverPush(
+      payload.driver_id,
+      '🚗 New Job',
+      `${booking.booking_reference} — ${(booking as any).pickup_address_text ?? ''}`,
+      { assignment_id: payload.assignment_id, booking_id: payload.booking_id },
+    ).catch((e) => console.error('[Push] DriverNewDispatch failed:', e?.message));
+  }
+
+  private async sendDriverPush(
+    driverId: string,
+    title: string,
+    body: string,
+    data?: Record<string, any>,
+  ): Promise<void> {
+    const rows = await this.dataSource.query(
+      `SELECT expo_push_token FROM users WHERE id = $1`,
+      [driverId],
+    );
+    const token = rows[0]?.expo_push_token;
+    if (!token) return;
+
+    await fetch('https://exp.host/--/api/v2/push/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({
+        to: token,
+        title,
+        body,
+        data: data ?? {},
+        sound: 'default',
+        priority: 'high',
+        channelId: 'default',
+      }),
+    });
   }
 
   private async onDriverDocExpiry(tenantId: string, payload: any, days: number) {

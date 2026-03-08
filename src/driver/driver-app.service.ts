@@ -374,13 +374,47 @@ export class DriverAppService {
     });
   }
 
-  async saveApnsToken(userId: string, token: string, platform: string = 'ios') {
-    const me = await this.getMe(userId);
+  async saveApnsToken(userId: string, token: string, platform: string = 'expo') {
+    // token could be an Expo push token (ExponentPushToken[...]) or raw APNs token
+    const isExpo = token?.startsWith('ExponentPushToken');
     await this.dataSource.query(
-      `UPDATE users SET apns_token = $1, apns_platform = $2 WHERE id = $3`,
-      [token, platform, me.driver_id],
+      `UPDATE users
+       SET apns_token = $1, apns_platform = $2,
+           expo_push_token = CASE WHEN $3 THEN $1 ELSE expo_push_token END,
+           updated_at = now()
+       WHERE id = $4`,
+      [token, platform, isExpo, userId],
     );
     return { success: true };
+  }
+
+  async sendExpoPush(driverId: string, title: string, body: string, data?: Record<string, any>) {
+    const rows = await this.dataSource.query(
+      `SELECT expo_push_token FROM users WHERE id = $1`,
+      [driverId],
+    );
+    const token = rows[0]?.expo_push_token;
+    if (!token) return { sent: false, reason: 'no_token' };
+
+    try {
+      const res = await fetch('https://exp.host/--/api/v2/push/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({
+          to: token,
+          title,
+          body,
+          data: data ?? {},
+          sound: 'default',
+          priority: 'high',
+          channelId: 'default',
+        }),
+      });
+      const json = await res.json() as any;
+      return { sent: true, result: json };
+    } catch (e: any) {
+      return { sent: false, error: e?.message };
+    }
   }
 
   // ─── Private helpers ─────────────────────────────────────────────────────
