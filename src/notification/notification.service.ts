@@ -1066,7 +1066,7 @@ export class NotificationService {
     };
     const admins = await this.getAdminContacts(tenantId);
     for (const admin of admins) {
-      await this.sendFromTemplate(tenantId, 'AdminBookingConfirmedPaid', 'email', vars, admin.email, booking.id).catch(() => {});
+      if (admin.email) await this.sendFromTemplate(tenantId, 'AdminBookingConfirmedPaid', 'email', vars, admin.email, booking.id).catch(() => {});
     }
   }
 
