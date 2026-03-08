@@ -1459,14 +1459,8 @@ export function BookPageClient() {
 
                       {/* Pay with saved card button */}
                       {!useNewCard && selectedSavedCard && (
-                        <button type="button" disabled={submitting}
-                          onClick={handleSavedCardPay}
-                          className="w-full bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] rounded-xl py-4 font-semibold text-sm disabled:opacity-60 mt-2">
-                          {submitting ? 'Processing…' : `Confirm & Pay ${fmtMoney(
-                            loyaltyDiscount?.finalFareMinor ?? selectedResult?.estimated_total_minor ?? 0,
-                            selectedResult?.currency ?? 'AUD',
-                          )}`}
-                        </button>
+                        {/* Confirm & Pay is in the sticky bottom bar */}
+                        <div />
                       )}
                     </div>
                   )}
@@ -1527,8 +1521,8 @@ export function BookPageClient() {
       />
 
       {/* Sticky Confirm & Pay bar — always visible at bottom */}
-      {(['details', 'auth', 'login', 'guest'] as const).includes(step as any) && !useNewCard && selectedSavedCard && selectedResult && (
-        <div className="fixed bottom-0 left-0 right-0 z-30 px-4 pb-safe"
+      {(['details', 'auth', 'login', 'guest'] as const).includes(step as any) && !useNewCard && selectedSavedCard && (
+        <div className="fixed bottom-0 left-0 right-0 z-30 px-4"
           style={{
             background: 'hsl(var(--background))',
             borderTop: '1px solid hsl(var(--border))',
@@ -1539,10 +1533,9 @@ export function BookPageClient() {
             <button type="button" disabled={submitting}
               onClick={handleSavedCardPay}
               className="w-full bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] rounded-xl py-4 font-semibold text-sm disabled:opacity-60">
-              {submitting ? 'Processing…' : `Confirm & Pay ${fmtMoney(
-                loyaltyDiscount?.finalFareMinor ?? selectedResult.estimated_total_minor,
-                selectedResult.currency,
-              )}`}
+              {submitting ? 'Processing…' : selectedResult
+                ? `Confirm & Pay ${fmtMoney(loyaltyDiscount?.finalFareMinor ?? selectedResult.estimated_total_minor, selectedResult.currency)}`
+                : 'Confirm & Pay'}
             </button>
           </div>
         </div>
