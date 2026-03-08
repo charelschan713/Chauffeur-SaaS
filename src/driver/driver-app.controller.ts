@@ -126,25 +126,6 @@ export class DriverAppController {
     return this.service.saveApnsToken(userId, body.token, body.platform);
   }
 
-  /** Submit trip review + auto-fulfill */
-  @Post('assignments/:id/review')
-  async submitReview(
-    @CurrentUser('sub') userId: string,
-    @Param('id') assignmentId: string,
-    @Body() body: { passenger_rating: number; notes?: string; flags?: string[] },
-  ) {
-    return this.service.submitTripReview(userId, assignmentId, body);
-  }
-
-  /** Get trip review */
-  @Get('assignments/:id/review')
-  async getReview(
-    @CurrentUser('sub') userId: string,
-    @Param('id') assignmentId: string,
-  ) {
-    return this.service.getTripReview(userId, assignmentId);
-  }
-
   /** Submit post-job extras report */
   @Post('extra-report')
   async submitExtraReport(
