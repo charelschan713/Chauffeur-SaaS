@@ -29,7 +29,7 @@ interface Discount {
   used_count: number;
 }
 
-const emptyForm = (): Partial<Discount> & { maxDiscountDollars: string; minFareDollars: string; fixedAmountDollars: string } => ({
+const emptyForm = (): Partial<Discount> & { maxDiscountDollars: string; minFareDollars: string; fixedAmountDollars: string; maxDiscountPct: string } => ({
   name:                  '',
   code:                  '',
   description:           '',
@@ -46,6 +46,7 @@ const emptyForm = (): Partial<Discount> & { maxDiscountDollars: string; minFareD
   maxDiscountDollars:    '',
   minFareDollars:        '0',
   fixedAmountDollars:    '10',
+  maxDiscountPct:        '',
 });
 
 function fmtDiscount(d: Discount) {
@@ -97,6 +98,7 @@ export default function DiscountsPage() {
         active:              form.active,
         maxUses:             form.max_uses || null,
         maxUsesPerCustomer:  Number(form.max_uses_per_customer),
+        maxDiscountPct:      (form as any).maxDiscountPct ? Number((form as any).maxDiscountPct) : null,
       };
       if (editing) return api.put(`/discounts/${editing.id}`, payload);
       return api.post('/discounts', payload);
@@ -131,6 +133,7 @@ export default function DiscountsPage() {
       maxDiscountDollars: d.max_discount_minor ? String(d.max_discount_minor / 100) : '',
       minFareDollars:     String(d.min_fare_minor / 100),
       fixedAmountDollars: d.type === 'FIXED_AMOUNT' ? String(d.value / 100) : '10',
+      maxDiscountPct:     (d as any).max_discount_pct ? String((d as any).max_discount_pct) : '',
     });
     setShowForm(true);
   };
@@ -202,6 +205,15 @@ export default function DiscountsPage() {
                       <input type="number" min={0} className={inputCls + " pl-6"}
                         value={form.maxDiscountDollars} onChange={f('maxDiscountDollars')}
                         placeholder="Unlimited" />
+                    </div>
+                  </div>
+                  <div>
+                    <label className={labelCls}>Max Combined Discount (%) <span className="text-gray-400 font-normal text-xs">caps tier + loyalty stacking</span></label>
+                    <div className="relative">
+                      <input type="number" min={0} max={100} className={inputCls + " pr-8"}
+                        value={form.maxDiscountPct ?? ''} onChange={e => setForm(p => ({ ...p, maxDiscountPct: e.target.value }))}
+                        placeholder="No cap" />
+                      <span className="absolute right-3 top-2 text-gray-400 text-sm">%</span>
                     </div>
                   </div>
                 </>

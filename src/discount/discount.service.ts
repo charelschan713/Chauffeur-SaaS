@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 
@@ -14,10 +14,18 @@ export interface DiscountResult {
 }
 
 @Injectable()
-export class DiscountService {
+export class DiscountService implements OnModuleInit {
   private readonly logger = new Logger(DiscountService.name);
 
   constructor(@InjectDataSource() private readonly db: DataSource) {}
+
+  async onModuleInit() {
+    // Auto-add max_discount_pct column (combined discount % cap)
+    await this.db.query(`
+      ALTER TABLE public.tenant_discounts
+        ADD COLUMN IF NOT EXISTS max_discount_pct numeric(5,2) DEFAULT NULL
+    `).catch(() => {});
+  }
 
   // ── Admin: list ──────────────────────────────────────────────────────────
   async list(tenantId: string) {
@@ -37,8 +45,8 @@ export class DiscountService {
       `INSERT INTO public.tenant_discounts
          (tenant_id, name, code, description, type, value, max_discount_minor,
           applies_to, service_type_ids, min_fare_minor,
-          start_at, end_at, active, max_uses, max_uses_per_customer)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
+          start_at, end_at, active, max_uses, max_uses_per_customer, max_discount_pct)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
        RETURNING *`,
       [
         tenantId,
@@ -56,6 +64,7 @@ export class DiscountService {
         body.active !== false,
         body.maxUses ?? null,
         body.maxUsesPerCustomer ?? 1,
+        body.maxDiscountPct ?? null,
       ],
     );
     return row;
@@ -79,6 +88,7 @@ export class DiscountService {
          active               = COALESCE($14, active),
          max_uses             = $15,
          max_uses_per_customer = $16,
+         max_discount_pct     = $17,
          updated_at           = now()
        WHERE id = $1 AND tenant_id = $2
        RETURNING *`,
@@ -98,6 +108,7 @@ export class DiscountService {
         body.active ?? null,
         body.maxUses ?? null,
         body.maxUsesPerCustomer ?? null,
+        body.maxDiscountPct !== undefined ? (body.maxDiscountPct || null) : undefined,
       ],
     );
     return row;
@@ -217,13 +228,22 @@ export class DiscountService {
       fixedMinor = Number(discount.value);
     }
 
-    // Combined percentage (base + customer), then apply cap
-    const combinedRatePct   = baseRatePct + customerDiscountRate;
+    // Combined percentage (base + customer)
+    const rawCombinedRatePct = baseRatePct + customerDiscountRate;
+
+    // Apply max_discount_pct cap (combined % cannot exceed this)
+    const maxPctCap = (discount?.max_discount_pct != null && Number(discount.max_discount_pct) > 0)
+      ? Number(discount.max_discount_pct)
+      : null;
+    const combinedRatePct = maxPctCap != null
+      ? Math.min(rawCombinedRatePct, maxPctCap)
+      : rawCombinedRatePct;
+
     const fromPct           = Math.round(baseFareMinor * combinedRatePct / 100);
     const rawDiscountMinor  = fromPct + fixedMinor;
 
-    const cappedByMax        = maxCap != null && rawDiscountMinor > maxCap;
-    const discountMinor      = cappedByMax ? maxCap : rawDiscountMinor;
+    const cappedByMax        = (maxCap != null && rawDiscountMinor > maxCap) || (maxPctCap != null && rawCombinedRatePct > maxPctCap);
+    const discountMinor      = maxCap != null && rawDiscountMinor > maxCap ? maxCap : rawDiscountMinor;
     const finalFareMinor     = Math.max(0, baseFareMinor - discountMinor);
 
     // Build a meaningful name

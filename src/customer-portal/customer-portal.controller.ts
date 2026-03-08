@@ -163,12 +163,23 @@ export class CustomerPortalController {
       [req.customer.sub, req.customer.tenant_id],
     );
     const extraRate = Number(customerRows[0]?.discount_rate ?? 0);
-    const extraDiscountMinor = extraRate > 0 ? Math.round(trueBase * extraRate / 100) : 0;
 
-    // Total discount = tier + extra
-    const totalDiscountMinor = tierDiscountMinor + extraDiscountMinor;
+    // Check max_discount_pct cap from any active discount rule
+    const [capRow] = await this.db.query(
+      `SELECT max_discount_pct FROM public.tenant_discounts
+       WHERE tenant_id = $1 AND active = true AND max_discount_pct IS NOT NULL
+       ORDER BY max_discount_pct DESC LIMIT 1`,
+      [session.tenant_id],
+    );
+    const maxPctCap: number | null = capRow?.max_discount_pct ? Number(capRow.max_discount_pct) : null;
+
+    const rawCombinedRate = (Number(tierRate) || 0) + extraRate;
+    const cappedCombinedRate = maxPctCap != null ? Math.min(rawCombinedRate, maxPctCap) : rawCombinedRate;
+    const cappedByMax = maxPctCap != null && rawCombinedRate > maxPctCap;
+
+    const totalDiscountMinor = Math.round(trueBase * cappedCombinedRate / 100);
     const finalFareMinor = Math.max(0, trueBase - totalDiscountMinor) + tollParkingMinor;
-    const combinedRate = (tierRate > 0 ? Number(tierRate) : 0) + extraRate;
+    const combinedRate = cappedCombinedRate;
 
     return {
       base_fare_minor:          trueBase + tollParkingMinor,
@@ -176,7 +187,7 @@ export class CustomerPortalController {
       final_fare_minor:         finalFareMinor,
       discount_name:            combinedRate > 0 ? `${combinedRate}% loyalty` : null,
       discount_rate:            combinedRate,
-      capped_by_max:            false,
+      capped_by_max:            cappedByMax,
       currency:                 payload.currency ?? 'AUD',
     };
   }
