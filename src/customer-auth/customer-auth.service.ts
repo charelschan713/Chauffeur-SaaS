@@ -94,9 +94,11 @@ export class CustomerAuthService {
        WHERE ca.tenant_id = $1 AND ca.email = $2`,
       [tenant.id, dto.email.toLowerCase()],
     );
-    if (!rows.length) throw new UnauthorizedException('Invalid credentials');
+    console.log(`[CustomerAuth] login attempt: email=${dto.email} rows=${rows.length} hasHash=${!!rows[0]?.password_hash}`);
+    if (!rows.length || !rows[0].password_hash) throw new UnauthorizedException('Invalid credentials');
 
     const ok = await bcrypt.compare(dto.password, rows[0].password_hash);
+    console.log(`[CustomerAuth] bcrypt compare: ${ok}`);
     if (!ok) throw new UnauthorizedException('Invalid credentials');
 
     return this.issueTokens(rows[0].customer_id, tenant.id);
