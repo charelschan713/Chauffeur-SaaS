@@ -912,6 +912,8 @@ export class NotificationService {
       );
       if (passengerPhone) await this.sendFromTemplate(tenantId, 'DriverArrived', 'sms', vars, passengerPhone, booking.id).catch(() => {});
     }
+    // Push to customer
+    this.sendCustomerPush(booking.customer_id, '📍 Your Chauffeur Has Arrived', `${vars['driver_name']} is waiting at the pickup point.`, { booking_id: booking.id }).catch(() => {});
   }
 
   private async onRefundIssued(tenantId: string, payload: any) {
@@ -1321,6 +1323,25 @@ export class NotificationService {
       );
       if (passengerPhone) await this.sendFromTemplate(tenantId, 'DriverEnRoute', 'sms', vars, passengerPhone, booking.id).catch(() => {});
     }
+    // Push to customer
+    const eta = vars['eta_minutes'] ? ` ETA ${vars['eta_minutes']} mins.` : '';
+    this.sendCustomerPush(booking.customer_id, '🚗 Your Chauffeur Is On The Way', `${vars['driver_name']} is heading to you.${eta}`, { booking_id: booking.id }).catch(() => {});
+  }
+
+  // ── Helper: send Expo push to customer ───────────────────────────────────
+  private async sendCustomerPush(customerId: string, title: string, body: string, data?: Record<string, any>): Promise<void> {
+    if (!customerId) return;
+    const rows = await this.dataSource.query(
+      `SELECT expo_push_token FROM customers WHERE id = $1`,
+      [customerId],
+    );
+    const token = rows[0]?.expo_push_token;
+    if (!token) return;
+    await fetch('https://exp.host/--/api/v2/push/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({ to: token, title, body, data: data ?? {}, sound: 'default', priority: 'high' }),
+    });
   }
 
   // ── Helper: extract booking vars ─────────────────────────────────────────

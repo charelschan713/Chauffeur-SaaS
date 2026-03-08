@@ -24,3 +24,7 @@ CREATE TABLE IF NOT EXISTS public.driver_invoices (
 
 CREATE INDEX IF NOT EXISTS idx_driver_invoices_driver_id ON public.driver_invoices(driver_id);
 CREATE INDEX IF NOT EXISTS idx_driver_invoices_tenant_id ON public.driver_invoices(tenant_id);
+
+-- Customer push token
+ALTER TABLE public.customers
+  ADD COLUMN IF NOT EXISTS expo_push_token TEXT;

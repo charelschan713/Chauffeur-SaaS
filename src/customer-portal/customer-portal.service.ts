@@ -1028,6 +1028,26 @@ export class CustomerPortalService {
     return { success: true };
   }
 
+  async confirmBooking(customerId: string, tenantId: string, bookingId: string) {
+    await this.db.query(
+      `UPDATE public.bookings
+       SET operational_status = 'CONFIRMED', updated_at = now()
+       WHERE id = $1 AND tenant_id = $2
+         AND operational_status = 'PENDING_CUSTOMER_CONFIRMATION'`,
+      [bookingId, tenantId],
+    );
+    return { confirmed: true };
+  }
+
+  async savePushToken(customerId: string, tenantId: string, token: string) {
+    await this.db.query(
+      `UPDATE public.customers SET expo_push_token = $1, updated_at = now()
+       WHERE id = $2 AND tenant_id = $3`,
+      [token, customerId, tenantId],
+    );
+    return { saved: true };
+  }
+
   private async getStripeCustomerId(customerId: string): Promise<string | null> {
     const rows = await this.db.query(
       `SELECT stripe_customer_id FROM public.customers WHERE id=$1`,

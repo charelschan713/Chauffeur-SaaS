@@ -210,4 +210,17 @@ export class CustomerPortalController {
   listInvoices(@Req() req: any) {
     return this.svc.listInvoices(req.customer.sub, req.customer.tenant_id);
   }
+
+  @Post('bookings/:id/confirm')
+  @UseGuards(CustomerAuthGuard)
+  confirmBooking(@Req() req: any, @Param('id') id: string) {
+    return this.svc.confirmBooking(req.customer.sub, req.customer.tenant_id, id);
+  }
+
+  /** Save Expo push token for customer push notifications */
+  @Post('push-token')
+  @UseGuards(CustomerAuthGuard)
+  savePushToken(@Req() req: any, @Body() body: { token: string; platform?: string }) {
+    return this.svc.savePushToken(req.customer.sub, req.customer.tenant_id, body.token);
+  }
 }
