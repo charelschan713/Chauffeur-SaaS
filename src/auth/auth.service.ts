@@ -259,7 +259,6 @@ export class AuthService implements OnModuleInit {
     );
     return rows[0]?.role ?? null;
   }
-}
 
   // ── Driver SMS OTP ──────────────────────────────────────────────────────────
 
@@ -366,3 +365,4 @@ export class AuthService implements OnModuleInit {
       'driver',
     );
   }
+}
