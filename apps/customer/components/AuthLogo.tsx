@@ -79,18 +79,18 @@ export function AuthLogo({ subtitle }: { subtitle?: string }) {
 /** Shared page shell for auth pages */
 export function AuthShell({ children }: { children: React.ReactNode }) {
   return (
-    <div
-      className="min-h-screen bg-[#0d0f14] flex flex-col items-center justify-center px-4 gap-8"
-      style={{
-        paddingTop: 'max(64px, env(safe-area-inset-top))',
-        paddingBottom: 'max(64px, env(safe-area-inset-bottom))',
-      }}
-    >
+    <div className="min-h-screen bg-[#0d0f14] flex flex-col px-4"
+      style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_#1a1200_0%,_#0d0f14_60%)] pointer-events-none" />
-      <div className="relative w-full max-w-sm flex flex-col items-center gap-8">
+      {/* spacer top */}
+      <div className="flex-1" />
+      {/* centered content */}
+      <div className="relative w-full max-w-sm mx-auto flex flex-col items-center gap-8">
         {children}
       </div>
-      <p className="absolute bottom-6 text-center text-xs text-white/15 tracking-widest uppercase">
+      {/* spacer bottom */}
+      <div className="flex-1" />
+      <p className="relative text-center text-xs text-white/15 tracking-widest uppercase py-6">
         © {new Date().getFullYear()} Chauffeur Solutions
       </p>
     </div>
