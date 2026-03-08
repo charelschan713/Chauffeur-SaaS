@@ -337,11 +337,23 @@ export function QuoteClient() {
       if (vs.length) setServiceTypeId(vs[0].id);
     }).catch(() => setConfigError(true))
       .finally(() => setLoadingConfig(false));
-    // Auto-discount (non-blocking)
-    fetch(`${API_URL}/public/discounts/auto?tenant_slug=${slug}`)
-      .then(r => r.ok ? r.json() : null)
-      .then(d => { if (d?.name) setAutoDiscount({ name: d.name, rate: Number(d.discount_value) }); })
-      .catch(() => {});
+    // Auto-discount (non-blocking, with retry)
+    const fetchDiscount = (attempt = 0) => {
+      fetch(`${API_URL}/public/discounts/auto?tenant_slug=${slug}`)
+        .then(r => r.ok ? r.json() : null)
+        .then(d => {
+          if (d?.name) {
+            setAutoDiscount({ name: d.name, rate: Number(d.discount_value) });
+          } else if (attempt < 3) {
+            // Retry up to 3 times with backoff
+            setTimeout(() => fetchDiscount(attempt + 1), 1500 * (attempt + 1));
+          }
+        })
+        .catch(() => {
+          if (attempt < 3) setTimeout(() => fetchDiscount(attempt + 1), 2000 * (attempt + 1));
+        });
+    };
+    fetchDiscount();
   }, []);
 
   // Get Quote
@@ -394,6 +406,14 @@ export function QuoteClient() {
       setCurrency(quote.currency ?? 'AUD');
       if (quote.results?.length > 0) setSelectedCarTypeId(quote.results[0].service_class_id);
       setTimeout(() => resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
+      // If discount still not loaded, re-fetch once after quote
+      if (!autoDiscount) {
+        const slug = getTenantSlug();
+        fetch(`${API_URL}/public/discounts/auto?tenant_slug=${slug}`)
+          .then(r => r.ok ? r.json() : null)
+          .then(d => { if (d?.name) setAutoDiscount({ name: d.name, rate: Number(d.discount_value) }); })
+          .catch(() => {});
+      }
     } catch {
       // silent — could add toast
     } finally {
