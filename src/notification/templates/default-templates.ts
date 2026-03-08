@@ -750,6 +750,14 @@ ${footer()}
     sms: { body: '{{company_name}}: Booking {{booking_reference}} pending confirmation. Login to action.' },
   },
 
+  AdminBookingConfirmedPaid: {
+    email: {
+      subject: '💰 Payment Received — {{booking_reference}}',
+      body: `<div style="${S.wrap}"><h2 style="${S.h2};color:#16a34a">Payment Received 💰</h2><p style="${S.p}">Booking <strong>{{booking_reference}}</strong> from <strong>{{customer_name}}</strong> has been paid in full.</p><p style="${S.p}">Amount: <strong>{{currency}} {{total_price}}</strong> · Pickup: {{pickup_time}}</p>${cta(btnUrl('View Booking →', '{{admin_booking_url}}'))}${footer()}</div>`,
+    },
+    sms: { body: '{{company_name}}: Payment received for {{booking_reference}} — {{currency}} {{total_price}}. Booking confirmed.' },
+  },
+
   JobCompleted: {
     email: {
       subject: 'Trip Complete — {{booking_reference}}',

@@ -104,6 +104,7 @@ export class NotificationService {
       case 'DriverDocRejected':    await this.onDriverDocResult(tenantId, payload, false); break;
       case 'AdminNewBooking':      await this.onAdminNewBooking(tenantId, payload); break;
       case 'AdminBookingPendingConfirm': await this.onAdminBookingPendingConfirm(tenantId, payload); break;
+      case 'AdminBookingConfirmedPaid':  await this.onAdminBookingConfirmedPaid(tenantId, payload); break;
       case 'AdminDriverRejected':  await this.onAdminDriverRejected(tenantId, payload); break;
       case 'AdminPartnerRejected': await this.onAdminPartnerRejected(tenantId, payload); break;
       case 'AdminTransferRequest': await this.onAdminTransferRequest(tenantId, payload); break;
@@ -1053,6 +1054,19 @@ export class NotificationService {
     const admins = await this.getAdminContacts(tenantId);
     for (const admin of admins) {
       await this.sendBoth(tenantId, 'AdminBookingPendingConfirm', vars, admin.email, null, booking.id).catch(() => {});
+    }
+  }
+
+  private async onAdminBookingConfirmedPaid(tenantId: string, payload: any) {
+    const booking = await this.getBooking(payload.booking_id);
+    if (!booking) return;
+    const vars: Record<string, string> = {
+      ...this.bookingVars(booking),
+      admin_booking_url: `https://chauffeur-saa-s.vercel.app/bookings/${payload.booking_id}`,
+    };
+    const admins = await this.getAdminContacts(tenantId);
+    for (const admin of admins) {
+      await this.sendFromTemplate(tenantId, 'AdminBookingConfirmedPaid', 'email', vars, admin.email, booking.id).catch(() => {});
     }
   }
 

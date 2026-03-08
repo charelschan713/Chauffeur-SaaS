@@ -698,8 +698,14 @@ export class CustomerPortalService {
     const tenantId = rows[0]?.tenant_id;
     if (tenantId) {
       const notifPayload = { tenant_id: tenantId, booking_id: bookingId };
+      // Notify customer: booking confirmed
       this.notificationService.handleEvent('BookingConfirmed', notifPayload)
         .catch((e) => console.error('[Notification] BookingConfirmed (pay link) FAILED:', e?.message));
+      // Notify admin: booking now confirmed + paid (delayed to avoid rate limit)
+      setTimeout(() => {
+        this.notificationService.handleEvent('AdminBookingConfirmedPaid', notifPayload)
+          .catch((e) => console.error('[Notification] AdminBookingConfirmedPaid FAILED:', e?.message));
+      }, 2000);
     }
   }
 
