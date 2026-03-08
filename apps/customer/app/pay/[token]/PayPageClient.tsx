@@ -231,6 +231,12 @@ export function PayPageClient({ token }: { token: string }) {
         <div className="mb-3 text-4xl">⏰</div>
         <h2 className="text-lg font-semibold text-white">Link not found or expired</h2>
         <p className="mt-2 text-sm text-gray-400">This payment link may have expired. Please contact us for assistance.</p>
+        <a
+          href="/dashboard"
+          className="mt-6 inline-block px-6 py-3 rounded-xl bg-[#c8a96b] text-black text-sm font-semibold hover:bg-[#b8995b] transition-colors"
+        >
+          Back to Home
+        </a>
       </div>
     </div>
   );
@@ -245,6 +251,20 @@ export function PayPageClient({ token }: { token: string }) {
         </div>
         <h2 className="text-xl font-bold text-white">Already Paid</h2>
         <p className="mt-2 text-sm text-gray-400">This booking has been paid in full. Thank you!</p>
+        <div className="mt-6 flex flex-col gap-3">
+          <a
+            href="/dashboard"
+            className="inline-block px-6 py-3 rounded-xl bg-[#c8a96b] text-black text-sm font-semibold hover:bg-[#b8995b] transition-colors"
+          >
+            Go to Dashboard
+          </a>
+          <a
+            href="/bookings"
+            className="inline-block px-6 py-3 rounded-xl border border-[#c8a96b]/40 text-[#c8a96b] text-sm font-medium hover:bg-[#c8a96b]/10 transition-colors"
+          >
+            View My Bookings
+          </a>
+        </div>
       </div>
     </div>
   );
