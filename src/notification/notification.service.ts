@@ -443,8 +443,10 @@ export class NotificationService {
     if (customerPhone) await this.sendSmsWithLog(tenantId, eventType, smsIntegration, customerPhone, body, booking.id).catch(() => {});
   }
 
-  private static formatMinor(minor: number): string {
-    return (minor / 100).toFixed(2);
+  private static formatMinor(minor: number | string | null | undefined): string {
+    const n = Number(minor);
+    if (!minor || isNaN(n)) return '0.00';
+    return (n / 100).toFixed(2);
   }
 
   /** Returns branded HTML for ASC tenant, null otherwise (fallback to plain template) */
@@ -965,8 +967,15 @@ export class NotificationService {
   private async onPaymentRequest(tenantId: string, payload: any) {
     const booking = await this.getBooking(payload.booking_id);
     if (!booking) return;
+    console.log('[onPaymentRequest] booking fields:', {
+      customer_first_name: booking.customer_first_name,
+      total_price_minor: booking.total_price_minor,
+      customer_email: booking.customer_email,
+    });
+    const bv = this.bookingVars(booking);
+    console.log('[onPaymentRequest] bookingVars:', { customer_first_name: bv.customer_first_name, total_amount: bv.total_amount });
     const vars = {
-      ...this.bookingVars(booking),
+      ...bv,
       payment_link: payload.payment_link ?? payload.payment_url ?? '',
       payment_url:  payload.payment_url  ?? payload.payment_link ?? '',
     };
