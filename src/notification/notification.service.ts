@@ -967,13 +967,16 @@ export class NotificationService {
   private async onPaymentRequest(tenantId: string, payload: any) {
     const booking = await this.getBooking(payload.booking_id);
     if (!booking) return;
-    console.log('[onPaymentRequest] booking fields:', {
+    console.log('[onPaymentRequest] booking keys:', Object.keys(booking));
+    console.log('[onPaymentRequest] booking sample:', JSON.stringify({
       customer_first_name: booking.customer_first_name,
+      customerFirstName: (booking as any).customerFirstName,
       total_price_minor: booking.total_price_minor,
+      totalPriceMinor: (booking as any).totalPriceMinor,
       customer_email: booking.customer_email,
-    });
+    }));
     const bv = this.bookingVars(booking);
-    console.log('[onPaymentRequest] bookingVars:', { customer_first_name: bv.customer_first_name, total_amount: bv.total_amount });
+    console.log('[onPaymentRequest] bookingVars total_amount:', bv.total_amount, 'first_name:', bv.customer_first_name);
     const vars = {
       ...bv,
       payment_link: payload.payment_link ?? payload.payment_url ?? '',
