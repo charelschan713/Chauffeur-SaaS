@@ -266,10 +266,13 @@ export function PayPageClient({ token }: { token: string }) {
 
         {/* Booking summary */}
         <div className="mb-6 rounded-2xl border border-[#2a2d35] bg-[#111318] p-5 space-y-3">
+          {/* Reference */}
           <div className="flex items-center justify-between">
             <span className="text-xs text-gray-500 uppercase tracking-wide">Reference</span>
             <span className="text-sm font-bold text-[#c8a96b]">{data.booking_reference}</span>
           </div>
+
+          {/* Route */}
           <div className="border-t border-[#2a2d35] pt-3 space-y-2">
             <div className="flex gap-3">
               <span className="mt-0.5 text-[#c8a96b]">📍</span>
@@ -289,13 +292,68 @@ export function PayPageClient({ token }: { token: string }) {
               <span className="mt-0.5 text-[#c8a96b]">🕐</span>
               <div>
                 <p className="text-[10px] text-gray-500 uppercase tracking-wide">Date & Time</p>
-                <p className="text-sm text-white">{fmtDate(data.pickup_at_utc)}</p>
+                <p className="text-sm text-white">{data.pickup_time_local ?? fmtDate(data.pickup_at_utc)}</p>
               </div>
             </div>
           </div>
-          <div className="border-t border-[#2a2d35] pt-3 flex items-center justify-between">
-            <span className="text-sm text-gray-400">Total</span>
-            <span className="text-lg font-bold text-white">{data.currency} {(data.total_price_minor / 100).toFixed(2)}</span>
+
+          {/* Vehicle & Pax */}
+          <div className="border-t border-[#2a2d35] pt-3 grid grid-cols-3 gap-2">
+            {data.car_type_name && (
+              <div className="col-span-3 flex gap-3">
+                <span className="text-[#c8a96b]">🚘</span>
+                <div>
+                  <p className="text-[10px] text-gray-500 uppercase tracking-wide">Vehicle</p>
+                  <p className="text-sm text-white">{data.car_type_name}</p>
+                </div>
+              </div>
+            )}
+            <div className="flex gap-2 items-center">
+              <span className="text-gray-400 text-sm">👤</span>
+              <div>
+                <p className="text-[10px] text-gray-500">Passengers</p>
+                <p className="text-sm text-white">{data.passenger_count ?? '—'}</p>
+              </div>
+            </div>
+            <div className="flex gap-2 items-center">
+              <span className="text-gray-400 text-sm">🧳</span>
+              <div>
+                <p className="text-[10px] text-gray-500">Luggage</p>
+                <p className="text-sm text-white">{data.luggage_count ?? '—'}</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Pricing breakdown */}
+          <div className="border-t border-[#2a2d35] pt-3 space-y-1.5">
+            {data.prepay_base_fare_minor > 0 && (
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-400">Base Fare</span>
+                <span className="text-white">{data.currency} {(data.prepay_base_fare_minor / 100).toFixed(2)}</span>
+              </div>
+            )}
+            {(data.prepay_toll_minor > 0 || data.prepay_parking_minor > 0) && (
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-400">Toll / Parking</span>
+                <span className="text-white">{data.currency} {((data.prepay_toll_minor + data.prepay_parking_minor) / 100).toFixed(2)}</span>
+              </div>
+            )}
+            {data.discount_total_minor > 0 && (
+              <>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-400">Original Price</span>
+                  <span className="text-gray-500 line-through">{data.currency} {((data.total_price_minor + data.discount_total_minor) / 100).toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-green-400">Discount</span>
+                  <span className="text-green-400">− {data.currency} {(data.discount_total_minor / 100).toFixed(2)}</span>
+                </div>
+              </>
+            )}
+            <div className="flex items-center justify-between border-t border-[#2a2d35] pt-2 mt-1">
+              <span className="text-sm text-gray-400">Total</span>
+              <span className="text-lg font-bold text-white">{data.currency} {(data.total_price_minor / 100).toFixed(2)}</span>
+            </div>
           </div>
         </div>
 

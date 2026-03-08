@@ -584,8 +584,15 @@ export class CustomerPortalService {
               b.customer_first_name, b.operational_status, b.payment_status,
               b.pickup_address_text AS pickup_address,
               b.dropoff_address_text AS dropoff_address,
-              b.pickup_at_utc
+              b.pickup_at_utc, b.timezone,
+              b.passenger_count, b.luggage_count,
+              b.prepay_base_fare_minor, b.prepay_toll_minor, b.prepay_parking_minor,
+              b.discount_total_minor,
+              sc.name AS car_type_name,
+              to_char(b.pickup_at_utc AT TIME ZONE COALESCE(b.timezone,'Australia/Sydney'),
+                      'Dy DD Mon YYYY HH12:MI AM') AS pickup_time_local
        FROM public.bookings b
+       LEFT JOIN public.tenant_service_classes sc ON sc.id = b.service_class_id
        WHERE b.payment_token=$1 AND b.payment_token_expires_at > NOW()`,
       [token],
     );
