@@ -257,8 +257,8 @@ function LuxSelect({ value, onChange, children, placeholder }: { value: string; 
   return (
     <div className="relative">
       <select value={value} onChange={e=>onChange(e.target.value)}
-        className="w-full h-12 pl-4 pr-9 rounded-xl bg-white/5 border border-[hsl(var(--border))] text-[hsl(var(--foreground))] text-sm appearance-none focus:outline-none focus:border-amber-400/50 transition-colors cursor-pointer"
-        style={{ backgroundColor: 'hsl(var(--card))', color: 'hsl(var(--foreground))' }}>
+        className="w-full h-12 pl-4 pr-9 rounded-xl bg-white/5 border border-white/10 text-sm appearance-none focus:outline-none focus:border-amber-400/50 transition-colors cursor-pointer"
+        style={{ backgroundColor: 'hsl(var(--card))', color: '#ffffff', fontWeight: 400 }}>
         {placeholder && <option value="" disabled style={{ backgroundColor: 'hsl(var(--card))' }}>{placeholder}</option>}
         {children}
       </select>

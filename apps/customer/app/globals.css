@@ -266,3 +266,13 @@ html, body {
 
 /* Full-bleed mobile content */
 .mobile-px { padding-left: max(1rem, env(safe-area-inset-left)); padding-right: max(1rem, env(safe-area-inset-right)); }
+
+/* ── Force select text white in dark theme ── */
+select {
+  color: #ffffff !important;
+  background-color: hsl(var(--card)) !important;
+}
+select option {
+  background-color: hsl(var(--card)) !important;
+  color: #ffffff !important;
+}
