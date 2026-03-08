@@ -41,14 +41,14 @@ export function AuthLogo({ subtitle }: { subtitle?: string }) {
   const logoUrl = branding?.logo_url;
 
   return (
-    <div className="text-center mb-10">
-      <div className="flex flex-col items-center gap-1 mb-4">
+    <div className="text-center w-full">
+      <div className="flex flex-col items-center gap-1">
         {logoUrl ? (
-          <div className="mb-3" style={{ background: 'transparent' }}>
+          <div style={{ background: 'transparent' }}>
             <img
               src={logoUrl}
               alt={name}
-              style={{ height: '96px', width: 'auto', objectFit: 'contain', display: 'block' }}
+              style={{ height: '110px', width: 'auto', objectFit: 'contain', display: 'block' }}
               onError={(e) => {
                 (e.target as HTMLImageElement).parentElement!.style.display = 'none';
               }}
@@ -70,7 +70,7 @@ export function AuthLogo({ subtitle }: { subtitle?: string }) {
         )}
       </div>
       {subtitle && (
-        <p className="text-white/30 text-sm">{subtitle}</p>
+        <p className="text-white/30 text-sm mt-3">{subtitle}</p>
       )}
     </div>
   );
@@ -80,14 +80,14 @@ export function AuthLogo({ subtitle }: { subtitle?: string }) {
 export function AuthShell({ children }: { children: React.ReactNode }) {
   return (
     <div
-      className="min-h-screen bg-[#0d0f14] flex flex-col items-center justify-center px-4"
+      className="min-h-screen bg-[#0d0f14] flex flex-col items-center justify-center px-4 gap-8"
       style={{
-        paddingTop: 'env(safe-area-inset-top)',
-        paddingBottom: 'env(safe-area-inset-bottom)',
+        paddingTop: 'max(64px, env(safe-area-inset-top))',
+        paddingBottom: 'max(64px, env(safe-area-inset-bottom))',
       }}
     >
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_#1a1200_0%,_#0d0f14_60%)] pointer-events-none" />
-      <div className="relative w-full max-w-sm">
+      <div className="relative w-full max-w-sm flex flex-col items-center gap-8">
         {children}
       </div>
       <p className="absolute bottom-6 text-center text-xs text-white/15 tracking-widest uppercase">
