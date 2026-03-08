@@ -1457,11 +1457,7 @@ export function BookPageClient() {
                         <span className="text-sm">+ Use a different card</span>
                       </button>
 
-                      {/* Pay with saved card button */}
-                      {!useNewCard && selectedSavedCard && (
-                        {/* Confirm & Pay is in the sticky bottom bar */}
-                        <div />
-                      )}
+                      {/* Confirm & Pay for saved card is in the sticky bottom bar below */}
                     </div>
                   )}
 
