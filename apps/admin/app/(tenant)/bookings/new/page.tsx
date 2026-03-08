@@ -285,7 +285,7 @@ export default function CreateBookingPage() {
         // Customer fields — flat as backend expects
         customer_first_name: firstName,
         customer_last_name: rest.join(' ') || 'Customer',
-        customer_email: values.customer_email?.trim() || undefined,
+        customer_email: values.customer_email?.trim() || null,
         customer_phone_country_code: values.customer_phone_country_code || '+61',
         customer_phone_number: values.customer_phone_number?.trim() || undefined,
         customer_id: selectedCustomerId || undefined,
@@ -419,6 +419,7 @@ export default function CreateBookingPage() {
           pickupAddress: values.pickup_address_text,
           dropoffAddress: values.dropoff_address_text,
           pickupAt: values.pickup_at_utc ? new Date(values.pickup_at_utc).toISOString() : undefined,
+          customerId: selectedCustomerId || undefined,
         });
         estimates[c.id] = estimateRes.data?.grand_total_minor ?? estimateRes.data?.total_minor ?? 0;
         breakdowns[c.id] = estimateRes.data ?? {};

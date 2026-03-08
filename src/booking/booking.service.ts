@@ -239,6 +239,21 @@ export class BookingService {
       dropoffAddress: dto.dropoff_address_text ?? null,
     };
 
+    // Fetch customer details if customer_id provided (fills missing email/name/phone)
+    let customerRecord: any = null;
+    if (dto.customer_id) {
+      const cRows = await this.dataSource.query(
+        `SELECT email, first_name, last_name, phone_country_code, phone_number
+         FROM public.customers WHERE id = $1 AND tenant_id = $2 LIMIT 1`,
+        [dto.customer_id, tenantId],
+      );
+      customerRecord = cRows[0] ?? null;
+    }
+    // Fallback email/name from customer record to avoid NOT NULL violation
+    const resolvedEmail = dto.customer_email?.trim() || customerRecord?.email || 'noreply@placeholder.com';
+    const resolvedFirstName = dto.customer_first_name?.trim() || customerRecord?.first_name || 'Guest';
+    const resolvedLastName = dto.customer_last_name?.trim() || customerRecord?.last_name || '';
+
     let pricing: any;
     try {
       pricing = await this.pricing.resolve(pricingContext);
@@ -292,9 +307,9 @@ export class BookingService {
         tenantId,
         dto.booking_reference ?? `${refPrefix}-${Math.random().toString(36).slice(2, 10).toUpperCase()}`,
         dto.booking_source ?? 'ADMIN',
-        dto.customer_first_name,
-        dto.customer_last_name,
-        dto.customer_email ?? null,
+        resolvedFirstName,
+        resolvedLastName,
+        resolvedEmail,
         dto.customer_phone_country_code ?? null,
         dto.customer_phone_number ?? null,
         dto.pickup_address_text,
