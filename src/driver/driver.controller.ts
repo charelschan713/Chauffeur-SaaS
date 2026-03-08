@@ -133,7 +133,7 @@ export class DriverController {
           m.created_at AS joined_at
         FROM public.users u
         JOIN public.memberships m ON m.user_id = u.id
-       WHERE u.id = $1 AND m.tenant_id = $2 AND m.role IN ('driver','DRIVER')`,
+       WHERE u.id = $1 AND m.tenant_id = $2 AND m.role::text IN ('driver', 'DRIVER')`,
       [driverId, tenantId],
     );
     return rows[0] ?? null;
@@ -147,7 +147,7 @@ export class DriverController {
   ) {
     // Verify driver belongs to tenant
     const check = await this.db.query(
-      `SELECT 1 FROM public.memberships WHERE user_id=$1 AND tenant_id=$2 AND role IN ('driver','DRIVER')`,
+      `SELECT 1 FROM public.memberships WHERE user_id=$1 AND tenant_id=$2 AND role::text IN ('driver', 'DRIVER')`,
       [driverId, tenantId],
     );
     if (!check.length) throw new BadRequestException('Driver not found');
