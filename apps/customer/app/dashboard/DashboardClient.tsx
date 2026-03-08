@@ -130,7 +130,21 @@ export function DashboardClient() {
               ? <img src={tenant.logo_url} alt={tenant.name} className="h-7 object-contain mb-0.5" />
               : <p className="font-semibold text-white text-base">{tenant?.name ?? 'Portal'}</p>
             }
-            <p className="text-[11px] text-white/40">Welcome back, {firstName}</p>
+            <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+              <p className="text-[11px] text-white/40">Welcome back, {firstName}</p>
+              {customer?.tier && customer.tier !== 'STANDARD' && (
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                  customer.tier === 'VIP'
+                    ? 'bg-[hsl(var(--primary))] text-black'
+                    : 'bg-purple-600 text-white'
+                }`}>{customer.tier}</span>
+              )}
+              {customer?.discount_rate > 0 && (
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-green-900/60 text-green-400 border border-green-700/40">
+                  {Number(customer.discount_rate).toFixed(0)}% OFF
+                </span>
+              )}
+            </div>
           </div>
           <Link
             href="/profile"

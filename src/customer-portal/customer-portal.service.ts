@@ -119,7 +119,9 @@ export class CustomerPortalService implements OnModuleInit {
         [customerId, tenantId],
       ),
       this.db.query(
-        `SELECT first_name, last_name, email, phone_country_code, phone_number FROM public.customers WHERE id=$1`,
+        `SELECT first_name, last_name, email, phone_country_code, phone_number,
+                tier, discount_rate, custom_discount_type, custom_discount_value
+         FROM public.customers WHERE id=$1`,
         [customerId],
       ),
     ]);
@@ -429,7 +431,8 @@ export class CustomerPortalService implements OnModuleInit {
   // ── Profile ───────────────────────────────────────────────────────────────
   async getProfile(customerId: string, tenantId?: string) {
     const rows = await this.db.query(
-      `SELECT id, first_name, last_name, email, phone_country_code, phone_number, created_at
+      `SELECT id, first_name, last_name, email, phone_country_code, phone_number, created_at,
+              tier, discount_rate, custom_discount_type, custom_discount_value
        FROM public.customers
        WHERE id=$1 ${tenantId ? 'AND tenant_id=$2' : ''}`,
       tenantId ? [customerId, tenantId] : [customerId],
