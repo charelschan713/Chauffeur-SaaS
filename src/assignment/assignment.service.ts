@@ -405,9 +405,11 @@ export class AssignmentService {
   }
 
   /** Admin: get all jobs for a driver */
-  async getJobsByDriver(tenantId: string, driverId: string, filter: string = 'upcoming') {
+  async getJobsByDriver(tenantId: string, driverId: string, filter: string = 'upcoming', from?: string, to?: string) {
     let whereClause = '';
-    if (filter === 'upcoming') {
+    if (from && to) {
+      whereClause = `AND b.pickup_at_utc >= '${from}'::timestamptz AND b.pickup_at_utc < '${to}'::timestamptz AND a.status NOT IN ('CANCELLED','REJECTED')`;
+    } else if (filter === 'upcoming') {
       whereClause = `AND b.pickup_at_utc >= now() AND a.status NOT IN ('CANCELLED','REJECTED')`;
     } else if (filter === 'completed') {
       whereClause = `AND a.status = 'JOB_DONE'`;

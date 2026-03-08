@@ -37,9 +37,11 @@ export class AssignmentController {
   async driverJobs(
     @Param('driverId') driverId: string,
     @Query('filter') filter: string = 'upcoming',
+    @Query('from') from: string,
+    @Query('to') to: string,
     @Req() req: any,
   ) {
-    return this.assignmentService.getJobsByDriver(req.user.tenant_id, driverId, filter);
+    return this.assignmentService.getJobsByDriver(req.user.tenant_id, driverId, filter, from, to);
   }
 
   // ─── Partner Transfer ──────────────────────────────────────────────────────

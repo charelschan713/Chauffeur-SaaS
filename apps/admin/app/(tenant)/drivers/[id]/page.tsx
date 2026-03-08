@@ -10,11 +10,31 @@ import { Badge } from '@/components/ui/Badge';
 import { InlineSpinner } from '@/components/ui/LoadingSpinner';
 
 const AU_STATES = ['NSW','VIC','QLD','WA','SA','TAS','ACT','NT'];
-const TABS = ['Personal','Licence & Accreditation','Emergency Contact','Banking','Notes','Jobs'] as const;
+const TABS = ['Personal','Licence & Accreditation','Emergency Contact','Banking','Notes','Calendar'] as const;
 type Tab = typeof TABS[number];
 
-const JOB_FILTERS = ['upcoming','active','completed','all'] as const;
-type JobFilter = typeof JOB_FILTERS[number];
+const STATUS_COLOR: Record<string, string> = {
+  JOB_DONE: 'bg-green-100 text-green-700 border-green-200',
+  ACCEPTED: 'bg-blue-100 text-blue-700 border-blue-200',
+  ON_THE_WAY: 'bg-yellow-100 text-yellow-700 border-yellow-200',
+  ARRIVED: 'bg-orange-100 text-orange-700 border-orange-200',
+  PASSENGER_ON_BOARD: 'bg-purple-100 text-purple-700 border-purple-200',
+  ASSIGNED: 'bg-gray-100 text-gray-600 border-gray-200',
+};
+
+function startOfWeek(d: Date) {
+  const date = new Date(d);
+  const day = date.getDay(); // 0=Sun
+  date.setDate(date.getDate() - day);
+  date.setHours(0, 0, 0, 0);
+  return date;
+}
+
+function addDays(d: Date, n: number) {
+  const date = new Date(d);
+  date.setDate(date.getDate() + n);
+  return date;
+}
 
 function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
   return (
@@ -73,12 +93,17 @@ export default function DriverProfilePage() {
   const router = useRouter();
   const qc = useQueryClient();
   const [activeTab, setActiveTab] = useState<Tab>('Personal');
-  const [jobFilter, setJobFilter] = useState<JobFilter>('upcoming');
+  const [weekStart, setWeekStart] = useState<Date>(() => startOfWeek(new Date()));
+  const [selectedJob, setSelectedJob] = useState<any>(null);
 
-  const { data: jobsData, isLoading: jobsLoading } = useQuery({
-    queryKey: ['driver-jobs', id, jobFilter],
-    queryFn: () => api.get(`/assignments/driver/${id}/jobs?filter=${jobFilter}`).then(r => r.data),
-    enabled: activeTab === 'Jobs' && !!id,
+  const weekEnd = addDays(weekStart, 6);
+
+  const { data: calData, isLoading: calLoading } = useQuery({
+    queryKey: ['driver-calendar', id, weekStart.toISOString()],
+    queryFn: () => api.get(
+      `/assignments/driver/${id}/jobs?filter=all&from=${weekStart.toISOString()}&to=${addDays(weekEnd, 1).toISOString()}`
+    ).then(r => r.data),
+    enabled: activeTab === 'Calendar' && !!id,
   });
   const [form, setForm] = useState(empty);
   const [toast, setToast] = useState<{ message: string; tone: 'success' | 'error' } | null>(null);
@@ -406,89 +431,153 @@ export default function DriverProfilePage() {
         </div>
       )}
 
-      {activeTab === 'Jobs' && (
+      {activeTab === 'Calendar' && (
         <div className="space-y-4">
-          {/* Filter buttons */}
-          <div className="flex gap-2">
-            {JOB_FILTERS.map(f => (
-              <button key={f} onClick={() => setJobFilter(f)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium capitalize transition-colors ${
-                  jobFilter === f
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                }`}>
-                {f}
+          {/* Week navigator */}
+          <div className="flex items-center justify-between">
+            <button onClick={() => setWeekStart(d => addDays(d, -7))}
+              className="px-3 py-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-sm font-medium text-gray-700">
+              ← Prev
+            </button>
+            <div className="text-sm font-semibold text-gray-800">
+              {weekStart.toLocaleDateString('en-AU', { day: 'numeric', month: 'short' })}
+              {' — '}
+              {weekEnd.toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' })}
+            </div>
+            <div className="flex gap-2">
+              <button onClick={() => setWeekStart(startOfWeek(new Date()))}
+                className="px-3 py-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-xs font-medium text-gray-600">
+                Today
               </button>
-            ))}
+              <button onClick={() => setWeekStart(d => addDays(d, 7))}
+                className="px-3 py-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-sm font-medium text-gray-700">
+                Next →
+              </button>
+            </div>
           </div>
 
-          {/* Jobs list */}
+          {/* 7-day grid */}
           <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-            {jobsLoading ? (
-              <div className="p-8 text-center text-gray-400 text-sm">Loading jobs…</div>
-            ) : !jobsData?.jobs?.length ? (
-              <div className="p-8 text-center text-gray-400 text-sm">No {jobFilter} jobs found.</div>
-            ) : (
-              <table className="w-full text-sm">
-                <thead className="bg-gray-50 border-b border-gray-200">
-                  <tr>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Ref</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Pickup</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Route</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Passenger</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Status</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Driver Pay</th>
-                    <th className="px-4 py-3"></th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {jobsData.jobs.map((job: any) => (
-                    <tr key={job.assignment_id} className="hover:bg-gray-50 transition-colors">
-                      <td className="px-4 py-3 font-mono text-xs text-gray-700">{job.reference}</td>
-                      <td className="px-4 py-3 text-gray-700 whitespace-nowrap">
-                        {job.pickup_at_utc
-                          ? new Date(job.pickup_at_utc).toLocaleString('en-AU', {
-                              day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit',
-                            })
-                          : '—'}
-                      </td>
-                      <td className="px-4 py-3 text-gray-600 max-w-xs">
-                        <div className="text-xs truncate">{job.pickup_address}</div>
-                        <div className="text-xs text-gray-400 truncate">→ {job.dropoff_address}</div>
-                      </td>
-                      <td className="px-4 py-3 text-gray-700">
-                        <div>{job.passenger_name || '—'}</div>
-                        <div className="text-xs text-gray-400">{job.passenger_phone || ''}</div>
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                          job.assignment_status === 'JOB_DONE' ? 'bg-green-100 text-green-700' :
-                          job.assignment_status === 'ACCEPTED' ? 'bg-blue-100 text-blue-700' :
-                          job.assignment_status === 'ON_THE_WAY' ? 'bg-yellow-100 text-yellow-700' :
-                          job.assignment_status === 'ASSIGNED' ? 'bg-gray-100 text-gray-600' :
-                          'bg-gray-100 text-gray-500'
-                        }`}>
-                          {job.assignment_status?.replace(/_/g, ' ')}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-gray-700 whitespace-nowrap">
-                        {job.driver_pay_minor
-                          ? `${job.currency ?? 'AUD'} ${(job.driver_pay_minor / 100).toFixed(2)}`
-                          : '—'}
-                      </td>
-                      <td className="px-4 py-3">
-                        <a href={`/bookings/${job.booking_id}`}
-                          className="text-xs text-blue-600 hover:underline whitespace-nowrap">
-                          View Booking →
-                        </a>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
+            {/* Day headers */}
+            <div className="grid grid-cols-7 border-b border-gray-200">
+              {Array.from({ length: 7 }, (_, i) => {
+                const day = addDays(weekStart, i);
+                const isToday = day.toDateString() === new Date().toDateString();
+                return (
+                  <div key={i} className={`px-2 py-3 text-center border-r border-gray-100 last:border-r-0 ${isToday ? 'bg-blue-50' : ''}`}>
+                    <div className="text-xs text-gray-400 uppercase tracking-wide">
+                      {day.toLocaleDateString('en-AU', { weekday: 'short' })}
+                    </div>
+                    <div className={`text-sm font-semibold mt-0.5 ${isToday ? 'text-blue-600' : 'text-gray-800'}`}>
+                      {day.getDate()}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Job cells */}
+            <div className="grid grid-cols-7 min-h-[200px]">
+              {calLoading ? (
+                <div className="col-span-7 p-8 text-center text-gray-400 text-sm">Loading…</div>
+              ) : (
+                Array.from({ length: 7 }, (_, i) => {
+                  const day = addDays(weekStart, i);
+                  const dayStr = day.toDateString();
+                  const isToday = dayStr === new Date().toDateString();
+                  const dayJobs = (calData?.jobs ?? []).filter((j: any) =>
+                    j.pickup_at_utc && new Date(j.pickup_at_utc).toDateString() === dayStr
+                  );
+                  return (
+                    <div key={i} className={`border-r border-gray-100 last:border-r-0 p-1.5 space-y-1 ${isToday ? 'bg-blue-50/40' : ''}`}>
+                      {dayJobs.length === 0 && (
+                        <div className="h-full flex items-center justify-center">
+                          <span className="text-xs text-gray-200">—</span>
+                        </div>
+                      )}
+                      {dayJobs.map((job: any) => {
+                        const colorClass = STATUS_COLOR[job.assignment_status] ?? 'bg-gray-100 text-gray-500 border-gray-200';
+                        const time = new Date(job.pickup_at_utc).toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit' });
+                        return (
+                          <button key={job.assignment_id}
+                            onClick={() => setSelectedJob(selectedJob?.assignment_id === job.assignment_id ? null : job)}
+                            className={`w-full text-left rounded border px-1.5 py-1 text-xs font-medium transition-shadow hover:shadow-md ${colorClass}`}>
+                            <div className="font-semibold">{time}</div>
+                            <div className="truncate opacity-80">{job.reference}</div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  );
+                })
+              )}
+            </div>
           </div>
-          <p className="text-xs text-gray-400">{jobsData?.total ?? 0} job{jobsData?.total !== 1 ? 's' : ''} found</p>
+
+          {/* Job detail panel */}
+          {selectedJob && (
+            <div className="bg-white border border-blue-200 rounded-xl p-4 space-y-3">
+              <div className="flex items-start justify-between">
+                <div>
+                  <span className="font-mono text-sm font-semibold text-gray-800">{selectedJob.reference}</span>
+                  <span className={`ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${STATUS_COLOR[selectedJob.assignment_status] ?? 'bg-gray-100 text-gray-500 border-gray-200'}`}>
+                    {selectedJob.assignment_status?.replace(/_/g, ' ')}
+                  </span>
+                </div>
+                <button onClick={() => setSelectedJob(null)} className="text-gray-400 hover:text-gray-600 text-lg leading-none">×</button>
+              </div>
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div>
+                  <div className="text-xs text-gray-400 uppercase tracking-wide mb-0.5">Pickup Time</div>
+                  <div className="text-gray-800">
+                    {new Date(selectedJob.pickup_at_utc).toLocaleString('en-AU', {
+                      weekday: 'short', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit'
+                    })}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-xs text-gray-400 uppercase tracking-wide mb-0.5">Passenger</div>
+                  <div className="text-gray-800">{selectedJob.passenger_name || '—'}</div>
+                  <div className="text-gray-400 text-xs">{selectedJob.passenger_phone || ''}</div>
+                </div>
+                <div>
+                  <div className="text-xs text-gray-400 uppercase tracking-wide mb-0.5">From</div>
+                  <div className="text-gray-700 text-xs">{selectedJob.pickup_address}</div>
+                </div>
+                <div>
+                  <div className="text-xs text-gray-400 uppercase tracking-wide mb-0.5">To</div>
+                  <div className="text-gray-700 text-xs">{selectedJob.dropoff_address}</div>
+                </div>
+                {selectedJob.driver_pay_minor && (
+                  <div>
+                    <div className="text-xs text-gray-400 uppercase tracking-wide mb-0.5">Driver Pay</div>
+                    <div className="text-gray-800 font-medium">
+                      {selectedJob.currency ?? 'AUD'} {(selectedJob.driver_pay_minor / 100).toFixed(2)}
+                    </div>
+                  </div>
+                )}
+                {selectedJob.service_class_name && (
+                  <div>
+                    <div className="text-xs text-gray-400 uppercase tracking-wide mb-0.5">Service</div>
+                    <div className="text-gray-700">{selectedJob.service_class_name}</div>
+                  </div>
+                )}
+              </div>
+              <a href={`/bookings/${selectedJob.booking_id}`}
+                className="inline-flex items-center gap-1 text-sm text-blue-600 hover:underline font-medium">
+                View Booking →
+              </a>
+            </div>
+          )}
+
+          {/* Legend */}
+          <div className="flex flex-wrap gap-3 text-xs text-gray-500">
+            {Object.entries(STATUS_COLOR).map(([s, cls]) => (
+              <span key={s} className={`inline-flex items-center gap-1 px-2 py-0.5 rounded border ${cls}`}>
+                {s.replace(/_/g, ' ')}
+              </span>
+            ))}
+          </div>
         </div>
       )}
     </div>
