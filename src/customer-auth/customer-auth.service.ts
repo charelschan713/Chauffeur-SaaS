@@ -18,6 +18,28 @@ export class CustomerAuthService {
     private readonly notificationSvc: NotificationService,
   ) {}
 
+  /** Normalize phone: split into { code, number } removing duplicates */
+  private splitPhone(countryCode: string, rawNumber: string): { code: string; number: string } {
+    let num = rawNumber.trim().replace(/\s+/g, '');
+    const cc = countryCode.trim();
+    // Strip leading + if just digits after
+    if (num.startsWith('+')) {
+      const m = num.match(/^(\+\d{1,3})(\d+)$/);
+      if (m) {
+        // Use the embedded country code, ignore the passed-in one if different
+        return { code: m[1], number: m[2] };
+      }
+    }
+    // Strip leading 0 (Australian local format)
+    num = num.replace(/^0/, '');
+    // Strip country code prefix if duplicated (e.g. cc="+61", num="61415880519")
+    const ccDigits = cc.replace('+', '');
+    if (num.startsWith(ccDigits)) {
+      num = num.slice(ccDigits.length);
+    }
+    return { code: cc, number: num };
+  }
+
   // ── Register ───────────────────────────────────────────────────────────────
   async register(dto: {
     tenantSlug: string;
@@ -45,8 +67,12 @@ export class CustomerAuthService {
       `INSERT INTO public.customers (tenant_id, email, first_name, last_name, phone_country_code, phone_number, created_at, updated_at)
        VALUES ($1, $2, $3, $4, $5, $6, now(), now())
        RETURNING id`,
-      [tenant.id, dto.email.toLowerCase(), dto.firstName, dto.lastName,
-       dto.phoneCountryCode ?? '+61', dto.phoneNumber ?? null],
+      ...((): any[] => {
+        const ph = dto.phoneNumber
+          ? this.splitPhone(dto.phoneCountryCode ?? '+61', dto.phoneNumber)
+          : { code: dto.phoneCountryCode ?? '+61', number: null };
+        return [tenant.id, dto.email.toLowerCase(), dto.firstName, dto.lastName, ph.code, ph.number];
+      })(),
     );
 
     await this.db.query(

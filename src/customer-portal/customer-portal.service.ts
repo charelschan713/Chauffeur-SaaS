@@ -33,6 +33,21 @@ export class CustomerPortalService implements OnModuleInit {
         ADD COLUMN IF NOT EXISTS service_class_id uuid,
         ADD COLUMN IF NOT EXISTS service_type_id uuid
     `).catch(() => { /* columns may already exist */ });
+
+    // Normalize dirty phone numbers: strip accidental duplicate country code
+    await this.db.query(`
+      UPDATE public.customers
+      SET phone_number = REGEXP_REPLACE(phone_number, '^\\+?61', '', '')
+      WHERE phone_country_code = '+61'
+        AND phone_number ~ '^\\+?61[0-9]'
+    `).catch(() => {});
+
+    await this.db.query(`
+      UPDATE public.customers
+      SET phone_number = LTRIM(phone_number, '0')
+      WHERE phone_number LIKE '0%'
+        AND phone_country_code IS NOT NULL AND phone_country_code != ''
+    `).catch(() => {});
   }
 
   // ── Stripe helper ─────────────────────────────────────────────────────────

@@ -79,6 +79,20 @@ export function formatPhone(
   number: string | null | undefined,
 ): string {
   if (!number) return '—';
+  const n = number.trim();
   const cc = countryCode?.trim() || '';
-  return cc ? `${cc} ${number.trim()}` : number.trim();
+
+  // If number already starts with + (full E.164), display as-is (deduplicate country code)
+  if (n.startsWith('+')) {
+    // e.g. "+61415880519" → "+61 415880519"
+    const match = n.match(/^(\+\d{1,3})(\d+)$/);
+    return match ? `${match[1]} ${match[2]}` : n;
+  }
+
+  // If cc is present and number accidentally starts with it (e.g. cc="+61", n="+61415880519")
+  if (cc && n.startsWith(cc.replace('+', ''))) {
+    return `${cc} ${n}`;
+  }
+
+  return cc ? `${cc} ${n}` : n;
 }
