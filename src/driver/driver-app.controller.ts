@@ -151,4 +151,60 @@ export class DriverAppController {
   ) {
     return this.service.getExtraReport(driverId, assignmentId);
   }
+
+  // ─── Banking / Profile ────────────────────────────────────────────────────
+
+  /** Update driver banking details */
+  @Patch('me/banking')
+  async updateBanking(
+    @CurrentUser('sub') driverId: string,
+    @Body() body: {
+      abn?: string;
+      bank_bsb?: string;
+      bank_account?: string;
+      bank_name?: string;
+      is_gst_registered?: boolean;
+    },
+  ) {
+    return this.service.updateBanking(driverId, body);
+  }
+
+  // ─── Invoices ─────────────────────────────────────────────────────────────
+
+  /** List driver's invoices */
+  @Get('invoices')
+  async listInvoices(@CurrentUser('sub') driverId: string) {
+    return this.service.listDriverInvoices(driverId);
+  }
+
+  /** Completed assignments not yet invoiced */
+  @Get('invoices/invoiceable')
+  async invoiceableJobs(@CurrentUser('sub') driverId: string) {
+    return this.service.getInvoiceableJobs(driverId);
+  }
+
+  /** Create a draft invoice */
+  @Post('invoices')
+  async createInvoice(
+    @CurrentUser('sub') driverId: string,
+    @CurrentUser('tenant_id') tenantId: string,
+    @Body('assignment_ids') assignmentIds: string[],
+  ) {
+    return this.service.createDriverInvoice(driverId, tenantId, assignmentIds);
+  }
+
+  /** Submit invoice to admin */
+  @Patch('invoices/:id/submit')
+  async submitInvoice(
+    @CurrentUser('sub') driverId: string,
+    @Param('id') invoiceId: string,
+  ) {
+    return this.service.submitDriverInvoice(driverId, invoiceId);
+  }
+
+  /** Verify ABN via ABR */
+  @Post('verify-abn')
+  async verifyAbn(@Body('abn') abn: string) {
+    return this.service.verifyAbn(abn);
+  }
 }

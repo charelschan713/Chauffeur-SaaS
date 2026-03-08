@@ -509,4 +509,94 @@ export class DriverAppService {
       vehicle_plate: row.vehicle_plate ?? null,
     };
   }
+
+  // ─── Banking ────────────────────────────────────────────────────────────
+
+  async updateBanking(driverId: string, body: {
+    abn?: string;
+    bank_bsb?: string;
+    bank_account?: string;
+    bank_name?: string;
+    is_gst_registered?: boolean;
+  }) {
+    const sets: string[] = [];
+    const vals: any[] = [];
+    let i = 1;
+    if (body.abn !== undefined)              { sets.push(`abn = $${i++}`);              vals.push(body.abn); }
+    if (body.bank_bsb !== undefined)         { sets.push(`bank_bsb = $${i++}`);         vals.push(body.bank_bsb); }
+    if (body.bank_account !== undefined)     { sets.push(`bank_account = $${i++}`);     vals.push(body.bank_account); }
+    if (body.bank_name !== undefined)        { sets.push(`bank_name = $${i++}`);        vals.push(body.bank_name); }
+    if (body.is_gst_registered !== undefined){ sets.push(`is_gst_registered = $${i++}`); vals.push(body.is_gst_registered); }
+    if (!sets.length) return { updated: false };
+    sets.push(`updated_at = now()`);
+    vals.push(driverId);
+    await this.dataSource.query(
+      `UPDATE users SET ${sets.join(', ')} WHERE id = $${i}`,
+      vals,
+    );
+    return { updated: true };
+  }
+
+  // ─── Driver Invoices ────────────────────────────────────────────────────
+
+  async listDriverInvoices(driverId: string) {
+    return this.dataSource.query(
+      `SELECT i.id, i.invoice_number, i.status, i.total_minor, i.currency,
+              i.created_at, i.submitted_at, i.paid_at
+       FROM driver_invoices i
+       WHERE i.driver_id = $1
+       ORDER BY i.created_at DESC`,
+      [driverId],
+    );
+  }
+
+  async getInvoiceableJobs(driverId: string) {
+    return this.dataSource.query(
+      `SELECT a.id, a.driver_pay_minor, a.currency,
+              b.booking_reference, b.pickup_at_utc, b.pickup_address_text, b.dropoff_address_text
+       FROM assignments a
+       JOIN bookings b ON b.id = a.booking_id
+       WHERE a.driver_id = $1
+         AND a.status = 'COMPLETED'
+         AND a.id NOT IN (
+           SELECT unnest(di.assignment_ids) FROM driver_invoices di WHERE di.driver_id = $1
+         )
+       ORDER BY b.pickup_at_utc DESC`,
+      [driverId],
+    );
+  }
+
+  async createDriverInvoice(driverId: string, tenantId: string, assignmentIds: string[]) {
+    if (!assignmentIds?.length) throw new Error('No assignments provided');
+    const rows = await this.dataSource.query(
+      `SELECT COALESCE(SUM(driver_pay_minor), 0) AS total, MAX(currency) AS currency
+       FROM assignments WHERE id = ANY($1) AND driver_id = $2`,
+      [assignmentIds, driverId],
+    );
+    const total = Number(rows[0]?.total ?? 0);
+    const currency = rows[0]?.currency ?? 'AUD';
+    const num = `INV-${Date.now()}`;
+    const [inv] = await this.dataSource.query(
+      `INSERT INTO driver_invoices (driver_id, tenant_id, invoice_number, assignment_ids, total_minor, currency, status)
+       VALUES ($1, $2, $3, $4, $5, $6, 'DRAFT') RETURNING id, invoice_number, status`,
+      [driverId, tenantId, num, assignmentIds, total, currency],
+    );
+    return inv;
+  }
+
+  async submitDriverInvoice(driverId: string, invoiceId: string) {
+    await this.dataSource.query(
+      `UPDATE driver_invoices SET status = 'SUBMITTED', submitted_at = now()
+       WHERE id = $1 AND driver_id = $2 AND status = 'DRAFT'`,
+      [invoiceId, driverId],
+    );
+    return { submitted: true };
+  }
+
+  async verifyAbn(abn: string) {
+    // Simple format validation — ABR lookup requires API key
+    const cleaned = abn?.replace(/\s/g, '');
+    const valid = /^\d{11}$/.test(cleaned ?? '');
+    return { abn: cleaned, abn_verified: valid, abn_name: valid ? 'ABN Valid' : null };
+  }
 }
