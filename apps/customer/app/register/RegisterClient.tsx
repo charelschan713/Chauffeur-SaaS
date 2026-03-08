@@ -28,7 +28,7 @@ export function RegisterClient() {
     try {
       const { data } = await api.post('/customer-auth/register', { tenantSlug, ...form });
       setAuth(data.accessToken, data.customerId, tenantSlug);
-      router.push('/dashboard');
+      router.push('/verify-email');
     } catch (err: any) {
       setError(err.response?.data?.message ?? 'Registration failed');
     } finally {

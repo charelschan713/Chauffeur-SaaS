@@ -86,6 +86,7 @@ export class NotificationService {
         await this.onDriverPayUpdated(tenantId, payload);
         break;
       case 'CustomerRegistered':   await this.onCustomerRegistered(tenantId, payload); break;
+      case 'CustomerEmailVerification': await this.onCustomerEmailVerification(tenantId, payload); break;
       case 'CustomerForgotPassword': await this.onForgotPassword(tenantId, payload); break;
       case 'CustomerOtp':          await this.onCustomerOtp(payload); break;
       case 'TripStarted':          await this.onTripStarted(tenantId, payload); break;
@@ -853,6 +854,14 @@ export class NotificationService {
   private async onCustomerRegistered(tenantId: string, payload: any) {
     const vars = { customer_name: payload.first_name ?? '', email: payload.email ?? '' };
     await this.sendBoth(tenantId, 'CustomerRegistered', vars, payload.email, payload.phone);
+  }
+
+  private async onCustomerEmailVerification(tenantId: string, payload: any) {
+    const vars = {
+      customer_name: payload.first_name ?? '',
+      otp_code: payload.otp ?? '',
+    };
+    await this.sendBoth(tenantId, 'CustomerEmailVerification', vars, payload.email, null);
   }
 
   private async onForgotPassword(tenantId: string, payload: any) {

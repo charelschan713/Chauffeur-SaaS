@@ -1048,6 +1048,71 @@ export class CustomerPortalService {
     return { saved: true };
   }
 
+  /** Send 6-digit OTP to customer email */
+  async sendEmailOtp(customerId: string, tenantId: string): Promise<{ sent: boolean }> {
+    const rows = await this.db.query(
+      `SELECT id, email, first_name FROM public.customers WHERE id = $1 AND tenant_id = $2`,
+      [customerId, tenantId],
+    );
+    if (!rows.length) throw new Error('Customer not found');
+    const customer = rows[0];
+
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 min
+
+    await this.db.query(
+      `UPDATE public.customers SET email_otp = $1, email_otp_expires_at = $2 WHERE id = $3`,
+      [otp, expiresAt.toISOString(), customerId],
+    );
+
+    // Send via notification system
+    await this.notificationService.handleEvent('CustomerEmailVerification', {
+      customer_id: customerId,
+      tenant_id: tenantId,
+      otp,
+      first_name: customer.first_name,
+      email: customer.email,
+    }).catch(() => {});
+
+    return { sent: true };
+  }
+
+  /** Verify OTP submitted by customer */
+  async verifyEmailOtp(customerId: string, tenantId: string, otp: string): Promise<{ verified: boolean }> {
+    const rows = await this.db.query(
+      `SELECT id, email_otp, email_otp_expires_at FROM public.customers
+       WHERE id = $1 AND tenant_id = $2`,
+      [customerId, tenantId],
+    );
+    if (!rows.length) throw new Error('Customer not found');
+    const c = rows[0];
+
+    if (!c.email_otp || c.email_otp !== otp.trim()) {
+      throw new Error('Invalid verification code');
+    }
+    if (c.email_otp_expires_at && new Date(c.email_otp_expires_at) < new Date()) {
+      throw new Error('Verification code has expired. Please request a new one.');
+    }
+
+    await this.db.query(
+      `UPDATE public.customers
+       SET email_verified = true, email_otp = null, email_otp_expires_at = null, updated_at = now()
+       WHERE id = $1`,
+      [customerId],
+    );
+
+    return { verified: true };
+  }
+
+  /** Check if customer email is verified */
+  async getVerificationStatus(customerId: string, tenantId: string): Promise<{ email_verified: boolean }> {
+    const rows = await this.db.query(
+      `SELECT email_verified FROM public.customers WHERE id = $1 AND tenant_id = $2`,
+      [customerId, tenantId],
+    );
+    return { email_verified: rows[0]?.email_verified ?? false };
+  }
+
   private async getStripeCustomerId(customerId: string): Promise<string | null> {
     const rows = await this.db.query(
       `SELECT stripe_customer_id FROM public.customers WHERE id=$1`,

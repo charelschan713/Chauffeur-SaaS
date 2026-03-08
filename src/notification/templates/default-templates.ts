@@ -458,6 +458,24 @@ ${footer()}
   // ══════════════════════════════════════════════════════════════════════
 
   /** New account → email + SMS to customer */
+  CustomerEmailVerification: {
+    email: {
+      subject: 'Verify Your Email — {{company_name}}',
+      body: `<div style="${S.wrap}">
+<h2 style="${S.h2}">Verify Your Email</h2>
+<p style="${S.p}">Hi {{customer_name}},</p>
+<p style="${S.p}">Please use the code below to verify your email address. This code is valid for <strong>15 minutes</strong>.</p>
+<div style="text-align:center;margin:32px 0">
+  <div style="display:inline-block;background:#0d0f14;border:2px solid #c8a96b;border-radius:12px;padding:18px 40px">
+    <span style="font-family:monospace;font-size:36px;font-weight:700;letter-spacing:12px;color:#c8a96b">{{otp_code}}</span>
+  </div>
+</div>
+<p style="${S.p};color:#6b7280;font-size:13px;text-align:center">If you did not request this, please ignore this email.</p>
+${footer()}
+</div>`,
+    },
+  },
+
   CustomerRegistered: {
     email: {
       subject: 'Welcome to {{company_name}}',

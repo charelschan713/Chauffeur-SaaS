@@ -223,4 +223,25 @@ export class CustomerPortalController {
   savePushToken(@Req() req: any, @Body() body: { token: string; platform?: string }) {
     return this.svc.savePushToken(req.customer.sub, req.customer.tenant_id, body.token);
   }
+
+  /** Get email verification status */
+  @Get('verification-status')
+  @UseGuards(CustomerAuthGuard)
+  getVerificationStatus(@Req() req: any) {
+    return this.svc.getVerificationStatus(req.customer.sub, req.customer.tenant_id);
+  }
+
+  /** Send OTP to customer email */
+  @Post('send-email-otp')
+  @UseGuards(CustomerAuthGuard)
+  sendEmailOtp(@Req() req: any) {
+    return this.svc.sendEmailOtp(req.customer.sub, req.customer.tenant_id);
+  }
+
+  /** Verify OTP */
+  @Post('verify-email-otp')
+  @UseGuards(CustomerAuthGuard)
+  verifyEmailOtp(@Req() req: any, @Body() body: { otp: string }) {
+    return this.svc.verifyEmailOtp(req.customer.sub, req.customer.tenant_id, body.otp);
+  }
 }
