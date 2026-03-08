@@ -18,11 +18,15 @@ export class BookingController {
   constructor(private readonly service: BookingService) {}
 
   @Get()
-  listBookings(
+  async listBookings(
     @CurrentUser('tenant_id') tenantId: string,
     @Query() query: any,
   ) {
-    return this.service.listBookings(tenantId, query);
+    try {
+      return await this.service.listBookings(tenantId, query);
+    } catch (e: any) {
+      throw new (require('@nestjs/common').InternalServerErrorException)(e.message ?? 'listBookings failed');
+    }
   }
 
   @Get(':id')
