@@ -82,35 +82,38 @@ export function AuthShell({ children }: { children: React.ReactNode }) {
     <div className="fixed inset-0 bg-[#0d0f14] overflow-y-auto flex flex-col lg:flex-row">
 
       {/* ── Left brand panel (desktop only) ─────────────────── */}
-      <div className="hidden lg:flex lg:w-[45%] flex-col items-center justify-center relative overflow-hidden px-12">
+      <div className="hidden lg:flex lg:w-1/2 flex-col items-center justify-center relative overflow-hidden">
         {/* gradient bg */}
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_#251a00_0%,_#0d0f14_70%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_#1e1500_0%,_#0d0f14_65%)]" />
         {/* decorative rings */}
-        <div className="absolute w-[600px] h-[600px] rounded-full border border-[#c8a96b]/5" />
-        <div className="absolute w-[450px] h-[450px] rounded-full border border-[#c8a96b]/8" />
-        <div className="absolute w-[300px] h-[300px] rounded-full border border-[#c8a96b]/10" />
+        <div className="absolute w-[700px] h-[700px] rounded-full border border-[#c8a96b]/4" />
+        <div className="absolute w-[520px] h-[520px] rounded-full border border-[#c8a96b]/6" />
+        <div className="absolute w-[360px] h-[360px] rounded-full border border-[#c8a96b]/10" />
+        <div className="absolute w-[200px] h-[200px] rounded-full border border-[#c8a96b]/15" />
         {/* content */}
-        <div className="relative flex flex-col items-center text-center gap-6 max-w-xs">
+        <div className="relative flex flex-col items-center text-center gap-8 max-w-sm px-12">
           <BrandPanel />
-          <div className="w-24 h-px bg-[#c8a96b]/30" />
-          <p className="text-white/30 text-sm leading-relaxed tracking-wide">
+          <div className="w-32 h-px bg-gradient-to-r from-transparent via-[#c8a96b]/40 to-transparent" />
+          <p className="text-white/25 text-sm leading-relaxed tracking-wider font-light">
             Premium chauffeur services.<br />
             Luxury at your fingertips.
           </p>
         </div>
-        <p className="absolute bottom-6 text-xs text-white/15 tracking-widest uppercase">
+        <p className="absolute bottom-8 text-[10px] text-white/12 tracking-[0.2em] uppercase">
           © {new Date().getFullYear()} Chauffeur Solutions
         </p>
       </div>
 
       {/* ── Right form panel ──────────────────────────────────── */}
-      <div className="flex-1 lg:w-[55%] flex flex-col relative">
+      <div className="flex-1 lg:w-1/2 flex flex-col relative">
         {/* mobile gradient */}
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_#1a1200_0%,_#0d0f14_60%)] pointer-events-none lg:hidden" />
+        {/* desktop subtle gradient */}
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_#0f1118_0%,_#0d0f14_100%)] pointer-events-none hidden lg:block" />
         {/* divider line on desktop */}
-        <div className="hidden lg:block absolute left-0 top-[10%] bottom-[10%] w-px bg-[#c8a96b]/10" />
-        <div className="relative flex-1 flex items-center justify-center px-6 py-12">
-          <div className="w-full max-w-sm flex flex-col items-center gap-8">
+        <div className="hidden lg:block absolute left-0 top-0 bottom-0 w-px bg-gradient-to-b from-transparent via-[#c8a96b]/15 to-transparent" />
+        <div className="relative flex-1 flex items-center justify-center px-6 py-12 lg:px-16">
+          <div className="w-full max-w-md flex flex-col items-stretch gap-8">
             {children}
           </div>
         </div>
@@ -181,7 +184,7 @@ export function GoldButton({ loading, children, disabled, ...props }: React.Butt
 
 export function AuthCard({ children }: { children: React.ReactNode }) {
   return (
-    <div className="bg-white/[0.03] border border-[#c8a96b]/20 rounded-2xl p-8 backdrop-blur-sm shadow-2xl">
+    <div className="w-full bg-white/[0.03] border border-[#c8a96b]/20 rounded-2xl p-8 lg:p-10 backdrop-blur-sm shadow-[0_24px_64px_rgba(0,0,0,0.5)]">
       {children}
     </div>
   );
