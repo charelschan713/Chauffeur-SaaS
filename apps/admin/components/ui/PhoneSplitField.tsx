@@ -78,6 +78,7 @@ export function formatPhone(
   countryCode: string | null | undefined,
   number: string | null | undefined,
 ): string {
-  if (!countryCode || !number) return '—';
-  return `${countryCode.trim()} ${number.trim()}`;
+  if (!number) return '—';
+  const cc = countryCode?.trim() || '';
+  return cc ? `${cc} ${number.trim()}` : number.trim();
 }
