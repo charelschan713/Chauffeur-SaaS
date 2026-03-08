@@ -92,29 +92,36 @@ export class PublicPricingService {
 
         try {
           const snapshot = await this.pricing.resolve(ctx);
+          // pricing.resolver already applied tier discount (DiscountResolver)
+          // grand_total_minor = tier-discounted fare + tolls/parking
           const grandTotal = snapshot.grand_total_minor ?? snapshot.totalPriceMinor;
-
-          // Tolls + parking are NOT discountable — exclude from discount base
           const tollParkingMinor = (snapshot.toll_minor ?? 0) + (snapshot.parking_minor ?? 0);
-          const discountableBase = grandTotal - tollParkingMinor;
 
-          // ── Apply discount to discountable base only ──
-          const discountResult = await this.discountSvc.resolveDiscount(
-            tenant.id,
-            discountableBase,
-            {
-              code:          dto.promo_code,
-              serviceTypeId: dto.service_type_id,
-              customerId:    dto.customerId ?? null,
-              isNewCustomer: false,
-            },
-          );
+          // Pre-discount base = fare before tier discount (excl. tolls)
+          const preDiscountBase = snapshot.pre_discount_fare_minor ?? (grandTotal - tollParkingMinor);
 
-          const discountMinor  = discountResult?.discountMinor ?? 0;
-          // Final = discounted base + non-discountable tolls/parking
-          const finalTotal     = discountResult
-            ? (discountResult.finalFareMinor + tollParkingMinor)
-            : grandTotal;
+          // Tier discount already applied by DiscountResolver inside pricing.resolver
+          const tierDiscountMinor = snapshot.discount_amount_minor ?? 0;
+          const tierDiscountRate  = snapshot.discount_value ?? 0;
+
+          // Also check for tenant-level promo/online discount (stacks on top of tier)
+          const tenantDiscountResult = dto.promo_code
+            ? await this.discountSvc.resolveDiscount(tenant.id, preDiscountBase, {
+                code:          dto.promo_code,
+                serviceTypeId: dto.service_type_id,
+                customerId:    dto.customerId ?? null,
+                isNewCustomer: false,
+              })
+            : null;
+
+          // Combined: tier already in grand_total; add tenant promo discount if any
+          const extraDiscountMinor = tenantDiscountResult?.discountMinor ?? 0;
+          const totalDiscountMinor = tierDiscountMinor + extraDiscountMinor;
+          const finalTotal = grandTotal - extraDiscountMinor;
+
+          // For display: combined discount rate
+          const combinedRate = tierDiscountRate + (tenantDiscountResult?.value ?? 0);
+          const discountMinor = totalDiscountMinor;
 
           return {
             service_class_id: ct.id,
@@ -123,15 +130,15 @@ export class PublicPricingService {
             distance_km: dto.distance_km,
             duration_minutes: dto.duration_minutes,
             currency: tenant.currency,
-            // discount info for display
-            discount: discountResult ? {
-              id:             discountResult.discountId,
-              name:           discountResult.name,
-              type:           discountResult.type,
-              value:          discountResult.value,
+            // discount info for display (tier + any promo)
+            discount: (discountMinor > 0) ? {
+              id:             tenantDiscountResult?.discountId ?? 'tier',
+              name:           tierDiscountRate > 0 ? `${combinedRate}% loyalty` : (tenantDiscountResult?.name ?? 'Discount'),
+              type:           'PERCENTAGE',
+              value:          combinedRate,
               discount_minor: discountMinor,
-              capped_by_max:  discountResult.cappedByMax,
-              max_discount_minor: discountResult.maxDiscountMinor,
+              capped_by_max:  tenantDiscountResult?.cappedByMax ?? false,
+              max_discount_minor: tenantDiscountResult?.maxDiscountMinor ?? null,
             } : null,
             pricing_snapshot_preview: {
               base_calculated_minor:
@@ -148,7 +155,7 @@ export class PublicPricingService {
               extras_minor: snapshot.extras_minor ?? 0,
               waypoints_minor: snapshot.waypoints_minor ?? 0,
               baby_seats_minor: snapshot.baby_seats_minor ?? 0,
-              pre_discount_total_minor: discountableBase,  // discountable base (excl. toll/parking)
+              pre_discount_total_minor: preDiscountBase,  // true base before any discount (excl. toll/parking)
               discount_amount_minor: discountMinor,
               final_fare_minor: finalTotal,
               grand_total_minor: finalTotal,

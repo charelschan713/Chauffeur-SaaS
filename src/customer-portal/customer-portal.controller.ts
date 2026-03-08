@@ -137,13 +137,13 @@ export class CustomerPortalController {
       ?? payload.results?.[0];
     if (!result) return { error: 'Car type not found in quote' };
 
-    // Discountable base = total fare EXCLUDING tolls/parking (per business rule)
+    // The quote result's estimated_total_minor already has tier discount baked in (via DiscountResolver)
+    // pre_discount_total_minor = true base BEFORE tier discount (excl. tolls/parking)
     const snap = result.pricing_snapshot_preview ?? {};
     const tollParkingMinor = (snap.toll_minor ?? 0) + (snap.parking_minor ?? 0);
 
-    // If pre_discount_total_minor is stored (new quotes), use it directly
-    // Otherwise reconstruct from base + surcharges (excl. tolls/parking)
-    const discountableBase = snap.pre_discount_total_minor
+    // True discountable base (before any discount, excl. tolls/parking)
+    const trueBase = snap.pre_discount_total_minor
       ?? (snap.base_calculated_minor
         ? snap.base_calculated_minor
           + (snap.surcharge_minor ?? 0)
@@ -152,31 +152,31 @@ export class CustomerPortalController {
           + (snap.waypoints_minor ?? 0)
           + (snap.baby_seats_minor ?? 0)
         : Math.max(0, result.estimated_total_minor + (snap.discount_amount_minor ?? 0) - tollParkingMinor));
-    const baseFare = discountableBase;
 
-    // Re-resolve discount with customer ID (stacks customer loyalty rate)
-    const discount = await this.discountSvc.resolveDiscount(
-      session.tenant_id,
-      baseFare,
-      {
-        serviceTypeId: payload.request?.service_type_id,
-        customerId:    req.customer.sub,
-        isNewCustomer: false,
-      },
+    // Tier discount (already applied in quote)
+    const tierDiscountMinor = snap.discount_amount_minor ?? 0;
+    const tierRate = snap.discount_value ?? 0;  // kept for label
+
+    // Additional discount_rate from customers table (not tier — stacks on top)
+    const customerRows = await this.db.query(
+      `SELECT discount_rate FROM public.customers WHERE id = $1 AND tenant_id = $2`,
+      [req.customer.sub, req.customer.tenant_id],
     );
+    const extraRate = Number(customerRows[0]?.discount_rate ?? 0);
+    const extraDiscountMinor = extraRate > 0 ? Math.round(trueBase * extraRate / 100) : 0;
 
-    // Final total = discounted base + non-discountable toll/parking
-    const finalFareMinor = discount
-      ? (discount.finalFareMinor + tollParkingMinor)
-      : (baseFare + tollParkingMinor);
+    // Total discount = tier + extra
+    const totalDiscountMinor = tierDiscountMinor + extraDiscountMinor;
+    const finalFareMinor = Math.max(0, trueBase - totalDiscountMinor) + tollParkingMinor;
+    const combinedRate = (tierRate > 0 ? Number(tierRate) : 0) + extraRate;
 
     return {
-      base_fare_minor:          baseFare + tollParkingMinor,  // gross before discount (for display)
-      discount_minor:           discount?.discountMinor ?? 0,
+      base_fare_minor:          trueBase + tollParkingMinor,
+      discount_minor:           totalDiscountMinor,
       final_fare_minor:         finalFareMinor,
-      discount_name:            discount?.name ?? null,
-      discount_rate:            discount?.value ?? 0,
-      capped_by_max:            discount?.cappedByMax ?? false,
+      discount_name:            combinedRate > 0 ? `${combinedRate}% loyalty` : null,
+      discount_rate:            combinedRate,
+      capped_by_max:            false,
       currency:                 payload.currency ?? 'AUD',
     };
   }
