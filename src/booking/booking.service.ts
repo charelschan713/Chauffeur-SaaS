@@ -356,6 +356,18 @@ export class BookingService {
       [randomUUID(), tenantId, id, null, dto.operational_status ?? 'PENDING_CUSTOMER_CONFIRMATION', null, null, now],
     );
 
+    // Fire notifications (non-blocking)
+    const notifPayload = { tenant_id: tenantId, booking_id: id };
+    this.notificationService.handleEvent('AdminNewBooking', notifPayload)
+      .catch((e) => console.error('[Notification] AdminNewBooking FAILED:', e?.message));
+    this.notificationService.handleEvent('AdminBookingPendingConfirm', notifPayload)
+      .catch((e) => console.error('[Notification] AdminBookingPendingConfirm FAILED:', e?.message));
+    // Only fire BookingConfirmed if status is already CONFIRMED (e.g. admin creates confirmed booking)
+    if ((dto.operational_status ?? 'PENDING_CUSTOMER_CONFIRMATION') === 'CONFIRMED') {
+      this.notificationService.handleEvent('BookingConfirmed', notifPayload)
+        .catch((e) => console.error('[Notification] BookingConfirmed FAILED:', e?.message));
+    }
+
     return bookingRows[0];
   }
 
