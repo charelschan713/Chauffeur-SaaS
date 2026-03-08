@@ -37,24 +37,23 @@ export function AuthLogo({ subtitle }: { subtitle?: string }) {
       .catch(() => {});
   }, []);
 
-  const name = branding?.company_name ?? 'Chauffeur Services';
+  const name = branding?.company_name ?? 'ASChauffeured';
   const logoUrl = branding?.logo_url;
 
   return (
     <div className="text-center mb-10">
       <div className="flex flex-col items-center gap-1 mb-4">
         {logoUrl ? (
-          <img
-            src={logoUrl}
-            alt={name}
-            className="w-auto object-contain mb-2"
-            style={{
-              height: '80px',
-              mixBlendMode: 'lighten',
-              filter: 'brightness(1.05)',
-            }}
-            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-          />
+          <div className="mb-3" style={{ background: 'transparent' }}>
+            <img
+              src={logoUrl}
+              alt={name}
+              style={{ height: '72px', width: 'auto', objectFit: 'contain', display: 'block' }}
+              onError={(e) => {
+                (e.target as HTMLImageElement).parentElement!.style.display = 'none';
+              }}
+            />
+          </div>
         ) : (
           <>
             <span
