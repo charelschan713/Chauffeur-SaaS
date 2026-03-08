@@ -67,7 +67,7 @@ export class BookingService {
         b.passenger_count,
         b.luggage_count,
         tsc.name AS service_class_name,
-        tst.name AS service_type_name,
+        tst.display_name AS service_type_name,
         b.passenger_is_customer,
         b.operational_status,
         b.payment_status,
@@ -109,7 +109,7 @@ export class BookingService {
   async getBookingDetail(tenantId: string, bookingId: string) {
     const bookings = await this.dataSource.query(
       `SELECT b.*,
-              tst.name  AS service_type_name,
+              tst.display_name AS service_type_name,
               tsc.name  AS service_class_name
          FROM public.bookings b
          LEFT JOIN public.tenant_service_types tst ON tst.id = b.service_type_id
