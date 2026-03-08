@@ -687,13 +687,20 @@ export class CustomerPortalService {
   }
 
   private async markBookingPaid(bookingId: string, paymentIntentId: string) {
-    await this.db.query(
+    const rows = await this.db.query(
       `UPDATE public.bookings
        SET operational_status='CONFIRMED', payment_status='PAID',
            stripe_payment_intent_id=$1, payment_captured_at=now(), updated_at=now()
-       WHERE id=$2`,
+       WHERE id=$2
+       RETURNING tenant_id`,
       [paymentIntentId, bookingId],
     );
+    const tenantId = rows[0]?.tenant_id;
+    if (tenantId) {
+      const notifPayload = { tenant_id: tenantId, booking_id: bookingId };
+      this.notificationService.handleEvent('BookingConfirmed', notifPayload)
+        .catch((e) => console.error('[Notification] BookingConfirmed (pay link) FAILED:', e?.message));
+    }
   }
 
   // ── Invoices ──────────────────────────────────────────────────────────────
