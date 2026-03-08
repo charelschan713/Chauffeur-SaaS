@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'https://chauffeur-saas-production.up.railway.app';
 
@@ -41,7 +41,7 @@ export function AuthLogo({ subtitle }: { subtitle?: string }) {
   const logoUrl = branding?.logo_url;
 
   return (
-    <div className="text-center w-full">
+    <div className="text-center w-full lg:hidden">
       <div className="flex flex-col items-center gap-1">
         {logoUrl ? (
           <div style={{ background: 'transparent' }}>
@@ -79,16 +79,81 @@ export function AuthLogo({ subtitle }: { subtitle?: string }) {
 /** Shared page shell for auth pages */
 export function AuthShell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="fixed inset-0 bg-[#0d0f14] overflow-y-auto flex flex-col">
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_#1a1200_0%,_#0d0f14_60%)] pointer-events-none" />
-      <div className="relative flex-1 flex items-center justify-center px-4 py-16">
-        <div className="w-full max-w-sm flex flex-col items-center gap-8">
-          {children}
+    <div className="fixed inset-0 bg-[#0d0f14] overflow-y-auto flex flex-col lg:flex-row">
+
+      {/* ── Left brand panel (desktop only) ─────────────────── */}
+      <div className="hidden lg:flex lg:w-[45%] flex-col items-center justify-center relative overflow-hidden px-12">
+        {/* gradient bg */}
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_#251a00_0%,_#0d0f14_70%)]" />
+        {/* decorative rings */}
+        <div className="absolute w-[600px] h-[600px] rounded-full border border-[#c8a96b]/5" />
+        <div className="absolute w-[450px] h-[450px] rounded-full border border-[#c8a96b]/8" />
+        <div className="absolute w-[300px] h-[300px] rounded-full border border-[#c8a96b]/10" />
+        {/* content */}
+        <div className="relative flex flex-col items-center text-center gap-6 max-w-xs">
+          <BrandPanel />
+          <div className="w-24 h-px bg-[#c8a96b]/30" />
+          <p className="text-white/30 text-sm leading-relaxed tracking-wide">
+            Premium chauffeur services.<br />
+            Luxury at your fingertips.
+          </p>
         </div>
+        <p className="absolute bottom-6 text-xs text-white/15 tracking-widest uppercase">
+          © {new Date().getFullYear()} Chauffeur Solutions
+        </p>
       </div>
-      <p className="relative text-center text-xs text-white/15 tracking-widest uppercase pb-6">
-        © {new Date().getFullYear()} Chauffeur Solutions
-      </p>
+
+      {/* ── Right form panel ──────────────────────────────────── */}
+      <div className="flex-1 lg:w-[55%] flex flex-col relative">
+        {/* mobile gradient */}
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_#1a1200_0%,_#0d0f14_60%)] pointer-events-none lg:hidden" />
+        {/* divider line on desktop */}
+        <div className="hidden lg:block absolute left-0 top-[10%] bottom-[10%] w-px bg-[#c8a96b]/10" />
+        <div className="relative flex-1 flex items-center justify-center px-6 py-12">
+          <div className="w-full max-w-sm flex flex-col items-center gap-8">
+            {children}
+          </div>
+        </div>
+        <p className="relative text-center text-xs text-white/15 tracking-widest uppercase pb-6 lg:hidden">
+          © {new Date().getFullYear()} Chauffeur Solutions
+        </p>
+      </div>
+    </div>
+  );
+}
+
+/** Brand content used inside the left panel */
+function BrandPanel() {
+  const [logoUrl, setLogoUrl] = React.useState<string | null>(null);
+  const [name, setName] = React.useState('ASChauffeured');
+
+  React.useEffect(() => {
+    const host = typeof window !== 'undefined' ? window.location.hostname : '';
+    const sub = host.split('.')[0];
+    const slug = (sub && sub !== 'www' && sub !== 'chauffeurssolution') ? sub : '';
+    if (!slug) return;
+    const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'https://chauffeur-saas-production.up.railway.app';
+    fetch(`${API_URL}/public/tenant-info?tenant_slug=${slug}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d) { setName(d.company_name ?? 'ASChauffeured'); if (d.logo_url) setLogoUrl(d.logo_url); } })
+      .catch(() => {});
+  }, []);
+
+  if (logoUrl) {
+    return (
+      <img src={logoUrl} alt={name}
+        style={{ height: '120px', width: 'auto', objectFit: 'contain' }}
+        onError={(e) => (e.target as HTMLImageElement).style.display = 'none'} />
+    );
+  }
+  return (
+    <div className="flex flex-col items-center gap-2">
+      <span className="text-[#c8a96b] text-xl font-medium tracking-[0.18em] uppercase"
+        style={{ fontFamily: "'Playfair Display', serif" }}>{name}</span>
+      <div className="w-40 h-px bg-[#c8a96b]/50" />
+      <span className="text-[#c8a96b]/60 text-[10px] tracking-[0.12em] uppercase italic">
+        Premium Chauffeur Services
+      </span>
     </div>
   );
 }
