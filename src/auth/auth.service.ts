@@ -9,8 +9,7 @@ import { JwtService } from '@nestjs/jwt';
 import { DataSource } from 'typeorm';
 import * as crypto from 'crypto';
 import * as bcrypt from 'bcrypt';
-import { SmsProvider } from '../notification/providers/sms.provider';
-import { IntegrationResolver } from '../integration/integration.resolver';
+
 
 interface UserIdentity {
   sub: string;
@@ -31,8 +30,6 @@ export class AuthService implements OnModuleInit {
   constructor(
     private readonly dataSource: DataSource,
     private readonly jwt: JwtService,
-    private readonly smsProvider: SmsProvider,
-    private readonly integrationResolver: IntegrationResolver,
   ) {}
 
   async onModuleInit() {
@@ -270,23 +267,21 @@ export class AuthService implements OnModuleInit {
   // ── Driver SMS OTP ──────────────────────────────────────────────────────────
 
   /** Send 6-digit OTP to driver's phone number */
-  async sendDriverOtp(phone: string): Promise<{ sent: boolean }> {
-    // Normalise phone: strip spaces, ensure +61 prefix for AU
-    const normalised = phone.trim().replace(/\s+/g, '');
+  /** Send 6-digit OTP to driver's email (platform Resend) */
+  async sendDriverOtp(email: string): Promise<{ sent: boolean }> {
+    const normalised = email.trim().toLowerCase();
 
-    // Find user by phone
+    // Find driver by email
     const rows = await this.dataSource.query(
-      `SELECT u.id, u.full_name,
-              u.phone_country_code || u.phone_number AS full_phone
+      `SELECT u.id, u.full_name, u.email
        FROM public.users u
        JOIN public.memberships m ON m.user_id = u.id AND m.role = 'driver' AND m.status = 'active'
-       WHERE REPLACE(CONCAT(u.phone_country_code, u.phone_number), ' ', '') = $1
-          OR REPLACE(u.phone_number, ' ', '') = $1
+       WHERE LOWER(u.email) = $1
        LIMIT 1`,
       [normalised],
     );
 
-    // Always return sent:true (security — don't reveal if number exists)
+    // Always return sent:true (security)
     if (!rows.length) return { sent: true };
 
     const user = rows[0];
@@ -300,46 +295,52 @@ export class AuthService implements OnModuleInit {
       [otp, expiresAt.toISOString(), user.id],
     );
 
-    // Send via tenant's Twilio integration (same as booking SMS notifications)
-    const smsBody = `ASChauffeured driver code: ${otp}. Expires in 10 minutes.`;
-    const toPhone = (rows[0].full_phone || normalised).trim();
+    // Send via platform Resend (env var: RESEND_API_KEY)
+    const resendKey = process.env.RESEND_API_KEY;
+    const fromEmail = process.env.RESEND_FROM_EMAIL ?? 'noreply@aschauffeured.com.au';
+    const fromName  = process.env.RESEND_FROM_NAME  ?? 'ASChauffeured';
 
-    try {
-      // Use the driver's own tenant Twilio integration
-      const tenantRows = await this.dataSource.query(
-        `SELECT m.tenant_id FROM public.memberships m
-         WHERE m.user_id = $1 AND m.role = 'driver' AND m.status = 'active'
-         LIMIT 1`,
-        [user.id],
-      );
-      const tenantId = tenantRows[0]?.tenant_id;
-      const smsIntegration = tenantId
-        ? await this.integrationResolver.resolve(tenantId, 'twilio')
-        : null;
-      if (smsIntegration) {
-        await this.smsProvider.send(smsIntegration, toPhone, smsBody);
-        this.logger.log(`[OTP] SMS sent to ${toPhone}`);
-      } else {
-        // Dev fallback: log to console
-        this.logger.warn(`[OTP] No Twilio integration — code for ${user.full_name}: ${otp}`);
-      }
-    } catch (e: any) {
-      this.logger.error(`[OTP] SMS failed: ${e?.message}`);
+    if (resendKey) {
+      const html = `
+        <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px;background:#1A1A2E;color:#fff;border-radius:12px;">
+          <p style="font-size:13px;letter-spacing:4px;color:#C8A870;margin-bottom:8px;">ASCHAUFFEURED</p>
+          <h2 style="margin:0 0 24px;font-size:20px;">Driver Login Code</h2>
+          <div style="background:#222236;border-radius:10px;padding:24px;text-align:center;margin-bottom:24px;">
+            <p style="font-size:36px;font-weight:700;letter-spacing:12px;color:#C8A870;margin:0;">${otp}</p>
+          </div>
+          <p style="color:#9CA3AF;font-size:13px;">This code expires in <strong style="color:#fff;">10 minutes</strong>.</p>
+          <p style="color:#9CA3AF;font-size:13px;">If you did not request this, please ignore this email.</p>
+        </div>`;
+
+      await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${resendKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          from: `${fromName} <${fromEmail}>`,
+          to: [user.email],
+          subject: `${otp} — Your ASChauffeured Driver Login Code`,
+          html,
+        }),
+      }).catch(e => this.logger.error(`[OTP] Resend failed: ${e?.message}`));
+
+      this.logger.log(`[OTP] Email sent to ${user.email}`);
+    } else {
+      // Dev fallback
+      this.logger.warn(`[OTP] No RESEND_API_KEY — code for ${user.full_name}: ${otp}`);
     }
 
     return { sent: true };
   }
 
-  /** Verify OTP and return tokens */
-  async verifyDriverOtp(phone: string, otp: string) {
-    const normalised = phone.trim().replace(/\s+/g, '');
+  /** Verify email OTP and return tokens */
+  async verifyDriverOtp(email: string, otp: string) {
+    const normalised = email.trim().toLowerCase();
 
     const rows = await this.dataSource.query(
       `SELECT u.id, u.sms_otp, u.sms_otp_expires_at, u.is_platform_admin
        FROM public.users u
        JOIN public.memberships m ON m.user_id = u.id AND m.role = 'driver' AND m.status = 'active'
-       WHERE REPLACE(CONCAT(u.phone_country_code, u.phone_number), ' ', '') = $1
-          OR REPLACE(u.phone_number, ' ', '') = $1
+       WHERE LOWER(u.email) = $1
        LIMIT 1`,
       [normalised],
     );
@@ -360,19 +361,16 @@ export class AuthService implements OnModuleInit {
       [user.id],
     );
 
-    // Resolve membership
     const memberships = await this.dataSource.query(
-      `SELECT m.tenant_id, m.role
-       FROM public.memberships m
+      `SELECT m.tenant_id FROM public.memberships m
        WHERE m.user_id = $1 AND m.role = 'driver' AND m.status = 'active'
        LIMIT 1`,
       [user.id],
     );
 
-    const tenantId = memberships[0]?.tenant_id ?? null;
     return this.issueTokens(
       { sub: user.id, isPlatformAdmin: false },
-      tenantId,
+      memberships[0]?.tenant_id ?? null,
       'driver',
     );
   }

@@ -152,15 +152,15 @@ export class AuthController {
 
   // ── Driver SMS OTP ────────────────────────────────────────────────────────
   @Post('mobile/otp/send')
-  async mobileOtpSend(@Body('phone') phone: string) {
-    if (!phone) throw new UnauthorizedException('Phone required');
-    return this.auth.sendDriverOtp(phone);
+  async mobileOtpSend(@Body('email') email: string) {
+    if (!email) throw new UnauthorizedException('Email required');
+    return this.auth.sendDriverOtp(email);
   }
 
   @Post('mobile/otp/verify')
-  async mobileOtpVerify(@Body('phone') phone: string, @Body('otp') otp: string) {
-    if (!phone || !otp) throw new UnauthorizedException('Phone and OTP required');
-    const result = await this.auth.verifyDriverOtp(phone, otp);
+  async mobileOtpVerify(@Body('email') email: string, @Body('otp') otp: string) {
+    if (!email || !otp) throw new UnauthorizedException('Email and OTP required');
+    const result = await this.auth.verifyDriverOtp(email, otp);
     return {
       access_token: result.accessToken,
       refresh_token: result.refreshToken,
