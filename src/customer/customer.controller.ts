@@ -273,4 +273,49 @@ export class CustomerController {
     );
     return { id: rows[0].id };
   }
+
+  // ── Global passenger list (admin-wide, all customers) ────────────────────
+  @Get('passengers/all')
+  async listAllPassengers(@Req() req: any) {
+    return this.dataSource.query(
+      `SELECT cp.*,
+              c.first_name || ' ' || c.last_name AS customer_name,
+              c.email AS customer_email
+       FROM public.customer_passengers cp
+       JOIN public.customers c ON c.id = cp.customer_id
+       WHERE cp.tenant_id = $1
+       ORDER BY cp.created_at DESC`,
+      [req.user.tenant_id],
+    );
+  }
+
+  // ── Update a passenger ──────────────────────────────────────────────────
+  @Patch(':customerId/passengers/:passengerId')
+  async updatePassenger(
+    @Req() req: any,
+    @Param('customerId') customerId: string,
+    @Param('passengerId') passengerId: string,
+    @Body() body: any,
+  ) {
+    await this.dataSource.query(
+      `UPDATE public.customer_passengers SET
+         first_name        = COALESCE($3, first_name),
+         last_name         = COALESCE($4, last_name),
+         phone_country_code = COALESCE($5, phone_country_code),
+         phone_number      = COALESCE($6, phone_number),
+         active            = COALESCE($7, active),
+         updated_at        = now()
+       WHERE id = $1 AND customer_id = $2 AND tenant_id = $8`,
+      [
+        passengerId, customerId,
+        body.first_name ?? null,
+        body.last_name ?? null,
+        body.phone_country_code ?? null,
+        body.phone_number ?? null,
+        body.active ?? null,
+        req.user.tenant_id,
+      ],
+    );
+    return { success: true };
+  }
 }
