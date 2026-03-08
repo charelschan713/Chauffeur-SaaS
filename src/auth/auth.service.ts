@@ -305,10 +305,17 @@ export class AuthService implements OnModuleInit {
     const toPhone = (rows[0].full_phone || normalised).trim();
 
     try {
-      const smsIntegration = await this.integrationResolver.resolve(
-        'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', // aschauffeured tenant
-        'twilio',
+      // Use the driver's own tenant Twilio integration
+      const tenantRows = await this.dataSource.query(
+        `SELECT m.tenant_id FROM public.memberships m
+         WHERE m.user_id = $1 AND m.role = 'driver' AND m.status = 'active'
+         LIMIT 1`,
+        [user.id],
       );
+      const tenantId = tenantRows[0]?.tenant_id;
+      const smsIntegration = tenantId
+        ? await this.integrationResolver.resolve(tenantId, 'twilio')
+        : null;
       if (smsIntegration) {
         await this.smsProvider.send(smsIntegration, toPhone, smsBody);
         this.logger.log(`[OTP] SMS sent to ${toPhone}`);
