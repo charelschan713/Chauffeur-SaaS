@@ -137,31 +137,27 @@ export class CustomerPortalController {
       ?? payload.results?.[0];
     if (!result) return { error: 'Car type not found in quote' };
 
-    // The quote result's estimated_total_minor already has tier discount baked in (via DiscountResolver)
-    // pre_discount_total_minor = true base BEFORE tier discount (excl. tolls/parking)
     const snap = result.pricing_snapshot_preview ?? {};
     const tollParkingMinor = (snap.toll_minor ?? 0) + (snap.parking_minor ?? 0);
 
-    // True discountable base (before any discount, excl. tolls/parking)
-    const trueBase = snap.pre_discount_total_minor
-      ?? (snap.base_calculated_minor
-        ? snap.base_calculated_minor
+    // TRUE discountable base = base_calculated_minor + surcharges (NEVER use pre_discount_total_minor
+    // which may be stale/already-discounted from old quotes)
+    const trueBase = snap.base_calculated_minor
+      ? snap.base_calculated_minor
           + (snap.surcharge_minor ?? 0)
           + (snap.time_surcharge_minor ?? 0)
           + (snap.extras_minor ?? 0)
           + (snap.waypoints_minor ?? 0)
           + (snap.baby_seats_minor ?? 0)
-        : Math.max(0, result.estimated_total_minor + (snap.discount_amount_minor ?? 0) - tollParkingMinor));
+      : Math.max(0, result.estimated_total_minor - tollParkingMinor);
 
-    // Tier discount (already applied in quote)
-    const tierDiscountMinor = snap.discount_amount_minor ?? 0;
-    const tierRate = snap.discount_value ?? 0;  // kept for label
-
-    // Additional discount_rate from customers table (not tier — stacks on top)
+    // Get customer tier rate + extra discount_rate
     const customerRows = await this.db.query(
-      `SELECT discount_rate FROM public.customers WHERE id = $1 AND tenant_id = $2`,
+      `SELECT tier, discount_rate FROM public.customers WHERE id = $1 AND tenant_id = $2`,
       [req.customer.sub, req.customer.tenant_id],
     );
+    const TIER_DISCOUNT: Record<string, number> = { STANDARD: 0, SILVER: 5, GOLD: 10, PLATINUM: 15, VIP: 20 };
+    const tierRate = TIER_DISCOUNT[customerRows[0]?.tier ?? 'STANDARD'] ?? 0;
     const extraRate = Number(customerRows[0]?.discount_rate ?? 0);
 
     // Check max_discount_pct cap from any active discount rule
@@ -173,10 +169,11 @@ export class CustomerPortalController {
     );
     const maxPctCap: number | null = capRow?.max_discount_pct ? Number(capRow.max_discount_pct) : null;
 
-    const rawCombinedRate = (Number(tierRate) || 0) + extraRate;
+    const rawCombinedRate = tierRate + extraRate;
     const cappedCombinedRate = maxPctCap != null ? Math.min(rawCombinedRate, maxPctCap) : rawCombinedRate;
     const cappedByMax = maxPctCap != null && rawCombinedRate > maxPctCap;
 
+    // Recalculate from scratch using true base
     const totalDiscountMinor = Math.round(trueBase * cappedCombinedRate / 100);
     const finalFareMinor = Math.max(0, trueBase - totalDiscountMinor) + tollParkingMinor;
     const combinedRate = cappedCombinedRate;
