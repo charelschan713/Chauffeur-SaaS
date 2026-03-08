@@ -7,7 +7,9 @@ import {
   Param,
   Post,
   Query,
+  Req,
 } from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
 import { PublicTenantService } from './public-tenant.service';
 import { PublicMapsService } from './public-maps.service';
 import { PublicPricingService } from './public-pricing.service';
@@ -18,6 +20,7 @@ export class PublicController {
     private readonly tenantSvc: PublicTenantService,
     private readonly mapsSvc: PublicMapsService,
     private readonly pricingSvc: PublicPricingService,
+    private readonly jwtSvc: JwtService,
   ) {}
 
   /** Tenant branding + config */
@@ -74,8 +77,18 @@ export class PublicController {
 
   /** Quote all car types for given trip — returns quote_id for handoff */
   @Post('pricing/quote')
-  async quote(@Query('tenant_slug') slug: string, @Body() body: any) {
-    return this.pricingSvc.quote(slug, body);
+  async quote(@Query('tenant_slug') slug: string, @Body() body: any, @Req() req: any) {
+    // Optionally extract customer ID from Bearer token (logged-in customers get loyalty discount)
+    let customerId: string | null = null;
+    try {
+      const auth = req.headers?.authorization ?? '';
+      if (auth.startsWith('Bearer ')) {
+        const payload: any = this.jwtSvc.verify(auth.slice(7),
+          { secret: process.env.JWT_ACCESS_SECRET });
+        if (payload?.sub) customerId = payload.sub;
+      }
+    } catch { /* unauthenticated — skip */ }
+    return this.pricingSvc.quote(slug, { ...body, customerId });
   }
 
   /** Retrieve a quote session by ID (for SaaS booking page handoff) */

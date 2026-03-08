@@ -24,6 +24,7 @@ interface QuoteRequest {
   return_distance_km?: number;
   return_duration_minutes?: number;
   promo_code?: string;              // optional promo code from widget
+  customerId?: string | null;       // optional — injected from JWT for loyalty discount
 }
 
 @Injectable()
@@ -83,7 +84,7 @@ export class PublicPricingService {
           pickupAtUtc: new Date(dto.pickup_at_utc),
           timezone: dto.timezone ?? 'Australia/Sydney',
           currency: tenant.currency,
-          customerId: null,
+          customerId: dto.customerId ?? null,
           tollEnabled,
           pickupAddress: dto.pickup_address,
           dropoffAddress: dto.dropoff_address,
@@ -100,7 +101,7 @@ export class PublicPricingService {
             {
               code:          dto.promo_code,
               serviceTypeId: dto.service_type_id,
-              customerId:    null,    // guest at quote time
+              customerId:    dto.customerId ?? null,
               isNewCustomer: false,
             },
           );
