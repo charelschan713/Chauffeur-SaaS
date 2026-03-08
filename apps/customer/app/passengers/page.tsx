@@ -270,12 +270,12 @@ export default function PassengersPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0d0f14]" style={{ paddingBottom: 'calc(96px + env(safe-area-inset-bottom, 0px))' }}>
+    <div className="min-h-screen bg-[#f5f5f5]" style={{ paddingBottom: 'calc(96px + env(safe-area-inset-bottom, 0px))' }}>
       {/* Sticky Header */}
       <div
-        className="sticky top-0 z-20 border-b border-white/[0.07] px-4"
+        className="sticky top-0 z-20 border-b border-gray-100 px-4"
         style={{
-          background: 'rgba(13,15,20,0.97)',
+          background: 'rgba(255,255,255,0.97)',
           backdropFilter: 'blur(20px)',
           WebkitBackdropFilter: 'blur(20px)',
           paddingTop: 'max(12px, env(safe-area-inset-top))',

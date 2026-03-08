@@ -66,11 +66,8 @@ export function BottomNav() {
   return (
     <div className="lg:hidden">
     <nav
-      className="fixed bottom-0 left-0 right-0 z-40 border-t border-white/[0.07]"
+      className="fixed bottom-0 left-0 right-0 z-40 border-t border-gray-100 bg-white"
       style={{
-        background: 'rgba(13,15,20,0.97)',
-        backdropFilter: 'blur(20px)',
-        WebkitBackdropFilter: 'blur(20px)',
         paddingBottom: 'env(safe-area-inset-bottom, 0px)',
       }}
     >
@@ -84,14 +81,14 @@ export function BottomNav() {
               className={cn(
                 'flex flex-col items-center gap-1 min-w-[60px] min-h-[44px] transition-all duration-200 active:scale-95',
                 item.isAction ? 'pb-1 justify-end' : 'py-1 justify-center',
-                !item.isAction && (active ? 'text-[hsl(var(--primary))]' : 'text-white/30 hover:text-white/55'),
+                !item.isAction && (active ? 'text-[#1a1a1a]' : 'text-gray-400 hover:text-gray-600'),
               )}
             >
               {item.icon(active)}
               {!item.isAction && (
                 <span className={cn(
                   'text-[10px] font-medium tracking-wide',
-                  active ? 'text-[hsl(var(--primary))]' : 'text-white/30',
+                  active ? 'text-[#1a1a1a] font-semibold' : 'text-gray-400',
                 )}>
                   {item.label}
                 </span>

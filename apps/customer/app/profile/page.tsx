@@ -44,19 +44,19 @@ export default function ProfilePage() {
   ];
 
   if (isLoading) return (
-    <div className="min-h-screen bg-[#0d0f14] flex items-center justify-center">
+    <div className="min-h-screen bg-[#f5f5f5] flex items-center justify-center">
       <div className="w-7 h-7 border-2 border-white/15 border-t-[hsl(var(--primary))] rounded-full animate-spin" />
     </div>
   );
 
   return (
     <div
-      className="min-h-screen bg-[#0d0f14] text-white"
+      className="min-h-screen bg-[#f5f5f5] text-gray-900"
       style={{ paddingBottom: 'calc(96px + env(safe-area-inset-bottom, 0px))' }}
     >
       {/* Header */}
       <div
-        className="border-b border-white/[0.07]"
+        className="border-b border-gray-100"
         style={{ paddingTop: 'max(20px, env(safe-area-inset-top))' }}
       >
         <div className="max-w-4xl mx-auto px-4 pb-5">
@@ -82,13 +82,13 @@ export default function ProfilePage() {
               <div className="flex-1 space-y-2.5">
                 <div className="flex gap-2">
                   <input
-                    className="flex-1 h-11 px-3 rounded-xl bg-white/6 border border-white/12 text-sm text-white placeholder:text-white/25 focus:outline-none focus:border-[hsl(var(--primary)/0.5)]"
+                    className="flex-1 h-11 px-3 rounded-xl bg-white/6 border border-white/12 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-[hsl(var(--primary)/0.5)]"
                     placeholder="First name"
                     value={form.firstName}
                     onChange={e => setForm(f => ({ ...f, firstName: e.target.value }))}
                   />
                   <input
-                    className="flex-1 h-11 px-3 rounded-xl bg-white/6 border border-white/12 text-sm text-white placeholder:text-white/25 focus:outline-none focus:border-[hsl(var(--primary)/0.5)]"
+                    className="flex-1 h-11 px-3 rounded-xl bg-white/6 border border-white/12 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-[hsl(var(--primary)/0.5)]"
                     placeholder="Last name"
                     value={form.lastName}
                     onChange={e => setForm(f => ({ ...f, lastName: e.target.value }))}
@@ -98,7 +98,7 @@ export default function ProfilePage() {
                   <PhoneCountrySelect value={form.phoneCode} onChange={v => setForm(f => ({ ...f, phoneCode: v }))} className="w-28 shrink-0" />
                   <input
                     type="tel"
-                    className="flex-1 h-11 px-3 rounded-xl bg-white/6 border border-white/12 text-sm text-white placeholder:text-white/25 focus:outline-none focus:border-[hsl(var(--primary)/0.5)]"
+                    className="flex-1 h-11 px-3 rounded-xl bg-white/6 border border-white/12 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-[hsl(var(--primary)/0.5)]"
                     placeholder="4xx xxx xxx"
                     value={form.phoneNumber}
                     onChange={e => setForm(f => ({ ...f, phoneNumber: e.target.value }))}
@@ -114,7 +114,7 @@ export default function ProfilePage() {
                   </button>
                   <button
                     onClick={() => setEditing(false)}
-                    className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-white/12 text-white/50 text-sm active:scale-95 transition-transform"
+                    className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-white/12 text-gray-400 text-sm active:scale-95 transition-transform"
                   >
                     <X className="h-4 w-4" /> Cancel
                   </button>
@@ -122,10 +122,10 @@ export default function ProfilePage() {
               </div>
             ) : (
               <div className="min-w-0">
-                <p className="font-semibold text-white text-base">{profile?.first_name} {profile?.last_name}</p>
+                <p className="font-semibold text-gray-900 text-base">{profile?.first_name} {profile?.last_name}</p>
                 <p className="text-sm text-white/45 mt-0.5 truncate">{profile?.email}</p>
                 {profile?.phone_number && (
-                  <p className="text-sm text-white/30 mt-0.5">{profile?.phone_country_code} {profile?.phone_number}</p>
+                  <p className="text-sm text-gray-400 mt-0.5">{profile?.phone_country_code} {profile?.phone_number}</p>
                 )}
               </div>
             )}
@@ -135,7 +135,7 @@ export default function ProfilePage() {
 
       <div className="max-w-4xl mx-auto px-4 pt-5 space-y-3">
         {/* Nav links */}
-        <div className="rounded-2xl bg-white/[0.035] border border-white/[0.07] overflow-hidden divide-y divide-white/[0.05]">
+        <div className="rounded-2xl bg-white border border-gray-100 overflow-hidden divide-y divide-white/[0.05]">
           {NAV_LINKS.map(item => (
             <a
               key={item.href}
@@ -147,7 +147,7 @@ export default function ProfilePage() {
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-white/85">{item.label}</p>
-                <p className="text-xs text-white/30 mt-0.5">{item.desc}</p>
+                <p className="text-xs text-gray-400 mt-0.5">{item.desc}</p>
               </div>
               <ChevronRight className="h-4 w-4 text-white/20 shrink-0" />
             </a>
@@ -156,7 +156,7 @@ export default function ProfilePage() {
 
         {/* App version / misc */}
         <div className="rounded-2xl bg-white/[0.02] border border-white/[0.05] px-4 py-3 flex items-center justify-between">
-          <span className="text-xs text-white/25">Customer Portal</span>
+          <span className="text-xs text-gray-400">Customer Portal</span>
           <span className="text-xs text-white/20">v1.0</span>
         </div>
 

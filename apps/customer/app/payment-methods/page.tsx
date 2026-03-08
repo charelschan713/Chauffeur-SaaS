@@ -60,8 +60,8 @@ function AddCardForm({ onSuccess, onCancel }: { onSuccess: () => void; onCancel:
   );
 
   return (
-    <div className="rounded-2xl bg-white/4 border border-white/8 p-4 space-y-4">
-      <p className="text-sm font-medium text-white/80">Add New Card</p>
+    <div className="rounded-2xl bg-white/4 border border-gray-100 p-4 space-y-4">
+      <p className="text-sm font-medium text-gray-800">Add New Card</p>
       <div className="p-3 rounded-xl bg-white border border-gray-200">
         <CardElement options={{
           hidePostalCode: true,
@@ -81,7 +81,7 @@ function AddCardForm({ onSuccess, onCancel }: { onSuccess: () => void; onCancel:
           {saving ? 'Saving…' : 'Save Card'}
         </button>
         <button onClick={onCancel}
-          className="px-4 py-2.5 rounded-xl border border-white/15 text-white/60 text-sm hover:text-white/80 transition-colors">
+          className="px-4 py-2.5 rounded-xl border border-white/15 text-gray-500 text-sm hover:text-gray-800 transition-colors">
           Cancel
         </button>
       </div>
@@ -112,9 +112,9 @@ export default function PaymentMethodsPage() {
     <div className="min-h-screen" style={{ paddingBottom: 'calc(96px + env(safe-area-inset-bottom, 0px))' }}>
       {/* Header */}
       <div
-        className="sticky top-0 z-20 border-b border-white/[0.07] px-4 flex items-center gap-3"
+        className="sticky top-0 z-20 border-b border-gray-100 px-4 flex items-center gap-3"
         style={{
-          background: 'rgba(13,15,20,0.97)',
+          background: 'rgba(255,255,255,0.97)',
           backdropFilter: 'blur(20px)',
           WebkitBackdropFilter: 'blur(20px)',
           paddingTop: 'max(12px, env(safe-area-inset-top))',
@@ -122,7 +122,7 @@ export default function PaymentMethodsPage() {
         }}
       >
         <BackButton fallback="/profile" />
-        <h1 className="font-semibold text-white flex-1">Payment Methods</h1>
+        <h1 className="font-semibold text-gray-900 flex-1">Payment Methods</h1>
         <button onClick={() => setShowAdd(v => !v)}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[hsl(var(--primary)/0.15)] border border-[hsl(var(--primary)/0.3)] text-[hsl(var(--primary))] text-xs font-semibold">
           <Plus className="h-3.5 w-3.5" /> Add Card
@@ -143,12 +143,12 @@ export default function PaymentMethodsPage() {
         {/* Cards list */}
         {isLoading ? (
           <div className="flex justify-center py-8">
-            <div className="w-6 h-6 border-2 border-white/20 border-t-[hsl(var(--primary))] rounded-full animate-spin" />
+            <div className="w-6 h-6 border-2 border-gray-200 border-t-[hsl(var(--primary))] rounded-full animate-spin" />
           </div>
         ) : methods.length === 0 && !showAdd ? (
           <div className="text-center py-16 space-y-3">
             <CreditCard className="h-10 w-10 text-white/20 mx-auto" />
-            <p className="text-white/40 text-sm">No saved cards</p>
+            <p className="text-gray-400 text-sm">No saved cards</p>
             <button onClick={() => setShowAdd(true)}
               className="inline-block mt-2 px-5 py-2.5 rounded-full bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] text-sm font-semibold">
               Add a Card
@@ -158,7 +158,7 @@ export default function PaymentMethodsPage() {
           <div className="space-y-3">
             {methods.map((m: any) => (
               <div key={m.id}
-                className="flex items-center gap-4 p-4 rounded-2xl bg-white/4 border border-white/8">
+                className="flex items-center gap-4 p-4 rounded-2xl bg-white/4 border border-gray-100">
                 <div className="w-10 h-10 rounded-xl bg-[hsl(var(--primary)/0.12)] border border-[hsl(var(--primary)/0.2)] flex items-center justify-center">
                   <CreditCard className="h-5 w-5 text-[hsl(var(--primary))]" />
                 </div>
@@ -166,13 +166,13 @@ export default function PaymentMethodsPage() {
                   <p className="text-sm font-medium text-white/90">
                     {CARD_BRANDS[m.brand?.toLowerCase()] ?? (m.brand ?? 'Card')} •••• {m.last4}
                   </p>
-                  <p className="text-xs text-white/40">Expires {m.exp_month}/{m.exp_year}</p>
+                  <p className="text-xs text-gray-400">Expires {m.exp_month}/{m.exp_year}</p>
                 </div>
                 {m.is_default && (
                   <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/25 text-emerald-400 font-semibold">Default</span>
                 )}
                 <button onClick={() => setConfirmDelete(m.id)}
-                  className="w-8 h-8 rounded-full flex items-center justify-center text-white/25 hover:text-red-400 hover:bg-red-500/10 transition-all">
+                  className="w-8 h-8 rounded-full flex items-center justify-center text-gray-400 hover:text-red-400 hover:bg-red-500/10 transition-all">
                   <Trash2 className="h-3.5 w-3.5" />
                 </button>
               </div>
@@ -184,16 +184,16 @@ export default function PaymentMethodsPage() {
       {/* Delete confirm modal */}
       {confirmDelete && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-4">
-          <div className="w-full max-w-sm bg-[hsl(228,12%,12%)] border border-white/10 rounded-2xl p-5 space-y-4">
+          <div className="w-full max-w-sm bg-[hsl(228,12%,12%)] border border-gray-100 rounded-2xl p-5 space-y-4">
             <p className="text-sm font-semibold text-white">Remove this card?</p>
-            <p className="text-xs text-white/50">This card will be removed from your account.</p>
+            <p className="text-xs text-gray-400">This card will be removed from your account.</p>
             <div className="flex gap-3">
               <button onClick={() => { deleteMut.mutate(confirmDelete); setConfirmDelete(null); }}
                 className="flex-1 py-2.5 rounded-xl bg-red-500/15 border border-red-500/30 text-red-400 text-sm font-medium">
                 Remove
               </button>
               <button onClick={() => setConfirmDelete(null)}
-                className="flex-1 py-2.5 rounded-xl border border-white/15 text-white/60 text-sm">
+                className="flex-1 py-2.5 rounded-xl border border-white/15 text-gray-500 text-sm">
                 Cancel
               </button>
             </div>
