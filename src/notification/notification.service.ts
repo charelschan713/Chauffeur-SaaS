@@ -501,6 +501,12 @@ export class NotificationService {
       extras_amount: NotificationService.formatMinor((snapshot.extras_minor ?? 0) + (snapshot.baby_seats_minor ?? 0) + (snapshot.waypoints_minor ?? 0)),
       total_amount: NotificationService.formatMinor(booking.total_price_minor ?? 0),
       total_price:  NotificationService.formatMinor(booking.total_price_minor ?? 0), // alias for custom templates
+      // Discount breakdown (non-empty only when discount applied)
+      discount_amount: NotificationService.formatMinor(booking.discount_total_minor ?? 0),
+      has_discount:    Number(booking.discount_total_minor) > 0 ? 'true' : '',
+      original_price:  Number(booking.discount_total_minor) > 0
+        ? NotificationService.formatMinor((Number(booking.total_price_minor) + Number(booking.discount_total_minor)))
+        : '',
       city:         booking.city_name ?? booking.city ?? '',
       // Adjustment / Part A + B (set by caller via payload merge)
       prepay_amount: '',
@@ -684,6 +690,7 @@ export class NotificationService {
           b.customer_phone_number,
           b.currency,
           b.total_price_minor,
+          b.discount_total_minor,
           b.passenger_count,
           b.luggage_count,
           b.special_requests,
@@ -967,18 +974,8 @@ export class NotificationService {
   private async onPaymentRequest(tenantId: string, payload: any) {
     const booking = await this.getBooking(payload.booking_id);
     if (!booking) return;
-    console.log('[onPaymentRequest] booking keys:', Object.keys(booking));
-    console.log('[onPaymentRequest] booking sample:', JSON.stringify({
-      customer_first_name: booking.customer_first_name,
-      customerFirstName: (booking as any).customerFirstName,
-      total_price_minor: booking.total_price_minor,
-      totalPriceMinor: (booking as any).totalPriceMinor,
-      customer_email: booking.customer_email,
-    }));
-    const bv = this.bookingVars(booking);
-    console.log('[onPaymentRequest] bookingVars total_amount:', bv.total_amount, 'first_name:', bv.customer_first_name);
     const vars = {
-      ...bv,
+      ...this.buildTemplateVariables(booking),
       payment_link: payload.payment_link ?? payload.payment_url ?? '',
       payment_url:  payload.payment_url  ?? payload.payment_link ?? '',
     };

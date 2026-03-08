@@ -43,6 +43,10 @@ const bookingRows = (includePricing = true) => `
   <tr><td style="${S.tdLAlt}">Base Fare</td><td style="${S.tdRAlt}">{{currency}} {{base_fare}}</td></tr>
   <tr><td style="${S.tdL}">Toll / Parking</td><td style="${S.tdR}">{{currency}} {{toll_parking_total}}</td></tr>
   <tr><td style="${S.tdLAlt}">Extras</td><td style="${S.tdRAlt}">{{currency}} {{extras_amount}}</td></tr>
+  {{#if has_discount}}
+  <tr><td style="${S.tdL}">Original Price</td><td style="${S.tdR}"><span style="text-decoration:line-through;color:#9ca3af">{{currency}} {{original_price}}</span></td></tr>
+  <tr><td style="${S.tdLAlt}">Discount</td><td style="${S.tdRAlt}"><span style="color:#22c55e">− {{currency}} {{discount_amount}}</span></td></tr>
+  {{/if}}
   <tr><td style="${S.tdTotal}" colspan="2" style="background:#f0fdf4">
     <span style="color:#6b7280;font-size:14px">Total</span>
     &nbsp;&nbsp;
