@@ -14,11 +14,15 @@ import {
 import { DataSource } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { JwtGuard } from '../common/guards/jwt.guard';
+import { NotificationService } from '../notification/notification.service';
 
 @Controller('customers')
 @UseGuards(JwtGuard)
 export class CustomerController {
-  constructor(private readonly dataSource: DataSource) {}
+  constructor(
+    private readonly dataSource: DataSource,
+    private readonly notification: NotificationService,
+  ) {}
 
   @Get()
   async list(@Req() req: any, @Query() query: any) {
@@ -272,6 +276,42 @@ export class CustomerController {
       ],
     );
     return { id: rows[0].id };
+  }
+
+  // ── Send invitation to customer ──────────────────────────────────────────
+  @Post(':id/send-invitation')
+  async sendInvitation(@Req() req: any, @Param('id') id: string, @Body() body: { channel: 'email' | 'sms' }) {
+    const [cRows] = await Promise.all([
+      this.dataSource.query(
+        `SELECT id, email, first_name, last_name, phone_country_code, phone_number
+         FROM public.customers WHERE id = $1 AND tenant_id = $2 LIMIT 1`,
+        [id, req.user.tenant_id],
+      ),
+    ]);
+    const customer = cRows[0];
+    if (!customer) throw new BadRequestException('Customer not found');
+
+    const tenantRows = await this.dataSource.query(
+      `SELECT slug FROM public.tenants WHERE id = $1 LIMIT 1`,
+      [req.user.tenant_id],
+    );
+    const slug = tenantRows[0]?.slug ?? 'app';
+    const portalUrl = process.env.CUSTOMER_PORTAL_URL ?? `https://${slug}.chauffeurssolution.com`;
+    const loginUrl = `${portalUrl}/login`;
+
+    await this.notification.handleEvent('CustomerInvitation', {
+      tenantId: req.user.tenant_id,
+      customer_id: customer.id,
+      customer_first_name: customer.first_name,
+      customer_last_name: customer.last_name,
+      email: body.channel === 'email' ? customer.email : null,
+      phone: body.channel === 'sms' ? `${customer.phone_country_code ?? ''}${customer.phone_number}` : null,
+      portal_url: loginUrl,
+      login_url: loginUrl,
+      channel: body.channel,
+    }).catch(() => {});
+
+    return { success: true, channel: body.channel };
   }
 
   // ── Global passenger list (admin-wide, all customers) ────────────────────

@@ -35,6 +35,9 @@ export default function CustomersPage() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [customerModalOpen, setCustomerModalOpen] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<any | null>(null);
+  const [inviteModal, setInviteModal] = useState<{ customerId: string; email: string; phone: string; name: string } | null>(null);
+  const [inviteSending, setInviteSending] = useState<'email' | 'sms' | null>(null);
+  const [inviteSent, setInviteSent] = useState<'email' | 'sms' | null>(null);
   const [passengerModalOpen, setPassengerModalOpen] = useState(false);
   const [editingPassenger, setEditingPassenger] = useState<any | null>(null);
   const [activeCustomerId, setActiveCustomerId] = useState<string | null>(null);
@@ -136,10 +139,21 @@ export default function CustomersPage() {
     };
     if (editingCustomer) {
       await api.patch(`/customers/${editingCustomer.id}`, payload);
+      setCustomerModalOpen(false);
     } else {
-      await api.post('/customers', payload);
+      const res = await api.post('/customers', payload);
+      const newId = res.data?.id;
+      setCustomerModalOpen(false);
+      if (newId) {
+        setInviteSent(null);
+        setInviteModal({
+          customerId: newId,
+          email: customerForm.email || '',
+          phone: [customerForm.phone_country_code, customerForm.phone_number].filter(Boolean).join(' '),
+          name: `${customerForm.first_name} ${customerForm.last_name}`.trim(),
+        });
+      }
     }
-    setCustomerModalOpen(false);
     await queryClient.invalidateQueries({ queryKey: ['customers'] });
   }
 
@@ -277,10 +291,10 @@ export default function CustomersPage() {
                 <td className="px-4 py-3">{c.email ?? '—'}</td>
                 <td className="px-4 py-3">{formatPhone(c.phone_country_code, c.phone_number)}</td>
                 <td className="px-4 py-3">
-                  <span className={`px-2 py-1 rounded text-xs ${TIER_COLORS[c.tier ?? 'STANDARD'] ?? 'bg-gray-100 text-gray-700'}`}>
+                  <span className={`px-2 py-1 rounded text-xs font-medium ${TIER_COLORS[c.tier ?? 'STANDARD'] ?? 'bg-gray-100 text-gray-700'}`}>
                     {c.tier ?? 'STANDARD'}
                     {Number(c.discount_rate) > 0 && (
-                      <span className="ml-1 text-green-600">+{c.discount_rate}%</span>
+                      <span className="ml-1 opacity-80">{Number(c.discount_rate).toFixed(0)}%</span>
                     )}
                   </span>
                 </td>
@@ -345,70 +359,205 @@ export default function CustomersPage() {
       )}
 
       {customerModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-lg p-6 space-y-4">
-            <h3 className="text-lg font-semibold">{editingCustomer ? 'Edit Customer' : 'Create Customer'}</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <Input placeholder="First Name" value={customerForm.first_name} onChange={(e) => setCustomerForm((p) => ({ ...p, first_name: e.target.value }))} />
-              <Input placeholder="Last Name" value={customerForm.last_name} onChange={(e) => setCustomerForm((p) => ({ ...p, last_name: e.target.value }))} />
-              <Input placeholder="Email" value={customerForm.email} onChange={(e) => setCustomerForm((p) => ({ ...p, email: e.target.value }))} />
-              <PhoneSplitField
-                countryCode={customerForm.phone_country_code}
-                number={customerForm.phone_number}
-                onCountryCodeChange={(v) => setCustomerForm((p) => ({ ...p, phone_country_code: v }))}
-                onNumberChange={(v) => setCustomerForm((p) => ({ ...p, phone_number: v }))}
-              />
-              <Select value={customerForm.tier} onChange={(e) => setCustomerForm((p) => ({ ...p, tier: e.target.value }))}>
-                {['STANDARD','SILVER','GOLD','PLATINUM','VIP','CUSTOM'].map((t) => (
-                  <option key={t} value={t}>{t}</option>
-                ))}
-              </Select>
-
-              {/* Personal discount rate — stacks with base tenant discount, capped at max */}
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xl overflow-hidden">
+            {/* Header */}
+            <div className="px-6 py-5 border-b border-gray-100 flex items-center justify-between">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Personal Discount Rate (%)
-                  <span className="ml-1 text-xs text-gray-400 font-normal">stacks with base discount, capped at max</span>
-                </label>
-                <div className="relative">
-                  <Input
-                    type="number"
-                    min={0}
-                    max={100}
-                    step={0.5}
-                    placeholder="0"
-                    value={(customerForm as any).discount_rate ?? '0'}
-                    onChange={(e) => setCustomerForm((p) => ({ ...p, discount_rate: e.target.value }))}
-                    className="pr-8"
-                  />
-                  <span className="absolute right-3 top-2.5 text-gray-400 text-sm">%</span>
+                <h3 className="text-lg font-bold text-gray-900">{editingCustomer ? 'Edit Customer' : 'New Customer'}</h3>
+                <p className="text-sm text-gray-400 mt-0.5">{editingCustomer ? 'Update customer details' : 'Add a customer to your account'}</p>
+              </div>
+              <button onClick={() => setCustomerModalOpen(false)} className="text-gray-400 hover:text-gray-600 text-xl leading-none">✕</button>
+            </div>
+
+            {/* Body */}
+            <div className="px-6 py-5 space-y-5 max-h-[70vh] overflow-y-auto">
+              {/* Name row */}
+              <div>
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Personal Info</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs text-gray-600 mb-1">First Name *</label>
+                    <Input placeholder="e.g. John" value={customerForm.first_name} onChange={(e) => setCustomerForm((p) => ({ ...p, first_name: e.target.value }))} />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-600 mb-1">Last Name *</label>
+                    <Input placeholder="e.g. Smith" value={customerForm.last_name} onChange={(e) => setCustomerForm((p) => ({ ...p, last_name: e.target.value }))} />
+                  </div>
                 </div>
-                {(() => {
-                  const rate = Number((customerForm as any).discount_rate ?? 0);
-                  if (rate > 0) return (
-                    <p className="text-xs text-blue-600 mt-1">
-                      e.g. if base discount is 10%, this customer gets {Math.min(10 + rate, 20)}%
-                      {10 + rate > 20 ? ' (capped at 20%)' : ''}
-                    </p>
-                  );
-                  return null;
-                })()}
               </div>
 
-              {customerForm.tier === 'CUSTOM' && (
-                <>
-                  <Select value={customerForm.custom_discount_type} onChange={(e) => setCustomerForm((p) => ({ ...p, custom_discount_type: e.target.value }))}>
-                    <option value="">Discount Type</option>
-                    <option value="CUSTOM_PERCENT">CUSTOM_PERCENT</option>
-                    <option value="CUSTOM_FIXED">CUSTOM_FIXED</option>
-                  </Select>
-                  <Input placeholder="Discount Value" value={customerForm.custom_discount_value} onChange={(e) => setCustomerForm((p) => ({ ...p, custom_discount_value: e.target.value }))} />
-                </>
-              )}
+              {/* Contact */}
+              <div>
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Contact</p>
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-xs text-gray-600 mb-1">Email Address</label>
+                    <Input placeholder="john@example.com" type="email" value={customerForm.email} onChange={(e) => setCustomerForm((p) => ({ ...p, email: e.target.value }))} />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-600 mb-1">Phone Number</label>
+                    <PhoneSplitField
+                      countryCode={customerForm.phone_country_code}
+                      number={customerForm.phone_number}
+                      onCountryCodeChange={(v) => setCustomerForm((p) => ({ ...p, phone_country_code: v }))}
+                      onNumberChange={(v) => setCustomerForm((p) => ({ ...p, phone_number: v }))}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Membership & Discount */}
+              <div>
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Membership & Pricing</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs text-gray-600 mb-1">Tier</label>
+                    <Select value={customerForm.tier} onChange={(e) => setCustomerForm((p) => ({ ...p, tier: e.target.value }))}>
+                      {[
+                        { v: 'STANDARD', label: 'Standard (0%)' },
+                        { v: 'SILVER', label: 'Silver (5%)' },
+                        { v: 'GOLD', label: 'Gold (10%)' },
+                        { v: 'PLATINUM', label: 'Platinum (15%)' },
+                        { v: 'VIP', label: 'VIP (20%)' },
+                        { v: 'CUSTOM', label: 'Custom' },
+                      ].map((t) => <option key={t.v} value={t.v}>{t.label}</option>)}
+                    </Select>
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-600 mb-1">Extra Discount Rate <span className="text-gray-400">(stacks with tier)</span></label>
+                    <div className="relative">
+                      <Input
+                        type="number" min={0} max={100} step={0.5} placeholder="0"
+                        value={(customerForm as any).discount_rate ?? '0'}
+                        onChange={(e) => setCustomerForm((p) => ({ ...p, discount_rate: e.target.value }))}
+                        className="pr-7"
+                      />
+                      <span className="absolute right-3 top-2.5 text-gray-400 text-sm">%</span>
+                    </div>
+                  </div>
+                </div>
+
+                {customerForm.tier === 'CUSTOM' && (
+                  <div className="grid grid-cols-2 gap-3 mt-3">
+                    <div>
+                      <label className="block text-xs text-gray-600 mb-1">Discount Type</label>
+                      <Select value={customerForm.custom_discount_type} onChange={(e) => setCustomerForm((p) => ({ ...p, custom_discount_type: e.target.value }))}>
+                        <option value="">Select type</option>
+                        <option value="CUSTOM_PERCENT">Percentage</option>
+                        <option value="CUSTOM_FIXED">Fixed Amount</option>
+                      </Select>
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-600 mb-1">Discount Value</label>
+                      <Input placeholder="e.g. 15" value={customerForm.custom_discount_value} onChange={(e) => setCustomerForm((p) => ({ ...p, custom_discount_value: e.target.value }))} />
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
-            <div className="flex justify-end gap-2">
-              <Button variant="secondary" onClick={() => setCustomerModalOpen(false)}>Cancel</Button>
-              <Button onClick={saveCustomer}>Save</Button>
+
+            {/* Footer */}
+            <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-between bg-gray-50 rounded-b-2xl">
+              {!editingCustomer && (
+                <p className="text-xs text-gray-400">You can send an invitation after saving</p>
+              )}
+              <div className="flex gap-2 ml-auto">
+                <Button variant="secondary" onClick={() => setCustomerModalOpen(false)}>Cancel</Button>
+                <Button onClick={saveCustomer}>{editingCustomer ? 'Save Changes' : 'Create Customer'}</Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Post-create Invitation Modal ───────────────────────── */}
+      {inviteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+            <div className="px-6 py-5 text-center border-b border-gray-100">
+              <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-3">
+                <svg className="w-6 h-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+              <h3 className="text-lg font-bold text-gray-900">Customer Created!</h3>
+              <p className="text-sm text-gray-500 mt-1">
+                <span className="font-medium text-gray-700">{inviteModal.name}</span> has been added successfully.
+              </p>
+            </div>
+            <div className="px-6 py-5 space-y-3">
+              <p className="text-sm font-semibold text-gray-700">Send invitation to complete their profile:</p>
+
+              {/* Email invite */}
+              <button
+                disabled={!inviteModal.email || inviteSending === 'email' || inviteSent === 'email'}
+                onClick={async () => {
+                  if (!inviteModal.email) return;
+                  setInviteSending('email');
+                  try {
+                    await api.post(`/customers/${inviteModal.customerId}/send-invitation`, { channel: 'email' });
+                    setInviteSent('email');
+                  } catch { /* silent */ } finally { setInviteSending(null); }
+                }}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border transition text-left ${
+                  inviteSent === 'email'
+                    ? 'border-green-300 bg-green-50 text-green-700'
+                    : inviteModal.email
+                    ? 'border-gray-200 hover:border-blue-400 hover:bg-blue-50 text-gray-800'
+                    : 'border-gray-100 bg-gray-50 text-gray-400 cursor-not-allowed'
+                }`}
+              >
+                <div className="w-9 h-9 rounded-lg bg-blue-100 flex items-center justify-center shrink-0">
+                  <svg className="w-4 h-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                  </svg>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium">{inviteSent === 'email' ? '✓ Invitation Sent' : 'Send via Email'}</p>
+                  <p className="text-xs text-gray-400 truncate">{inviteModal.email || 'No email address'}</p>
+                </div>
+                {inviteSending === 'email' && <span className="text-xs text-gray-400">Sending…</span>}
+              </button>
+
+              {/* SMS invite */}
+              <button
+                disabled={!inviteModal.phone || inviteSending === 'sms' || inviteSent === 'sms'}
+                onClick={async () => {
+                  if (!inviteModal.phone) return;
+                  setInviteSending('sms');
+                  try {
+                    await api.post(`/customers/${inviteModal.customerId}/send-invitation`, { channel: 'sms' });
+                    setInviteSent('sms');
+                  } catch { /* silent */ } finally { setInviteSending(null); }
+                }}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border transition text-left ${
+                  inviteSent === 'sms'
+                    ? 'border-green-300 bg-green-50 text-green-700'
+                    : inviteModal.phone
+                    ? 'border-gray-200 hover:border-green-400 hover:bg-green-50 text-gray-800'
+                    : 'border-gray-100 bg-gray-50 text-gray-400 cursor-not-allowed'
+                }`}
+              >
+                <div className="w-9 h-9 rounded-lg bg-green-100 flex items-center justify-center shrink-0">
+                  <svg className="w-4 h-4 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                  </svg>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium">{inviteSent === 'sms' ? '✓ SMS Sent' : 'Send via SMS'}</p>
+                  <p className="text-xs text-gray-400">{inviteModal.phone || 'No phone number'}</p>
+                </div>
+                {inviteSending === 'sms' && <span className="text-xs text-gray-400">Sending…</span>}
+              </button>
+            </div>
+            <div className="px-6 pb-5">
+              <button
+                onClick={() => setInviteModal(null)}
+                className="w-full py-2.5 rounded-xl border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 font-medium"
+              >
+                Skip for now
+              </button>
             </div>
           </div>
         </div>

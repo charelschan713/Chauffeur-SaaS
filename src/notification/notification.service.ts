@@ -85,6 +85,7 @@ export class NotificationService {
       case 'DriverPayUpdated':
         await this.onDriverPayUpdated(tenantId, payload);
         break;
+      case 'CustomerInvitation':   await this.onCustomerInvitation(tenantId, payload); break;
       case 'CustomerRegistered':   await this.onCustomerRegistered(tenantId, payload); break;
       case 'CustomerEmailVerification': await this.onCustomerEmailVerification(tenantId, payload); break;
       case 'CustomerForgotPassword': await this.onForgotPassword(tenantId, payload); break;
@@ -850,6 +851,18 @@ export class NotificationService {
   // ════════════════════════════════════════════════════════════════════════════
   // CUSTOMER EVENTS
   // ════════════════════════════════════════════════════════════════════════════
+
+  private async onCustomerInvitation(tenantId: string, payload: any) {
+    const vars = {
+      customer_first_name: payload.customer_first_name ?? '',
+      customer_last_name:  payload.customer_last_name  ?? '',
+      portal_url:          payload.portal_url  ?? '',
+      login_url:           payload.login_url   ?? '',
+    };
+    const toEmail = payload.channel === 'email' ? (payload.email ?? null) : null;
+    const toPhone = payload.channel === 'sms'   ? (payload.phone ?? null) : null;
+    await this.sendBoth(tenantId, 'CustomerInvitation', vars, toEmail, toPhone);
+  }
 
   private async onCustomerRegistered(tenantId: string, payload: any) {
     const vars = { customer_name: payload.first_name ?? '', email: payload.email ?? '' };
