@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, OnModuleInit } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 
 /**
@@ -6,8 +6,25 @@ import { DataSource } from 'typeorm';
  * All endpoints scoped to the authenticated driver's own data.
  */
 @Injectable()
-export class DriverAppService {
+export class DriverAppService implements OnModuleInit {
   constructor(private readonly dataSource: DataSource) {}
+
+  async onModuleInit() {
+    // Auto-migrate: driver_trip_reviews table
+    await this.dataSource.query(`
+      CREATE TABLE IF NOT EXISTS public.driver_trip_reviews (
+        id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        tenant_id        UUID NOT NULL,
+        assignment_id    UUID NOT NULL UNIQUE,
+        booking_id       UUID NOT NULL,
+        driver_id        UUID NOT NULL,
+        passenger_rating INT CHECK (passenger_rating BETWEEN 1 AND 5),
+        notes            TEXT,
+        flags            TEXT[],
+        created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `).catch(() => {});
+  }
 
   // ─── Me ─────────────────────────────────────────────────────────────────
 
@@ -250,6 +267,91 @@ export class DriverAppService {
     }
 
     return { success: true, new_status: newStatus };
+  }
+
+  // ─── Trip Review + Fulfilled ─────────────────────────────────────────────
+
+  async submitTripReview(
+    userId: string,
+    assignmentId: string,
+    body: {
+      passenger_rating: number;
+      notes?: string;
+      flags?: string[];
+    },
+  ) {
+    const me = await this.getMe(userId);
+
+    // Verify assignment is in job_done state
+    const rows = await this.dataSource.query(
+      `SELECT id, booking_id, driver_execution_status
+       FROM public.assignments
+       WHERE id = $1 AND driver_id = $2 AND tenant_id = $3`,
+      [assignmentId, me.driver_id, me.tenant_id],
+    );
+    if (!rows.length) throw new NotFoundException('Assignment not found');
+    if (rows[0].driver_execution_status !== 'job_done') {
+      throw new ForbiddenException('Review can only be submitted after job_done');
+    }
+
+    const bookingId = rows[0].booking_id;
+
+    // Upsert review
+    await this.dataSource.query(
+      `INSERT INTO public.driver_trip_reviews
+         (tenant_id, assignment_id, booking_id, driver_id, passenger_rating, notes, flags)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       ON CONFLICT (assignment_id) DO UPDATE
+         SET passenger_rating = EXCLUDED.passenger_rating,
+             notes = EXCLUDED.notes,
+             flags = EXCLUDED.flags`,
+      [
+        me.tenant_id,
+        assignmentId,
+        bookingId,
+        me.driver_id,
+        body.passenger_rating,
+        body.notes ?? null,
+        body.flags ?? [],
+      ],
+    );
+
+    // Auto-transition: job_done → fulfilled
+    await this.dataSource.query(
+      `UPDATE public.assignments
+       SET driver_execution_status = 'fulfilled', updated_at = NOW()
+       WHERE id = $1`,
+      [assignmentId],
+    );
+
+    // Mark booking FULFILLED
+    await this.dataSource.query(
+      `UPDATE public.bookings
+       SET operational_status = 'FULFILLED', settled_at = NOW(), updated_at = NOW()
+       WHERE id = $1`,
+      [bookingId],
+    );
+
+    // Status history
+    await this.dataSource.query(
+      `INSERT INTO public.booking_status_history
+         (id, tenant_id, booking_id, previous_status, new_status, triggered_by, reason, created_at)
+       VALUES (gen_random_uuid(), $1, $2, 'COMPLETED', 'FULFILLED', 'DRIVER', 'Driver submitted trip review', NOW())`,
+      [me.tenant_id, bookingId],
+    ).catch(() => {});
+
+    return { success: true, status: 'fulfilled' };
+  }
+
+  async getTripReview(userId: string, assignmentId: string) {
+    const me = await this.getMe(userId);
+    const rows = await this.dataSource.query(
+      `SELECT r.* FROM public.driver_trip_reviews r
+       JOIN public.assignments a ON a.id = r.assignment_id
+       WHERE r.assignment_id = $1 AND a.driver_id = $2`,
+      [assignmentId, me.driver_id],
+    );
+    return rows[0] ?? null;
   }
 
   async submitExtraReport(
