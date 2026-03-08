@@ -974,11 +974,12 @@ export class NotificationService {
   private async onPaymentRequest(tenantId: string, payload: any) {
     const booking = await this.getBooking(payload.booking_id);
     if (!booking) return;
-    const vars = {
-      ...this.buildTemplateVariables(booking),
-      payment_link: payload.payment_link ?? payload.payment_url ?? '',
-      payment_url:  payload.payment_url  ?? payload.payment_link ?? '',
-    };
+    const rawVars = this.buildTemplateVariables(booking);
+    const vars: Record<string, string> = Object.fromEntries(
+      Object.entries(rawVars).map(([k, v]) => [k, v == null ? '' : String(v)])
+    );
+    vars.payment_link = payload.payment_link ?? payload.payment_url ?? '';
+    vars.payment_url  = payload.payment_url  ?? payload.payment_link ?? '';
     // AdminCreatedPaymentRequest template has the payment link CTA
     await this.sendFromTemplate(tenantId, 'AdminCreatedPaymentRequest', 'email',
       vars, booking.customer_email, booking.id).catch(() => {});
