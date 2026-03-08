@@ -257,18 +257,19 @@ function LuxSelect({ value, onChange, children, placeholder }: { value: string; 
   return (
     <div className="relative">
       <select value={value} onChange={e=>onChange(e.target.value)}
-        className="w-full h-12 pl-4 pr-9 rounded-xl bg-white/5 border border-gray-100 text-[#1a1a1a] text-sm appearance-none focus:outline-none focus:border-amber-400/50 transition-colors cursor-pointer">
-        {placeholder && <option value="" disabled className="bg-gray-900">{placeholder}</option>}
+        className="w-full h-12 pl-4 pr-9 rounded-xl bg-white/5 border border-[hsl(var(--border))] text-[hsl(var(--foreground))] text-sm appearance-none focus:outline-none focus:border-amber-400/50 transition-colors cursor-pointer"
+        style={{ backgroundColor: 'hsl(var(--card))', color: 'hsl(var(--foreground))' }}>
+        {placeholder && <option value="" disabled style={{ backgroundColor: 'hsl(var(--card))' }}>{placeholder}</option>}
         {children}
       </select>
-      <ChevronRight className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none rotate-90"/>
+      <ChevronRight className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[hsl(var(--muted-foreground))] pointer-events-none rotate-90"/>
     </div>
   );
 }
 
 // ── Field Label ────────────────────────────────────────────────────────────
 function FL({ children }: { children: React.ReactNode }) {
-  return <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 flex items-center gap-1.5 mb-2">{children}</p>;
+  return <p className="text-xs font-semibold uppercase tracking-widest text-[hsl(var(--muted-foreground))] flex items-center gap-1.5 mb-2">{children}</p>;
 }
 
 // ── Main Component ─────────────────────────────────────────────────────────
@@ -454,13 +455,13 @@ export function QuoteClient() {
             <div>
               <FL>City</FL>
               <LuxSelect value={cityId} onChange={v=>{setCityId(v);clearQuote();}}>
-                {cities.map(c=><option key={c.id} value={c.id} className="bg-gray-900">{c.name}</option>)}
+                {cities.map(c=><option key={c.id} value={c.id} style={{ backgroundColor: "hsl(var(--card))", color: "hsl(var(--foreground))" }}>{c.name}</option>)}
               </LuxSelect>
             </div>
             <div>
               <FL>Service Type</FL>
               <LuxSelect value={serviceTypeId} onChange={v=>{setServiceTypeId(v);setTripType('ONE_WAY');clearQuote();}}>
-                {serviceTypes.map(s=><option key={s.id} value={s.id} className="bg-gray-900">{s.name}</option>)}
+                {serviceTypes.map(s=><option key={s.id} value={s.id} style={{ backgroundColor: "hsl(var(--card))", color: "hsl(var(--foreground))" }}>{s.name}</option>)}
               </LuxSelect>
             </div>
           </div>
@@ -479,7 +480,7 @@ export function QuoteClient() {
               <FL>Duration (hours)</FL>
               <LuxSelect value={durationHours} onChange={v=>{setDurationHours(v);clearQuote();}}>
                 {[2,3,4,5,6,7,8,9,10,12].filter(h=>h>=(minHours??2)).map(h=>(
-                  <option key={h} value={String(h)} className="bg-gray-900">{h} hours{h===minHours?' (minimum)':''}</option>
+                  <option key={h} value={String(h)} style={{ backgroundColor: "hsl(var(--card))", color: "hsl(var(--foreground))" }}>{h} hours{h===minHours?' (minimum)':''}</option>
                 ))}
               </LuxSelect>
             </div>
@@ -487,8 +488,8 @@ export function QuoteClient() {
             <div>
               <FL>Trip Type</FL>
               <LuxSelect value={tripType} onChange={v=>{setTripType(v as 'ONE_WAY'|'RETURN');clearQuote();}}>
-                <option value="ONE_WAY" className="bg-gray-900">One Way</option>
-                <option value="RETURN" className="bg-gray-900">Return</option>
+                <option value="ONE_WAY" style={{ backgroundColor: "hsl(var(--card))", color: "hsl(var(--foreground))" }}>One Way</option>
+                <option value="RETURN" style={{ backgroundColor: "hsl(var(--card))", color: "hsl(var(--foreground))" }}>Return</option>
               </LuxSelect>
             </div>
           )}
@@ -570,7 +571,7 @@ export function QuoteClient() {
                   <p className="text-[11px] font-medium text-gray-600 mb-0.5">{label}</p>
                   <p className="text-[10px] text-gray-400 mb-1.5 leading-tight flex-1">{sub}</p>
                   <LuxSelect value={value} onChange={v=>{set(v);clearQuote();}}>
-                    {[0,1,2,3].map(n=><option key={n} value={String(n)} className="bg-gray-900">{n}</option>)}
+                    {[0,1,2,3].map(n=><option key={n} value={String(n)} style={{ backgroundColor: "hsl(var(--card))", color: "hsl(var(--foreground))" }}>{n}</option>)}
                   </LuxSelect>
                 </div>
               ))}
