@@ -64,6 +64,10 @@ export class BookingService {
         b.passenger_last_name,
         b.passenger_phone_country_code,
         b.passenger_phone_number,
+        b.passenger_count,
+        b.luggage_count,
+        tsc.name AS service_class_name,
+        tst.name AS service_type_name,
         b.passenger_is_customer,
         b.operational_status,
         b.payment_status,
@@ -83,6 +87,8 @@ export class BookingService {
        LEFT JOIN public.assignments a
          ON a.booking_id = b.id
          AND a.status NOT IN ('CANCELLED','DECLINED','EXPIRED')
+       LEFT JOIN public.tenant_service_classes tsc ON tsc.id = b.service_class_id
+       LEFT JOIN public.tenant_service_types tst ON tst.id = b.service_type_id
        ${where}
        ORDER BY b.pickup_at_utc DESC
        LIMIT $${index} OFFSET $${index + 1}`,

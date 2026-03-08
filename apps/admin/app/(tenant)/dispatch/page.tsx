@@ -27,6 +27,10 @@ type Booking = {
   operational_status?: string | null;
   total_price_minor?: number | null;
   currency?: string | null;
+  service_class_name?: string | null;
+  service_type_name?: string | null;
+  passenger_count?: number | null;
+  luggage_count?: number | null;
 };
 
 type Driver = {
@@ -261,7 +265,17 @@ function DispatchBoardInner() {
                     <div className="text-xs text-gray-500">{formatTime(b.pickup_at_utc)}</div>
                     <div className="text-sm text-gray-700">{shortAddress(b.pickup_address_text)} → {shortAddress(b.dropoff_address_text)}</div>
                     <div className="text-xs text-gray-500">{customer || '—'}</div>
-                    <div className="text-xs text-gray-500">{b.currency} {((b.total_price_minor ?? 0) / 100).toFixed(2)}</div>
+                    <div className="flex items-center gap-2 mt-1 flex-wrap">
+                      <span className="text-xs text-gray-500">{b.currency} {((b.total_price_minor ?? 0) / 100).toFixed(2)}</span>
+                      {b.service_class_name && (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-100">
+                          {b.service_class_name}
+                        </span>
+                      )}
+                      {b.passenger_count != null && b.passenger_count > 0 && (
+                        <span className="text-xs text-gray-400">👤 {b.passenger_count}</span>
+                      )}
+                    </div>
                   </button>
                 );
               })}
@@ -284,11 +298,6 @@ function DispatchBoardInner() {
           ) : (
             <div className="space-y-3 max-h-[520px] overflow-auto pr-2">
               {filteredDrivers.map((d) => {
-                const status = (d.availability_status ?? 'OFFLINE').toUpperCase();
-                const statusVariant =
-                  status === 'AVAILABLE' ? 'success'
-                  : status === 'ON_TRIP' ? 'warning'
-                  : 'neutral';
                 return (
                   <button
                     key={driverId(d)}
@@ -297,18 +306,8 @@ function DispatchBoardInner() {
                       selectedDriverId === driverId(d) ? 'ring-2 ring-blue-600 bg-blue-50' : 'hover:bg-gray-50'
                     }`}
                   >
-                    <div className="flex items-center justify-between">
-                      <div className="font-medium text-gray-900">{d.full_name}</div>
-                      <Badge variant={statusVariant}>
-                        {status === 'AVAILABLE' ? 'Available'
-                          : status === 'ON_TRIP' ? 'On Trip'
-                          : 'Offline'}
-                      </Badge>
-                    </div>
+                    <div className="font-medium text-gray-900">{d.full_name}</div>
                     {d.vehicle_label && <div className="text-xs text-gray-500 mt-0.5">{d.vehicle_label}</div>}
-                    {d.last_seen_at && (
-                      <div className="text-xs text-gray-400 mt-0.5">Last seen {relativeTime(d.last_seen_at)}</div>
-                    )}
                   </button>
                 );
               })}
