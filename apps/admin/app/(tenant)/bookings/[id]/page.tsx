@@ -363,6 +363,60 @@ function BookingDetailInner() {
           <Card title="Notes">
             <div className="text-sm text-gray-700">{booking.special_requests || 'No notes'}</div>
           </Card>
+
+          {/* Pricing Breakdown */}
+          {booking.pricing_snapshot && (
+            <Card title="Pricing">
+              <div className="space-y-1 text-sm text-gray-700">
+                {booking.pricing_snapshot.base_fare_minor != null && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Base Fare</span>
+                    <span>{booking.currency} {((booking.pricing_snapshot.base_fare_minor) / 100).toFixed(2)}</span>
+                  </div>
+                )}
+                {booking.pricing_snapshot.toll_minor > 0 && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Tolls</span>
+                    <span>{booking.currency} {((booking.pricing_snapshot.toll_minor) / 100).toFixed(2)}</span>
+                  </div>
+                )}
+                {booking.pricing_snapshot.parking_minor > 0 && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Parking</span>
+                    <span>{booking.currency} {((booking.pricing_snapshot.parking_minor) / 100).toFixed(2)}</span>
+                  </div>
+                )}
+                {booking.pricing_snapshot.baby_seat_minor > 0 && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Baby Seat</span>
+                    <span>{booking.currency} {((booking.pricing_snapshot.baby_seat_minor) / 100).toFixed(2)}</span>
+                  </div>
+                )}
+                {booking.pricing_snapshot.surcharges?.map((s: any, i: number) => (
+                  <div key={i} className="flex justify-between">
+                    <span className="text-gray-500">{s.label ?? 'Surcharge'}</span>
+                    <span>{booking.currency} {((s.amount_minor) / 100).toFixed(2)}</span>
+                  </div>
+                ))}
+                {booking.pricing_snapshot.discount_minor > 0 && (
+                  <div className="flex justify-between text-green-600">
+                    <span>Discount</span>
+                    <span>− {booking.currency} {((booking.pricing_snapshot.discount_minor) / 100).toFixed(2)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between font-semibold border-t pt-1 mt-1">
+                  <span>Total</span>
+                  <span>{booking.currency} {((booking.total_price_minor ?? 0) / 100).toFixed(2)}</span>
+                </div>
+                {data?.payments?.summary && (
+                  <div className="flex justify-between text-xs text-gray-500 pt-1">
+                    <span>Captured</span>
+                    <span>{data.payments.summary.currency} {((data.payments.summary.captured_minor) / 100).toFixed(2)}</span>
+                  </div>
+                )}
+              </div>
+            </Card>
+          )}
         </div>
 
         {/* ── Right column ── */}
@@ -497,7 +551,7 @@ function BookingDetailInner() {
 
           {/* Status Timeline */}
           <Card title="Status Timeline">
-            <BookingStatusTimeline status={booking.operational_status} statusHistory={booking.status_history} />
+            <BookingStatusTimeline status={booking.operational_status} statusHistory={data?.status_history ?? []} />
           </Card>
 
           {/* Actions */}
