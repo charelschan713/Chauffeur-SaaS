@@ -579,15 +579,31 @@ export class CustomerPortalService {
   // ── Payment link (public token) ───────────────────────────────────────────
   async getPaymentToken(token: string) {
     const rows = await this.db.query(
-      `SELECT b.id, b.booking_reference, b.total_price_minor, b.currency,
-              b.customer_first_name, b.status, b.payment_status,
+      `SELECT b.id, b.tenant_id, b.customer_id, b.booking_reference,
+              b.total_price_minor, b.currency,
+              b.customer_first_name, b.operational_status, b.payment_status,
               b.pickup_address, b.dropoff_address, b.pickup_at_utc
        FROM public.bookings b
        WHERE b.payment_token=$1 AND b.payment_token_expires_at > NOW()`,
       [token],
     );
-    if (!rows.length) throw new NotFoundException('Payment link not found');
-    return rows[0];
+    if (!rows.length) throw new NotFoundException('Payment link not found or expired');
+    const b = rows[0];
+
+    // Load saved card if customer has one
+    let savedCard: any = null;
+    if (b.customer_id) {
+      const cards = await this.db.query(
+        `SELECT id, last4, brand, exp_month, exp_year, stripe_payment_method_id
+         FROM public.saved_payment_methods
+         WHERE customer_id=$1 AND tenant_id=$2
+         ORDER BY is_default DESC, created_at DESC LIMIT 1`,
+        [b.customer_id, b.tenant_id],
+      );
+      if (cards.length) savedCard = cards[0];
+    }
+
+    return { ...b, saved_card: savedCard };
   }
 
   async payViaToken(token: string, dto: { paymentMethodId: string }) {
