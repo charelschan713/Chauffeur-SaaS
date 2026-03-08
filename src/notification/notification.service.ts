@@ -697,8 +697,8 @@ export class NotificationService {
           c.name AS city_name
        FROM public.bookings b
        LEFT JOIN public.tenant_service_classes sc ON sc.id = b.service_class_id
-       LEFT JOIN public.cities c ON c.id = (
-         SELECT id FROM public.cities
+       LEFT JOIN public.tenant_service_cities c ON c.id = (
+         SELECT id FROM public.tenant_service_cities
          WHERE b.pickup_address_text ILIKE '%' || name || '%'
            AND tenant_id = b.tenant_id
          LIMIT 1
