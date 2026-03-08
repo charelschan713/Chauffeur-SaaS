@@ -6,6 +6,7 @@ import { QueryProvider } from '@/components/QueryProvider';
 import { TenantProvider } from '@/components/TenantProvider';
 import { GlobalErrorBoundary } from '@/components/GlobalErrorBoundary';
 import { BottomNav } from '@/components/BottomNav';
+import { Sidebar } from '@/components/Sidebar';
 import { ScrollToInput } from '@/components/ScrollToInput';
 
 const geist = Geist({
@@ -40,8 +41,15 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <QueryProvider>
             <TenantProvider>
               <ScrollToInput />
-              {children}
-              <BottomNav />
+              {/* Desktop: sidebar + content. Mobile: full width + bottom nav */}
+              <Sidebar />
+              <div className="lg:pl-64">
+                {children}
+              </div>
+              {/* BottomNav only on mobile */}
+              <div className="lg:hidden">
+                <BottomNav />
+              </div>
             </TenantProvider>
           </QueryProvider>
         </GlobalErrorBoundary>

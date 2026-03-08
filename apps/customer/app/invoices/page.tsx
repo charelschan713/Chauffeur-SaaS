@@ -25,13 +25,13 @@ export default function InvoicesPage() {
           paddingBottom: 12,
         }}
       >
-        <div className="max-w-lg mx-auto flex items-center gap-3">
+        <div className="max-w-4xl mx-auto flex items-center gap-3">
           <BackButton fallback="/dashboard" />
           <h1 className="text-lg font-semibold text-[hsl(var(--foreground))]">Invoices</h1>
         </div>
       </header>
 
-      <main className="max-w-lg mx-auto px-4 py-6 space-y-3">
+      <main className="max-w-4xl mx-auto px-4 py-6 space-y-3">
         {isLoading ? (
           <div className="flex justify-center py-16">
             <div className="animate-spin h-8 w-8 border-2 border-[hsl(var(--primary))] border-t-transparent rounded-full" />

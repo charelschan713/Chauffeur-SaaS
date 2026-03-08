@@ -47,8 +47,12 @@ export function AuthLogo({ subtitle }: { subtitle?: string }) {
           <img
             src={logoUrl}
             alt={name}
-            className="h-12 w-auto object-contain mb-2"
-            style={{ filter: 'brightness(1.1)' }}
+            className="w-auto object-contain mb-2"
+            style={{
+              height: '56px',
+              mixBlendMode: 'lighten',
+              filter: 'brightness(1.05)',
+            }}
             onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
           />
         ) : (

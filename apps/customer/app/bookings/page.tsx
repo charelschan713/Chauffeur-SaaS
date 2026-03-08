@@ -56,7 +56,7 @@ export default function BookingsPage() {
           paddingTop: 'max(16px, env(safe-area-inset-top))',
         }}
       >
-        <div className="max-w-lg mx-auto px-4">
+        <div className="max-w-4xl mx-auto px-4">
           <div className="flex items-center justify-between mb-3">
             <h1 className="text-lg font-semibold text-white">My Bookings</h1>
             <Link
@@ -87,7 +87,7 @@ export default function BookingsPage() {
         </div>
       </div>
 
-      <div className="max-w-lg mx-auto px-4 pt-4 space-y-2.5">
+      <div className="max-w-4xl mx-auto px-4 pt-4 space-y-2.5">
 
         {isLoading && (
           <div className="flex justify-center py-16">

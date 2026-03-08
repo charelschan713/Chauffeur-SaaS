@@ -124,7 +124,7 @@ export function DashboardClient() {
           paddingTop: 'max(16px, env(safe-area-inset-top))',
         }}
       >
-        <div className="max-w-lg mx-auto flex items-center justify-between px-4 pb-4">
+        <div className="max-w-4xl mx-auto flex items-center justify-between px-4 pb-4">
           <div>
             {tenant?.logo_url
               ? <img src={tenant.logo_url} alt={tenant.name} className="h-7 object-contain mb-0.5" />
@@ -141,7 +141,7 @@ export function DashboardClient() {
         </div>
       </header>
 
-      <main className="max-w-lg mx-auto px-4 pt-5 pb-24 space-y-6" style={{ paddingBottom: 'calc(96px + env(safe-area-inset-bottom, 0px))' }}>
+      <main className="max-w-4xl mx-auto px-4 pt-5 pb-24 space-y-6" style={{ paddingBottom: 'calc(96px + env(safe-area-inset-bottom, 0px))' }}>
 
         {/* Book CTA */}
         <Link

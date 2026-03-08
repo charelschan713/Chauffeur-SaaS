@@ -59,7 +59,7 @@ export default function ProfilePage() {
         className="border-b border-white/[0.07]"
         style={{ paddingTop: 'max(20px, env(safe-area-inset-top))' }}
       >
-        <div className="max-w-lg mx-auto px-4 pb-5">
+        <div className="max-w-4xl mx-auto px-4 pb-5">
           <div className="flex items-center justify-between mb-5">
             <h1 className="text-lg font-semibold text-white">Profile</h1>
             {!editing && (
@@ -133,7 +133,7 @@ export default function ProfilePage() {
         </div>
       </div>
 
-      <div className="max-w-lg mx-auto px-4 pt-5 space-y-3">
+      <div className="max-w-4xl mx-auto px-4 pt-5 space-y-3">
         {/* Nav links */}
         <div className="rounded-2xl bg-white/[0.035] border border-white/[0.07] overflow-hidden divide-y divide-white/[0.05]">
           {NAV_LINKS.map(item => (

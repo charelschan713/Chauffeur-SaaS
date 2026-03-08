@@ -129,7 +129,7 @@ export default function PaymentMethodsPage() {
         </button>
       </div>
 
-      <div className="max-w-lg mx-auto px-4 pt-5 space-y-4">
+      <div className="max-w-4xl mx-auto px-4 pt-5 space-y-4">
         {/* Add card form */}
         {showAdd && stripePromise && (
           <Elements stripe={stripePromise}>

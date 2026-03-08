@@ -114,7 +114,7 @@ export function BookingDetailClient({ id }: { id: string }) {
         </div>
       </div>
 
-      <div className="max-w-lg mx-auto px-4 pt-5 space-y-4">
+      <div className="max-w-4xl mx-auto px-4 pt-5 space-y-4">
 
         {/* Status banners */}
         {(booking.operational_status ?? booking.status) === 'PAYMENT_FAILED' && (
