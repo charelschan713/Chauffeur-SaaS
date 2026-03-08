@@ -77,31 +77,33 @@ export class CustomerAuthService {
   }
 
   // ── OTP Send ───────────────────────────────────────────────────────────────
-  async sendOtp(dto: { tenantSlug: string; phone: string }) {
+  async sendOtp(dto: { tenantSlug: string; phone: string; phoneCode?: string }) {
     const tenant = await this.getTenantBySlug(dto.tenantSlug);
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     const expires = new Date(Date.now() + 10 * 60 * 1000);
+    const phoneCode = dto.phoneCode ?? '+61';
+    const phoneNumber = dto.phone.replace(/^0/, ''); // strip leading 0 for AU numbers
 
-    // Upsert customer_auth by phone (simple approach)
+    // Upsert customer_auth by phone
     const rows = await this.db.query(
       `SELECT ca.id FROM public.customer_auth ca
        JOIN public.customers c ON c.id = ca.customer_id
        WHERE ca.tenant_id = $1 AND c.phone_number = $2`,
-      [tenant.id, dto.phone],
+      [tenant.id, phoneNumber],
     );
 
     if (!rows.length) {
-      // Create guest customer
+      // Create guest customer for new phone number
       const [customer] = await this.db.query(
         `INSERT INTO public.customers (tenant_id, phone_country_code, phone_number, first_name, last_name, is_guest, created_at, updated_at)
-         VALUES ($1, '+61', $2, 'Guest', '', true, now(), now())
+         VALUES ($1, $2, $3, 'Guest', '', true, now(), now())
          RETURNING id`,
-        [tenant.id, dto.phone],
+        [tenant.id, phoneCode, phoneNumber],
       );
       await this.db.query(
         `INSERT INTO public.customer_auth (customer_id, tenant_id, phone_number, otp_code, otp_expires_at, last_otp_sent_at)
          VALUES ($1, $2, $3, $4, $5, now())`,
-        [customer.id, tenant.id, dto.phone, otp, expires],
+        [customer.id, tenant.id, phoneNumber, otp, expires],
       );
     } else {
       await this.db.query(
@@ -111,7 +113,14 @@ export class CustomerAuthService {
       );
     }
 
-    // In production: send SMS. For now return otp in dev mode only.
+    // Send OTP via SMS (non-blocking — don't fail if SMS fails)
+    const fullPhone = `${phoneCode}${phoneNumber}`;
+    await this.notificationSvc.handleEvent('CustomerOtp', {
+      tenant_id: tenant.id,
+      phone: fullPhone,
+      otp,
+    }).catch((e) => console.error('[OTP] SMS send failed:', e?.message));
+
     const isDev = process.env.NODE_ENV !== 'production';
     return { sent: true, ...(isDev ? { otp } : {}) };
   }
@@ -119,13 +128,14 @@ export class CustomerAuthService {
   // ── OTP Verify ─────────────────────────────────────────────────────────────
   async verifyOtp(dto: { tenantSlug: string; phone: string; otp: string }) {
     const tenant = await this.getTenantBySlug(dto.tenantSlug);
+    const phoneNumber = dto.phone.replace(/^0/, '');
 
     const rows = await this.db.query(
       `SELECT ca.customer_id, ca.otp_code, ca.otp_expires_at
        FROM public.customer_auth ca
        JOIN public.customers c ON c.id = ca.customer_id
-       WHERE ca.tenant_id = $1 AND c.phone = $2`,
-      [tenant.id, dto.phone],
+       WHERE ca.tenant_id = $1 AND c.phone_number = $2`,
+      [tenant.id, phoneNumber],
     );
     if (!rows.length) throw new UnauthorizedException('OTP not found');
     const r = rows[0];
