@@ -54,62 +54,62 @@
 }
 
 :root {
-  /* ── Surface — light clean theme (ASDriver style) ── */
-  --background:         220 14% 96%;   /* #f3f4f6 light gray */
-  --foreground:         220 13% 10%;   /* #1a1a1a near black */
-  --card:               0 0% 100%;     /* #ffffff white cards */
-  --card-foreground:    220 13% 10%;
-  --popover:            0 0% 100%;
-  --popover-foreground: 220 13% 10%;
+  /* ── Surface ── */
+  --background:         240 8% 3%;
+  --foreground:         216 33% 97%;
+  --card:               228 10% 8%;
+  --card-foreground:    216 33% 97%;
+  --popover:            228 10% 8%;
+  --popover-foreground: 216 33% 97%;
 
-  /* ── Primary — gold brand accent ── */
-  --primary:            39 46% 60%;    /* #c8a96b gold */
-  --primary-foreground: 220 13% 10%;  /* black on gold */
+  /* ── Primary — platform default (gold); tenant overrides this ── */
+  --primary:            39 46% 60%;
+  --primary-foreground: 240 8% 3%;
 
   /* ── Secondary ── */
-  --secondary:          220 13% 10%;  /* #1a1a1a dark button */
-  --secondary-foreground: 0 0% 100%;
+  --secondary:          223 8% 16%;
+  --secondary-foreground: 216 33% 97%;
 
   /* ── Muted ── */
-  --muted:              220 9% 94%;   /* #eef0f3 */
-  --muted-foreground:   220 9% 46%;   /* #666 */
+  --muted:              220 9% 18%;
+  --muted-foreground:   217 11% 70%;
 
   /* ── Accent ── */
-  --accent:             220 14% 92%;
-  --accent-foreground:  220 13% 10%;
+  --accent:             216 10% 25%;
+  --accent-foreground:  216 33% 97%;
 
   /* ── Status ── */
   --destructive:        0 84% 60%;
-  --destructive-foreground: 0 0% 100%;
+  --destructive-foreground: 216 33% 97%;
   --success:            142 71% 45%;
   --success-foreground: 0 0% 100%;
   --warning:            37 91% 55%;
-  --warning-foreground: 220 13% 10%;
+  --warning-foreground: 37 91% 15%;
   --info:               217 91% 60%;
   --info-foreground:    0 0% 100%;
 
   /* ── Border / Input ── */
-  --border:             220 13% 91%;  /* #e5e7eb */
-  --input-border:       220 13% 85%;
-  --input:              0 0% 100%;
+  --border:             220 9% 18%;
+  --input-border:       218 22% 22%;
+  --input:              228 10% 8%;
   --ring:               39 46% 60%;
 
-  /* ── Shadows — lighter for light theme ── */
-  --shadow-sm:      0 1px 3px rgba(0,0,0,0.08);
-  --shadow-md:      0 4px 12px rgba(0,0,0,0.08);
-  --shadow-lg:      0 12px 32px rgba(0,0,0,0.10);
-  --shadow-luxury:  0 8px 24px rgba(0,0,0,0.10);
-  --shadow-card:    0 2px 8px rgba(0,0,0,0.06);
+  /* ── Shadows ── */
+  --shadow-sm:      0 1px 2px rgba(0,0,0,0.3);
+  --shadow-md:      0 4px 12px rgba(0,0,0,0.4);
+  --shadow-lg:      0 12px 32px rgba(0,0,0,0.5);
+  --shadow-luxury:  0 25px 50px -12px rgba(0,0,0,0.6);
+  --shadow-card:    0 20px 40px rgba(0,0,0,0.5);
 
   /* ── Gradients ── */
-  --gradient-luxury: linear-gradient(135deg, hsl(220 14% 96%) 0%, hsl(0 0% 100%) 100%);
+  --gradient-luxury: linear-gradient(135deg, hsl(240 8% 2%) 0%, hsl(228 10% 8%) 100%);
   --gradient-gold:   linear-gradient(135deg, hsl(39 46% 60%) 0%, hsl(39 46% 48%) 100%);
 
   /* ── Transitions ── */
   --transition-fast:    all 0.15s ease;
   --transition-base:    all 0.2s ease;
-  --transition-smooth:  all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-elegant: all 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+  --transition-smooth:  all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-elegant: all 0.6s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 /* ─── Base resets ─────────────────────────────────────────────── */

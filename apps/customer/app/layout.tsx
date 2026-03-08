@@ -36,7 +36,7 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body className={`${geist.variable} ${playfair.variable} antialiased bg-[#f5f5f5]`}>
+      <body className={`${geist.variable} ${playfair.variable} antialiased bg-[#0d0f14]`}>
         <GlobalErrorBoundary>
           <QueryProvider>
             <TenantProvider>
