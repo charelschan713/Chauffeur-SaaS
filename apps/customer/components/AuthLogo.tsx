@@ -11,9 +11,18 @@ interface TenantBranding {
 
 function getTenantSlug(): string {
   if (typeof window === 'undefined') return '';
+  // 1. Cookie
   const cookieSlug = document.cookie.split('; ')
     .find(r => r.startsWith('tenant_slug='))?.split('=')[1];
-  return cookieSlug || localStorage.getItem('tenant_slug') || '';
+  if (cookieSlug) return cookieSlug;
+  // 2. localStorage
+  const lsSlug = localStorage.getItem('tenant_slug');
+  if (lsSlug) return lsSlug;
+  // 3. Subdomain (e.g. aschauffeured.chauffeurssolution.com)
+  const host = window.location.hostname;
+  const sub = host.split('.')[0];
+  if (sub && sub !== 'www' && sub !== 'chauffeurssolution') return sub;
+  return '';
 }
 
 export function AuthLogo({ subtitle }: { subtitle?: string }) {
@@ -40,6 +49,7 @@ export function AuthLogo({ subtitle }: { subtitle?: string }) {
             alt={name}
             className="h-12 w-auto object-contain mb-2"
             style={{ filter: 'brightness(1.1)' }}
+            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
           />
         ) : (
           <>

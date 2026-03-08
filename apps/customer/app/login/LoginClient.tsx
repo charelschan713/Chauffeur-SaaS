@@ -115,10 +115,10 @@ export function LoginClient() {
         {/* Tabs */}
         <div className="flex gap-1 bg-white/5 rounded-xl p-1 mb-6">
           <button type="button" className={tabCls(tab === 'email')} onClick={() => switchTab('email')}>
-            ✉️ Email
+            Email
           </button>
           <button type="button" className={tabCls(tab === 'otp')} onClick={() => switchTab('otp')}>
-            📱 Phone OTP
+            Phone OTP
           </button>
         </div>
 
