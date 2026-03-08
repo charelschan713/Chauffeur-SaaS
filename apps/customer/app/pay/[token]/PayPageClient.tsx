@@ -295,6 +295,15 @@ export function PayPageClient({ token }: { token: string }) {
                 <p className="text-sm text-white">{data.pickup_time_local ?? fmtDate(data.pickup_at_utc)}</p>
               </div>
             </div>
+            {data.is_return_trip && data.return_pickup_at_utc && (
+              <div className="flex gap-3">
+                <span className="mt-0.5 text-[#c8a96b]">🔄</span>
+                <div>
+                  <p className="text-[10px] text-gray-500 uppercase tracking-wide">Return Time</p>
+                  <p className="text-sm text-white">{data.return_time_local ?? fmtDate(data.return_pickup_at_utc)}</p>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Vehicle & Pax */}

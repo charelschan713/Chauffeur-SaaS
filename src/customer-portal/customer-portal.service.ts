@@ -588,6 +588,9 @@ export class CustomerPortalService {
               b.passenger_count, b.luggage_count,
               b.prepay_base_fare_minor, b.prepay_toll_minor, b.prepay_parking_minor,
               b.discount_total_minor,
+              b.is_return_trip, b.return_pickup_at_utc,
+              to_char(b.return_pickup_at_utc AT TIME ZONE COALESCE(b.timezone,'Australia/Sydney'),
+                      'Dy DD Mon YYYY HH12:MI AM') AS return_time_local,
               sc.name AS car_type_name,
               to_char(b.pickup_at_utc AT TIME ZONE COALESCE(b.timezone,'Australia/Sydney'),
                       'Dy DD Mon YYYY HH12:MI AM') AS pickup_time_local
