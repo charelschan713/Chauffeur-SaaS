@@ -1239,7 +1239,7 @@ export function BookPageClient() {
         </div>
       )}
 
-      <main className="max-w-lg mx-auto px-4 py-5 space-y-4" style={{ paddingBottom: 'calc(32px + env(safe-area-inset-bottom, 0px))' }}>
+      <main className="max-w-lg mx-auto px-4 py-5 space-y-4" style={{ paddingBottom: 'calc(100px + env(safe-area-inset-bottom, 0px))' }}>
 
         {/* Inline error/expiry banner — never redirects, keeps form intact */}
         {quoteError && (
@@ -1521,6 +1521,28 @@ export function BookPageClient() {
         carTypeId={carTypeIdRef.current}
         submitError={submitError}
       />
+
+      {/* Sticky Confirm & Pay bar — always visible at bottom */}
+      {step === 'details' && !useNewCard && selectedSavedCard && selectedResult && (
+        <div className="fixed bottom-0 left-0 right-0 z-30 px-4 pb-safe"
+          style={{
+            background: 'rgba(13,15,20,0.97)',
+            borderTop: '1px solid hsl(var(--border))',
+            paddingBottom: 'calc(16px + env(safe-area-inset-bottom, 0px))',
+            paddingTop: '12px',
+          }}>
+          <div className="max-w-lg mx-auto">
+            <button type="button" disabled={submitting}
+              onClick={handleSavedCardPay}
+              className="w-full bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] rounded-xl py-4 font-semibold text-sm disabled:opacity-60">
+              {submitting ? 'Processing…' : `Confirm & Pay ${fmtMoney(
+                loyaltyDiscount?.finalFareMinor ?? selectedResult.estimated_total_minor,
+                selectedResult.currency,
+              )}`}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
