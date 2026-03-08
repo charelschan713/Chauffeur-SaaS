@@ -119,7 +119,7 @@ function TimePicker({ value, onChange, onConfirm }: { value: string; onChange: (
   const colCls='overflow-y-auto h-40 scroll-smooth'; const itemCls=(sel:boolean)=>cn('px-3 py-2 text-center text-sm cursor-pointer rounded transition-colors',sel?'bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] font-semibold':'text-white/70 hover:text-white hover:bg-white/10');
   return (
     <div style={{minWidth:200}}>
-      <div className="flex border-b border-gray-100 pb-1 mb-1">
+      <div className="flex border-b border-white/10 pb-1 mb-1">
         {['Hour','Min','Period'].map(l=><div key={l} className="flex-1 text-center text-xs text-gray-400 font-medium py-1">{l}</div>)}
       </div>
       <div className="flex">
@@ -232,18 +232,18 @@ function PlacesAutocomplete({ value='', onChange, placeholder='Enter a location'
           onChange={e=>{ setInputValue(e.target.value); if(!e.target.value) onChange?.(''); }}
           onKeyDown={e=>{ if(!open||!predictions.length) return; if(e.key==='ArrowDown'){e.preventDefault();setActiveIdx(i=>Math.min(i+1,predictions.length-1));} else if(e.key==='ArrowUp'){e.preventDefault();setActiveIdx(i=>Math.max(i-1,0));} else if(e.key==='Enter'&&activeIdx>=0){e.preventDefault();select(predictions[activeIdx]);} else if(e.key==='Escape'){setOpen(false);setActiveIdx(-1);} }}
           onFocus={()=>{ if(predictions.length>0) setOpen(true); }}
-          className="w-full h-12 pl-9 pr-9 rounded-xl text-sm bg-white/5 border border-gray-100 text-[#1a1a1a] placeholder:text-gray-400 focus:outline-none focus:border-amber-400/50 focus:bg-white/8 focus:ring-2 focus:ring-amber-400/10 transition-all"/>
+          className="w-full h-12 pl-9 pr-9 rounded-xl text-sm bg-white/5 border border-white/10 text-white placeholder:text-gray-400 focus:outline-none focus:border-amber-400/50 focus:bg-white/8 focus:ring-2 focus:ring-amber-400/10 transition-all"/>
         <div className="absolute right-3 top-1/2 -translate-y-1/2">
           {loading ? <Loader2 className="h-4 w-4 text-gray-400 animate-spin"/> : inputValue ? <button type="button" onClick={()=>{setInputValue('');setPredictions([]);setOpen(false);onChange?.('');inputRef.current?.focus();}} className="text-gray-400 hover:text-gray-600 transition-colors p-0.5 rounded"><X className="h-3.5 w-3.5"/></button> : null}
         </div>
       </div>
       {open && predictions.length>0 && (
-        <ul className="absolute z-[200] mt-1.5 w-full bg-[#f5f5f5] border border-gray-100 rounded-xl shadow-2xl overflow-hidden py-1">
+        <ul className="absolute z-[200] mt-1.5 w-full bg-[hsl(228,10%,10%)] border border-white/10 rounded-xl shadow-2xl overflow-hidden py-1">
           {predictions.map((pred,idx)=>(
             <li key={pred.place_id} onMouseDown={e=>{e.preventDefault();select(pred);}} onMouseEnter={()=>setActiveIdx(idx)}
               className={cn('flex items-start gap-3 px-3 py-2.5 cursor-pointer transition-colors',idx===activeIdx?'bg-amber-400/10':'hover:bg-white/5')}>
               <MapPin className={`h-4 w-4 mt-0.5 shrink-0 ${idx===activeIdx?'text-amber-400':'text-white/25'}`}/>
-              <p className="text-sm text-[#1a1a1a] leading-tight">{pred.description||pred.main_text}</p>
+              <p className="text-sm text-white leading-tight">{pred.description||pred.main_text}</p>
             </li>
           ))}
         </ul>
@@ -429,7 +429,7 @@ export function QuoteClient() {
     <div className="min-h-screen" style={{ paddingBottom: 'calc(96px + env(safe-area-inset-bottom, 0px))' }}>
       {/* Header */}
       <div
-        className="sticky top-0 z-20 border-b border-gray-100"
+        className="sticky top-0 z-20 border-b border-white/10"
         style={{
           background: 'hsl(var(--background))',
           backdropFilter: 'blur(20px)',
@@ -448,7 +448,7 @@ export function QuoteClient() {
       </div>
 
       <div className="max-w-2xl mx-auto px-4 pt-5 pb-8">
-        <div className="rounded-xl border border-gray-100 bg-white/2 shadow-2xl p-5 sm:p-8 space-y-6">
+        <div className="rounded-xl border border-white/10 bg-white/2 shadow-2xl p-5 sm:p-8 space-y-6">
 
           {/* Row 1 — City + Service Type */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
@@ -531,7 +531,7 @@ export function QuoteClient() {
 
           {/* Return datetime */}
           {tripType === 'RETURN' && !isHourly(selectedServiceType) && (
-            <div className="space-y-3 pt-2 border-t border-gray-100">
+            <div className="space-y-3 pt-2 border-t border-white/10">
               <p className="text-xs font-semibold uppercase tracking-widest text-[hsl(var(--primary))]">Return Trip</p>
               <LuxDateTimePicker dateValue={returnDate} timeValue={returnTime} onDateChange={v=>{setReturnDate(v);clearQuote();}} onTimeChange={v=>{setReturnTime(v);clearQuote();}} minDate={date||todayISO()}/>
               <p className="text-xs text-gray-400">Return pickup from drop-off location.</p>
@@ -546,10 +546,10 @@ export function QuoteClient() {
             ].map(({label,value,set,min,max,suffix})=>(
               <div key={label}>
                 <FL>{label}</FL>
-                <div className="flex items-center h-12 rounded-xl border border-gray-100 bg-white/5 overflow-hidden">
+                <div className="flex items-center h-12 rounded-xl border border-white/10 bg-white/5 overflow-hidden">
                   <button type="button" onClick={()=>{const v=Math.max(min,Number(value)-1);set(String(v));clearQuote();}} className="h-full w-11 flex items-center justify-center text-gray-500 hover:text-white hover:bg-white/8 transition-colors text-lg font-light shrink-0">−</button>
                   <div className="flex-1 flex items-center justify-center gap-1.5">
-                    <input type="number" min={min} max={max} value={value} onChange={e=>{const n=Math.max(min,Math.min(max,parseInt(e.target.value)||min));set(String(n));clearQuote();}} className="w-8 bg-transparent text-center text-[#1a1a1a] text-sm font-semibold focus:outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none"/>
+                    <input type="number" min={min} max={max} value={value} onChange={e=>{const n=Math.max(min,Math.min(max,parseInt(e.target.value)||min));set(String(n));clearQuote();}} className="w-8 bg-transparent text-center text-white text-sm font-semibold focus:outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none"/>
                     <span className="text-gray-400 text-xs">{suffix(Number(value))}</span>
                   </div>
                   <button type="button" onClick={()=>{const v=Math.min(max,Number(value)+1);set(String(v));clearQuote();}} className="h-full w-11 flex items-center justify-center text-gray-500 hover:text-white hover:bg-white/8 transition-colors text-lg font-light shrink-0">+</button>
@@ -615,12 +615,12 @@ export function QuoteClient() {
                   <div key={result.service_class_id} onClick={()=>setSelectedCarTypeId(result.service_class_id)}
                     className={cn('cursor-pointer rounded-2xl border transition-all duration-200 overflow-hidden',
                       isSelected ? 'border-[hsl(var(--primary)/0.7)] bg-[hsl(39,46%,60%,0.06)] shadow-[0_0_0_1px_hsl(var(--primary)/0.5),0_8px_24px_rgba(200,169,107,0.12)]'
-                                 : 'border-gray-100 bg-white/2 hover:border-[hsl(var(--primary)/0.3)] hover:bg-white/4')}>
+                                 : 'border-white/10 bg-white/2 hover:border-[hsl(var(--primary)/0.3)] hover:bg-white/4')}>
                     <div className="p-4">
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0 flex-1">
                           {carType?.vehicle_class && <span className="inline-block mb-1 text-[9px] font-semibold tracking-widest uppercase text-[hsl(var(--primary)/0.6)] border border-[hsl(var(--primary)/0.2)] rounded px-1.5 py-0.5">{carType.vehicle_class}</span>}
-                          <p className="font-serif font-semibold text-[#1a1a1a] text-[15px] leading-snug">{result.service_class_name}</p>
+                          <p className="font-serif font-semibold text-white text-[15px] leading-snug">{result.service_class_name}</p>
                         </div>
                         <div className="flex items-start gap-2.5 shrink-0">
                           <div className="text-right">
@@ -628,7 +628,7 @@ export function QuoteClient() {
                             <p className={cn('text-xl font-bold leading-none', isSelected?'text-gradient-gold':'text-white')}>{fmtMoney(result.estimated_total_minor,currency)}</p>
                             {hasDiscount ? <p className="text-[10px] text-emerald-400 font-semibold mt-0.5">-{fmtMoney(result.discount!.discount_minor,currency)} off</p> : <p className="text-[10px] text-gray-400 mt-0.5">{currency} incl. GST</p>}
                           </div>
-                          <div className={cn('w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 mt-0.5 transition-all',isSelected?'border-[hsl(var(--primary))] bg-[hsl(var(--primary))]':'border-gray-100')}>
+                          <div className={cn('w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 mt-0.5 transition-all',isSelected?'border-[hsl(var(--primary))] bg-[hsl(var(--primary))]':'border-white/10')}>
                             {isSelected && <svg className="w-3 h-3 text-[hsl(var(--primary-foreground))]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/></svg>}
                           </div>
                         </div>
@@ -682,13 +682,13 @@ export function QuoteClient() {
           <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-[hsl(var(--primary)/0.15)] border border-[hsl(var(--primary)/0.3)]">
             <svg className="h-7 w-7 text-[hsl(var(--primary))]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5"><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 01-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 00-1.091-.852H4.5A2.25 2.25 0 002.25 4.5v2.25z"/></svg>
           </div>
-          <h3 className="text-lg font-semibold text-[#1a1a1a] mb-2">Short Notice Booking</h3>
+          <h3 className="text-lg font-semibold text-white mb-2">Short Notice Booking</h3>
           <p className="text-sm text-gray-500 mb-6 leading-relaxed">Bookings require at least <strong className="text-white">12 hours' notice</strong> for online reservations. For urgent requests, please call us directly.</p>
           <a href="tel:+61280091008" className="flex items-center justify-center gap-2 w-full py-3 rounded-xl bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] font-semibold text-sm hover:opacity-90 transition-all mb-3">
             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 01-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 00-1.091-.852H4.5A2.25 2.25 0 002.25 4.5v2.25z"/></svg>
             Call Now: +61 2 8009 1008
           </a>
-          <button onClick={()=>setShowUrgentModal(false)} className="w-full py-2.5 rounded-xl border border-gray-100 text-sm text-gray-400 hover:text-white hover:border-gray-100 transition-colors">Change Date & Time</button>
+          <button onClick={()=>setShowUrgentModal(false)} className="w-full py-2.5 rounded-xl border border-white/10 text-sm text-gray-400 hover:text-white hover:border-white/10 transition-colors">Change Date & Time</button>
         </div>
       </div>
     )}
