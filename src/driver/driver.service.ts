@@ -218,14 +218,25 @@ export class DriverService {
     });
   }
 
-  async setMembershipStatus(tenantId: string, driverId: string, status: 'inactive' | 'suspended') {
+  async setMembershipStatus(tenantId: string, driverId: string, status: 'inactive' | 'suspended' | 'active' | 'disabled') {
     const existing = await this.dataSource.query(
       `SELECT id FROM public.memberships WHERE tenant_id = $1 AND user_id = $2 AND role = 'driver'`,
       [tenantId, driverId],
     );
     if (!existing.length) throw new NotFoundException('Driver not found');
+
+    if (status === 'active') {
+      // Deactivate all other memberships first to avoid unique constraint on active
+      await this.dataSource.query(
+        `UPDATE public.memberships SET status = 'disabled'
+         WHERE user_id = $1 AND role = 'driver' AND status = 'active' AND NOT (tenant_id = $2)`,
+        [driverId, tenantId],
+      );
+    }
+
     await this.dataSource.query(
-      `UPDATE public.memberships SET status = $1 WHERE tenant_id = $2 AND user_id = $3`,
+      `UPDATE public.memberships SET status = $1, updated_at = NOW()
+       WHERE tenant_id = $2 AND user_id = $3 AND role = 'driver'`,
       [status, tenantId, driverId],
     );
     return { success: true };
