@@ -275,4 +275,76 @@ export class CustomerAuthService {
     });
     return { accessToken, expiresIn: 604800, customerId };
   }
+
+  // ── Email OTP Login (unauthenticated) ────────────────────────────────────
+  async sendEmailOtpUnauth(dto: { tenantSlug: string; email: string }) {
+    const tenant = await this.getTenantBySlug(dto.tenantSlug);
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const expires = new Date(Date.now() + 15 * 60 * 1000);
+
+    // Find or create customer
+    let rows = await this.db.query(
+      `SELECT c.id FROM public.customers c
+       JOIN public.customer_auth ca ON ca.customer_id = c.id
+       WHERE c.tenant_id = $1 AND LOWER(ca.email) = LOWER($2) LIMIT 1`,
+      [tenant.id, dto.email],
+    );
+
+    if (!rows.length) {
+      // Guest customer
+      const [c] = await this.db.query(
+        `INSERT INTO public.customers (tenant_id, first_name, last_name, is_guest, created_at, updated_at)
+         VALUES ($1, 'Guest', '', true, now(), now()) RETURNING id`,
+        [tenant.id],
+      );
+      await this.db.query(
+        `INSERT INTO public.customer_auth (customer_id, tenant_id, email, otp_code, otp_expires_at, last_otp_sent_at)
+         VALUES ($1, $2, $3, $4, $5, now())`,
+        [c.id, tenant.id, dto.email, otp, expires],
+      );
+    } else {
+      await this.db.query(
+        `UPDATE public.customer_auth SET otp_code=$1, otp_expires_at=$2, last_otp_sent_at=now()
+         WHERE customer_id=$3 AND tenant_id=$4`,
+        [otp, expires, rows[0].id, tenant.id],
+      );
+    }
+
+    // Send via CustomerEmailVerification notification
+    await this.notificationSvc.handleEvent('CustomerEmailVerification', {
+      tenant_id: tenant.id,
+      email: dto.email,
+      first_name: 'Customer',
+      otp,
+    }).catch((e: any) => console.error('[EmailOTP] send failed:', e?.message));
+
+    const isDev = process.env.NODE_ENV !== 'production';
+    return { sent: true, ...(isDev ? { otp } : {}) };
+  }
+
+  async verifyEmailOtpUnauth(dto: { tenantSlug: string; email: string; otp: string }) {
+    const tenant = await this.getTenantBySlug(dto.tenantSlug);
+
+    const rows = await this.db.query(
+      `SELECT ca.customer_id, ca.otp_code, ca.otp_expires_at
+       FROM public.customer_auth ca
+       WHERE ca.tenant_id = $1 AND LOWER(ca.email) = LOWER($2) LIMIT 1`,
+      [tenant.id, dto.email],
+    );
+    if (!rows.length) throw new UnauthorizedException('OTP not found');
+    const r = rows[0];
+    if (r.otp_code !== dto.otp) throw new UnauthorizedException('Invalid OTP');
+    if (new Date(r.otp_expires_at) < new Date()) throw new UnauthorizedException('OTP expired');
+
+    await this.db.query(
+      `UPDATE public.customer_auth SET otp_code=null, otp_expires_at=null WHERE customer_id=$1`,
+      [r.customer_id],
+    );
+
+    const accessToken = this.jwt.sign(
+      { sub: r.customer_id, tenant_id: tenant.id, role: 'customer' },
+      { expiresIn: '7d' },
+    );
+    return { accessToken, expiresIn: 604800, customerId: r.customer_id };
+  }
 }

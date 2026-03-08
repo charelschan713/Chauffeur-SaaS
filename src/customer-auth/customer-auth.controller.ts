@@ -35,6 +35,16 @@ export class CustomerAuthController {
     return this.svc.verifyOtp(body);
   }
 
+  @Post('email-otp/send')
+  sendEmailOtp(@Body() body: { tenantSlug: string; email: string }) {
+    return this.svc.sendEmailOtpUnauth(body);
+  }
+
+  @Post('email-otp/verify')
+  verifyEmailOtp(@Body() body: { tenantSlug: string; email: string; otp: string }) {
+    return this.svc.verifyEmailOtpUnauth(body);
+  }
+
   @Post('forgot-password')
   forgotPassword(@Body() body: { tenantSlug: string; email: string }) {
     return this.svc.forgotPassword(body);
