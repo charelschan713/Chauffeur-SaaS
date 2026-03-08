@@ -141,7 +141,7 @@ export class PublicPricingService {
               extras_minor: snapshot.extras_minor ?? 0,
               waypoints_minor: snapshot.waypoints_minor ?? 0,
               baby_seats_minor: snapshot.baby_seats_minor ?? 0,
-              pre_discount_total_minor: baseFare,
+              pre_discount_total_minor: baseFare,  // true gross before any discount
               discount_amount_minor: discountMinor,
               final_fare_minor: finalTotal,
               grand_total_minor: finalTotal,

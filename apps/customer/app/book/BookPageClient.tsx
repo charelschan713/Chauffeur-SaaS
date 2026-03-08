@@ -857,7 +857,8 @@ export function BookPageClient() {
                   discountMinor: baseDiscountMinor,
                 } : null);
                 const originalPrice = loyaltyDiscount
-                  ? selectedResult.estimated_total_minor  // quote already has base discount
+                  // true original = final + full discount amount (avoids double-discount display)
+                  ? loyaltyDiscount.finalFareMinor + loyaltyDiscount.discountMinor
                   : (selectedResult.pricing_snapshot_preview?.pre_discount_total_minor
                       ?? selectedResult.estimated_total_minor + baseDiscountMinor);
                 const finalPrice = loyaltyDiscount

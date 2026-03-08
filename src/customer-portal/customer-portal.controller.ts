@@ -137,9 +137,21 @@ export class CustomerPortalController {
       ?? payload.results?.[0];
     if (!result) return { error: 'Car type not found in quote' };
 
-    // Pre-discount fare (base fare before any discount)
-    const baseFare = result.pricing_snapshot_preview?.pre_discount_total_minor
-      ?? result.estimated_total_minor;
+    // True gross = base_calculated_minor + all surcharges (tolls, parking, extras, waypoints, baby seats)
+    // This avoids using pre_discount_total_minor which may already have discount baked in
+    const snap = result.pricing_snapshot_preview ?? {};
+    const trueGross = snap.base_calculated_minor
+      ? snap.base_calculated_minor
+        + (snap.toll_parking_minor ?? 0)
+        + (snap.surcharge_minor ?? 0)
+        + (snap.time_surcharge_minor ?? 0)
+        + (snap.extras_minor ?? 0)
+        + (snap.waypoints_minor ?? 0)
+        + (snap.baby_seats_minor ?? 0)
+      : null;
+    // Fallback: pre_discount_total + already-applied discount
+    const baseFare = trueGross
+      ?? (((snap.pre_discount_total_minor ?? 0) + (snap.discount_amount_minor ?? 0)) || (result.estimated_total_minor + (snap.discount_amount_minor ?? 0)));
 
     // Re-resolve discount with customer ID (stacks customer loyalty rate)
     const discount = await this.discountSvc.resolveDiscount(
