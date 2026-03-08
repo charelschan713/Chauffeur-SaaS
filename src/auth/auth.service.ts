@@ -214,7 +214,7 @@ export class AuthService {
 
     const accessToken = await this.jwt.signAsync(payload, {
       secret: process.env.JWT_ACCESS_SECRET!,
-      expiresIn: '15m',
+      expiresIn: '8h',
     });
 
     const refreshToken = await this.jwt.signAsync(payload, {
@@ -231,7 +231,7 @@ export class AuthService {
       [user.sub, tenantId, hash],
     );
 
-    return { accessToken, refreshToken, expiresIn: 900 };
+    return { accessToken, refreshToken, expiresIn: 28800 }; // 8h
   }
 
   private async resolveRole(
