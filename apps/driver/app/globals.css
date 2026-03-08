@@ -1,0 +1,278 @@
+@import "tailwindcss";
+
+/* ─────────────────────────────────────────────────────────────────
+   PLATFORM DESIGN TOKENS
+   Base layer shared by all tenants.
+   Tenant-specific overrides are injected by TenantProvider via
+   CSS custom properties (--primary, --primary-foreground, etc.)
+───────────────────────────────────────────────────────────────── */
+
+@theme inline {
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --font-display: var(--font-playfair, 'Playfair Display', Georgia, serif);
+
+  /* Surface */
+  --color-background:       hsl(var(--background));
+  --color-foreground:       hsl(var(--foreground));
+  --color-card:             hsl(var(--card));
+  --color-card-foreground:  hsl(var(--card-foreground));
+  --color-popover:          hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
+
+  /* Brand */
+  --color-primary:          hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+
+  /* Secondary / Muted / Accent */
+  --color-secondary:        hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+  --color-muted:            hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-accent:           hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+
+  /* Status */
+  --color-destructive:      hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+  --color-success:          hsl(var(--success));
+  --color-success-foreground: hsl(var(--success-foreground));
+  --color-warning:          hsl(var(--warning));
+  --color-warning-foreground: hsl(var(--warning-foreground));
+
+  /* Border / Input */
+  --color-border:           hsl(var(--border));
+  --color-input:            hsl(var(--input));
+  --color-ring:             hsl(var(--ring));
+
+  /* Radius */
+  --radius-sm:  0.5rem;
+  --radius:     0.75rem;
+  --radius-lg:  1rem;
+  --radius-xl:  1.25rem;
+  --radius-full: 9999px;
+}
+
+:root {
+  /* ── Surface — ASDriver dark navy theme ── */
+  --background:         228 29% 14%;       /* #1A1A2E */
+  --foreground:         0 0% 100%;         /* #ffffff */
+  --card:               233 23% 18%;       /* #222236 */
+  --card-foreground:    0 0% 100%;
+  --popover:            228 24% 11%;       /* #16162A */
+  --popover-foreground: 0 0% 100%;
+
+  /* ── Primary — gold accent ── */
+  --primary:            38 42% 61%;        /* #C8A870 */
+  --primary-foreground: 0 0% 10%;
+
+  /* ── Secondary ── */
+  --secondary:          233 23% 24%;       /* #333355-ish */
+  --secondary-foreground: 0 0% 100%;
+
+  /* ── Muted ── */
+  --muted:              233 23% 22%;
+  --muted-foreground:   220 9% 64%;        /* #9CA3AF */
+
+  /* ── Accent ── */
+  --accent:             233 23% 22%;
+  --accent-foreground:  0 0% 100%;
+
+  /* ── Status ── */
+  --destructive:        0 84% 60%;
+  --destructive-foreground: 0 0% 100%;
+  --success:            142 71% 45%;
+  --success-foreground: 0 0% 100%;
+  --warning:            37 91% 55%;
+  --warning-foreground: 0 0% 10%;
+  --info:               217 91% 60%;
+  --info-foreground:    0 0% 100%;
+
+  /* ── Border / Input ── */
+  --border:             240 22% 26%;       /* #333355 */
+  --input-border:       240 22% 26%;       /* #333355 */
+  --input:              233 23% 18%;       /* #222236 */
+  --ring:               38 42% 61%;
+
+  /* ── Shadows — dark theme ── */
+  --shadow-sm:      0 1px 3px rgba(0,0,0,0.3);
+  --shadow-md:      0 4px 12px rgba(0,0,0,0.4);
+  --shadow-lg:      0 8px 24px rgba(0,0,0,0.5);
+  --shadow-luxury:  0 12px 32px rgba(0,0,0,0.12);
+  --shadow-card:    0 2px 8px rgba(0,0,0,0.06);
+
+  /* ── Gradients ── */
+  --gradient-luxury: linear-gradient(135deg, #f5f5f5 0%, #ffffff 100%);
+  --gradient-gold:   linear-gradient(135deg, hsl(39 46% 60%) 0%, hsl(39 46% 48%) 100%);
+
+  /* ── Transitions ── */
+  --transition-fast:    all 0.15s ease;
+  --transition-base:    all 0.2s ease;
+  --transition-smooth:  all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-elegant: all 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* ─── Base resets ─────────────────────────────────────────────── */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  border-color: hsl(var(--border));
+}
+
+html {
+  scroll-behavior: smooth;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
+  font-family: var(--font-sans), system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-display);
+}
+
+/* ─── Input / Focus styles ────────────────────────────────────── */
+
+input:not([type="checkbox"]):not([type="radio"]),
+textarea,
+select {
+  border-color: hsl(var(--input-border));
+  border-radius: var(--radius);
+}
+
+input:not([type="checkbox"]):not([type="radio"]):focus,
+textarea:focus,
+select:focus {
+  border-color: hsl(var(--primary));
+  box-shadow: 0 0 0 3px hsl(var(--primary) / 0.15);
+  outline: none;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: hsl(217 11% 45%);
+  opacity: 1;
+}
+
+/* ─── Platform utility classes ────────────────────────────────── */
+
+.text-gradient-gold {
+  background: var(--gradient-gold);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.luxury-border {
+  border: 1px solid hsl(var(--border) / 0.3);
+}
+
+.luxury-glow {
+  box-shadow: 0 0 60px hsl(var(--primary) / 0.08);
+}
+
+.section-label {
+  color: hsl(var(--primary));
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+.hover-lift {
+  transition: var(--transition-smooth);
+}
+.hover-lift:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-lg);
+}
+
+/* ─── Animations ──────────────────────────────────────────────── */
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(24px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.animate-fade-up  { animation: fadeUp 0.6s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
+.animate-fade-in  { animation: fadeIn 0.6s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
+
+/* ─── Google Places Autocomplete overrides ────────────────────── */
+
+.pac-container {
+  z-index: 9999 !important;
+  border: 1px solid hsl(220 25% 25%) !important;
+  border-radius: var(--radius) !important;
+  background-color: hsl(var(--card)) !important;
+  box-shadow: var(--shadow-lg) !important;
+  margin-top: 4px !important;
+  padding: 4px 0 !important;
+}
+
+.pac-item {
+  min-height: 44px !important;
+  display: flex !important;
+  align-items: center !important;
+  padding: 8px 12px !important;
+  border-top: 1px solid hsl(var(--border)) !important;
+  color: hsl(var(--foreground)) !important;
+  cursor: pointer !important;
+  font-size: 0.875rem !important;
+}
+
+.pac-item:first-child { border-top: none !important; }
+.pac-item:hover,
+.pac-item-selected   { background-color: hsl(var(--accent)) !important; }
+.pac-item-query      { color: hsl(var(--foreground)) !important; }
+.pac-matched         { color: hsl(var(--primary)) !important; font-weight: 600 !important; }
+.pac-icon            { display: none !important; }
+.pac-logo::after     { display: none !important; }
+
+/* ─── Mobile / Safe Area ──────────────────────────────────────── */
+
+/* iOS safe area helpers */
+.safe-area-pb   { padding-bottom: env(safe-area-inset-bottom, 0px); }
+.safe-area-pt   { padding-top: env(safe-area-inset-top, 0px); }
+.pb-safe        { padding-bottom: max(1rem, env(safe-area-inset-bottom)); }
+.mb-safe        { margin-bottom: env(safe-area-inset-bottom, 0px); }
+
+/* Page bottom padding to clear BottomNav (64px nav + safe area) */
+.page-bottom-pad { padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px)); }
+
+/* Tap target minimum */
+.tap-target {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+/* Prevent rubber-band over-scroll on iOS */
+html, body {
+  overscroll-behavior: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Full-bleed mobile content */
+.mobile-px { padding-left: max(1rem, env(safe-area-inset-left)); padding-right: max(1rem, env(safe-area-inset-right)); }
+
+/* ── Force select text white in dark theme ── */
+select {
+  color: #ffffff !important;
+  background-color: hsl(var(--card)) !important;
+}
+select option {
+  background-color: hsl(var(--card)) !important;
+  color: #ffffff !important;
+}
