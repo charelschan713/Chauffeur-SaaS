@@ -582,7 +582,9 @@ export class CustomerPortalService {
       `SELECT b.id, b.tenant_id, b.customer_id, b.booking_reference,
               b.total_price_minor, b.currency,
               b.customer_first_name, b.operational_status, b.payment_status,
-              b.pickup_address, b.dropoff_address, b.pickup_at_utc
+              b.pickup_address_text AS pickup_address,
+              b.dropoff_address_text AS dropoff_address,
+              b.pickup_at_utc
        FROM public.bookings b
        WHERE b.payment_token=$1 AND b.payment_token_expires_at > NOW()`,
       [token],
