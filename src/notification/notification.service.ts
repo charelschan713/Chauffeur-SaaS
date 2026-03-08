@@ -965,8 +965,13 @@ export class NotificationService {
   private async onPaymentRequest(tenantId: string, payload: any) {
     const booking = await this.getBooking(payload.booking_id);
     if (!booking) return;
-    const vars = { ...this.bookingVars(booking), payment_link: payload.payment_link ?? '' };
-    await this.sendFromTemplate(tenantId, 'PaymentRequest', 'email',
+    const vars = {
+      ...this.bookingVars(booking),
+      payment_link: payload.payment_link ?? payload.payment_url ?? '',
+      payment_url:  payload.payment_url  ?? payload.payment_link ?? '',
+    };
+    // AdminCreatedPaymentRequest template has the payment link CTA
+    await this.sendFromTemplate(tenantId, 'AdminCreatedPaymentRequest', 'email',
       vars, booking.customer_email, booking.id).catch(() => {});
   }
 

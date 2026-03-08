@@ -362,8 +362,13 @@ export class BookingService {
       .catch((e) => console.error('[Notification] AdminNewBooking FAILED:', e?.message));
     this.notificationService.handleEvent('AdminBookingPendingConfirm', notifPayload)
       .catch((e) => console.error('[Notification] AdminBookingPendingConfirm FAILED:', e?.message));
-    // Only fire BookingConfirmed if status is already CONFIRMED (e.g. admin creates confirmed booking)
-    if ((dto.operational_status ?? 'PENDING_CUSTOMER_CONFIRMATION') === 'CONFIRMED') {
+
+    // Auto-generate payment token + send payment request email to customer
+    const status = dto.operational_status ?? 'PENDING_CUSTOMER_CONFIRMATION';
+    if (status === 'PENDING_CUSTOMER_CONFIRMATION') {
+      this.sendPaymentLink(tenantId, id)
+        .catch((e) => console.error('[Notification] Auto payment link FAILED:', e?.message));
+    } else if (status === 'CONFIRMED') {
       this.notificationService.handleEvent('BookingConfirmed', notifPayload)
         .catch((e) => console.error('[Notification] BookingConfirmed FAILED:', e?.message));
     }
@@ -536,9 +541,17 @@ export class BookingService {
       [token, expiry.toISOString(), bookingId],
     );
 
-    // TODO: wire to NotificationService.handleEvent('PaymentLinkSent', ...) when circular dep resolved
+    // Fire notification to customer with payment link
+    const portalUrl = process.env.CUSTOMER_PORTAL_URL ?? 'https://aschauffeured.chauffeurssolution.com';
+    const paymentUrl = `${portalUrl}/pay/${token}`;
+    this.notificationService.handleEvent('AdminCreatedPaymentRequest', {
+      tenant_id: tenantId,
+      booking_id: bookingId,
+      payment_link: paymentUrl,
+      payment_url:  paymentUrl,
+    }).catch((e) => console.error('[Notification] AdminCreatedPaymentRequest FAILED:', e?.message));
 
-    return { success: true, token, expires_at: expiry.toISOString() };
+    return { success: true, token, expires_at: expiry.toISOString(), payment_url: paymentUrl };
   }
 
   async chargeNow(tenantId: string, bookingId: string) {
