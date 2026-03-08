@@ -617,7 +617,7 @@ export class CustomerPortalService {
 
   async payViaToken(token: string, dto: { paymentMethodId: string }) {
     const rows = await this.db.query(
-      `SELECT b.id, b.tenant_id, b.total_price_minor, b.currency, b.payment_status, b.booking_reference
+      `SELECT b.id, b.tenant_id, b.customer_id, b.total_price_minor, b.currency, b.payment_status, b.booking_reference
        FROM public.bookings b WHERE b.payment_token=$1 AND b.payment_token_expires_at > NOW()`,
       [token],
     );
@@ -627,14 +627,24 @@ export class CustomerPortalService {
 
     const stripe = await this.getStripe(b.tenant_id);
     const appUrl = process.env.CUSTOMER_APP_URL ?? 'https://aschauffeured.chauffeurssolution.com';
+
+    // Look up Stripe customer ID if using a saved card (PM belongs to a customer)
+    let stripeCustomerId: string | undefined;
+    if (b.customer_id) {
+      const custRows = await this.db.query(
+        `SELECT stripe_customer_id FROM public.customers WHERE id=$1`,
+        [b.customer_id],
+      );
+      stripeCustomerId = custRows[0]?.stripe_customer_id ?? undefined;
+    }
+
     const pi = await stripe.paymentIntents.create({
-      amount: b.total_price_minor,
+      amount: Number(b.total_price_minor),
       currency: b.currency.toLowerCase(),
       payment_method: dto.paymentMethodId,
+      ...(stripeCustomerId ? { customer: stripeCustomerId } : {}),
       confirm: true,
-      // Required for 3DS redirect flow
       return_url: `${appUrl}/pay/${token}?3ds=true`,
-      // Request 3DS when card supports it (recommended for AU compliance)
       payment_method_options: {
         card: { request_three_d_secure: 'automatic' },
       },
