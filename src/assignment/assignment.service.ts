@@ -91,6 +91,7 @@ export class AssignmentService {
       booking_id: bookingId,
       driver_id: dto.driver_id,
       assignment_id: rows[0].id,
+      driver_pay: `AUD ${(driverTotalMinor / 100).toFixed(2)}`,
     }).catch((e) => console.error('[Notification] DriverNewDispatch FAILED:', e?.message));
 
     return { id: rows[0].id };

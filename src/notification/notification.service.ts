@@ -1004,7 +1004,7 @@ export class NotificationService {
     };
 
     // 1. Email + SMS
-    await this.sendBoth(tenantId, 'DriverJobAssigned', vars,
+    await this.sendBoth(tenantId, 'DriverNewDispatch', vars,
       driver.email, driver.phone, booking.id);
 
     // 2. Expo Push Notification
