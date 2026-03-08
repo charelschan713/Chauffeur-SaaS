@@ -198,14 +198,30 @@ function NewCardForm({ token, amount, currency }: { token: string; amount: numbe
 // ── Success screen ────────────────────────────────────────────────────────────
 function SuccessScreen() {
   return (
-    <div className="flex flex-col items-center py-8 text-center">
-      <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-500/10">
-        <svg className="h-8 w-8 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-        </svg>
+    <div className="min-h-screen flex items-center justify-center bg-[#0d0f14]">
+      <div className="flex flex-col items-center py-8 text-center px-6">
+        <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-500/10">
+          <svg className="h-8 w-8 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+          </svg>
+        </div>
+        <h2 className="text-xl font-bold text-white">Payment Successful</h2>
+        <p className="mt-2 text-sm text-gray-400">Your booking is now confirmed. You'll receive a confirmation email shortly.</p>
+        <div className="mt-8 flex flex-col gap-3 w-full max-w-xs">
+          <a
+            href="/dashboard"
+            className="inline-block px-6 py-3 rounded-xl bg-[#c8a96b] text-black text-sm font-semibold hover:bg-[#b8995b] transition-colors"
+          >
+            Go to Dashboard
+          </a>
+          <a
+            href="/bookings"
+            className="inline-block px-6 py-3 rounded-xl border border-[#c8a96b]/40 text-[#c8a96b] text-sm font-medium hover:bg-[#c8a96b]/10 transition-colors"
+          >
+            View My Bookings
+          </a>
+        </div>
       </div>
-      <h2 className="text-xl font-bold text-white">Payment Successful</h2>
-      <p className="mt-2 text-sm text-gray-400">Your booking is now confirmed. You'll receive a confirmation email shortly.</p>
     </div>
   );
 }
