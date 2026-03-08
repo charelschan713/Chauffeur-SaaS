@@ -49,7 +49,7 @@ export function AuthLogo({ subtitle }: { subtitle?: string }) {
             alt={name}
             className="w-auto object-contain mb-2"
             style={{
-              height: '56px',
+              height: '80px',
               mixBlendMode: 'lighten',
               filter: 'brightness(1.05)',
             }}
@@ -81,10 +81,10 @@ export function AuthLogo({ subtitle }: { subtitle?: string }) {
 export function AuthShell({ children }: { children: React.ReactNode }) {
   return (
     <div
-      className="min-h-screen bg-[#0d0f14] flex items-center justify-center px-4"
+      className="min-h-screen bg-[#0d0f14] flex flex-col items-center justify-center px-4 py-12"
       style={{
         paddingTop: 'max(48px, env(safe-area-inset-top))',
-        paddingBottom: 'max(32px, env(safe-area-inset-bottom))',
+        paddingBottom: 'max(48px, env(safe-area-inset-bottom))',
       }}
     >
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_#1a1200_0%,_#0d0f14_60%)] pointer-events-none" />
