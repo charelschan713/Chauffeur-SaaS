@@ -7,7 +7,16 @@ import { AuthShell, AuthLogo, AuthCard, GoldButton, ErrorAlert, inputCls, labelC
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
   const [tenantSlug, setTenantSlug] = useState('');
-  useEffect(() => { setTenantSlug(localStorage.getItem('tenant_slug') ?? ''); }, []);
+  useEffect(() => {
+    // 1. localStorage
+    const ls = localStorage.getItem('tenant_slug');
+    if (ls) { setTenantSlug(ls); return; }
+    // 2. Subdomain (e.g. aschauffeured.chauffeurssolution.com)
+    const sub = window.location.hostname.split('.')[0];
+    if (sub && sub !== 'www' && sub !== 'localhost' && sub !== 'chauffeurssolution') {
+      setTenantSlug(sub);
+    }
+  }, []);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
