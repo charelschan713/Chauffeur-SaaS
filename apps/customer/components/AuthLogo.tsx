@@ -89,10 +89,10 @@ export function AuthShell({ children }: { children: React.ReactNode }) {
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_#1a1200_0%,_#0d0f14_60%)] pointer-events-none" />
       <div className="relative w-full max-w-sm">
         {children}
-        <p className="text-center text-xs text-white/15 mt-8 tracking-widest uppercase">
-          © {new Date().getFullYear()} Chauffeur Solutions
-        </p>
       </div>
+      <p className="absolute bottom-6 text-center text-xs text-white/15 tracking-widest uppercase">
+        © {new Date().getFullYear()} Chauffeur Solutions
+      </p>
     </div>
   );
 }
