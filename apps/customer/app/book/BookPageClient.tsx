@@ -1517,12 +1517,13 @@ export function BookPageClient() {
       />
 
       {/* Sticky Confirm & Pay bar — always visible at bottom */}
-      {(['details', 'auth', 'login', 'guest'] as const).includes(step as any) && !useNewCard && selectedSavedCard && (
-        <div className="fixed bottom-0 left-0 right-0 z-30 px-4"
+      {/* Sticky Confirm & Pay — shows whenever saved cards exist and not using new card */}
+      {step === 'details' && savedCards.length > 0 && !useNewCard && (
+        <div className="fixed bottom-0 left-0 right-0 z-[9999] px-4"
           style={{
             background: 'hsl(var(--background))',
             borderTop: '1px solid hsl(var(--border))',
-            paddingBottom: 'calc(16px + env(safe-area-inset-bottom, 0px))',
+            paddingBottom: 'max(20px, env(safe-area-inset-bottom, 20px))',
             paddingTop: '12px',
           }}>
           <div className="max-w-lg mx-auto">
