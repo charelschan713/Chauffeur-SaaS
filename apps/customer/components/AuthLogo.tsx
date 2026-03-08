@@ -48,7 +48,7 @@ export function AuthLogo({ subtitle }: { subtitle?: string }) {
             <img
               src={logoUrl}
               alt={name}
-              style={{ height: '72px', width: 'auto', objectFit: 'contain', display: 'block' }}
+              style={{ height: '96px', width: 'auto', objectFit: 'contain', display: 'block' }}
               onError={(e) => {
                 (e.target as HTMLImageElement).parentElement!.style.display = 'none';
               }}
@@ -80,10 +80,10 @@ export function AuthLogo({ subtitle }: { subtitle?: string }) {
 export function AuthShell({ children }: { children: React.ReactNode }) {
   return (
     <div
-      className="min-h-screen bg-[#0d0f14] flex flex-col items-center justify-center px-4 py-12"
+      className="min-h-screen bg-[#0d0f14] flex flex-col items-center justify-center px-4"
       style={{
-        paddingTop: 'max(48px, env(safe-area-inset-top))',
-        paddingBottom: 'max(48px, env(safe-area-inset-bottom))',
+        paddingTop: 'env(safe-area-inset-top)',
+        paddingBottom: 'env(safe-area-inset-bottom)',
       }}
     >
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_#1a1200_0%,_#0d0f14_60%)] pointer-events-none" />
