@@ -468,7 +468,7 @@ export function QuoteClient() {
           {/* Service notice */}
           {(isWedding || (isHourly(selectedServiceType) && minHours)) && (
             <div className="flex items-start gap-2.5 px-3.5 py-3 rounded-xl bg-amber-400/8 border border-amber-400/20 text-xs text-amber-300/80">
-              <span className="text-amber-400 mt-0.5 shrink-0">✦</span>
+              <span className="text-amber-400 mt-0.5 shrink-0">·</span>
               <span>{isWedding ? `Wedding Hire requires a minimum of ${minHours ?? 4} hours${hasSurge ? ` and includes a ${surgePercent}% special occasion surcharge` : ''}.` : `Hourly Charter minimum is ${minHours} hours.`}</span>
             </div>
           )}

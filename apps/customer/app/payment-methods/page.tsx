@@ -12,10 +12,10 @@ import { BackButton } from '@/components/BackButton';
 const STRIPE_PK = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? '';
 
 const CARD_BRANDS: Record<string, string> = {
-  visa: '💳 Visa',
-  mastercard: '💳 Mastercard',
-  amex: '💳 Amex',
-  discover: '💳 Discover',
+  visa: 'Visa',
+  mastercard: 'Mastercard',
+  amex: 'Amex',
+  discover: 'Discover',
 };
 
 // ── Add Card Form ───────────────────────────────────────────────────────────
@@ -164,7 +164,7 @@ export default function PaymentMethodsPage() {
                 </div>
                 <div className="flex-1">
                   <p className="text-sm font-medium text-white/90">
-                    {CARD_BRANDS[m.brand?.toLowerCase()] ?? `💳 ${m.brand ?? 'Card'}`} •••• {m.last4}
+                    {CARD_BRANDS[m.brand?.toLowerCase()] ?? (m.brand ?? 'Card')} •••• {m.last4}
                   </p>
                   <p className="text-xs text-white/40">Expires {m.exp_month}/{m.exp_year}</p>
                 </div>

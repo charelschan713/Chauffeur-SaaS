@@ -52,7 +52,6 @@ function SavedCardForm({ token, card, amount, currency }: {
 
   if (result === 'success') return <SuccessScreen />;
 
-  const brandIcon: Record<string, string> = { visa: '💳', mastercard: '💳', amex: '💳' };
   const brandLabel = card.brand.charAt(0).toUpperCase() + card.brand.slice(1);
 
   return (
@@ -60,8 +59,8 @@ function SavedCardForm({ token, card, amount, currency }: {
       {/* Saved card display */}
       <div className="rounded-xl border border-[#c8a96b]/30 bg-[#1a1d24] p-4">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-14 items-center justify-center rounded-lg bg-[#0d0f14] text-2xl">
-            {brandIcon[card.brand] ?? '💳'}
+          <div className="flex h-10 w-14 items-center justify-center rounded-lg bg-[#0d0f14] text-xs font-semibold text-gray-400">
+            {brandLabel}
           </div>
           <div>
             <p className="text-sm font-semibold text-white">{brandLabel} •••• {card.last4}</p>
@@ -175,7 +174,7 @@ function NewCardForm({ token, amount, currency }: { token: string; amount: numbe
         <div className="rounded-lg border border-red-500/30 bg-red-900/20 p-3 text-sm text-red-400">{errorMsg}</div>
       )}
       <div className="flex items-center gap-2 rounded-lg border border-[#2a2d35] bg-[#1a1d24] p-3 text-xs text-gray-500">
-        🔒 Secured by Stripe. Card details are encrypted and never stored on our servers.
+        Secured by Stripe. Card details are encrypted and never stored on our servers.
       </div>
       <button
         type="submit"
@@ -228,7 +227,11 @@ export function PayPageClient({ token }: { token: string }) {
   if (error || !data) return (
     <div className="min-h-screen flex items-center justify-center bg-[#0d0f14]">
       <div className="text-center px-6">
-        <div className="mb-3 text-4xl">⏰</div>
+        <div className="mb-3 flex justify-center">
+          <svg className="h-10 w-10 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+            <circle cx="12" cy="12" r="9" /><path strokeLinecap="round" d="M12 7v5l3 3" />
+          </svg>
+        </div>
         <h2 className="text-lg font-semibold text-white">Link not found or expired</h2>
         <p className="mt-2 text-sm text-gray-400">This payment link may have expired. Please contact us for assistance.</p>
         <a
@@ -295,21 +298,25 @@ export function PayPageClient({ token }: { token: string }) {
           {/* Route */}
           <div className="border-t border-[#2a2d35] pt-3 space-y-2">
             <div className="flex gap-3">
-              <span className="mt-0.5 text-[#c8a96b]">📍</span>
+              <span className="mt-0.5 text-[#c8a96b]">
+                <svg className="h-4 w-4" viewBox="0 0 8 8" fill="currentColor"><circle cx="4" cy="4" r="4"/></svg>
+              </span>
               <div>
                 <p className="text-[10px] text-gray-500 uppercase tracking-wide">Pickup</p>
                 <p className="text-sm text-white">{data.pickup_address}</p>
               </div>
             </div>
             <div className="flex gap-3">
-              <span className="mt-0.5 text-[#c8a96b]">🏁</span>
+              <span className="mt-0.5 text-[#c8a96b]">
+                <svg className="h-4 w-4" viewBox="0 0 8 8" fill="currentColor"><circle cx="4" cy="4" r="4"/></svg>
+              </span>
               <div>
                 <p className="text-[10px] text-gray-500 uppercase tracking-wide">Dropoff</p>
                 <p className="text-sm text-white">{data.dropoff_address}</p>
               </div>
             </div>
             <div className="flex gap-3">
-              <span className="mt-0.5 text-[#c8a96b]">🕐</span>
+              <span className="mt-0.5 text-[#c8a96b] w-4"></span>
               <div>
                 <p className="text-[10px] text-gray-500 uppercase tracking-wide">Date & Time</p>
                 <p className="text-sm text-white">{data.pickup_time_local ?? fmtDate(data.pickup_at_utc)}</p>
@@ -317,7 +324,7 @@ export function PayPageClient({ token }: { token: string }) {
             </div>
             {data.is_return_trip && data.return_pickup_at_utc && (
               <div className="flex gap-3">
-                <span className="mt-0.5 text-[#c8a96b]">🔄</span>
+                <span className="mt-0.5 text-[#c8a96b] w-4"></span>
                 <div>
                   <p className="text-[10px] text-gray-500 uppercase tracking-wide">Return Time</p>
                   <p className="text-sm text-white">{data.return_time_local ?? fmtDate(data.return_pickup_at_utc)}</p>
@@ -330,7 +337,7 @@ export function PayPageClient({ token }: { token: string }) {
           <div className="border-t border-[#2a2d35] pt-3 grid grid-cols-3 gap-2">
             {data.car_type_name && (
               <div className="col-span-3 flex gap-3">
-                <span className="text-[#c8a96b]">🚘</span>
+                <span className="text-[#c8a96b] w-4"></span>
                 <div>
                   <p className="text-[10px] text-gray-500 uppercase tracking-wide">Vehicle</p>
                   <p className="text-sm text-white">{data.car_type_name}</p>
@@ -338,14 +345,14 @@ export function PayPageClient({ token }: { token: string }) {
               </div>
             )}
             <div className="flex gap-2 items-center">
-              <span className="text-gray-400 text-sm">👤</span>
+              <span className="text-gray-400 text-sm w-4"></span>
               <div>
                 <p className="text-[10px] text-gray-500">Passengers</p>
                 <p className="text-sm text-white">{data.passenger_count ?? '—'}</p>
               </div>
             </div>
             <div className="flex gap-2 items-center">
-              <span className="text-gray-400 text-sm">🧳</span>
+              <span className="text-gray-400 text-sm w-4"></span>
               <div>
                 <p className="text-[10px] text-gray-500">Luggage</p>
                 <p className="text-sm text-white">{data.luggage_count ?? '—'}</p>

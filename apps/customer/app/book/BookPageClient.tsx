@@ -172,7 +172,7 @@ function CardSetupForm({ onSuccess, isGuest, billingName, submitLabel, submittin
         </div>
       </div>
       <div className="flex items-start gap-2 p-3 rounded-lg bg-[hsl(var(--muted))] text-xs text-[hsl(var(--muted-foreground))]">
-        🔒 Secured by Stripe · Your card details are encrypted. Your bank may prompt for 3D Secure verification.
+        Secured by Stripe · Your card details are encrypted. Your bank may prompt for 3D Secure verification.
       </div>
       <Button type="submit" size="lg" className="w-full" disabled={loading || externalSubmitting || !stripe}>
         {loading || externalSubmitting
@@ -297,7 +297,7 @@ function GuestActivateOtp({
 
   if (stage === 'done') return (
     <div className="w-full rounded-2xl bg-emerald-500/10 border border-emerald-500/20 px-4 py-4 text-center">
-      <p className="text-emerald-400 font-medium text-sm">✓ Account activated! Redirecting…</p>
+      <p className="text-emerald-400 font-medium text-sm">Activated! Redirecting…</p>
     </div>
   );
 
@@ -313,7 +313,7 @@ function GuestActivateOtp({
       {stage === 'prompt' && (
         <>
           <div className="rounded-xl bg-white/[0.04] px-4 py-3 text-sm text-white/70">
-            📱 {phoneCode} {phone}
+            {phoneCode} {phone}
           </div>
           {error && <p className="text-xs text-red-400">{error}</p>}
           <Button size="lg" className="w-full" onClick={sendOtp} disabled={loading}>
@@ -981,9 +981,9 @@ export function BookPageClient() {
                   {req.luggage_count} bags
                 </span>
               )}
-              {(req.infant_seats ?? 0) > 0 && <span>🧷 {req.infant_seats}× infant seat (0–6m)</span>}
-              {(req.toddler_seats ?? 0) > 0 && <span>🪑 {req.toddler_seats}× toddler seat (0–4yr)</span>}
-              {(req.booster_seats ?? 0) > 0 && <span>💺 {req.booster_seats}× booster seat (4–8yr)</span>}
+              {(req.infant_seats ?? 0) > 0 && <span>{req.infant_seats}× infant seat (0–6m)</span>}
+              {(req.toddler_seats ?? 0) > 0 && <span>{req.toddler_seats}× toddler seat (0–4yr)</span>}
+              {(req.booster_seats ?? 0) > 0 && <span>{req.booster_seats}× booster seat (4–8yr)</span>}
             </div>
           </div>
 
@@ -1037,13 +1037,13 @@ export function BookPageClient() {
               ))}
               {(preview.toll_minor ?? 0) > 0 && (
                 <div className="flex justify-between text-[hsl(var(--muted-foreground))]">
-                  <span className="flex items-center gap-1">🛣️ Road tolls</span>
+                  <span className="flex items-center gap-1">Road tolls</span>
                   <span>+{fmtMoney(preview.toll_minor!, selectedResult.currency)}</span>
                 </div>
               )}
               {(preview.parking_minor ?? 0) > 0 && (
                 <div className="flex justify-between text-[hsl(var(--muted-foreground))]">
-                  <span className="flex items-center gap-1">🅿️ Airport parking</span>
+                  <span className="flex items-center gap-1">Airport parking</span>
                   <span>+{fmtMoney(preview.parking_minor!, selectedResult.currency)}</span>
                 </div>
               )}

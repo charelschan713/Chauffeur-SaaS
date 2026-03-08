@@ -122,7 +122,7 @@ export function OnboardClient() {
   if (loadError) return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-xl border border-red-200 p-8 max-w-md text-center">
-        <div className="text-4xl mb-4">❌</div>
+        <div className="mb-4 text-red-500 font-semibold text-lg">Error</div>
         <h2 className="font-bold text-gray-900 mb-2">Link Invalid</h2>
         <p className="text-sm text-gray-500">{loadError}</p>
       </div>
@@ -138,7 +138,11 @@ export function OnboardClient() {
   if (submitted) return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-xl border border-green-200 p-8 max-w-md text-center">
-        <div className="text-5xl mb-4">🎉</div>
+        <div className="mb-4 flex justify-center">
+          <svg className="h-12 w-12 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <circle cx="12" cy="12" r="10" /><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+          </svg>
+        </div>
         <h2 className="text-xl font-bold text-gray-900 mb-2">
           {invite.invite_type === 'INTERNAL' ? 'Welcome aboard!' : 'Application Submitted!'}
         </h2>

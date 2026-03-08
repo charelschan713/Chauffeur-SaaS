@@ -38,7 +38,7 @@ export default function InvoicesPage() {
           </div>
         ) : invoices.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 gap-3 text-center">
-            <div className="text-5xl">🧾</div>
+            <div className="text-5xl text-gray-400">—</div>
             <p className="text-[hsl(var(--muted-foreground))] text-sm">No invoices yet</p>
           </div>
         ) : (
