@@ -81,8 +81,23 @@ export class CustomerAuthService {
     const tenant = await this.getTenantBySlug(dto.tenantSlug);
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     const expires = new Date(Date.now() + 10 * 60 * 1000);
-    const phoneCode = dto.phoneCode ?? '+61';
-    const phoneNumber = dto.phone.replace(/^0/, ''); // strip leading 0 for AU numbers
+    // If phone already includes country code (starts with +), split it out
+    let phoneCode: string;
+    let phoneNumber: string;
+    if (dto.phone.startsWith('+')) {
+      // e.g. "+61415880519" → code="+61", number="415880519"
+      const match = dto.phone.match(/^(\+\d{1,3})(\d+)$/);
+      if (match) {
+        phoneCode = match[1];
+        phoneNumber = match[2];
+      } else {
+        phoneCode = dto.phoneCode ?? '+61';
+        phoneNumber = dto.phone.replace(/^\+\d{1,3}/, '').replace(/^0/, '');
+      }
+    } else {
+      phoneCode = dto.phoneCode ?? '+61';
+      phoneNumber = dto.phone.replace(/^0/, ''); // strip leading 0 for AU numbers
+    }
 
     // Upsert customer_auth by phone
     const rows = await this.db.query(
@@ -128,7 +143,14 @@ export class CustomerAuthService {
   // ── OTP Verify ─────────────────────────────────────────────────────────────
   async verifyOtp(dto: { tenantSlug: string; phone: string; otp: string }) {
     const tenant = await this.getTenantBySlug(dto.tenantSlug);
-    const phoneNumber = dto.phone.replace(/^0/, '');
+    // Strip country code if present
+    let phoneNumber: string;
+    if (dto.phone.startsWith('+')) {
+      const match = dto.phone.match(/^(\+\d{1,3})(\d+)$/);
+      phoneNumber = match ? match[2] : dto.phone.replace(/^\+\d{1,3}/, '').replace(/^0/, '');
+    } else {
+      phoneNumber = dto.phone.replace(/^0/, '');
+    }
 
     const rows = await this.db.query(
       `SELECT ca.customer_id, ca.otp_code, ca.otp_expires_at
