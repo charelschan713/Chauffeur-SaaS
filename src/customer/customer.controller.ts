@@ -158,8 +158,10 @@ export class CustomerController {
   @Delete('bulk/all')
   async deleteAll(@Req() req: any) {
     const tenantId = req.user.tenant_id;
+    let toDelete: any[] = [];
+    try {
     // Get IDs to delete (no active bookings)
-    const toDelete = await this.dataSource.query(
+    toDelete = await this.dataSource.query(
       `SELECT c.id, c.email FROM public.customers c
        WHERE c.tenant_id = $1
          AND NOT EXISTS (
@@ -175,15 +177,17 @@ export class CustomerController {
     for (const c of toDelete) {
       try {
         // Nullify / clean FK references before deleting
-        await this.dataSource.query(`UPDATE public.bookings SET customer_id = NULL WHERE customer_id = $1`, [c.id]);
-        await this.dataSource.query(`DELETE FROM public.saved_payment_methods WHERE customer_id = $1`, [c.id]);
-        await this.dataSource.query(`DELETE FROM public.customer_passengers WHERE customer_id = $1`, [c.id]);
-        // Clean up any other tables that might reference customer_id
-        for (const tbl of ['public.invoices', 'public.customer_invoices', 'public.payments']) {
-          await this.dataSource.query(
-            `UPDATE ${tbl} SET customer_id = NULL WHERE customer_id = $1`,
-            [c.id],
-          ).catch(() => {});
+        // Wipe all FK dependants - catch each individually so errors surface
+        const steps = [
+          `UPDATE public.bookings SET customer_id = NULL WHERE customer_id = '${c.id}'`,
+          `DELETE FROM public.saved_payment_methods WHERE customer_id = '${c.id}'`,
+          `DELETE FROM public.customer_passengers WHERE customer_id = '${c.id}'`,
+          `UPDATE public.payments SET customer_id = NULL WHERE customer_id = '${c.id}'`,
+        ];
+        for (const sql of steps) {
+          await this.dataSource.query(sql).catch((err: any) => {
+            console.warn('Step warn:', sql.slice(0, 60), err.message);
+          });
         }
         await this.dataSource.query(
           `DELETE FROM public.customers WHERE id = $1 AND tenant_id = $2`,
@@ -191,11 +195,15 @@ export class CustomerController {
         );
         deleted.push({ id: c.id, email: c.email });
       } catch (e: any) {
-        // Log but continue
         console.error(`Failed to delete customer ${c.email}:`, e.message);
+        deleted.push({ id: c.id, email: c.email, error: e.message });
       }
     }
     return { deleted: deleted.length, customers: deleted };
+    } catch (e: any) {
+      console.error('deleteAll fatal:', e.message, e.stack);
+      return { deleted: 0, error: e.message };
+    }
   }
 
   @Delete(':id')
