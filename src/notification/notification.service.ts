@@ -1000,7 +1000,8 @@ export class NotificationService {
       driver_pay: payload.driver_pay ?? '',
       passenger_preferences: payload.passenger_preferences ?? '',
     };
-    await this.sendBoth(tenantId, 'DriverNewDispatch', vars,
+    // 'DriverJobAssigned' is the template name; 'DriverNewDispatch' is the event alias
+    await this.sendBoth(tenantId, 'DriverJobAssigned', vars,
       driver.email, driver.phone, booking.id);
   }
 
