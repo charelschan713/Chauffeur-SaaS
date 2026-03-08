@@ -135,6 +135,7 @@ export class CustomerController {
            custom_discount_type = COALESCE($9, custom_discount_type),
            custom_discount_value = COALESCE($10, custom_discount_value),
            active = COALESCE($11, active),
+           discount_rate = COALESCE($12, discount_rate),
            updated_at = now()
        WHERE id = $1 AND tenant_id = $2`,
       [
@@ -149,6 +150,7 @@ export class CustomerController {
         body.custom_discount_type ?? null,
         body.custom_discount_value ?? null,
         body.active ?? null,
+        body.discount_rate != null ? Number(body.discount_rate) : null,
       ],
     );
     return { success: true };

@@ -77,8 +77,8 @@ export class DiscountService {
          start_at             = COALESCE($12, start_at),
          end_at               = COALESCE($13, end_at),
          active               = COALESCE($14, active),
-         max_uses             = COALESCE($15, max_uses),
-         max_uses_per_customer = COALESCE($16, max_uses_per_customer),
+         max_uses             = $15,
+         max_uses_per_customer = $16,
          updated_at           = now()
        WHERE id = $1 AND tenant_id = $2
        RETURNING *`,
