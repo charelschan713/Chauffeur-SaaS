@@ -697,8 +697,12 @@ export function BookPageClient() {
 
   // Saved card pay — skip card setup, just submit booking with existing PM
   const handleSavedCardPay = useCallback(async () => {
-    if (!selectedSavedCard) return;
-    return handleCardConfirmed('__saved__');
+    // Auto-select first card if none selected
+    const cardId = selectedSavedCard ?? savedCards[0]?.stripe_payment_method_id;
+    if (!cardId) return;
+    if (!selectedSavedCard) setSelectedSavedCard(cardId);
+    // Pass cardId directly to avoid stale closure
+    return handleCardConfirmed('__saved__:' + cardId);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedSavedCard]);
 
@@ -734,8 +738,8 @@ export function BookPageClient() {
         toddlerSeats: req.toddler_seats ?? 0,
         boosterSeats: req.booster_seats ?? 0,
         quoteId: currentSession.id,
-        ...(setupIntentId === '__saved__'
-          ? { paymentMethodId: selectedSavedCard }
+        ...(setupIntentId.startsWith('__saved__')
+          ? { paymentMethodId: setupIntentId.replace('__saved__:', '') || selectedSavedCard }
           : { setupIntentId }),
         passengerFirstName: (!samePassenger ? passengerOverride.firstName : passengerDetails.firstName) || undefined,
         passengerLastName:  (!samePassenger ? passengerOverride.lastName  : passengerDetails.lastName)  || undefined,
