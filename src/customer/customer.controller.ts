@@ -154,6 +154,26 @@ export class CustomerController {
     return { success: true };
   }
 
+  /** Bulk delete all customers for a tenant (no active bookings) */
+  @Delete('bulk/all')
+  async deleteAll(@Req() req: any) {
+    const tenantId = req.user.tenant_id;
+    // Only delete customers with no active bookings
+    const result = await this.dataSource.query(
+      `DELETE FROM public.customers
+       WHERE tenant_id = $1
+         AND id NOT IN (
+           SELECT DISTINCT customer_id FROM public.bookings
+           WHERE tenant_id = $1
+             AND customer_id IS NOT NULL
+             AND operational_status NOT IN ('CANCELLED','COMPLETED','JOB_COMPLETED')
+         )
+       RETURNING id, email`,
+      [tenantId],
+    );
+    return { deleted: result.length, customers: result };
+  }
+
   @Delete(':id')
   async delete(@Req() req: any, @Param('id') id: string) {
     const rows = await this.dataSource.query(
