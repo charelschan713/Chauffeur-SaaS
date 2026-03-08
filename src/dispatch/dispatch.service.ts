@@ -1,8 +1,9 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { DataSource, EntityManager } from 'typeorm';
 import { DISPATCH_EVENTS } from './dispatch-events';
 import { randomUUID } from 'crypto';
 import { EligibilityResolver } from './eligibility/eligibility.resolver';
+import { DriverAppService } from '../driver/driver-app.service';
 
 interface AssignmentRecord {
   id: string;
@@ -15,10 +16,12 @@ interface AssignmentRecord {
 @Injectable()
 export class DispatchService {
   private readonly OFFER_TIMEOUT_MINUTES = 2;
+  private readonly logger = new Logger(DispatchService.name);
 
   constructor(
     private readonly dataSource: DataSource,
     private readonly eligibilityResolver: EligibilityResolver,
+    private readonly driverAppService: DriverAppService,
   ) {}
 
   async offerAssignment(
@@ -55,6 +58,34 @@ export class DispatchService {
         vehicle_id: vehicleId,
       });
 
+      // Fetch booking details for push notification
+      const bookingRows = await manager.query(
+        `SELECT pickup_address_text, pickup_at_utc FROM public.bookings WHERE id = $1`,
+        [bookingId],
+      );
+      const booking = bookingRows[0];
+
+      return { assignment, booking };
+    }).then(async ({ assignment, booking }) => {
+      // Send push notification AFTER transaction commits
+      try {
+        const pickupDate = booking?.pickup_at_utc
+          ? new Date(booking.pickup_at_utc).toLocaleString('en-AU', {
+              weekday: 'short', day: 'numeric', month: 'short',
+              hour: 'numeric', minute: '2-digit', hour12: true,
+              timeZone: 'Australia/Sydney',
+            })
+          : '';
+        await this.driverAppService.sendExpoPush(
+          driverId,
+          '🚗 New Job Offer',
+          `${pickupDate}${booking?.pickup_address_text ? ' · ' + booking.pickup_address_text : ''}`,
+          { type: 'job_offer', assignment_id: assignment.id, booking_id: bookingId },
+        );
+        this.logger.log(`Push sent to driver ${driverId} for booking ${bookingId}`);
+      } catch (e: any) {
+        this.logger.warn(`Push failed for driver ${driverId}: ${e?.message}`);
+      }
       return assignment;
     });
   }

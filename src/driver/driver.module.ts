@@ -13,5 +13,6 @@ import { NotificationModule } from '../notification/notification.module';
   imports: [JwtModule.register({}), NetworkModule, NotificationModule],
   controllers: [DriverController, DriverAppController, DriverInviteController, DriverOnboardingController],
   providers: [DriverService, DriverAppService, DriverInviteService],
+  exports: [DriverAppService],
 })
 export class DriverModule {}

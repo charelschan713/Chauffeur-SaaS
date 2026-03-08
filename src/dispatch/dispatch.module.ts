@@ -5,9 +5,10 @@ import { DispatchTimeoutWorker } from './dispatch-timeout.worker';
 import { DispatchEventListener } from './dispatch-event.listener';
 import { BookingModule } from '../booking/booking.module';
 import { EligibilityResolver } from './eligibility/eligibility.resolver';
+import { DriverModule } from '../driver/driver.module';
 
 @Module({
-  imports: [BookingModule],
+  imports: [BookingModule, DriverModule],
   controllers: [DispatchController],
   providers: [
     DispatchService,
