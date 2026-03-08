@@ -644,7 +644,8 @@ export function BookPageClient() {
 
   // Fetch saved cards when logged in
   useEffect(() => {
-    if (!token || savedCards.length > 0) return;
+    if (!token) return;
+    // Always re-fetch when token changes (even if savedCards already populated)
     api.get('/customer-portal/payment-methods').then(r => {
       const cards = r.data ?? [];
       setSavedCards(cards);
@@ -652,8 +653,11 @@ export function BookPageClient() {
         const def = cards.find((c: any) => c.is_default) ?? cards[0];
         setSelectedSavedCard(def.stripe_payment_method_id);
         setUseNewCard(false);
+        console.log('[BookPage] saved card selected:', def.stripe_payment_method_id);
+      } else {
+        console.log('[BookPage] no saved cards found');
       }
-    }).catch(() => {});
+    }).catch((e) => console.error('[BookPage] fetch cards failed:', e?.message));
   }, [token]);
 
   // Eagerly fetch setup intent when booking form loads so Stripe iframe has clientSecret
@@ -1523,7 +1527,7 @@ export function BookPageClient() {
       />
 
       {/* Sticky Confirm & Pay bar — always visible at bottom */}
-      {step === 'details' && !useNewCard && selectedSavedCard && selectedResult && (
+      {(['details', 'auth', 'login', 'guest'] as const).includes(step as any) && !useNewCard && selectedSavedCard && selectedResult && (
         <div className="fixed bottom-0 left-0 right-0 z-30 px-4 pb-safe"
           style={{
             background: 'rgba(13,15,20,0.97)',
