@@ -85,10 +85,13 @@ export class AssignmentService {
       ],
     );
 
-    await this.notificationService.handleEvent('DriverInvitationSent', {
+    // Notify driver of new dispatch
+    this.notificationService.handleEvent('DriverNewDispatch', {
+      tenant_id: tenantId,
       booking_id: bookingId,
       driver_id: dto.driver_id,
-    });
+      assignment_id: rows[0].id,
+    }).catch((e) => console.error('[Notification] DriverNewDispatch FAILED:', e?.message));
 
     return { id: rows[0].id };
   }
