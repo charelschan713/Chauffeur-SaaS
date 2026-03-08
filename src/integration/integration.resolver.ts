@@ -45,7 +45,6 @@ export class IntegrationResolver {
         try {
           config = JSON.parse(this.encryption.decrypt(raw));
         } catch {
-          // ENCRYPTION_KEY mismatch — key was saved with a different key
           this.logger.warn(`Integration decryption failed for ${integrationType} — ENCRYPTION_KEY mismatch. Re-save the integration.`);
           return null;
         }
@@ -56,11 +55,12 @@ export class IntegrationResolver {
         };
       } catch (err) {
         this.logger.error(`Decryption failed for ${integrationType} tenant ${tenantId}:`, err as Error);
-        // fall through to platform default
+        return null;
       }
     }
 
-    return this.platformDefault(integrationType);
+    // No tenant config found — do NOT fall back to platform credentials
+    return null;
   }
 
   private platformDefault(
