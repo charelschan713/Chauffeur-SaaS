@@ -63,7 +63,8 @@ interface QuoteSession {
         grand_total_minor: number;
         minimum_applied: boolean;
         discount_amount_minor?: number;
-        pre_discount_total_minor?: number;
+        pre_discount_total_minor?: number;   // alias
+        pre_discount_fare_minor?: number;
         extras_minor?: number;
         waypoints_minor?: number;
         baby_seats_minor?: number;
@@ -881,13 +882,16 @@ export function BookPageClient() {
                   finalFareMinor: selectedResult.estimated_total_minor,
                   discountMinor: baseDiscountMinor,
                 } : null);
-                // originalPrice = what you'd pay WITHOUT discount (same total but before discount applied)
-                // Use grand_total_minor (full price before discount) from snapshot if available
                 const preview = selectedResult.pricing_snapshot_preview;
-                const grandTotalMinor = preview?.grand_total_minor ?? selectedResult.estimated_total_minor;
+                // Original (crossed-out) price = pre-discount fare + toll (not discounted)
+                // pre_discount_fare_minor is the fare BEFORE discount was applied
+                const tollMinor = preview?.toll_parking_minor ?? 0;
+                const preDiscountFare = preview?.pre_discount_fare_minor ?? preview?.pre_discount_total_minor ?? 0;
+                // If we have snapshot data, use it directly; else fall back to final + discount
                 const discountMinor = effectiveDiscount?.discountMinor ?? 0;
-                // original = final + discount (works for both loyalty and base discount)
-                const originalPrice = (selectedResult.estimated_total_minor) + discountMinor;
+                const originalPrice = preDiscountFare > 0
+                  ? preDiscountFare + tollMinor
+                  : selectedResult.estimated_total_minor + discountMinor;
                 const finalPrice = selectedResult.estimated_total_minor;
 
                 return (
