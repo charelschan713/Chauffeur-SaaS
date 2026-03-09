@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import api from '@/lib/api';
 import { useAuthStore } from '@/lib/auth-store';
 import Link from 'next/link';
@@ -32,9 +32,17 @@ const tabCls = (active: boolean) =>
 const selectCls = `h-full bg-transparent text-[hsl(var(--foreground))] text-sm outline-none cursor-pointer pr-1`;
 
 export function LoginClient() {
-  const router   = useRouter();
-  const setAuth  = useAuthStore((s) => s.setAuth);
+  const router       = useRouter();
+  const searchParams = useSearchParams();
+  const setAuth      = useAuthStore((s) => s.setAuth);
   const [tenantSlug, setTenantSlug] = useState('');
+
+  // After login, redirect to ?redirect= param, else /dashboard
+  const getPostLoginPath = () => {
+    const r = searchParams.get('redirect');
+    if (r && r.startsWith('/')) return r;
+    return '/dashboard';
+  };
   const [tab, setTab]   = useState<Tab>('email');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -74,7 +82,7 @@ export function LoginClient() {
     try {
       const { data } = await api.post('/customer-auth/login', { tenantSlug, email, password });
       setAuth(data.accessToken, data.customerId, tenantSlug);
-      router.push('/dashboard');
+      router.push(getPostLoginPath());
     } catch (err: any) {
       setError(err.response?.data?.message ?? 'Login failed');
     } finally { setLoading(false); }
@@ -103,7 +111,7 @@ export function LoginClient() {
       const { data } = await api.post('/customer-auth/otp/verify', { tenantSlug, phone: phoneNum, otp: otpCode });
       setAuth(data.accessToken, data.customerId, tenantSlug);
       // Phone OTP login = identity already verified — skip email verification
-      router.push('/dashboard');
+      router.push(getPostLoginPath());
     } catch (err: any) {
       setError(err.response?.data?.message ?? 'Invalid or expired code');
     } finally { setLoading(false); }
