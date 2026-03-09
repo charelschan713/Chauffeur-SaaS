@@ -490,7 +490,9 @@ export function BookPageClient() {
   const [setupClientSecret, setSetupClientSecret] = useState<string | null>(null);
   const [setupSecretLoading, setSetupSecretLoading] = useState(false);
   const [savedCards, setSavedCards] = useState<any[]>([]);
+  const savedCardsRef = useRef<any[]>([]);
   const [selectedSavedCard, setSelectedSavedCard] = useState<string | null>(null); // stripe_payment_method_id
+  const selectedSavedCardRef = useRef<string | null>(null);
   const [useNewCard, setUseNewCard] = useState(false);
 
   // "Is the passenger the same person?" toggle
@@ -649,9 +651,11 @@ export function BookPageClient() {
     api.get('/customer-portal/payment-methods').then(r => {
       const cards = r.data ?? [];
       setSavedCards(cards);
+      savedCardsRef.current = cards;
       if (cards.length > 0) {
         const def = cards.find((c: any) => c.is_default) ?? cards[0];
         setSelectedSavedCard(def.stripe_payment_method_id);
+        selectedSavedCardRef.current = def.stripe_payment_method_id;
         setUseNewCard(false);
         console.log('[BookPage] saved card selected:', def.stripe_payment_method_id);
       } else {
@@ -792,10 +796,9 @@ export function BookPageClient() {
     // Validate passenger details
     if (!passengerDetails.firstName.trim()) { setSubmitError('Please enter your first name.'); return; }
     if (!passengerDetails.lastName.trim())  { setSubmitError('Please enter your last name.'); return; }
-    // Auto-select first card if none selected
-    const cardId = selectedSavedCard ?? savedCards[0]?.stripe_payment_method_id;
+    // Read from refs to avoid stale closure — always latest value
+    const cardId = selectedSavedCardRef.current ?? savedCardsRef.current[0]?.stripe_payment_method_id;
     if (!cardId) { setSubmitError('No payment card found. Please add a card.'); return; }
-    if (!selectedSavedCard) setSelectedSavedCard(cardId);
     setSubmitting(true);
     setSubmitError('');
     try {
@@ -804,7 +807,7 @@ export function BookPageClient() {
       setSubmitting(false);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedSavedCard, savedCards, passengerDetails, handleCardConfirmed]);
+  }, [passengerDetails, handleCardConfirmed]);
 
   // ── Render helpers ──
   const [cityName, setCityName]           = useState('');
@@ -1441,7 +1444,7 @@ export function BookPageClient() {
                     <div className="space-y-2">
                       {savedCards.map((c: any) => (
                         <button key={c.stripe_payment_method_id} type="button"
-                          onClick={() => { setSelectedSavedCard(c.stripe_payment_method_id); setUseNewCard(false); }}
+                          onClick={() => { setSelectedSavedCard(c.stripe_payment_method_id); selectedSavedCardRef.current = c.stripe_payment_method_id; setUseNewCard(false); }}
                           className={`w-full flex items-center gap-3 p-3 rounded-xl border text-left transition-colors ${
                             !useNewCard && selectedSavedCard === c.stripe_payment_method_id
                               ? 'border-[hsl(var(--primary))] bg-[hsl(var(--primary)/0.08)]'
