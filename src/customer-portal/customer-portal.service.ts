@@ -739,6 +739,15 @@ export class CustomerPortalService implements OnModuleInit {
     const stripe = await this.getStripe(b.tenant_id);
     const appUrl = process.env.CUSTOMER_APP_URL ?? 'https://aschauffeured.chauffeurssolution.com';
 
+    // Resolve Stripe Connect account ID if tenant uses Connect
+    // NULL = platform Stripe mode (platform key pays directly, no Connect routing)
+    // non-NULL = tenant/Connect account mode (funds routed to tenant's connected account)
+    const tsRows = await this.db.query(
+      `SELECT stripe_connect_account_id FROM public.tenant_settings WHERE tenant_id=$1 LIMIT 1`,
+      [b.tenant_id],
+    );
+    const stripeConnectAccountId: string | null = tsRows[0]?.stripe_connect_account_id ?? null;
+
     let stripeCustomerId: string | undefined;
     if (b.customer_id) {
       const custRows = await this.db.query(
@@ -749,8 +758,8 @@ export class CustomerPortalService implements OnModuleInit {
     }
 
     // P0-1: create PI + immediately persist payment record
-    // stripe_account_id is NULL for platform-key payments (no Stripe Connect)
-    // DB migration M1 already dropped NOT NULL constraint on this column
+    // stripe_account_id: non-NULL = tenant Connect account; NULL = platform mode
+    // DB migration M1 already dropped NOT NULL constraint
     let pi: import('stripe').default.PaymentIntent;
     try {
       pi = await stripe.paymentIntents.create({
@@ -794,12 +803,13 @@ export class CustomerPortalService implements OnModuleInit {
            amount_authorized_minor,
            amount_captured_minor, amount_refunded_minor,
            payment_status
-         ) VALUES ($1,$2,NULL,$3,'INITIAL',$4,$5,0,0,$6::payment_status_full_enum)
+         ) VALUES ($1,$2,$3,$4,'INITIAL',$5,$6,0,0,$7::payment_status_full_enum)
          ON CONFLICT (tenant_id, stripe_payment_intent_id) DO UPDATE
-           SET payment_status        = EXCLUDED.payment_status,
+           SET payment_status          = EXCLUDED.payment_status,
                amount_authorized_minor = EXCLUDED.amount_authorized_minor,
-               updated_at            = now()`,
-        [b.tenant_id, b.id, pi.id, b.currency, trustedAmountMinor, piPaymentStatus],
+               updated_at              = now()`,
+        // stripe_account_id: real Connect ID when available, NULL for platform mode
+        [b.tenant_id, b.id, stripeConnectAccountId, pi.id, b.currency, trustedAmountMinor, piPaymentStatus],
       );
     } catch (dbErr: any) {
       // PI created but DB write failed — log PI id for manual recovery

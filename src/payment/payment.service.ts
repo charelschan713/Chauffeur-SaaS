@@ -8,7 +8,8 @@ import { BOOKING_EVENTS } from '../booking/booking-events';
 interface CreatePaymentIntentDto {
   amountMinor: number;
   currency: string;
-  stripeAccountId: string;
+  // stripe_account_id: non-NULL = tenant/Connect account mode; NULL/undefined = platform mode
+  stripeAccountId?: string | null;
   stripeCustomerId?: string | null;
 }
 
@@ -40,6 +41,11 @@ export class PaymentService {
       stripeCustomerId = customerRows[0]?.stripe_customer_id ?? null;
     }
 
+    // stripe_account_id: non-NULL = Connect mode; NULL/undefined = platform mode
+    const piOpts: import('stripe').default.RequestOptions = dto.stripeAccountId
+      ? { stripeAccount: dto.stripeAccountId }
+      : {};
+
     const paymentIntent = await this.stripe.paymentIntents.create(
       {
         amount: dto.amountMinor,
@@ -52,7 +58,7 @@ export class PaymentService {
           payment_type: 'INITIAL',
         },
       },
-      { stripeAccount: dto.stripeAccountId },
+      piOpts,
     );
 
     // P1-A: store actual requested amount; status reflects real lifecycle state
@@ -98,10 +104,15 @@ export class PaymentService {
     if (!rows.length) throw new NotFoundException('No authorized payment found for this booking');
     const payment = rows[0];
 
+    // stripe_account_id: non-NULL = tenant Connect account; NULL = platform mode
+    // Only pass stripeAccount option when a real Connect account ID exists
+    const captureOpts = payment.stripe_account_id
+      ? { stripeAccount: payment.stripe_account_id as string }
+      : {};
     await this.stripe.paymentIntents.capture(
       payment.stripe_payment_intent_id,
       {},
-      { stripeAccount: payment.stripe_account_id },
+      captureOpts,
     );
 
     await this.dataSource.query(
@@ -125,12 +136,16 @@ export class PaymentService {
     if (!rows.length) throw new NotFoundException('Payment not found');
     const payment = rows[0];
 
+    // stripe_account_id: non-NULL = tenant Connect account; NULL = platform mode
+    const refundOpts = payment.stripe_account_id
+      ? { stripeAccount: payment.stripe_account_id as string }
+      : {};
     await this.stripe.refunds.create(
       {
         payment_intent: payment.stripe_payment_intent_id,
         amount: amountMinor,
       },
-      { stripeAccount: payment.stripe_account_id },
+      refundOpts,
     );
 
     return { success: true };
