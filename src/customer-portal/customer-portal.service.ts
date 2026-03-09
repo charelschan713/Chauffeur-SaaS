@@ -265,6 +265,21 @@ export class CustomerPortalService implements OnModuleInit {
       currency        = currency        ?? payload.currency ?? 'AUD';
       passengerCount  = passengerCount  ?? req.passengers     ?? req.passenger_count ?? 1;
       quoteSessionId  = session.id;
+      // Return trip fields from quote payload
+      if ((req.trip_mode ?? req.tripMode) === 'RETURN') {
+        dto.isReturnTrip = true;
+        // Build return_pickup_at_utc from return_date + return_time if not already set
+        if (!dto.returnPickupAtUtc && req.return_date) {
+          const returnLocal = `${req.return_date}T${req.return_time ?? '00:00'}:00`;
+          dto.returnPickupAtUtc = new Date(returnLocal).toISOString();
+        }
+        dto.returnPickupAtUtc = dto.returnPickupAtUtc ?? req.return_pickup_at_utc ?? null;
+        dto.returnPickupAddressText = dto.returnPickupAddressText ?? req.pickup_address ?? pickupAddress;
+      }
+      // Waypoints from quote
+      if (!dto.waypoints?.length && req.waypoints?.length) {
+        dto.waypoints = req.waypoints.filter(Boolean);
+      }
 
       // Get final price + pricing breakdown from quote result for requested car type
       if (payload.results?.length) {
@@ -314,6 +329,7 @@ export class CustomerPortalService implements OnModuleInit {
           operational_status, payment_status,
           flight_number, passenger_count, luggage_count, special_requests,
           waypoints,
+          is_return_trip, return_pickup_at_utc, return_pickup_address_text,
           created_at, updated_at)
        VALUES
          ($1, $2, $3, 'WIDGET',
@@ -328,6 +344,7 @@ export class CustomerPortalService implements OnModuleInit {
           'PENDING_CUSTOMER_CONFIRMATION', 'UNPAID',
           $20, $21, $22, $23,
           $25,
+          $26, $27, $28,
           now(), now())
        RETURNING *`,
       [
@@ -343,8 +360,11 @@ export class CustomerPortalService implements OnModuleInit {
         passengerCount,
         dto.luggageCount ?? 0,
         notes,
-        totalPriceMinor,  // $24 — prepay_total_minor
-        dto.waypoints?.filter(Boolean) ?? [],  // $25 — waypoints array
+        totalPriceMinor,                          // $24 — prepay_total_minor
+        dto.waypoints?.filter(Boolean) ?? [],     // $25 — waypoints
+        dto.isReturnTrip ? true : false,          // $26 — is_return_trip
+        dto.returnPickupAtUtc ?? null,            // $27 — return_pickup_at_utc
+        dto.returnPickupAddressText ?? null,      // $28 — return_pickup_address_text
       ],
     );
 
