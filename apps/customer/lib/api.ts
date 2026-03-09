@@ -63,11 +63,18 @@ api.interceptors.response.use(
     );
 
     if (err.response?.status === 401 && typeof window !== 'undefined') {
-      // Only force-redirect to login on protected pages, NOT on public pages like /quote or /book
-      // /book/resume is auth-required — intentionally NOT in this list
-      const publicPaths = ['/quote', '/book', '/login', '/register', '/no-tenant', '/reset-password'];
-      const isPublic = publicPaths.some(p => window.location.pathname.startsWith(p));
-      if (!isPublic) {
+      // Exact-match public paths that should NOT trigger a login redirect on 401.
+      // NOTE: use exact match (===) not startsWith to avoid /book/resume being treated as public.
+      // Exact-match /book and /quote; allow /book/resume and /book/[anything] to be protected
+      const pathname = window.location.pathname.replace(/\/$/, '');
+      const isPublicExact =
+        pathname === '/book' ||
+        pathname === '/quote' ||
+        pathname === '/login' ||
+        pathname === '/register' ||
+        pathname === '/no-tenant' ||
+        pathname.startsWith('/reset-password');
+      if (!isPublicExact) {
         localStorage.removeItem('customer_token');
         // Preserve current path as redirect target so login can return user here
         const currentPath = window.location.pathname + window.location.search;
