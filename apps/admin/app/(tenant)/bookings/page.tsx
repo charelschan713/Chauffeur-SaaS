@@ -130,9 +130,16 @@ export default function BookingsPage() {
             >
               <option value="">All Status</option>
               {[
-                ['DRAFT','Draft'],['PENDING','Pending'],['CONFIRMED','Confirmed'],['ASSIGNED','Assigned'],
-                ['IN_PROGRESS','In Progress'],['JOB_STARTED','In Progress'],['COMPLETED','Completed'],
-                ['JOB_COMPLETED','Completed'],['CANCELLED','Cancelled'],['NO_SHOW','No Show'],
+                ['DRAFT',         'Draft'],
+                ['PENDING',       'Pending'],
+                ['CONFIRMED',     'Confirmed'],
+                ['ASSIGNED',      'Assigned'],
+                ['IN_PROGRESS',   'Passenger On Board'],
+                ['JOB_STARTED',   'In Progress'],
+                ['COMPLETED',     'Completed'],
+                ['JOB_COMPLETED', 'Completed (Driver)'],
+                ['CANCELLED',     'Cancelled'],
+                ['NO_SHOW',       'No Show'],
               ].map(([val, label]) => (
                 <option key={val} value={val}>{label}</option>
               ))}
