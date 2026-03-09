@@ -204,11 +204,17 @@ export class PricingResolver {
     );
     const carType = classRows[0];
 
-    const waypoints = Math.max(0, ctx.waypointsCount ?? 0);
+    // Waypoint stops: for RETURN trips, charge both outbound + return stops
+    const outboundWaypoints = Math.max(0, ctx.waypointsCount ?? 0);
+    const returnWaypoints   = ctx.tripType === 'RETURN'
+      ? Math.max(0, ctx.returnWaypointsCount ?? outboundWaypoints)
+      : 0;
+    const totalWaypoints = outboundWaypoints + returnWaypoints;
+
     const infantSeats  = Math.max(0, ctx.infantSeats  ?? ctx.babyseatCount ?? 0);
     const toddlerSeats = Math.max(0, ctx.toddlerSeats ?? 0);
     const boosterSeats = Math.max(0, ctx.boosterSeats ?? 0);
-    const extras = waypoints * (carType.waypoint_minor ?? 0)
+    const extras = totalWaypoints * (carType.waypoint_minor ?? 0)
       + infantSeats  * (carType.infant_seat_minor   ?? 0)
       + toddlerSeats * (carType.toddler_seat_minor  ?? 0)
       + boosterSeats * (carType.booster_seat_minor  ?? 0);
@@ -355,7 +361,7 @@ export class PricingResolver {
       grand_total_minor: grandTotalMinor,
       discount_source_customer_id: ctx.customerId ?? null,
       extras_minor: extras,
-      waypoints_minor: waypoints * (carType.waypoint_minor ?? 0),
+      waypoints_minor: totalWaypoints * (carType.waypoint_minor ?? 0),
       baby_seats_minor: (infantSeats * (carType.infant_seat_minor ?? 0))
         + (toddlerSeats * (carType.toddler_seat_minor ?? 0))
         + (boosterSeats * (carType.booster_seat_minor ?? 0)),

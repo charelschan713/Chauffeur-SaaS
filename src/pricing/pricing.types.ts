@@ -9,6 +9,7 @@ export interface PricingContext {
   pickupZoneName?: string;
   dropoffZoneName?: string;
   waypointsCount: number;
+  returnWaypointsCount?: number;   // stops on return leg (may differ from outbound)
   babyseatCount: number;
   infantSeats?: number;
   toddlerSeats?: number;

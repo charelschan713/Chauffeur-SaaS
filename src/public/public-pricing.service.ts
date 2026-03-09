@@ -75,10 +75,9 @@ export class PublicPricingService {
           durationMinutes: dto.duration_minutes,
           returnDistanceKm: dto.return_distance_km,
           returnDurationMinutes: dto.return_duration_minutes,
-          // Waypoints charged only when waypoint_charge_enabled is ON for this service type
-          waypointsCount: waypointChargeEnabled
-            ? (dto.waypoints_count ?? 0) + (dto.return_waypoints_count ?? 0)
-            : 0,
+          // Outbound stops — pricing resolver handles return stops separately
+          waypointsCount: waypointChargeEnabled ? (dto.waypoints_count ?? 0) : 0,
+          returnWaypointsCount: waypointChargeEnabled ? (dto.return_waypoints_count ?? 0) : 0,
           babyseatCount:
             (dto.infant_seats ?? 0) +
             (dto.toddler_seats ?? 0) +

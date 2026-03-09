@@ -41,6 +41,7 @@ export class PricingController {
       pickupZoneName: body.pickupZoneName,
       dropoffZoneName: body.dropoffZoneName,
       waypointsCount: body.waypointsCount ?? 0,
+      returnWaypointsCount: body.returnWaypointsCount ?? 0,
       babyseatCount: body.babyseatCount ?? body.infant_seats ?? 0,
       infantSeats:  body.infant_seats  ?? body.babyseatCount ?? 0,
       toddlerSeats: body.toddler_seats ?? 0,
