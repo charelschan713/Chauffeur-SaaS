@@ -127,22 +127,45 @@ export class CustomerAuthService {
       phoneNumber = dto.phone.replace(/^0/, ''); // strip leading 0 for AU numbers
     }
 
-    // Upsert customer_auth by phone
+    // Upsert customer_auth by phone — match full number regardless of how country code is stored
+    const fullPhone = `${phoneCode}${phoneNumber}`;
     const rows = await this.db.query(
-      `SELECT ca.id FROM public.customer_auth ca
+      `SELECT ca.id, c.is_guest FROM public.customer_auth ca
        JOIN public.customers c ON c.id = ca.customer_id
-       WHERE ca.tenant_id = $1 AND c.phone_number = $2`,
-      [tenant.id, phoneNumber],
+       WHERE ca.tenant_id = $1
+         AND (
+           c.phone_number = $2
+           OR CONCAT(c.phone_country_code, c.phone_number) = $3
+           OR c.phone_number = $3
+         )`,
+      [tenant.id, phoneNumber, fullPhone],
     );
 
     if (!rows.length) {
-      // Create guest customer for new phone number
-      const [customer] = await this.db.query(
-        `INSERT INTO public.customers (tenant_id, phone_country_code, phone_number, first_name, last_name, is_guest, created_at, updated_at)
-         VALUES ($1, $2, $3, 'Guest', '', true, now(), now())
-         RETURNING id`,
-        [tenant.id, phoneCode, phoneNumber],
+      // Only create guest if no existing customer (guest or real) has this phone
+      const existingCustomer = await this.db.query(
+        `SELECT id FROM public.customers
+         WHERE tenant_id = $1
+           AND (phone_number = $2 OR CONCAT(phone_country_code, phone_number) = $3 OR phone_number = $3)
+         LIMIT 1`,
+        [tenant.id, phoneNumber, fullPhone],
       );
+
+      let customerId: string;
+      if (existingCustomer.length) {
+        customerId = existingCustomer[0].id;
+      } else {
+        // Create guest customer for new phone number
+        const [customer] = await this.db.query(
+          `INSERT INTO public.customers (tenant_id, phone_country_code, phone_number, first_name, last_name, is_guest, created_at, updated_at)
+           VALUES ($1, $2, $3, 'Guest', '', true, now(), now())
+           RETURNING id`,
+          [tenant.id, phoneCode, phoneNumber],
+        );
+        customerId = customer.id;
+      }
+
+      const [customer] = [{ id: customerId }];
       await this.db.query(
         `INSERT INTO public.customer_auth (customer_id, tenant_id, phone_number, otp_code, otp_expires_at, last_otp_sent_at)
          VALUES ($1, $2, $3, $4, $5, now())`,
@@ -157,7 +180,7 @@ export class CustomerAuthService {
     }
 
     // Send OTP via SMS (non-blocking — don't fail if SMS fails)
-    const fullPhone = `${phoneCode}${phoneNumber}`;
+    // fullPhone already defined above
     await this.notificationSvc.handleEvent('CustomerOtp', {
       tenant_id: tenant.id,
       phone: fullPhone,
