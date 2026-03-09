@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ForbiddenException, OnModuleInit } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, OnModuleInit, Logger } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 
 /**
@@ -7,6 +7,7 @@ import { DataSource } from 'typeorm';
  */
 @Injectable()
 export class DriverAppService implements OnModuleInit {
+  private readonly logger = new Logger('DriverAppService');
   constructor(private readonly dataSource: DataSource) {}
 
   async onModuleInit() {
@@ -411,29 +412,94 @@ export class DriverAppService implements OnModuleInit {
 
   async sendExpoPush(driverId: string, title: string, body: string, data?: Record<string, any>) {
     const rows = await this.dataSource.query(
-      `SELECT expo_push_token FROM users WHERE id = $1`,
+      `SELECT expo_push_token, apns_token FROM users WHERE id = $1`,
       [driverId],
     );
-    const token = rows[0]?.expo_push_token;
-    if (!token) return { sent: false, reason: 'no_token' };
+    const expoToken = rows[0]?.expo_push_token;
+    const apnsToken = rows[0]?.apns_token;
+
+    // Try Expo push first (ExponentPushToken[...])
+    if (expoToken?.startsWith('ExponentPushToken')) {
+      try {
+        const res = await fetch('https://exp.host/--/api/v2/push/send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+          body: JSON.stringify({
+            to: expoToken,
+            title,
+            body,
+            data: data ?? {},
+            sound: 'default',
+            priority: 'high',
+            channelId: 'default',
+          }),
+        });
+        const json = await res.json() as any;
+        return { sent: true, via: 'expo', result: json };
+      } catch (e: any) {
+        this.logger.error(`[Push] Expo failed: ${e?.message}`);
+      }
+    }
+
+    // Fall back to APNs direct (native iOS app with raw APNs token)
+    if (apnsToken) {
+      return await this.sendApnsPush(apnsToken, title, body, data);
+    }
+
+    return { sent: false, reason: 'no_token' };
+  }
+
+  /** Send push notification directly via APNs HTTP/2 API */
+  private async sendApnsPush(deviceToken: string, title: string, body: string, data?: Record<string, any>) {
+    const keyId   = process.env.APNS_KEY_ID;
+    const teamId  = process.env.APNS_TEAM_ID;
+    const privKey = process.env.APNS_PRIVATE_KEY?.replace(/\\n/g, '\n');
+    const bundleId = process.env.APNS_BUNDLE_ID ?? 'com.aschauffeured.driver';
+
+    if (!keyId || !teamId || !privKey) {
+      this.logger.warn(`[Push] APNs env vars not set — skipping push to ${deviceToken.slice(0, 8)}...`);
+      return { sent: false, reason: 'apns_not_configured' };
+    }
 
     try {
-      const res = await fetch('https://exp.host/--/api/v2/push/send', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-        body: JSON.stringify({
-          to: token,
-          title,
-          body,
-          data: data ?? {},
-          sound: 'default',
-          priority: 'high',
-          channelId: 'default',
-        }),
+      // Build JWT for APNs auth
+      const { createSign } = await import('crypto');
+      const header  = Buffer.from(JSON.stringify({ alg: 'ES256', kid: keyId })).toString('base64url');
+      const payload = Buffer.from(JSON.stringify({ iss: teamId, iat: Math.floor(Date.now() / 1000) })).toString('base64url');
+      const toSign  = `${header}.${payload}`;
+      const sign    = createSign('SHA256');
+      sign.update(toSign);
+      const sig = sign.sign({ key: privKey, dsaEncoding: 'ieee-p1363' }).toString('base64url');
+      const jwt = `${toSign}.${sig}`;
+
+      const apnsPayload = JSON.stringify({
+        aps: { alert: { title, body }, sound: 'default', badge: 1 },
+        ...(data ?? {}),
       });
-      const json = await res.json() as any;
-      return { sent: true, result: json };
+
+      const url = `https://api.push.apple.com/3/device/${deviceToken}`;
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: {
+          authorization: `bearer ${jwt}`,
+          'apns-topic': bundleId,
+          'apns-push-type': 'alert',
+          'apns-priority': '10',
+          'content-type': 'application/json',
+        },
+        body: apnsPayload,
+      });
+
+      if (res.status === 200) {
+        this.logger.log(`[Push] APNs sent to ${deviceToken.slice(0, 8)}...`);
+        return { sent: true, via: 'apns' };
+      } else {
+        const err = await res.text();
+        this.logger.error(`[Push] APNs error ${res.status}: ${err}`);
+        return { sent: false, via: 'apns', error: err };
+      }
     } catch (e: any) {
+      this.logger.error(`[Push] APNs exception: ${e?.message}`);
       return { sent: false, error: e?.message };
     }
   }
