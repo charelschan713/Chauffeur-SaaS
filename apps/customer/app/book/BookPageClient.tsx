@@ -1200,6 +1200,7 @@ export function BookPageClient() {
           {/* Trip summary */}
           {pickup && (
             <div className="w-full rounded-2xl bg-[hsl(var(--card))] border border-[hsl(var(--border))] px-4 py-4 text-left space-y-3">
+              {/* Outbound leg */}
               <div className="flex items-start gap-3">
                 <div className="w-2 h-2 rounded-full bg-emerald-400 mt-1.5 shrink-0" />
                 <div>
@@ -1207,6 +1208,16 @@ export function BookPageClient() {
                   <p className="text-sm text-white/75 leading-snug">{pickup}</p>
                 </div>
               </div>
+              {/* Waypoints */}
+              {session?.payload?.request?.waypoints?.filter(Boolean).map((wp: string, i: number) => (
+                <div key={i} className="flex items-start gap-3">
+                  <div className="w-2 h-2 rounded-full bg-amber-400 mt-1.5 shrink-0" />
+                  <div>
+                    <p className="text-[10px] text-gray-400 uppercase tracking-wide">Stop {i + 1}</p>
+                    <p className="text-sm text-white/75 leading-snug">{wp}</p>
+                  </div>
+                </div>
+              ))}
               {dropoff && (
                 <div className="flex items-start gap-3">
                   <div className="w-2 h-2 rounded-full bg-[hsl(var(--primary))] mt-1.5 shrink-0" />
@@ -1214,6 +1225,12 @@ export function BookPageClient() {
                     <p className="text-[10px] text-gray-400 uppercase tracking-wide">Drop-off</p>
                     <p className="text-sm text-white/75 leading-snug">{dropoff}</p>
                   </div>
+                </div>
+              )}
+              {/* Return leg indicator */}
+              {session?.payload?.request?.trip_mode === 'RETURN' && (
+                <div className="border-t border-[hsl(var(--border)/0.5)] pt-2 flex items-center gap-2">
+                  <span className="text-[10px] text-[hsl(var(--primary)/0.7)] uppercase tracking-widest font-semibold">+ Return leg included</span>
                 </div>
               )}
               <div className="border-t border-gray-100 pt-3 flex items-center justify-between">
