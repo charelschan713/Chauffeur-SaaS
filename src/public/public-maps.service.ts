@@ -11,14 +11,44 @@ export class PublicMapsService {
     private readonly tenantSvc: PublicTenantService,
   ) {}
 
-  async getRoute(slug: string, origin: string, destination: string, pickupAt?: string | null) {
+  async getRoute(
+    slug: string,
+    origin: string,
+    destination: string,
+    pickupAt?: string | null,
+    waypoints?: string[],
+  ) {
     const tenant = await this.tenantSvc.resolveTenantBySlug(slug);
-    const route = await this.maps.getRoute(tenant.id, origin, destination, pickupAt);
-    if (!route) return { distance_km: 0, duration_minutes: 0 };
-    return {
-      distance_km: route.distanceKm,
-      duration_minutes: route.durationMinutes,
-    };
+
+    // Build ordered stop list: pickup → [...waypoints] → dropoff
+    const stops = [origin, ...(waypoints ?? []).filter(Boolean), destination];
+
+    if (stops.length <= 2) {
+      // Simple point-to-point
+      const route = await this.maps.getRoute(tenant.id, origin, destination, pickupAt);
+      if (!route) return { distance_km: 0, duration_minutes: 0 };
+      return { distance_km: route.distanceKm, duration_minutes: route.durationMinutes };
+    }
+
+    // Multi-stop: sum each leg's distance and duration sequentially
+    let totalDistanceKm = 0;
+    let totalDurationMinutes = 0;
+
+    for (let i = 0; i < stops.length - 1; i++) {
+      const leg = await this.maps.getRoute(tenant.id, stops[i], stops[i + 1], pickupAt);
+      if (!leg) {
+        this.logger.warn(`Route leg ${i} failed: ${stops[i]} → ${stops[i + 1]}`);
+        return { distance_km: 0, duration_minutes: 0 };
+      }
+      totalDistanceKm += leg.distanceKm;
+      totalDurationMinutes += leg.durationMinutes;
+    }
+
+    this.logger.log(
+      `Multi-stop route (${stops.length - 1} legs): ${totalDistanceKm.toFixed(1)}km, ${totalDurationMinutes}min`,
+    );
+
+    return { distance_km: totalDistanceKm, duration_minutes: totalDurationMinutes };
   }
 
   async autocomplete(

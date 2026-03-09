@@ -51,8 +51,15 @@ export class PublicController {
     @Query('origin') origin: string,
     @Query('destination') destination: string,
     @Query('pickup_at') pickupAt?: string,
+    @Query('waypoints') waypoints?: string | string[],
   ) {
-    return this.mapsSvc.getRoute(slug, origin, destination, pickupAt ?? null);
+    // waypoints can be repeated query params: ?waypoints=A&waypoints=B
+    const waypointList = Array.isArray(waypoints)
+      ? waypoints
+      : waypoints
+      ? [waypoints]
+      : [];
+    return this.mapsSvc.getRoute(slug, origin, destination, pickupAt ?? null, waypointList);
   }
 
   @Get('cities')

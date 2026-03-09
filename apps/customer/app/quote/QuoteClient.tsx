@@ -373,6 +373,9 @@ export function QuoteClient() {
       const effectiveDropoff = dropoff || pickup;
       const pickupAtUtcStr = new Date(`${date}T${time}:00`).toISOString();
       const routeParams = new URLSearchParams({ tenant_slug: slug, origin: pickup, destination: effectiveDropoff, pickup_at: pickupAtUtcStr });
+      // Add waypoints (stops) so distance includes all legs
+      const activeWaypoints = waypoints.filter(Boolean);
+      activeWaypoints.forEach(wp => routeParams.append('waypoints', wp));
       const route = await fetch(`${API_URL}/public/maps/route?${routeParams}`).then(r => { if (!r.ok) throw new Error('Route failed'); return r.json(); });
 
       const body: Record<string, any> = {
