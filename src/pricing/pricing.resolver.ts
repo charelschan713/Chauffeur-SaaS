@@ -331,12 +331,16 @@ export class PricingResolver {
 
     const fareWithSurcharge = baseMinor + timeSurchargeMinor;
 
+    // Discount applied to full total including toll/parking
+    const fareWithToll = fareWithSurcharge + tollParkingMinor;
     const discount = await this.discountResolver.resolve(
       ctx.tenantId,
       ctx.customerId ?? null,
-      fareWithSurcharge,
+      fareWithToll,
     );
-    const grandTotalMinor = discount.final_fare_minor + tollParkingMinor;
+    // pre_discount_fare_minor = full total before discount (fare + toll)
+    // final_fare_minor = grand total after discount (fare + toll, discounted)
+    const grandTotalMinor = discount.final_fare_minor;
 
     return {
       snapshotVersion: 1,
