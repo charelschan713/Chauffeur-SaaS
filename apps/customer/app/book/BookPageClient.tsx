@@ -896,23 +896,60 @@ export function BookPageClient() {
             </div>
             <div className="text-right shrink-0">
               {(() => {
-                // Effective discount: loyalty takes priority, else base quote discount
-                const baseDiscountMinor = selectedResult.pricing_snapshot_preview?.discount_amount_minor ?? 0;
+                const preview = selectedResult.pricing_snapshot_preview;
+
+                // ── Effective discount ────────────────────────────────────
+                // loyaltyDiscount replaces (not stacks on) the quote auto-discount.
+                // loyaltyDiscount.finalFareMinor is computed from the pre-discount
+                // base fare, so it is always the authoritative payable amount.
+                const baseDiscountMinor = preview?.discount_amount_minor ?? 0;
                 const effectiveDiscount = loyaltyDiscount ?? (baseDiscountMinor > 0 ? {
                   finalFareMinor: selectedResult.estimated_total_minor,
-                  discountMinor: baseDiscountMinor,
+                  discountMinor:  baseDiscountMinor,
                 } : null);
-                const preview = selectedResult.pricing_snapshot_preview;
-                // Original (crossed-out) price = pre-discount fare + toll (not discounted)
-                // pre_discount_fare_minor is the fare BEFORE discount was applied
-                const tollMinor = preview?.toll_parking_minor ?? 0;
-                const preDiscountFare = preview?.pre_discount_fare_minor ?? 0;
-                // If we have snapshot data, use it directly; else fall back to final + discount
+
+                // ── finalPrice ────────────────────────────────────────────
+                // BUG FIX: use loyaltyDiscount.finalFareMinor when available.
+                // estimated_total_minor has a separate auto-discount baked in
+                // and must NOT be shown as the final when loyalty overrides it.
+                const finalPrice =
+                  effectiveDiscount?.finalFareMinor ?? selectedResult.estimated_total_minor;
+
+                // ── originalPrice (crossed-out base) ──────────────────────
+                // Source priority: pre_discount_fare_minor → base_calculated_minor → fallback.
+                // NEVER compute as finalPrice + discount when loyalty is active,
+                // because finalPrice has already been discounted and the discount
+                // rate was applied against the pre-discount base, not the final.
+                const tollMinor     = preview?.toll_parking_minor ?? 0;
+                const preDiscountFare =
+                  (preview?.pre_discount_fare_minor ?? preview?.base_calculated_minor ?? 0);
                 const discountMinor = effectiveDiscount?.discountMinor ?? 0;
+
+                // Fallback: if snapshot is missing, add back discount to final.
+                // This is safe only when loyaltyDiscount is NOT active (loyalty
+                // final already absorbed the auto-discount; using it as base
+                // would under-report the original).
                 const originalPrice = preDiscountFare > 0
                   ? preDiscountFare + tollMinor
-                  : selectedResult.estimated_total_minor + discountMinor;
-                const finalPrice = selectedResult.estimated_total_minor;
+                  : loyaltyDiscount
+                    ? finalPrice + discountMinor  // loyalty active, snapshot missing — best effort
+                    : selectedResult.estimated_total_minor + discountMinor;
+
+                // ── Debug log ─────────────────────────────────────────────
+                if (process.env.NODE_ENV !== 'production') {
+                  console.log('[BookPageClient] summary prices', {
+                    source:            'renderQuoteSummary header',
+                    baseFare:          preDiscountFare,
+                    preDiscountTotal:  preDiscountFare + tollMinor,
+                    loyaltyDiscount:   loyaltyDiscount?.discountMinor,
+                    promoDiscount:     null,
+                    totalDiscount:     discountMinor,
+                    finalPayable:      finalPrice,
+                    estimatedTotal:    selectedResult.estimated_total_minor,
+                    originalDisplay:   originalPrice,
+                    toll:              tollMinor,
+                  });
+                }
 
                 return (
                   <>
@@ -1131,6 +1168,26 @@ export function BookPageClient() {
                 </div>
               )}
               {/* Discount row — show from loyalty (logged in) or snapshot (guest/not yet loaded) */}
+              {process.env.NODE_ENV !== 'production' && (() => {
+                const _baseFare   = preview.pre_discount_fare_minor ?? preview.base_calculated_minor ?? 0;
+                const _toll       = preview.toll_parking_minor ?? 0;
+                const _loyaltyD   = loyaltyDiscount?.discountMinor ?? 0;
+                const _promoD     = 0; // reserved for future promo codes
+                const _totalD     = _loyaltyD || preview.discount_amount_minor || 0;
+                const _final      = loyaltyDiscount?.finalFareMinor ?? selectedResult.estimated_total_minor;
+                console.log('[BookPageClient] breakdown prices', {
+                  source:           'renderQuoteSummary breakdown',
+                  baseFare:         _baseFare,
+                  preDiscountTotal: _baseFare + _toll,
+                  loyaltyDiscount:  _loyaltyD,
+                  promoDiscount:    _promoD,
+                  totalDiscount:    _totalD,
+                  finalPayable:     _final,
+                  estimatedTotal:   selectedResult.estimated_total_minor,
+                  toll:             _toll,
+                });
+                return null;
+              })()}
               {(() => {
                 const discMinor = loyaltyDiscount?.discountMinor ?? preview.discount_amount_minor ?? 0;
                 const discLabel = loyaltyDiscount
