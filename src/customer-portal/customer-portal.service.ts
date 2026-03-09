@@ -762,6 +762,30 @@ export class CustomerPortalService implements OnModuleInit {
       },
     });
 
+    // P0-A: persist payment record so markBookingPaid can verify ownership
+    // Map PI status → internal payment_status
+    const piPaymentStatus =
+      pi.status === 'succeeded'        ? 'PAID'       :
+      pi.status === 'requires_action'  ? 'AUTHORIZED' :
+      pi.status === 'processing'       ? 'AUTHORIZED' :
+      pi.status === 'canceled'         ? 'FAILED'     : 'UNPAID';
+
+    await this.db.query(
+      `INSERT INTO public.payments (
+         tenant_id, booking_id,
+         stripe_account_id,
+         stripe_payment_intent_id,
+         payment_type, currency,
+         amount_authorized_minor,
+         amount_captured_minor, amount_refunded_minor,
+         payment_status
+       ) VALUES ($1,$2,NULL,$3,'INITIAL',$4,$5,0,0,$6)
+       ON CONFLICT (tenant_id, stripe_payment_intent_id) DO UPDATE
+         SET payment_status = EXCLUDED.payment_status,
+             amount_authorized_minor = EXCLUDED.amount_authorized_minor`,
+      [b.tenant_id, b.id, pi.id, b.currency, trustedAmountMinor, piPaymentStatus],
+    );
+
     if (pi.status === 'succeeded') {
       await this.markBookingPaid(b.id, pi.id, b.tenant_id);
     }
@@ -798,10 +822,33 @@ export class CustomerPortalService implements OnModuleInit {
     return { success: true };
   }
 
-  // P0-3: idempotent markBookingPaid — state precondition + intent ownership check
+  // P0-B: idempotent markBookingPaid — ownership verified + state precondition
   private async markBookingPaid(bookingId: string, paymentIntentId: string, tenantId?: string) {
-    // Atomic UPDATE with state precondition: only transition from non-PAID states
-    // Returns 0 rows if already PAID (idempotent — no error, no double-fire)
+    // P0-B: verify payment record belongs to this booking before marking paid
+    // Accepts: (a) row in payments table OR (b) stripe_payment_intent_id already on the booking
+    const paymentRows = await this.db.query(
+      `SELECT id FROM public.payments
+       WHERE stripe_payment_intent_id = $1
+         AND booking_id = $2
+         AND ($3::uuid IS NULL OR tenant_id = $3)
+       LIMIT 1`,
+      [paymentIntentId, bookingId, tenantId ?? null],
+    );
+    const bookingHasIntent = await this.db.query(
+      `SELECT id FROM public.bookings
+       WHERE id = $1 AND stripe_payment_intent_id = $2
+       LIMIT 1`,
+      [bookingId, paymentIntentId],
+    );
+    if (!paymentRows.length && !bookingHasIntent.length) {
+      // Neither payments record nor booking record links this PI to this booking
+      console.error(
+        `[markBookingPaid] REJECTED: PI ${paymentIntentId} not verified for booking ${bookingId}`,
+      );
+      throw new BadRequestException('Payment intent not verified for this booking');
+    }
+
+    // Atomic UPDATE with state precondition — idempotent, no double-fire
     const rows = await this.db.query(
       `UPDATE public.bookings
        SET operational_status='CONFIRMED', payment_status='PAID',
@@ -812,7 +859,7 @@ export class CustomerPortalService implements OnModuleInit {
       [paymentIntentId, bookingId],
     );
 
-    // No rows updated = already paid or in terminal state — safe to skip notifications
+    // No rows updated = already in terminal state — skip notifications (idempotent)
     if (!rows.length) return;
 
     const resolvedTenantId = tenantId ?? rows[0]?.tenant_id;

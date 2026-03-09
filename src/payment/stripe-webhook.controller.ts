@@ -129,7 +129,10 @@ export class StripeWebhookController {
     manager: EntityManager,
   ) {
     const charge = event.data.object as Stripe.Charge;
-    // P0-4: scope to tenant + only advance from AUTHORIZED or CAPTURE_PENDING
+    const piId = charge.payment_intent as string;
+    const amountCaptured = charge.amount_captured ?? charge.amount;
+
+    // P0-4: update payments aggregate (source of truth)
     await manager.query(
       `update public.payments
        set payment_status = 'PAID',
@@ -137,20 +140,23 @@ export class StripeWebhookController {
        where stripe_payment_intent_id = $2
          and tenant_id = $3
          and payment_status NOT IN ('PAID', 'REFUNDED', 'PARTIALLY_REFUNDED')`,
-      [charge.amount_captured ?? charge.amount, charge.payment_intent, tenantId],
+      [amountCaptured, piId, tenantId],
+    );
+
+    // P0-C: sync bookings.payment_status from authoritative payment event
+    await manager.query(
+      `update public.bookings
+       set payment_status = 'PAID', updated_at = now()
+       where stripe_payment_intent_id = $1
+         and tenant_id = $2
+         and payment_status NOT IN ('PAID', 'REFUNDED', 'PARTIALLY_REFUNDED')`,
+      [piId, tenantId],
     );
 
     await this.paymentService.recordOutboxEvent(
-      manager,
-      tenantId,
-      charge.payment_intent as string,
+      manager, tenantId, piId,
       PAYMENT_EVENTS.PAYMENT_CAPTURED,
-      {
-        tenant_id: tenantId,
-        payment_intent_id: charge.payment_intent,
-        amount_captured_minor: charge.amount_captured ?? charge.amount,
-        currency: charge.currency,
-      },
+      { tenant_id: tenantId, payment_intent_id: piId, amount_captured_minor: amountCaptured, currency: charge.currency },
     );
   }
 
@@ -160,33 +166,36 @@ export class StripeWebhookController {
     manager: EntityManager,
   ) {
     const charge = event.data.object as Stripe.Charge;
+    const piId = charge.payment_intent as string;
     const refunded = charge.amount_refunded ?? 0;
     const status = refunded >= (charge.amount_captured ?? charge.amount)
       ? 'REFUNDED'
       : 'PARTIALLY_REFUNDED';
 
-    // P0-4: scope to tenant + only allow refund from PAID state
+    // P0-4: update payments aggregate
     await manager.query(
       `update public.payments
-       set amount_refunded_minor = $1,
-           payment_status = $2
+       set amount_refunded_minor = $1, payment_status = $2
        where stripe_payment_intent_id = $3
          and tenant_id = $4
          and payment_status IN ('PAID', 'PARTIALLY_REFUNDED')`,
-      [refunded, status, charge.payment_intent, tenantId],
+      [refunded, status, piId, tenantId],
+    );
+
+    // P0-C: sync bookings.payment_status
+    await manager.query(
+      `update public.bookings
+       set payment_status = $1, updated_at = now()
+       where stripe_payment_intent_id = $2
+         and tenant_id = $3
+         and payment_status IN ('PAID', 'PARTIALLY_REFUNDED')`,
+      [status, piId, tenantId],
     );
 
     await this.paymentService.recordOutboxEvent(
-      manager,
-      tenantId,
-      charge.payment_intent as string,
+      manager, tenantId, piId,
       PAYMENT_EVENTS.PAYMENT_REFUNDED,
-      {
-        tenant_id: tenantId,
-        payment_intent_id: charge.payment_intent,
-        amount_refunded_minor: refunded,
-        status,
-      },
+      { tenant_id: tenantId, payment_intent_id: piId, amount_refunded_minor: refunded, status },
     );
   }
 
@@ -196,7 +205,8 @@ export class StripeWebhookController {
     manager: EntityManager,
   ) {
     const intent = event.data.object as Stripe.PaymentIntent;
-    // P0-4: scope to tenant + only mark FAILED from non-terminal states
+
+    // P0-4: update payments aggregate
     await manager.query(
       `update public.payments
        set payment_status = 'FAILED'
@@ -206,15 +216,21 @@ export class StripeWebhookController {
       [intent.id, tenantId],
     );
 
+    // P0-C: sync bookings — mark payment failed, operational_status unchanged
+    // (admin retries payment; operational state is decoupled from payment state)
+    await manager.query(
+      `update public.bookings
+       set payment_status = 'FAILED', updated_at = now()
+       where stripe_payment_intent_id = $1
+         and tenant_id = $2
+         and payment_status NOT IN ('PAID', 'REFUNDED', 'PARTIALLY_REFUNDED', 'FAILED')`,
+      [intent.id, tenantId],
+    );
+
     await this.paymentService.recordOutboxEvent(
-      manager,
-      tenantId,
-      intent.id,
+      manager, tenantId, intent.id,
       PAYMENT_EVENTS.PAYMENT_FAILED,
-      {
-        tenant_id: tenantId,
-        payment_intent_id: intent.id,
-      },
+      { tenant_id: tenantId, payment_intent_id: intent.id },
     );
   }
 }

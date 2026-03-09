@@ -55,6 +55,9 @@ export class PaymentService {
       { stripeAccount: dto.stripeAccountId },
     );
 
+    // P1-A: store actual requested amount; status reflects real lifecycle state
+    // capture_method='manual' means PI is authorized-but-not-captured after confirmation
+    // At creation (pre-confirmation) it is UNPAID; amount is known and must be persisted
     await this.dataSource.query(
       `insert into public.payments (
         tenant_id,
@@ -67,9 +70,9 @@ export class PaymentService {
         amount_captured_minor,
         amount_refunded_minor,
         payment_status
-      ) values ($1,$2,$3,$4,'INITIAL',$5,0,0,0,'UNPAID')
+      ) values ($1,$2,$3,$4,'INITIAL',$5,$6,0,0,'UNPAID')
       on conflict (tenant_id, stripe_payment_intent_id) do nothing`,
-      [tenantId, bookingId, dto.stripeAccountId, paymentIntent.id, dto.currency],
+      [tenantId, bookingId, dto.stripeAccountId, paymentIntent.id, dto.currency, dto.amountMinor],
     );
 
     return {
@@ -78,21 +81,22 @@ export class PaymentService {
     };
   }
 
-  async capturePayment(bookingId: string) {
+  async capturePayment(bookingId: string, paymentIntentId?: string) {
+    // P1-B: target deterministically — prefer explicit PI id; else require AUTHORIZED status
+    // (avoids capturing a wrong/stale payment row when multiple exist for the same booking)
     const rows = await this.dataSource.query(
       `select stripe_payment_intent_id, stripe_account_id, payment_status
        from public.payments
        where booking_id = $1
+         and ($2::text IS NULL OR stripe_payment_intent_id = $2)
+         and payment_status = 'AUTHORIZED'
        order by created_at desc
        limit 1`,
-      [bookingId],
+      [bookingId, paymentIntentId ?? null],
     );
 
-    if (!rows.length) throw new NotFoundException('Payment not found');
+    if (!rows.length) throw new NotFoundException('No authorized payment found for this booking');
     const payment = rows[0];
-    if (payment.payment_status !== 'AUTHORIZED') {
-      throw new BadRequestException('Payment not authorized');
-    }
 
     await this.stripe.paymentIntents.capture(
       payment.stripe_payment_intent_id,
