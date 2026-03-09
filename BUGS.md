@@ -65,11 +65,23 @@
 
 ---
 
-## BUG-008 — APNs p8 文件未下载
+## BUG-008 — APNs 推送通知未验证
 - **严重性**：P1（推送通知不可用）
-- **状态**：✅ 已修复（2026-03-09）
-- **根因**：用户通过 WhatsApp 发送 p8 文件，Key ID = 44UZ9HPMN6
-- **修复**：Railway env vars 已设置：APNS_KEY_ID=44UZ9HPMN6, APNS_TEAM_ID=QQ482WQ97D, APNS_BUNDLE_ID=com.aschauffeured.driver, APNS_PRIVATE_KEY=✅
+- **状态**：🟡 待验证（Ready for Verification）
+- **根因**：APNs Key DY4WS2ACK7 下载失败；用户重新创建 Key 44UZ9HPMN6 并通过 WhatsApp 发送 p8 文件
+- **已完成**：
+  - Railway env vars 已设置：APNS_KEY_ID=44UZ9HPMN6, APNS_TEAM_ID=QQ482WQ97D, APNS_BUNDLE_ID=com.aschauffeured.driver, APNS_PRIVATE_KEY=✅
+  - Railway 后端已重启（2026-03-09 07:41:08 UTC），启动无报错
+  - `/driver-app/apns-token` 路由已注册
+- **待验证**：
+  - DB 中所有司机 apns_token = NULL（尚未从真机注册 token）
+  - APNs push 是懒加载（push 时才读 env var），启动日志无法确认 p8 解析成功
+  - 需要：真机登录 ASDriver → 后端收到 apns_token → Admin 分配 job → 确认推送到达
+- **验证步骤**：
+  1. 真机安装 TestFlight Build 31，登录 ASDriver
+  2. 后端日志确认 `POST /driver-app/apns-token` 收到请求
+  3. Admin 创建预订 → 分配司机 → 确认推送到达真机
+  4. 通过后改状态为 ✅ Verified Fixed
 
 ---
 
