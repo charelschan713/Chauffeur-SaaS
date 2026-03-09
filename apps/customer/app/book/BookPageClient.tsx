@@ -696,15 +696,7 @@ export function BookPageClient() {
   }, []);
 
   // Saved card pay — skip card setup, just submit booking with existing PM
-  const handleSavedCardPay = useCallback(async () => {
-    // Auto-select first card if none selected
-    const cardId = selectedSavedCard ?? savedCards[0]?.stripe_payment_method_id;
-    if (!cardId) return;
-    if (!selectedSavedCard) setSelectedSavedCard(cardId);
-    // Pass cardId directly to avoid stale closure
-    return handleCardConfirmed('__saved__:' + cardId);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedSavedCard]);
+  // handleSavedCardPay is defined after handleCardConfirmed below
 
   // Card confirmed: NOW create the booking (only after payment card saved)
   const handleCardConfirmed = useCallback(async (setupIntentId: string) => {
@@ -794,6 +786,25 @@ export function BookPageClient() {
   // sessionRef + selectedResultRef are refs — no need in deps; always latest value
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loyaltyDiscount, flightNumber, specialRequests, guestData, passengerDetails, quoteId, selectedSavedCard]);
+
+  // Saved card pay — skip card setup, just submit booking with existing PM
+  const handleSavedCardPay = useCallback(async () => {
+    // Validate passenger details
+    if (!passengerDetails.firstName.trim()) { setSubmitError('Please enter your first name.'); return; }
+    if (!passengerDetails.lastName.trim())  { setSubmitError('Please enter your last name.'); return; }
+    // Auto-select first card if none selected
+    const cardId = selectedSavedCard ?? savedCards[0]?.stripe_payment_method_id;
+    if (!cardId) { setSubmitError('No payment card found. Please add a card.'); return; }
+    if (!selectedSavedCard) setSelectedSavedCard(cardId);
+    setSubmitting(true);
+    setSubmitError('');
+    try {
+      await handleCardConfirmed('__saved__:' + cardId);
+    } finally {
+      setSubmitting(false);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedSavedCard, savedCards, passengerDetails, handleCardConfirmed]);
 
   // ── Render helpers ──
   const [cityName, setCityName]           = useState('');
