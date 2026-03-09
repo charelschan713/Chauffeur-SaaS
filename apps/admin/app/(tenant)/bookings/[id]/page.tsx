@@ -363,22 +363,31 @@ function BookingDetailInner() {
                   const snap = booking.pricing_snapshot;
                   const cur = booking.currency ?? 'AUD';
                   const fmt = (v: number) => `${cur} ${(v / 100).toFixed(2)}`;
-                  // pre_discount_fare_minor = full fare before discount (includes waypoints+seats, no toll)
-                  // base_calculated_minor is undefined for RETURN trips — use pre_discount_fare_minor
+                  // pre_discount_fare_minor = fare before discount (includes base + distance + waypoints + seats, NO toll)
+                  // Waypoints and baby seats are already merged into pre_discount_fare_minor — do NOT show separately
                   const baseFare = snap.pre_discount_fare_minor ?? snap.base_calculated_minor ?? snap.base_fare_minor ?? snap.base_price_minor ?? 0;
+                  const discountMinor = snap.discount_amount_minor ?? snap.discount_minor ?? 0;
+                  const tollMinor = snap.toll_minor ?? 0;
+                  const parkingMinor = snap.parking_minor ?? 0;
                   return (<>
+                    {/* 1. Base fare (pre-discount, includes waypoints+seats, NO toll) */}
                     {baseFare > 0 && <div className="flex justify-between"><span className="text-gray-500">Base Fare</span><span>{fmt(baseFare)}</span></div>}
-                    {(snap.toll_minor ?? 0) > 0 && <div className="flex justify-between"><span className="text-gray-500">Tolls</span><span>{fmt(snap.toll_minor)}</span></div>}
-                    {(snap.parking_minor ?? 0) > 0 && <div className="flex justify-between"><span className="text-gray-500">Parking</span><span>{fmt(snap.parking_minor)}</span></div>}
-                    {(snap.waypoints_minor ?? 0) > 0 && <div className="flex justify-between"><span className="text-gray-500">Stops</span><span>{fmt(snap.waypoints_minor)}</span></div>}
-                    {(snap.baby_seats_minor ?? snap.baby_seat_minor ?? 0) > 0 && <div className="flex justify-between"><span className="text-gray-500">Baby Seats</span><span>{fmt(snap.baby_seats_minor ?? snap.baby_seat_minor)}</span></div>}
-                    {(snap.time_surcharge_minor ?? 0) > 0 && <div className="flex justify-between"><span className="text-gray-500">Time Surcharge</span><span>{fmt(snap.time_surcharge_minor)}</span></div>}
-                    {snap.surcharge_labels?.map((label: string, i: number) => (
-                      <div key={i} className="flex justify-between"><span className="text-gray-500">{label}</span><span>{fmt(snap.surcharge_minor ?? 0)}</span></div>
+                    {/* 2. Surcharges */}
+                    {(snap.time_surcharge_minor ?? 0) > 0 && <div className="flex justify-between"><span className="text-gray-500">Time Surcharge</span><span>+{fmt(snap.time_surcharge_minor)}</span></div>}
+                    {snap.surcharge_items?.map((item: { label: string; amount_minor: number }, i: number) => (
+                      <div key={i} className="flex justify-between"><span className="text-gray-500">{item.label}</span><span>+{fmt(item.amount_minor)}</span></div>
                     ))}
-                    {(snap.discount_amount_minor ?? snap.discount_minor ?? 0) > 0 && (
-                      <div className="flex justify-between text-green-600"><span>Discount</span><span>− {fmt(snap.discount_amount_minor ?? snap.discount_minor)}</span></div>
+                    {/* 3. Discount (fare only — toll NOT discounted) */}
+                    {discountMinor > 0 && (
+                      <div className="flex justify-between text-green-600"><span>Discount</span><span>− {fmt(discountMinor)}</span></div>
                     )}
+                    {/* 4. Toll / Parking (added AFTER discount, never discounted) */}
+                    {tollMinor > 0 && <div className="flex justify-between"><span className="text-gray-500">Road Tolls</span><span>+{fmt(tollMinor)}</span></div>}
+                    {parkingMinor > 0 && <div className="flex justify-between"><span className="text-gray-500">Airport Parking</span><span>+{fmt(parkingMinor)}</span></div>}
+                    {tollMinor === 0 && parkingMinor === 0 && (snap.toll_parking_minor ?? 0) > 0 && (
+                      <div className="flex justify-between"><span className="text-gray-500">Tolls / Parking</span><span>+{fmt(snap.toll_parking_minor)}</span></div>
+                    )}
+                    {/* 5. Total */}
                     <div className="flex justify-between font-semibold border-t pt-1 mt-1">
                       <span>Total</span>
                       <span>{fmt(snap.grand_total_minor ?? snap.final_fare_minor ?? booking.total_price_minor ?? 0)}</span>
