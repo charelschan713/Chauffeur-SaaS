@@ -849,13 +849,41 @@ export class CustomerPortalService implements OnModuleInit {
     );
     if (!rows.length) throw new NotFoundException('Booking not found');
     const b = rows[0];
+    // Idempotent: already paid — return immediately without calling Stripe
     if (b.payment_status === 'PAID') return { success: true };
 
-    const stripe = await this.getStripe(b.tenant_id);
-    const pi = await stripe.paymentIntents.retrieve(dto.paymentIntentId);
-    if (pi.status !== 'succeeded') throw new BadRequestException(`Payment not completed: ${pi.status}`);
+    // Resolve Stripe account mode from the payment record created during payViaToken.
+    // Source of truth is payments.stripe_account_id — NOT tenant_settings (settings may change;
+    // the PI was already created against a specific account and must be retrieved the same way).
+    // NULL = platform mode (no stripeAccount option)
+    // non-NULL = Connect mode (must pass matching stripeAccount option for retrieve)
+    const paymentRows = await this.db.query(
+      `SELECT stripe_account_id
+       FROM public.payments
+       WHERE stripe_payment_intent_id = $1
+         AND booking_id = $2
+       LIMIT 1`,
+      [dto.paymentIntentId, b.id],
+    );
+    // If no payment record exists, the PI was never persisted for this booking — reject
+    if (!paymentRows.length) {
+      throw new BadRequestException('Payment record not found for this booking and payment intent');
+    }
+    const stripeAccountId: string | null = paymentRows[0]?.stripe_account_id ?? null;
 
-    // P0-3: verify payment intent belongs to this booking
+    const stripe = await this.getStripe(b.tenant_id);
+
+    // Use the same account mode the PI was created with — Connect or platform
+    const retrieveOpts: import('stripe').default.RequestOptions = stripeAccountId
+      ? { stripeAccount: stripeAccountId }  // Connect mode: PI lives on this account
+      : {};                                  // Platform mode: no stripeAccount option
+
+    const pi = await stripe.paymentIntents.retrieve(dto.paymentIntentId, {}, retrieveOpts);
+    if (pi.status !== 'succeeded') {
+      throw new BadRequestException(`Payment not completed: ${pi.status}`);
+    }
+
+    // P0-3: verify payment intent belongs to this booking via metadata
     if (pi.metadata?.booking_id && pi.metadata.booking_id !== b.id) {
       throw new BadRequestException('Payment intent does not match this booking');
     }
