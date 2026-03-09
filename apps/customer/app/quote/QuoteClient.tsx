@@ -371,12 +371,23 @@ export function QuoteClient() {
 
     try {
       const effectiveDropoff = dropoff || pickup;
-      const pickupAtUtcStr = new Date(`${date}T${time}:00`).toISOString();
-      const routeParams = new URLSearchParams({ tenant_slug: slug, origin: pickup, destination: effectiveDropoff, pickup_at: pickupAtUtcStr });
-      // Add waypoints (stops) so distance includes all legs
       const activeWaypoints = waypoints.filter(Boolean);
-      activeWaypoints.forEach(wp => routeParams.append('waypoints', wp));
-      const route = await fetch(`${API_URL}/public/maps/route?${routeParams}`).then(r => { if (!r.ok) throw new Error('Route failed'); return r.json(); });
+      const pickupAtUtcStr = new Date(`${date}T${time}:00`).toISOString();
+
+      // Outbound route: A → [B…] → C
+      const outboundParams = new URLSearchParams({ tenant_slug: slug, origin: pickup, destination: effectiveDropoff, pickup_at: pickupAtUtcStr });
+      activeWaypoints.forEach(wp => outboundParams.append('waypoints', wp));
+      const outboundRoute = await fetch(`${API_URL}/public/maps/route?${outboundParams}`).then(r => { if (!r.ok) throw new Error('Route failed'); return r.json(); });
+
+      // Return route: C → [B…reversed] → A (separate calculation — tolls may differ by direction)
+      let returnRoute = outboundRoute;
+      if (tripType === 'RETURN' && !isHourly(selectedServiceType)) {
+        const returnPickupAtUtcStr = new Date(`${returnDate}T${returnTime}:00`).toISOString();
+        const returnParams = new URLSearchParams({ tenant_slug: slug, origin: effectiveDropoff, destination: pickup, pickup_at: returnPickupAtUtcStr });
+        // Reverse waypoints for return leg: C → [B…reversed] → A
+        [...activeWaypoints].reverse().forEach(wp => returnParams.append('waypoints', wp));
+        returnRoute = await fetch(`${API_URL}/public/maps/route?${returnParams}`).then(r => { if (!r.ok) throw new Error('Return route failed'); return r.json(); });
+      }
 
       const body: Record<string, any> = {
         service_type_id: serviceTypeId,
@@ -388,17 +399,24 @@ export function QuoteClient() {
         timezone: tz,
         passenger_count: Number(passengers),
         luggage_count: Number(luggage),
-        distance_km: route.distance_km,
-        duration_minutes: route.duration_minutes,
-        // Return trip: each waypoint is visited twice (outbound + return leg)
-        waypoints_count: waypoints.filter(Boolean).length * (tripType === 'RETURN' ? 2 : 1),
-        waypoints: waypoints.filter(Boolean),
+        distance_km: outboundRoute.distance_km,
+        duration_minutes: outboundRoute.duration_minutes,
+        // Waypoints count = outbound stops only (return stops passed separately via return_distance_km)
+        waypoints_count: activeWaypoints.length,
+        waypoints: activeWaypoints,
         infant_seats: Number(infantSeats),
         toddler_seats: Number(toddlerSeats),
         booster_seats: Number(boosterSeats),
       };
       if (isHourly(selectedServiceType)) body.duration_hours = Number(durationHours);
-      if (tripType === 'RETURN') { body.return_distance_km = route.distance_km; body.return_duration_minutes = route.duration_minutes; body.return_date = returnDate; body.return_time = returnTime; }
+      if (tripType === 'RETURN') {
+        body.return_distance_km = returnRoute.distance_km;
+        body.return_duration_minutes = returnRoute.duration_minutes;
+        body.return_date = returnDate;
+        body.return_time = returnTime;
+        // Return waypoints count for pricing (stops on return leg)
+        body.return_waypoints_count = activeWaypoints.length;
+      }
 
       const quote = await fetch(`${API_URL}/public/pricing/quote?tenant_slug=${slug}`, {
         method: 'POST', headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },

@@ -17,6 +17,7 @@ interface QuoteRequest {
   distance_km: number;
   duration_minutes: number;
   waypoints_count?: number;
+  return_waypoints_count?: number;  // waypoints on return leg (may differ if asymmetric)
   waiting_minutes?: number;
   infant_seats?: number;
   toddler_seats?: number;
@@ -72,7 +73,8 @@ export class PublicPricingService {
           durationMinutes: dto.duration_minutes,
           returnDistanceKm: dto.return_distance_km,
           returnDurationMinutes: dto.return_duration_minutes,
-          waypointsCount: dto.waypoints_count ?? 0,
+          // Outbound waypoints + return waypoints (each leg calculated separately)
+          waypointsCount: (dto.waypoints_count ?? 0) + (dto.return_waypoints_count ?? 0),
           babyseatCount:
             (dto.infant_seats ?? 0) +
             (dto.toddler_seats ?? 0) +
