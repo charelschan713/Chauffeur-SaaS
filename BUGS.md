@@ -67,11 +67,9 @@
 
 ## BUG-008 — APNs p8 文件未下载
 - **严重性**：P1（推送通知不可用）
-- **状态**：🔴 阻塞中
-- **根因**：OpenClaw 浏览器无法保存文件到本地文件系统；Key DY4WS2ACK7 下载按钮已变灰
-- **复现**：前往 Apple Developer → Keys → DY4WS2ACK7
-- **解决方案**：用系统 Safari 撤销 DY4WS2ACK7，重新创建，用系统浏览器下载
-- **影响**：Railway env vars APNS_KEY_ID / APNS_PRIVATE_KEY 无法设置
+- **状态**：✅ 已修复（2026-03-09）
+- **根因**：用户通过 WhatsApp 发送 p8 文件，Key ID = 44UZ9HPMN6
+- **修复**：Railway env vars 已设置：APNS_KEY_ID=44UZ9HPMN6, APNS_TEAM_ID=QQ482WQ97D, APNS_BUNDLE_ID=com.aschauffeured.driver, APNS_PRIVATE_KEY=✅
 
 ---
 
