@@ -63,8 +63,7 @@ interface QuoteSession {
         grand_total_minor: number;
         minimum_applied: boolean;
         discount_amount_minor?: number;
-        pre_discount_total_minor?: number;   // alias
-        pre_discount_fare_minor?: number;
+        pre_discount_fare_minor?: number;    // fare before discount (includes waypoints+seats, excludes toll)
         extras_minor?: number;
         waypoints_minor?: number;
         baby_seats_minor?: number;
@@ -886,7 +885,7 @@ export function BookPageClient() {
                 // Original (crossed-out) price = pre-discount fare + toll (not discounted)
                 // pre_discount_fare_minor is the fare BEFORE discount was applied
                 const tollMinor = preview?.toll_parking_minor ?? 0;
-                const preDiscountFare = preview?.pre_discount_fare_minor ?? preview?.pre_discount_total_minor ?? 0;
+                const preDiscountFare = preview?.pre_discount_fare_minor ?? 0;
                 // If we have snapshot data, use it directly; else fall back to final + discount
                 const discountMinor = effectiveDiscount?.discountMinor ?? 0;
                 const originalPrice = preDiscountFare > 0
@@ -1063,16 +1062,14 @@ export function BookPageClient() {
           </div>
 
           {/* Price breakdown */}
-          {(preview.base_calculated_minor > 0 || preview.toll_parking_minor > 0) && (
+          {((preview.pre_discount_fare_minor ?? preview.base_calculated_minor ?? 0) > 0 || preview.toll_parking_minor > 0) && (
             <div className="space-y-1 text-xs border-t border-[hsl(var(--border))] pt-2">
-              {/* Base fare = base + waypoints + baby seats (all merged into one line) */}
-              {(preview.base_calculated_minor > 0 || (preview.waypoints_minor ?? 0) > 0 || (preview.baby_seats_minor ?? 0) > 0) && (
+              {/* Base fare = pre_discount_fare_minor (already includes base + waypoints + baby seats, no toll) */}
+              {(preview.pre_discount_fare_minor ?? preview.base_calculated_minor ?? 0) > 0 && (
                 <div className="flex justify-between text-[hsl(var(--muted-foreground))]">
                   <span>Base fare</span>
                   <span>{fmtMoney(
-                    (preview.base_calculated_minor ?? 0) +
-                    (preview.waypoints_minor ?? 0) +
-                    (preview.baby_seats_minor ?? 0),
+                    preview.pre_discount_fare_minor ?? preview.base_calculated_minor ?? 0,
                     selectedResult.currency
                   )}</span>
                 </div>
