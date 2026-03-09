@@ -1066,12 +1066,12 @@ export function BookPageClient() {
           {/* Price breakdown */}
           {((preview.pre_discount_fare_minor ?? preview.base_calculated_minor ?? 0) > 0 || preview.toll_parking_minor > 0) && (
             <div className="space-y-1 text-xs border-t border-[hsl(var(--border))] pt-2">
-              {/* Base fare = fare only (excludes toll — toll shown separately below) */}
-              {((preview.pre_discount_fare_minor ?? 0) - (preview.toll_parking_minor ?? 0)) > 0 && (
+              {/* Base fare = pre_discount_fare_minor (already includes base + waypoints + baby seats, no toll) */}
+              {(preview.pre_discount_fare_minor ?? preview.base_calculated_minor ?? 0) > 0 && (
                 <div className="flex justify-between text-[hsl(var(--muted-foreground))]">
                   <span>Base fare</span>
                   <span>{fmtMoney(
-                    (preview.pre_discount_fare_minor ?? 0) - (preview.toll_parking_minor ?? 0),
+                    preview.pre_discount_fare_minor ?? preview.base_calculated_minor ?? 0,
                     selectedResult.currency
                   )}</span>
                 </div>

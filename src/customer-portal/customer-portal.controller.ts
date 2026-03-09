@@ -174,10 +174,9 @@ export class CustomerPortalController {
     const cappedCombinedRate = maxPctCap != null ? Math.min(rawCombinedRate, maxPctCap) : rawCombinedRate;
     const cappedByMax = maxPctCap != null && rawCombinedRate > maxPctCap;
 
-    // Discount applied to full total including toll/parking
-    const fullTotal = trueBase + tollParkingMinor;
-    const totalDiscountMinor = Math.round(fullTotal * cappedCombinedRate / 100);
-    const finalFareMinor = Math.max(0, fullTotal - totalDiscountMinor);
+    // Recalculate from scratch using true base
+    const totalDiscountMinor = Math.round(trueBase * cappedCombinedRate / 100);
+    const finalFareMinor = Math.max(0, trueBase - totalDiscountMinor) + tollParkingMinor;
     const combinedRate = cappedCombinedRate;
 
     return {
