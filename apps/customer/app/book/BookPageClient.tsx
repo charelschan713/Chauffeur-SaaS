@@ -63,6 +63,8 @@ interface QuoteSession {
         grand_total_minor: number;
         minimum_applied: boolean;
         discount_amount_minor?: number;
+        discount_type?: string;
+        discount_value?: number;
         pre_discount_fare_minor?: number;    // fare before discount (includes waypoints+seats, excludes toll)
         extras_minor?: number;
         waypoints_minor?: number;
@@ -1109,13 +1111,22 @@ export function BookPageClient() {
                   <span>+{fmtMoney(preview.toll_parking_minor, selectedResult.currency)}</span>
                 </div>
               )}
-              {/* Loyalty discount row */}
-              {loyaltyDiscount && loyaltyDiscount.discountMinor > 0 && (
-                <div className="flex justify-between text-[hsl(var(--success))]">
-                  <span>{loyaltyDiscount.discountName ?? 'Discount'} ({loyaltyDiscount.discountRate}%{loyaltyDiscount.cappedByMax ? ' capped' : ''})</span>
-                  <span>-{fmtMoney(loyaltyDiscount.discountMinor, selectedResult.currency)}</span>
-                </div>
-              )}
+              {/* Discount row — show from loyalty (logged in) or snapshot (guest/not yet loaded) */}
+              {(() => {
+                const discMinor = loyaltyDiscount?.discountMinor ?? preview.discount_amount_minor ?? 0;
+                const discLabel = loyaltyDiscount
+                  ? `${loyaltyDiscount.discountName ?? 'Discount'} (${loyaltyDiscount.discountRate}%${loyaltyDiscount.cappedByMax ? ' capped' : ''})`
+                  : preview.discount_type === 'PERCENTAGE'
+                    ? `Discount (${preview.discount_value ?? ''}%)`
+                    : 'Discount';
+                if (discMinor <= 0) return null;
+                return (
+                  <div className="flex justify-between text-emerald-400">
+                    <span>{discLabel}</span>
+                    <span>-{fmtMoney(discMinor, selectedResult.currency)}</span>
+                  </div>
+                );
+              })()}
               <div className="flex justify-between font-semibold pt-1 border-t border-[hsl(var(--border))]">
                 <span className="text-[hsl(var(--foreground))]">Total</span>
                 <span className={loyaltyDiscount?.discountMinor || (selectedResult.pricing_snapshot_preview?.discount_amount_minor ?? 0) > 0
