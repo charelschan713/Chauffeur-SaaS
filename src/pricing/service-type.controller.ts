@@ -24,7 +24,7 @@ export class ServiceTypeController {
               one_way_type, one_way_value, one_way_surcharge_minor,
               return_type, return_value, return_surcharge_minor,
               minimum_hours, km_per_hour_included, hourly_tiers,
-              booking_flow, active, toll_enabled
+              booking_flow, active, toll_enabled, waypoint_charge_enabled
        FROM public.tenant_service_types
        WHERE tenant_id = $1
        ORDER BY display_name ASC`,
@@ -42,8 +42,8 @@ export class ServiceTypeController {
           one_way_type, one_way_value, one_way_surcharge_minor,
           return_type, return_value, return_surcharge_minor,
           minimum_hours, km_per_hour_included, hourly_tiers,
-          booking_flow, active)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,true)
+          booking_flow, active, toll_enabled, waypoint_charge_enabled)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,true,$15,$16)
        RETURNING id`,
       [
         req.user.tenant_id,
@@ -60,6 +60,8 @@ export class ServiceTypeController {
         body.km_per_hour_included ?? 0,
         JSON.stringify(body.hourly_tiers ?? []),
         JSON.stringify(body.booking_flow ?? {}),
+        body.toll_enabled ?? false,
+        body.waypoint_charge_enabled ?? false,
       ],
     );
     return { id: rows[0].id };
@@ -82,6 +84,7 @@ export class ServiceTypeController {
          hourly_tiers = COALESCE($13, hourly_tiers),
          active = COALESCE($14, active),
          toll_enabled = COALESCE($15, toll_enabled),
+         waypoint_charge_enabled = COALESCE($16, waypoint_charge_enabled),
          updated_at = now()
        WHERE id = $1 AND tenant_id = $2`,
       [
@@ -100,6 +103,7 @@ export class ServiceTypeController {
         body.hourly_tiers ? JSON.stringify(body.hourly_tiers) : null,
         body.active,
         body.toll_enabled !== undefined ? body.toll_enabled : null,
+        body.waypoint_charge_enabled !== undefined ? body.waypoint_charge_enabled : null,
       ],
     );
     return { success: true };

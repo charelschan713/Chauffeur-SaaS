@@ -49,14 +49,16 @@ export class PublicPricingService {
       [tenant.id],
     );
 
-    // Fetch toll_enabled from service TYPE
+    // Fetch toll_enabled + waypoint_charge_enabled from service TYPE
     let tollEnabled = false;
+    let waypointChargeEnabled = true; // default: charge for waypoints
     if (dto.service_type_id) {
       const [st] = await this.db.query(
-        `SELECT toll_enabled FROM public.tenant_service_types WHERE id = $1 AND tenant_id = $2 LIMIT 1`,
+        `SELECT toll_enabled, waypoint_charge_enabled FROM public.tenant_service_types WHERE id = $1 AND tenant_id = $2 LIMIT 1`,
         [dto.service_type_id, tenant.id],
       );
       tollEnabled = st?.toll_enabled ?? false;
+      waypointChargeEnabled = st?.waypoint_charge_enabled ?? true;
     }
 
     const quotedAt = new Date();
@@ -73,8 +75,10 @@ export class PublicPricingService {
           durationMinutes: dto.duration_minutes,
           returnDistanceKm: dto.return_distance_km,
           returnDurationMinutes: dto.return_duration_minutes,
-          // Outbound waypoints + return waypoints (each leg calculated separately)
-          waypointsCount: (dto.waypoints_count ?? 0) + (dto.return_waypoints_count ?? 0),
+          // Waypoints charged only when waypoint_charge_enabled is ON for this service type
+          waypointsCount: waypointChargeEnabled
+            ? (dto.waypoints_count ?? 0) + (dto.return_waypoints_count ?? 0)
+            : 0,
           babyseatCount:
             (dto.infant_seats ?? 0) +
             (dto.toddler_seats ?? 0) +

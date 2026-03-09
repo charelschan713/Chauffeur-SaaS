@@ -28,6 +28,7 @@ interface ServiceTypeRow {
   hourly_tiers: HourlyTier[];
   active: boolean;
   toll_enabled: boolean;
+  waypoint_charge_enabled: boolean;
 }
 
 type HourlyTier = {
@@ -52,6 +53,7 @@ type FormState = {
   minimum_hours: string;
   km_per_hour_included: string;
   toll_enabled: boolean;
+  waypoint_charge_enabled: boolean;
 };
 
 const emptyForm: FormState = {
@@ -66,6 +68,7 @@ const emptyForm: FormState = {
   minimum_hours: '2',
   km_per_hour_included: '0',
   toll_enabled: false,
+  waypoint_charge_enabled: false,
 };
 
 function toMoney(minor: number) {
@@ -111,6 +114,7 @@ export default function ServiceTypesPage() {
       minimum_hours: String(row.minimum_hours ?? 2),
       km_per_hour_included: String(row.km_per_hour_included ?? 0),
       toll_enabled: row.toll_enabled ?? false,
+      waypoint_charge_enabled: row.waypoint_charge_enabled ?? false,
     });
     setTiers(row.hourly_tiers ?? []);
   }
@@ -128,6 +132,7 @@ export default function ServiceTypesPage() {
       minimum_hours: Number(form.minimum_hours),
       km_per_hour_included: Number(form.km_per_hour_included),
       toll_enabled: form.toll_enabled,
+      waypoint_charge_enabled: form.waypoint_charge_enabled,
       hourly_tiers: tiers,
     });
     setForm(emptyForm);
@@ -149,6 +154,7 @@ export default function ServiceTypesPage() {
       minimum_hours: Number(form.minimum_hours),
       km_per_hour_included: Number(form.km_per_hour_included),
       toll_enabled: form.toll_enabled,
+      waypoint_charge_enabled: form.waypoint_charge_enabled,
       hourly_tiers: tiers,
     });
     setEditingId(null);
@@ -280,6 +286,22 @@ export default function ServiceTypesPage() {
             </span>
           </div>
 
+          {/* Waypoint charge toggle */}
+          <div className="flex items-center gap-3 py-1">
+            <button
+              type="button"
+              role="switch"
+              aria-checked={form.waypoint_charge_enabled}
+              onClick={() => setForm((prev) => ({ ...prev, waypoint_charge_enabled: !prev.waypoint_charge_enabled }))}
+              className={`relative w-11 h-6 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 ${form.waypoint_charge_enabled ? 'bg-blue-600' : 'bg-gray-200'}`}
+            >
+              <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${form.waypoint_charge_enabled ? 'translate-x-5' : ''}`} />
+            </button>
+            <span className="text-sm font-medium text-gray-700">
+              {form.waypoint_charge_enabled ? '📍 Charge for Waypoint Stops' : 'No Waypoint Stop Charge'}
+            </span>
+          </div>
+
           <div className="flex items-end gap-2">
             <Button onClick={editingId ? handleUpdate : handleCreate}>
               {editingId ? 'Update' : 'Create'}
@@ -304,7 +326,7 @@ export default function ServiceTypesPage() {
         ) : items.length === 0 ? (
           <EmptyState title="No service types yet" description="Create your first service type to get started." />
         ) : (
-          <Table headers={['Name', 'Calculation', 'One Way', 'Return', 'Min Hours', 'Toll', 'Active', '']}>
+          <Table headers={['Name', 'Calculation', 'One Way', 'Return', 'Min Hours', 'Toll', 'Waypoints', 'Active', '']}>
             {items.map((row) => (
               <tr key={row.id} className="hover:bg-gray-50">
                 <td className="px-6 py-4 font-medium text-gray-900">{row.display_name}</td>
@@ -318,6 +340,13 @@ export default function ServiceTypesPage() {
                   {row.toll_enabled && (
                     <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700">
                       🛣️ Toll ✓
+                    </span>
+                  )}
+                </td>
+                <td className="px-6 py-4 text-sm">
+                  {row.waypoint_charge_enabled && (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-700">
+                      📍 Charged ✓
                     </span>
                   )}
                 </td>
