@@ -73,3 +73,19 @@
 - **决定**：`vercel.json` connect-src 增加 `https://*.railway.app`
 - **原因**：CSP 拦截了所有 Railway API 请求，导致 widget 无法加载
 - **影响**：修复后官网 widget 恢复正常
+
+---
+
+## D010 — Server-side price authority (P0 security fix)
+- **日期**：2026-03-09
+- **决定**：quoteId 存在时，booking 金额强制来自 server-side quote session。客户端 `totalPriceMinor` 完全忽略。
+- **原因**：客户端可篡改价格字段，直接写入 DB 导致低价预订
+- **影响**：`createBooking`、`guestCheckout`；quoteId 缺失时行为不变
+
+---
+
+## D011 — payViaToken 使用 pricing_snapshot 金额
+- **日期**：2026-03-09
+- **决定**：PaymentIntent 金额从 `pricing_snapshot.grand_total_minor` 读取，而非 `total_price_minor`
+- **原因**：`total_price_minor` 来源于原始 DTO，不可信
+- **影响**：旧版无 snapshot 的预订 fallback 到 `total_price_minor`（向后兼容）

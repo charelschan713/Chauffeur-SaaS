@@ -90,3 +90,30 @@
 - **状态**：🟡 进行中
 - **描述**：Return trip 应对 outbound (A→B→C) 和 return (C→B→A) 分别计算距离+价格，当前可能未完全独立
 - **影响文件**：`src/pricing/pricing.resolver.ts`, `src/public/public-pricing.service.ts`
+
+---
+
+## BUG-011 — 支付金额无后端验证
+- **严重性**：P1（安全）
+- **状态**：✅ 已修复（2026-03-09，commit f36cb9b）
+- **根因**：`createBooking`/`guestCheckout` 使用 `dto.totalPriceMinor`；`payViaToken` 使用 `b.total_price_minor`（原始 DTO 值）
+- **修复**：
+  - quoteId 存在时，价格强制从 server-side quote session 取，忽略客户端传值
+  - payViaToken 从 `pricing_snapshot.grand_total_minor` 取信任金额
+  - guestBaseFare 改用 `pre_discount_fare_minor`
+
+---
+
+## BUG-012 — Stripe Webhook 幂等性与租户隔离
+- **严重性**：P1（安全）
+- **状态**：✅ 已修复（2026-03-09，commit f36cb9b）
+- **根因**：payment UPDATE 无 tenant_id 范围，无状态前置条件
+- **修复**：所有 UPDATE 加 `AND tenant_id = $n` + 状态前置条件，防止跨租户污染和重放攻击
+
+---
+
+## BUG-013 — markBookingPaid 无幂等保护
+- **严重性**：P2
+- **状态**：✅ 已修复（2026-03-09，commit f36cb9b）
+- **根因**：UPDATE 无状态前置条件，可重复触发通知
+- **修复**：WHERE payment_status NOT IN ('PAID','REFUNDED','PARTIALLY_REFUNDED')；无更新则跳过通知
