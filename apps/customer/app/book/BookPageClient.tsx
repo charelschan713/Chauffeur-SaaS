@@ -881,16 +881,14 @@ export function BookPageClient() {
                   finalFareMinor: selectedResult.estimated_total_minor,
                   discountMinor: baseDiscountMinor,
                 } : null);
-                const originalPrice = loyaltyDiscount
-                  // gross = final + discount (toll/parking already included in both)
-                  ? loyaltyDiscount.finalFareMinor + loyaltyDiscount.discountMinor
-                  : (selectedResult.pricing_snapshot_preview?.pre_discount_total_minor
-                      ? selectedResult.pricing_snapshot_preview.pre_discount_total_minor
-                          + (selectedResult.pricing_snapshot_preview.toll_parking_minor ?? 0)
-                      : selectedResult.estimated_total_minor + baseDiscountMinor);
-                const finalPrice = loyaltyDiscount
-                  ? loyaltyDiscount.finalFareMinor
-                  : selectedResult.estimated_total_minor;
+                // originalPrice = what you'd pay WITHOUT discount (same total but before discount applied)
+                // Use grand_total_minor (full price before discount) from snapshot if available
+                const preview = selectedResult.pricing_snapshot_preview;
+                const grandTotalMinor = preview?.grand_total_minor ?? selectedResult.estimated_total_minor;
+                const discountMinor = effectiveDiscount?.discountMinor ?? 0;
+                // original = final + discount (works for both loyalty and base discount)
+                const originalPrice = (selectedResult.estimated_total_minor) + discountMinor;
+                const finalPrice = selectedResult.estimated_total_minor;
 
                 return (
                   <>
@@ -1134,10 +1132,7 @@ export function BookPageClient() {
                   ? "text-emerald-400"
                   : "text-[hsl(var(--foreground))]"
                 }>
-                  {fmtMoney(
-                    loyaltyDiscount ? loyaltyDiscount.finalFareMinor : selectedResult.estimated_total_minor,
-                    selectedResult.currency,
-                  )}
+                  {fmtMoney(selectedResult.estimated_total_minor, selectedResult.currency)}
                 </span>
               </div>
             </div>
