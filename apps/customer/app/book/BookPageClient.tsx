@@ -1009,21 +1009,29 @@ export function BookPageClient() {
                 </div>
                 <div className="relative pl-5">
                   <div className="absolute left-[6px] top-2 bottom-2 w-px bg-[hsl(var(--border))]" />
+                  {/* Return leg: same route as outbound (A→B→A) */}
                   <div className="relative flex items-start gap-2 mb-3">
-                    <div className="absolute -left-5 mt-1 w-3 h-3 rounded-full bg-[hsl(var(--primary)/0.8)] border-2 border-[hsl(var(--background))] shrink-0" />
-                    <div>
-                      <p className="text-[10px] font-semibold uppercase tracking-widest text-[hsl(var(--muted-foreground)/0.6)] mb-0.5">Pickup</p>
-                      {/* Return pickup = last waypoint (if exists) or dropoff or pickup */}
-                      <p className="text-[hsl(var(--foreground)/0.85)] leading-snug">
-                        {req.waypoints?.filter(Boolean).slice(-1)[0] ?? req.dropoff_address ?? req.pickup_address}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="relative flex items-start gap-2">
                     <div className="absolute -left-5 mt-1 w-3 h-3 rounded-full bg-emerald-500/80 border-2 border-[hsl(var(--background))] shrink-0" />
                     <div>
-                      <p className="text-[10px] font-semibold uppercase tracking-widest text-[hsl(var(--muted-foreground)/0.6)] mb-0.5">Drop-off</p>
+                      <p className="text-[10px] font-semibold uppercase tracking-widest text-[hsl(var(--muted-foreground)/0.6)] mb-0.5">Pickup</p>
                       <p className="text-[hsl(var(--foreground)/0.85)] leading-snug">{req.pickup_address}</p>
+                    </div>
+                  </div>
+                  {/* Return waypoints (same stops as outbound) */}
+                  {req.waypoints?.filter(Boolean).map((wp: string, i: number) => (
+                    <div key={i} className="relative flex items-start gap-2 mb-3">
+                      <div className="absolute -left-5 mt-1 w-3 h-3 rounded-full bg-amber-500/70 border-2 border-[hsl(var(--background))] shrink-0" />
+                      <div>
+                        <p className="text-[10px] font-semibold uppercase tracking-widest text-[hsl(var(--muted-foreground)/0.6)] mb-0.5">Stop {i + 1}</p>
+                        <p className="text-[hsl(var(--foreground)/0.85)] leading-snug">{wp}</p>
+                      </div>
+                    </div>
+                  ))}
+                  <div className="relative flex items-start gap-2">
+                    <div className="absolute -left-5 mt-1 w-3 h-3 rounded-full bg-[hsl(var(--primary)/0.8)] border-2 border-[hsl(var(--background))] shrink-0" />
+                    <div>
+                      <p className="text-[10px] font-semibold uppercase tracking-widest text-[hsl(var(--muted-foreground)/0.6)] mb-0.5">Drop-off</p>
+                      <p className="text-[hsl(var(--foreground)/0.85)] leading-snug">{req.dropoff_address ?? req.pickup_address}</p>
                     </div>
                   </div>
                 </div>
