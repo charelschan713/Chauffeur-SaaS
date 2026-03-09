@@ -140,16 +140,17 @@ export class CustomerPortalController {
     const snap = result.pricing_snapshot_preview ?? {};
     const tollParkingMinor = (snap.toll_minor ?? 0) + (snap.parking_minor ?? 0);
 
-    // TRUE discountable base = base_calculated_minor + surcharges (NEVER use pre_discount_total_minor
-    // which may be stale/already-discounted from old quotes)
-    const trueBase = snap.base_calculated_minor
-      ? snap.base_calculated_minor
-          + (snap.surcharge_minor ?? 0)
-          + (snap.time_surcharge_minor ?? 0)
-          + (snap.extras_minor ?? 0)
-          + (snap.waypoints_minor ?? 0)
-          + (snap.baby_seats_minor ?? 0)
-      : Math.max(0, result.estimated_total_minor - tollParkingMinor);
+    // TRUE discountable base = pre_discount_fare_minor (includes base + distance + time + waypoints + seats)
+    // For RETURN trips, base_calculated_minor is undefined — use pre_discount_fare_minor instead
+    const trueBase = snap.pre_discount_fare_minor
+      ?? (snap.base_calculated_minor
+          ? snap.base_calculated_minor
+              + (snap.surcharge_minor ?? 0)
+              + (snap.time_surcharge_minor ?? 0)
+              + (snap.extras_minor ?? 0)
+              + (snap.waypoints_minor ?? 0)
+              + (snap.baby_seats_minor ?? 0)
+          : Math.max(0, result.estimated_total_minor - tollParkingMinor));
 
     // Get customer tier rate + extra discount_rate
     const customerRows = await this.db.query(
