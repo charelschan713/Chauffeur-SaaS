@@ -699,6 +699,7 @@ export class NotificationService {
           b.special_requests,
           b.pricing_snapshot,
           b.service_class_id,
+          COALESCE(b.waypoints, '{}') AS waypoints,
           sc.name AS car_type_name,
           sc.name AS vehicle_make,
           NULL::text AS vehicle_model,
@@ -1378,17 +1379,33 @@ export class NotificationService {
             hour: '2-digit', minute: '2-digit', hour12: true,
           })
         : '');
+    const waypointList: string[] = Array.isArray(b.waypoints) ? b.waypoints.filter(Boolean) : [];
+    const waypointsStr = waypointList.map((addr: string, i: number) => `Stop ${i + 1}: ${addr}`).join('\n');
+    const snapshot = b.pricing_snapshot ?? {};
+
     return {
-      booking_reference:  b.booking_reference ?? '',
-      customer_name:      `${b.customer_first_name ?? ''} ${b.customer_last_name ?? ''}`.trim(),
-      pickup_address:     b.pickup_address_text ?? b.pickup_address ?? '',
-      dropoff_address:    b.dropoff_address_text ?? b.dropoff_address ?? '',
-      pickup_time:        pickupTime,
-      driver_name:        b.driver_name ?? '',
-      vehicle_make:       b.vehicle_make ?? '',
-      vehicle_model:      b.vehicle_model ?? '',
-      total_price:        b.total_price_minor ? `$${(b.total_price_minor / 100).toFixed(2)}` : (b.total_amount ?? ''),
-      city:               b.city_name ?? '',
+      booking_reference:    b.booking_reference ?? '',
+      customer_first_name:  b.customer_first_name ?? '',
+      customer_last_name:   b.customer_last_name ?? '',
+      customer_name:        `${b.customer_first_name ?? ''} ${b.customer_last_name ?? ''}`.trim(),
+      pickup_address:       b.pickup_address_text ?? b.pickup_address ?? '',
+      dropoff_address:      b.dropoff_address_text ?? b.dropoff_address ?? '',
+      waypoints:            waypointsStr,
+      waypoint_count:       String(waypointList.length),
+      pickup_time:          pickupTime,
+      driver_name:          b.driver_name ?? '',
+      vehicle_make:         b.vehicle_make ?? b.car_type_name ?? '',
+      vehicle_model:        b.vehicle_model ?? '',
+      car_type_name:        b.car_type_name ?? b.vehicle_make ?? '',
+      passenger_count:      String(b.passenger_count ?? ''),
+      luggage_count:        String(b.luggage_count ?? ''),
+      special_requests:     b.special_requests ?? '',
+      flight_number:        b.flight_number ?? '',
+      base_fare:            NotificationService.formatMinor(snapshot.base_calculated_minor ?? snapshot.base_price_minor ?? 0),
+      toll_parking_total:   NotificationService.formatMinor((snapshot.toll_minor ?? 0) + (snapshot.parking_minor ?? 0)),
+      extras_amount:        NotificationService.formatMinor((snapshot.extras_minor ?? 0) + (snapshot.waypoints_minor ?? 0) + (snapshot.baby_seats_minor ?? 0)),
+      total_price:          b.total_price_minor ? `$${(b.total_price_minor / 100).toFixed(2)}` : (b.total_amount ?? ''),
+      city:                 b.city_name ?? '',
     };
   }
 }

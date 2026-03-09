@@ -313,6 +313,7 @@ export class CustomerPortalService implements OnModuleInit {
           pricing_snapshot,
           operational_status, payment_status,
           flight_number, passenger_count, luggage_count, special_requests,
+          waypoints,
           created_at, updated_at)
        VALUES
          ($1, $2, $3, 'WIDGET',
@@ -326,6 +327,7 @@ export class CustomerPortalService implements OnModuleInit {
           $19,
           'PENDING_CUSTOMER_CONFIRMATION', 'UNPAID',
           $20, $21, $22, $23,
+          $25,
           now(), now())
        RETURNING *`,
       [
@@ -341,7 +343,8 @@ export class CustomerPortalService implements OnModuleInit {
         passengerCount,
         dto.luggageCount ?? 0,
         notes,
-        totalPriceMinor,  // $24 — prepay_total_minor (avoid $14 dual-type conflict)
+        totalPriceMinor,  // $24 — prepay_total_minor
+        dto.waypoints?.filter(Boolean) ?? [],  // $25 — waypoints array
       ],
     );
 
@@ -940,6 +943,7 @@ export class CustomerPortalService implements OnModuleInit {
             passenger_count, luggage_count,
             flight_number, special_requests,
             infant_seats, toddler_seats, booster_seats,
+            waypoints,
             created_at, updated_at)
          VALUES
            (gen_random_uuid(), $1, $2,
@@ -959,6 +963,7 @@ export class CustomerPortalService implements OnModuleInit {
             $20, $21,
             $22, $23,
             $24, $25, $26,
+            $28,
             now(), now())
          RETURNING *`,
         [
@@ -975,7 +980,8 @@ export class CustomerPortalService implements OnModuleInit {
           passengerCount, dto.luggageCount ?? 0,
           dto.flightNumber ?? null, dto.notes ?? null,
           dto.infantSeats ?? 0, dto.toddlerSeats ?? 0, dto.boosterSeats ?? 0,
-          totalMinor,  // $27 — prepay_total_minor (avoid $14 dual-type conflict)
+          totalMinor,  // $27 — prepay_total_minor
+          dto.waypoints?.filter(Boolean) ?? [],  // $28 — waypoints
         ],
       );
     } catch (err: any) {
