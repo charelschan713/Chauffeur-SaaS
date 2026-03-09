@@ -104,15 +104,18 @@ export class PublicPricingService {
           const tierDiscountMinor = snapshot.discount_amount_minor ?? 0;
           const tierDiscountRate  = snapshot.discount_value ?? 0;
 
-          // Also check for tenant-level promo/online discount (stacks on top of tier)
-          const tenantDiscountResult = dto.promo_code
-            ? await this.discountSvc.resolveDiscount(tenant.id, preDiscountBase, {
-                code:          dto.promo_code,
-                serviceTypeId: dto.service_type_id,
-                customerId:    dto.customerId ?? null,
-                isNewCustomer: false,
-              })
-            : null;
+          // Check for tenant-level discount: promo code OR auto-apply (no code)
+          // resolveDiscount handles both: with code → code lookup, without → auto-apply lookup
+          const tenantDiscountResult = await this.discountSvc.resolveDiscount(
+            tenant.id,
+            preDiscountBase,
+            {
+              code:          dto.promo_code || undefined,
+              serviceTypeId: dto.service_type_id,
+              customerId:    dto.customerId ?? null,
+              isNewCustomer: false,
+            },
+          );
 
           // Combined: tier already in grand_total; add tenant promo discount if any
           const extraDiscountMinor = tenantDiscountResult?.discountMinor ?? 0;
