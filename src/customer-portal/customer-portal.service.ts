@@ -281,16 +281,20 @@ export class CustomerPortalService implements OnModuleInit {
         dto.waypoints = req.waypoints.filter(Boolean);
       }
 
-      // Get final price + pricing breakdown from quote result for requested car type
-      if (payload.results?.length) {
-        const result = (dto.vehicleClassId
-          ? payload.results.find((r: any) => r.service_class_id === dto.vehicleClassId)
-          : null) ?? payload.results[0];
-        if (result) {
-          totalPriceMinor = dto.totalPriceMinor ?? result.estimated_total_minor;
-          pricingSnapshot = result.pricing_snapshot_preview ?? null;
-        }
+      // P0-1: price authority — must come from server-side quote session only
+      if (!payload.results?.length) {
+        throw new BadRequestException('Quote session contains no pricing results');
       }
+      const result = (dto.vehicleClassId
+        ? payload.results.find((r: any) => r.service_class_id === dto.vehicleClassId)
+        : null) ?? payload.results[0];
+      if (!result) {
+        throw new BadRequestException('Selected vehicle class not found in quote. Please re-quote.');
+      }
+      // Server price is authoritative — client totalPriceMinor is ignored
+      totalPriceMinor = result.estimated_total_minor;
+      pricingSnapshot = result.pricing_snapshot_preview ?? null;
+      vehicleClassId  = result.service_class_id ?? dto.vehicleClassId ?? null;
     }
 
     const [tenantRow] = await this.db.query(
@@ -711,7 +715,8 @@ export class CustomerPortalService implements OnModuleInit {
 
   async payViaToken(token: string, dto: { paymentMethodId: string }) {
     const rows = await this.db.query(
-      `SELECT b.id, b.tenant_id, b.customer_id, b.total_price_minor, b.currency, b.payment_status, b.booking_reference
+      `SELECT b.id, b.tenant_id, b.customer_id, b.total_price_minor, b.currency,
+              b.payment_status, b.booking_reference, b.pricing_snapshot
        FROM public.bookings b WHERE b.payment_token=$1 AND b.payment_token_expires_at > NOW()`,
       [token],
     );
@@ -719,10 +724,21 @@ export class CustomerPortalService implements OnModuleInit {
     const b = rows[0];
     if (b.payment_status === 'PAID') throw new BadRequestException('Already paid');
 
+    // P0-2: resolve authoritative payable amount from pricing snapshot
+    // grand_total_minor is the server-computed final total (discount + toll applied)
+    // Fall back to total_price_minor only if snapshot is missing (pre-snapshot bookings)
+    const snap = b.pricing_snapshot ?? {};
+    const trustedAmountMinor: number = snap.grand_total_minor
+      ?? snap.final_fare_minor
+      ?? Number(b.total_price_minor);
+
+    if (!trustedAmountMinor || trustedAmountMinor <= 0) {
+      throw new BadRequestException('Cannot resolve payable amount — contact support');
+    }
+
     const stripe = await this.getStripe(b.tenant_id);
     const appUrl = process.env.CUSTOMER_APP_URL ?? 'https://aschauffeured.chauffeurssolution.com';
 
-    // Look up Stripe customer ID if using a saved card (PM belongs to a customer)
     let stripeCustomerId: string | undefined;
     if (b.customer_id) {
       const custRows = await this.db.query(
@@ -733,23 +749,23 @@ export class CustomerPortalService implements OnModuleInit {
     }
 
     const pi = await stripe.paymentIntents.create({
-      amount: Number(b.total_price_minor),
+      // P0-2: charge from trusted server-side amount, not client-supplied value
+      amount: trustedAmountMinor,
       currency: b.currency.toLowerCase(),
       payment_method: dto.paymentMethodId,
       ...(stripeCustomerId ? { customer: stripeCustomerId } : {}),
       confirm: true,
       return_url: `${appUrl}/pay/${token}?3ds=true`,
+      metadata: { booking_id: b.id, tenant_id: b.tenant_id },
       payment_method_options: {
         card: { request_three_d_secure: 'automatic' },
       },
     });
 
-    // Immediately succeeded (no 3DS required)
     if (pi.status === 'succeeded') {
-      await this.markBookingPaid(b.id, pi.id);
+      await this.markBookingPaid(b.id, pi.id, b.tenant_id);
     }
 
-    // 3DS required — return clientSecret so frontend can call handleNextAction
     return {
       success: pi.status === 'succeeded',
       status: pi.status,
@@ -773,26 +789,37 @@ export class CustomerPortalService implements OnModuleInit {
     const pi = await stripe.paymentIntents.retrieve(dto.paymentIntentId);
     if (pi.status !== 'succeeded') throw new BadRequestException(`Payment not completed: ${pi.status}`);
 
-    await this.markBookingPaid(b.id, pi.id);
+    // P0-3: verify payment intent belongs to this booking
+    if (pi.metadata?.booking_id && pi.metadata.booking_id !== b.id) {
+      throw new BadRequestException('Payment intent does not match this booking');
+    }
+
+    await this.markBookingPaid(b.id, pi.id, b.tenant_id);
     return { success: true };
   }
 
-  private async markBookingPaid(bookingId: string, paymentIntentId: string) {
+  // P0-3: idempotent markBookingPaid — state precondition + intent ownership check
+  private async markBookingPaid(bookingId: string, paymentIntentId: string, tenantId?: string) {
+    // Atomic UPDATE with state precondition: only transition from non-PAID states
+    // Returns 0 rows if already PAID (idempotent — no error, no double-fire)
     const rows = await this.db.query(
       `UPDATE public.bookings
        SET operational_status='CONFIRMED', payment_status='PAID',
            stripe_payment_intent_id=$1, payment_captured_at=now(), updated_at=now()
        WHERE id=$2
-       RETURNING tenant_id`,
+         AND payment_status NOT IN ('PAID', 'REFUNDED', 'PARTIALLY_REFUNDED')
+       RETURNING id, tenant_id`,
       [paymentIntentId, bookingId],
     );
-    const tenantId = rows[0]?.tenant_id;
-    if (tenantId) {
-      const notifPayload = { tenant_id: tenantId, booking_id: bookingId };
-      // Notify customer: booking confirmed
+
+    // No rows updated = already paid or in terminal state — safe to skip notifications
+    if (!rows.length) return;
+
+    const resolvedTenantId = tenantId ?? rows[0]?.tenant_id;
+    if (resolvedTenantId) {
+      const notifPayload = { tenant_id: resolvedTenantId, booking_id: bookingId };
       this.notificationService.handleEvent('BookingConfirmed', notifPayload)
         .catch((e) => console.error('[Notification] BookingConfirmed (pay link) FAILED:', e?.message));
-      // Notify admin: booking now confirmed + paid (delayed to avoid rate limit)
       setTimeout(() => {
         this.notificationService.handleEvent('AdminBookingConfirmedPaid', notifPayload)
           .catch((e) => console.error('[Notification] AdminBookingConfirmedPaid FAILED:', e?.message));
@@ -846,32 +873,41 @@ export class CustomerPortalService implements OnModuleInit {
          WHERE id = $1 AND tenant_id = $2 AND expires_at > now() LIMIT 1`,
         [dto.quoteId, tenantId],
       );
-      if (session) {
-        const req = session.payload?.request ?? {};
-        pickupAddress  = pickupAddress  ?? req.pickupAddress  ?? req.pickup_address ?? req.pickup_address_text;
-        dropoffAddress = dropoffAddress ?? req.dropoffAddress ?? req.dropoff_address ?? req.dropoff_address_text;
-        pickupAtUtc    = pickupAtUtc    ?? req.pickupAtUtc    ?? req.pickup_at_utc  ?? req.pickup_at;
-        serviceTypeId  = serviceTypeId  ?? req.serviceTypeId  ?? req.service_type_id ?? null;
-        passengerCount = passengerCount ?? req.passengers     ?? req.passenger_count ?? 1;
-        currency       = currency       ?? session.payload?.currency ?? 'AUD';
-        quoteSessionId = session.id;
+      // P0-1: quote session required when quoteId supplied
+      if (!session) throw new BadRequestException('Quote session expired or not found');
 
-        const resolvedClassId = dto.vehicleClassId ?? dto.carTypeId;
-        if (session.payload?.results?.length) {
-          const result = (resolvedClassId
-            ? session.payload.results.find((r: any) => r.service_class_id === resolvedClassId)
-            : null) ?? session.payload.results[0];
-          if (result) {
-            totalMinor = dto.totalPriceMinor ?? result.estimated_total_minor ?? totalMinor;
-            guestPricingSnapshot = result.pricing_snapshot_preview ?? null;
-          }
-        }
+      const req = session.payload?.request ?? {};
+      pickupAddress  = pickupAddress  ?? req.pickupAddress  ?? req.pickup_address ?? req.pickup_address_text;
+      dropoffAddress = dropoffAddress ?? req.dropoffAddress ?? req.dropoff_address ?? req.dropoff_address_text;
+      pickupAtUtc    = pickupAtUtc    ?? req.pickupAtUtc    ?? req.pickup_at_utc  ?? req.pickup_at;
+      serviceTypeId  = serviceTypeId  ?? req.serviceTypeId  ?? req.service_type_id ?? null;
+      passengerCount = passengerCount ?? req.passengers     ?? req.passenger_count ?? 1;
+      currency       = currency       ?? session.payload?.currency ?? 'AUD';
+      quoteSessionId = session.id;
+
+      // P0-1: server price is authoritative — never use client-supplied totalPriceMinor
+      if (!session.payload?.results?.length) {
+        throw new BadRequestException('Quote session contains no pricing results');
       }
+      const resolvedClassId = dto.vehicleClassId ?? dto.carTypeId;
+      const result = (resolvedClassId
+        ? session.payload.results.find((r: any) => r.service_class_id === resolvedClassId)
+        : null) ?? session.payload.results[0];
+      if (!result) {
+        throw new BadRequestException('Selected vehicle class not found in quote. Please re-quote.');
+      }
+      // Server-side price wins — client totalPriceMinor ignored
+      totalMinor = result.estimated_total_minor;
+      guestPricingSnapshot = result.pricing_snapshot_preview ?? null;
+      serviceClassId = result.service_class_id ?? serviceClassId;
     }
 
     const guestTollMinor    = guestPricingSnapshot?.toll_minor    ?? 0;
     const guestParkingMinor = guestPricingSnapshot?.parking_minor ?? 0;
-    const guestBaseFare     = guestPricingSnapshot?.base_calculated_minor ?? (totalMinor - guestTollMinor - guestParkingMinor);
+    // P0-1: use pre_discount_fare_minor (accurate for RETURN trips) instead of base_calculated_minor
+    const guestBaseFare     = guestPricingSnapshot?.pre_discount_fare_minor
+      ?? guestPricingSnapshot?.base_calculated_minor
+      ?? Math.max(0, totalMinor - guestTollMinor - guestParkingMinor);
 
     // ── Create or find customer by email ────────────────────────────────────
     const email = dto.email?.toLowerCase?.() ?? null;

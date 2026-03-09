@@ -98,12 +98,15 @@ export class StripeWebhookController {
     manager: EntityManager,
   ) {
     const intent = event.data.object as Stripe.PaymentIntent;
+    // P0-4: scope to tenant + state precondition (only advance from UNPAID)
     await manager.query(
       `update public.payments
        set payment_status = 'AUTHORIZED',
            amount_authorized_minor = $1
-       where stripe_payment_intent_id = $2`,
-      [intent.amount_capturable ?? intent.amount ?? 0, intent.id],
+       where stripe_payment_intent_id = $2
+         and tenant_id = $3
+         and payment_status NOT IN ('PAID', 'CAPTURE_PENDING', 'REFUNDED', 'PARTIALLY_REFUNDED')`,
+      [intent.amount_capturable ?? intent.amount ?? 0, intent.id, tenantId],
     );
 
     await this.paymentService.recordOutboxEvent(
@@ -126,12 +129,15 @@ export class StripeWebhookController {
     manager: EntityManager,
   ) {
     const charge = event.data.object as Stripe.Charge;
+    // P0-4: scope to tenant + only advance from AUTHORIZED or CAPTURE_PENDING
     await manager.query(
       `update public.payments
        set payment_status = 'PAID',
            amount_captured_minor = $1
-       where stripe_payment_intent_id = $2`,
-      [charge.amount_captured ?? charge.amount, charge.payment_intent],
+       where stripe_payment_intent_id = $2
+         and tenant_id = $3
+         and payment_status NOT IN ('PAID', 'REFUNDED', 'PARTIALLY_REFUNDED')`,
+      [charge.amount_captured ?? charge.amount, charge.payment_intent, tenantId],
     );
 
     await this.paymentService.recordOutboxEvent(
@@ -159,12 +165,15 @@ export class StripeWebhookController {
       ? 'REFUNDED'
       : 'PARTIALLY_REFUNDED';
 
+    // P0-4: scope to tenant + only allow refund from PAID state
     await manager.query(
       `update public.payments
        set amount_refunded_minor = $1,
            payment_status = $2
-       where stripe_payment_intent_id = $3`,
-      [refunded, status, charge.payment_intent],
+       where stripe_payment_intent_id = $3
+         and tenant_id = $4
+         and payment_status IN ('PAID', 'PARTIALLY_REFUNDED')`,
+      [refunded, status, charge.payment_intent, tenantId],
     );
 
     await this.paymentService.recordOutboxEvent(
@@ -187,11 +196,14 @@ export class StripeWebhookController {
     manager: EntityManager,
   ) {
     const intent = event.data.object as Stripe.PaymentIntent;
+    // P0-4: scope to tenant + only mark FAILED from non-terminal states
     await manager.query(
       `update public.payments
        set payment_status = 'FAILED'
-       where stripe_payment_intent_id = $1`,
-      [intent.id],
+       where stripe_payment_intent_id = $1
+         and tenant_id = $2
+         and payment_status NOT IN ('PAID', 'REFUNDED', 'PARTIALLY_REFUNDED', 'FAILED')`,
+      [intent.id, tenantId],
     );
 
     await this.paymentService.recordOutboxEvent(
