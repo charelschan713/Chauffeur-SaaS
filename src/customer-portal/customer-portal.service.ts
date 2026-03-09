@@ -544,7 +544,7 @@ export class CustomerPortalService implements OnModuleInit {
   // ── Payment methods ───────────────────────────────────────────────────────
   async listPaymentMethods(customerId: string, tenantId: string) {
     return this.db.query(
-      `SELECT id, brand, last4, exp_month, exp_year, is_default
+      `SELECT id, stripe_payment_method_id, brand, last4, exp_month, exp_year, is_default
        FROM public.saved_payment_methods
        WHERE customer_id=$1 AND tenant_id=$2
        ORDER BY is_default DESC, created_at DESC`,
