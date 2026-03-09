@@ -60,6 +60,9 @@ function BookingDetailInner() {
   const [isModalOpen, setModalOpen] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
   const [cancelError, setCancelError] = useState<string | null>(null);
+  const [rejectOpen, setRejectOpen] = useState(false);
+  const [rejectReason, setRejectReason] = useState('');
+  const [rejectLoading, setRejectLoading] = useState(false);
   const [assignOpen, setAssignOpen] = useState(false);
   const [assignPartnerOpen, setAssignPartnerOpen] = useState(false);
   const [showAssignMenu, setShowAssignMenu] = useState(false);
@@ -219,15 +222,7 @@ function BookingDetailInner() {
                 ✅ Confirm Booking
               </button>
               <button
-                onClick={async () => {
-                  try {
-                    await api.post(`/bookings/${booking.id}/cancel`, { reason: 'Rejected by admin' });
-                    setToast({ message: 'Booking rejected', tone: 'success' });
-                    refetch();
-                  } catch (e: any) {
-                    setToast({ message: e.response?.data?.message ?? 'Failed', tone: 'error' });
-                  }
-                }}
+                onClick={() => { setRejectReason(''); setRejectOpen(true); }}
                 className="px-4 py-2 bg-red-100 text-red-700 rounded-lg text-sm font-medium hover:bg-red-200"
               >
                 ✕ Reject
@@ -266,16 +261,7 @@ function BookingDetailInner() {
                 ✅ Confirm &amp; Charge
               </button>
               <button
-                onClick={async () => {
-                  const reason = prompt('Reason for rejection (optional):');
-                  try {
-                    await api.post(`/bookings/${booking.id}/reject`, { reason });
-                    setToast({ message: 'Booking rejected', tone: 'success' });
-                    refetch();
-                  } catch (e: any) {
-                    setToast({ message: e.response?.data?.message ?? 'Failed', tone: 'error' });
-                  }
-                }}
+                onClick={() => { setRejectReason(''); setRejectOpen(true); }}
                 className="px-4 py-2 border border-red-300 text-red-600 rounded-lg text-sm font-medium hover:bg-red-50"
               >
                 ✗ Reject
@@ -669,6 +655,56 @@ function BookingDetailInner() {
           />
         </div>
       </ConfirmModal>
+
+      {/* Reject Booking modal */}
+      {rejectOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4 p-6 space-y-4">
+            <h2 className="text-lg font-semibold text-gray-900">Reject Booking</h2>
+            <p className="text-sm text-gray-600">
+              This will reject <strong>{booking?.booking_reference}</strong> and notify the customer. The card will not be charged.
+            </p>
+            <div>
+              <label className="text-sm font-medium text-gray-700 block mb-1">Reason for rejection <span className="text-red-500">*</span></label>
+              <textarea
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-red-400"
+                rows={3}
+                placeholder="e.g. No availability for this date, service area not covered..."
+                value={rejectReason}
+                onChange={e => setRejectReason(e.target.value)}
+              />
+            </div>
+            {rejectReason.trim() === '' && <p className="text-xs text-red-500">Please enter a reason before rejecting.</p>}
+            <div className="flex gap-2 pt-1">
+              <button
+                onClick={() => setRejectOpen(false)}
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                disabled={rejectLoading || rejectReason.trim() === ''}
+                onClick={async () => {
+                  setRejectLoading(true);
+                  try {
+                    await api.post(`/bookings/${booking.id}/reject`, { reason: rejectReason.trim() });
+                    setToast({ message: 'Booking rejected — customer notified', tone: 'success' });
+                    setRejectOpen(false);
+                    refetch();
+                  } catch (e: any) {
+                    setToast({ message: e.response?.data?.message ?? 'Failed to reject', tone: 'error' });
+                  } finally {
+                    setRejectLoading(false);
+                  }
+                }}
+                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 disabled:opacity-50"
+              >
+                {rejectLoading ? 'Rejecting…' : 'Confirm Reject'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Assign to Partner modal */}
       <AssignPartnerModal
