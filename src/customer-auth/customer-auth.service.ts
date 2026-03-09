@@ -354,10 +354,12 @@ export class CustomerAuthService {
         [c.id, tenant.id, dto.email, otp, expires],
       );
     } else {
+      // Update ONLY the row that has this email — avoid overwriting phone/password rows
+      // that share the same customer_id. Use LOWER(email)=$3 to pin the exact row.
       await this.db.query(
         `UPDATE public.customer_auth SET otp_code=$1, otp_expires_at=$2, last_otp_sent_at=now()
-         WHERE customer_id=$3 AND tenant_id=$4`,
-        [otp, expires, rows[0].id, tenant.id],
+         WHERE customer_id=$3 AND tenant_id=$4 AND LOWER(email) = LOWER($5)`,
+        [otp, expires, rows[0].id, tenant.id, dto.email],
       );
     }
 
@@ -379,11 +381,13 @@ export class CustomerAuthService {
     const rows = await this.db.query(
       `SELECT ca.customer_id, ca.otp_code, ca.otp_expires_at
        FROM public.customer_auth ca
-       WHERE ca.tenant_id = $1 AND LOWER(ca.email) = LOWER($2) LIMIT 1`,
+       WHERE ca.tenant_id = $1 AND LOWER(ca.email) = LOWER($2)
+       ORDER BY ca.last_otp_sent_at DESC NULLS LAST LIMIT 1`,
       [tenant.id, dto.email],
     );
     if (!rows.length) throw new UnauthorizedException('OTP not found');
     const r = rows[0];
+    if (!r.otp_code) throw new UnauthorizedException('OTP expired');
     if (r.otp_code !== dto.otp) throw new UnauthorizedException('Invalid OTP');
     if (new Date(r.otp_expires_at) < new Date()) throw new UnauthorizedException('OTP expired');
 
