@@ -363,7 +363,9 @@ function BookingDetailInner() {
                   const snap = booking.pricing_snapshot;
                   const cur = booking.currency ?? 'AUD';
                   const fmt = (v: number) => `${cur} ${(v / 100).toFixed(2)}`;
-                  const baseFare = snap.base_calculated_minor ?? snap.base_fare_minor ?? snap.base_price_minor ?? 0;
+                  // pre_discount_fare_minor = full fare before discount (includes waypoints+seats, no toll)
+                  // base_calculated_minor is undefined for RETURN trips — use pre_discount_fare_minor
+                  const baseFare = snap.pre_discount_fare_minor ?? snap.base_calculated_minor ?? snap.base_fare_minor ?? snap.base_price_minor ?? 0;
                   return (<>
                     {baseFare > 0 && <div className="flex justify-between"><span className="text-gray-500">Base Fare</span><span>{fmt(baseFare)}</span></div>}
                     {(snap.toll_minor ?? 0) > 0 && <div className="flex justify-between"><span className="text-gray-500">Tolls</span><span>{fmt(snap.toll_minor)}</span></div>}
