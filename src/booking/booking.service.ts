@@ -3,6 +3,7 @@ import { DataSource } from 'typeorm';
 import { PricingResolver } from '../pricing/pricing.resolver';
 import { NotificationService } from '../notification/notification.service';
 import { DebugTraceService } from '../debug/debug-trace.service';
+import { PaymentService } from '../payment/payment.service';
 import { randomUUID } from 'crypto';
 
 @Injectable()
@@ -12,6 +13,7 @@ export class BookingService {
     private readonly pricing: PricingResolver,
     private readonly notificationService: NotificationService,
     private readonly trace: DebugTraceService,
+    private readonly paymentService: PaymentService,
   ) {}
 
   async listBookings(tenantId: string, query: Record<string, any>) {
@@ -572,7 +574,29 @@ export class BookingService {
   }
 
   async chargeNow(tenantId: string, bookingId: string) {
-    throw new BadRequestException('Stripe charge not yet configured. Use "Send Payment Link" or "Mark as Paid".');
+    // Validate booking belongs to tenant + is in capturable state
+    const rows = await this.dataSource.query(
+      `SELECT id, payment_status, stripe_payment_intent_id
+       FROM public.bookings
+       WHERE id = $1 AND tenant_id = $2`,
+      [bookingId, tenantId],
+    );
+    if (!rows.length) throw new NotFoundException('Booking not found');
+
+    const b = rows[0];
+    if (b.payment_status !== 'AUTHORIZED') {
+      throw new BadRequestException(
+        `Cannot capture: booking payment_status is "${b.payment_status}", expected "AUTHORIZED"`,
+      );
+    }
+
+    // Delegate to PaymentService — reads payments table for AUTHORIZED row,
+    // calls stripe.paymentIntents.capture(), then sets payment_status = CAPTURE_PENDING.
+    // charge.captured webhook → PAID; failure → FAILED.
+    return this.paymentService.capturePayment(
+      bookingId,
+      b.stripe_payment_intent_id ?? undefined,
+    );
   }
 
   // ── Confirm and charge off-session (AWAITING_CONFIRMATION → CONFIRMED/PAYMENT_FAILED) ──
