@@ -5,27 +5,7 @@ import api from '@/lib/api';
 import { cn, fmtMoney } from '@/lib/utils';
 import { ArrowLeft, MapPin, CalendarDays, Car, User, Phone, AlertCircle, CheckCircle2, Clock, XCircle } from 'lucide-react';
 import { BackButton } from '@/components/BackButton';
-
-// Operational status — backend real values (UPPERCASE, stored in bookings.operational_status)
-const OP_STATUS: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
-  PENDING_CUSTOMER_CONFIRMATION: { label: 'Pending Confirmation', color: 'text-amber-400',  icon: <Clock className="h-4 w-4" /> },
-  AWAITING_CONFIRMATION:         { label: 'Awaiting Confirmation',color: 'text-amber-400',  icon: <Clock className="h-4 w-4" /> },
-  CONFIRMED:                     { label: 'Confirmed',            color: 'text-emerald-400',icon: <CheckCircle2 className="h-4 w-4" /> },
-  COMPLETED:                     { label: 'Completed',            color: 'text-[hsl(var(--muted-foreground))]', icon: <CheckCircle2 className="h-4 w-4" /> },
-  FULFILLED:                     { label: 'Fulfilled',            color: 'text-[hsl(var(--muted-foreground))]', icon: <CheckCircle2 className="h-4 w-4" /> },
-  CANCELLED:                     { label: 'Cancelled',            color: 'text-red-400',    icon: <XCircle className="h-4 w-4" /> },
-  PAYMENT_FAILED:                { label: 'Payment Failed',       color: 'text-red-400',    icon: <AlertCircle className="h-4 w-4" /> },
-};
-
-// Driver execution status — backend real values (lowercase, stored in assignments.driver_execution_status)
-const DRIVER_STATUS: Record<string, { label: string; color: string }> = {
-  assigned:           { label: 'Driver Assigned',      color: 'text-blue-400' },
-  accepted:           { label: 'Driver Accepted',      color: 'text-blue-400' },
-  on_the_way:         { label: 'Driver En Route',      color: 'text-blue-400' },
-  arrived:            { label: 'Driver Arrived',       color: 'text-amber-400' },
-  passenger_on_board: { label: 'Passenger On Board',   color: 'text-blue-400' },
-  job_done:           { label: 'Job Done',             color: 'text-emerald-400' },
-};
+import { getOpStatusBadge, DRIVER_STATUS_LABELS } from '@/lib/booking-status';
 
 function fmtDate(utc?: string, tz = 'Australia/Sydney') {
   if (!utc) return '—';
@@ -80,10 +60,8 @@ export function BookingDetailClient({ id }: { id: string }) {
     <div className="min-h-screen flex items-center justify-center text-[hsl(var(--muted-foreground))]">Booking not found</div>
   );
 
-  const opStatus = OP_STATUS[booking.operational_status ?? booking.status] ?? {
-    label: booking.operational_status ?? booking.status, color: 'text-[hsl(var(--muted-foreground))]', icon: null,
-  };
-  const driverStatus = DRIVER_STATUS[booking.driver_execution_status] ?? null;
+  const opStatus    = getOpStatusBadge(booking.operational_status ?? booking.status ?? '');
+  const driverStatus = DRIVER_STATUS_LABELS[booking.driver_execution_status] ?? null;
 
   const canCancel = ['PENDING_CUSTOMER_CONFIRMATION', 'AWAITING_CONFIRMATION', 'CONFIRMED'].includes(
     booking.operational_status ?? booking.status
@@ -108,7 +86,6 @@ export function BookingDetailClient({ id }: { id: string }) {
           <p className="text-xs font-mono text-[hsl(var(--muted-foreground))]">{booking.booking_reference}</p>
         </div>
         <div className={cn('flex items-center gap-1.5 text-sm font-medium', opStatus.color)}>
-          {opStatus.icon}
           <span>{opStatus.label}</span>
         </div>
       </div>

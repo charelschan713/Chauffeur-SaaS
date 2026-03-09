@@ -5,17 +5,7 @@ import Link from 'next/link';
 import api from '@/lib/api';
 import { cn, fmtMoney } from '@/lib/utils';
 import { ChevronRight, Plus, CalendarDays, MapPin, Car } from 'lucide-react';
-
-// Mirrors bookings.operational_status backend real values (UPPERCASE)
-const STATUS_CONFIG: Record<string, { label: string; color: string; dot: string }> = {
-  PENDING_CUSTOMER_CONFIRMATION: { label: 'Confirming', color: 'bg-amber-500/15 text-amber-400 border-amber-500/25',    dot: 'bg-amber-400' },
-  AWAITING_CONFIRMATION:         { label: 'Confirming', color: 'bg-amber-500/15 text-amber-400 border-amber-500/25',    dot: 'bg-amber-400' },
-  CONFIRMED:                     { label: 'Confirmed',  color: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/25', dot: 'bg-emerald-400' },
-  COMPLETED:                     { label: 'Completed',  color: 'bg-[hsl(var(--muted)/0.2)] text-[hsl(var(--muted-foreground))] border-[hsl(var(--border))]', dot: 'bg-[hsl(var(--muted-foreground))]' },
-  FULFILLED:                     { label: 'Fulfilled',  color: 'bg-[hsl(var(--muted)/0.2)] text-[hsl(var(--muted-foreground))] border-[hsl(var(--border))]', dot: 'bg-[hsl(var(--muted-foreground))]' },
-  CANCELLED:                     { label: 'Cancelled',  color: 'bg-red-500/15 text-red-400 border-red-500/25',          dot: 'bg-red-400' },
-  PAYMENT_FAILED:                { label: 'Pay Failed', color: 'bg-red-500/15 text-red-400 border-red-500/25',          dot: 'bg-red-400' },
-};
+import { getOpStatusBadge } from '@/lib/booking-status';
 
 const TABS = ['Upcoming', 'Past', 'All'] as const;
 type Tab = typeof TABS[number];
@@ -114,7 +104,7 @@ export default function BookingsPage() {
         )}
 
         {bookings.map((b: any) => {
-          const s = STATUS_CONFIG[b.status] ?? { label: b.status?.replace(/_/g, ' '), color: 'bg-[hsl(var(--muted)/0.2)] text-[hsl(var(--muted-foreground))] border-[hsl(var(--border))]', dot: 'bg-[hsl(var(--muted-foreground))]' };
+          const s = getOpStatusBadge(b.status ?? b.operational_status ?? '');
           return (
             <Link
               key={b.id}
@@ -127,7 +117,7 @@ export default function BookingsPage() {
               <div className="flex-1 min-w-0 space-y-1.5">
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="text-[11px] font-mono text-white/35">{b.booking_reference}</span>
-                  <span className={cn('px-2 py-0.5 rounded-full text-[10px] font-semibold border', s.color)}>
+                  <span className={cn('px-2 py-0.5 rounded-full text-[10px] font-semibold border', s.color, s.bg)}>
                     {s.label}
                   </span>
                 </div>
