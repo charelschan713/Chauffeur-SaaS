@@ -1061,30 +1061,19 @@ export function BookPageClient() {
           {/* Price breakdown */}
           {(preview.base_calculated_minor > 0 || preview.toll_parking_minor > 0) && (
             <div className="space-y-1 text-xs border-t border-[hsl(var(--border))] pt-2">
-              {(preview.base_calculated_minor > 0 || (preview.waypoints_minor ?? 0) > 0) && (
+              {/* Base fare = base + waypoints + baby seats (all merged into one line) */}
+              {(preview.base_calculated_minor > 0 || (preview.waypoints_minor ?? 0) > 0 || (preview.baby_seats_minor ?? 0) > 0) && (
                 <div className="flex justify-between text-[hsl(var(--muted-foreground))]">
                   <span>Base fare</span>
-                  <span>{fmtMoney((preview.base_calculated_minor ?? 0) + (preview.waypoints_minor ?? 0), selectedResult.currency)}</span>
+                  <span>{fmtMoney(
+                    (preview.base_calculated_minor ?? 0) +
+                    (preview.waypoints_minor ?? 0) +
+                    (preview.baby_seats_minor ?? 0),
+                    selectedResult.currency
+                  )}</span>
                 </div>
               )}
-              {(req.infant_seats ?? 0) > 0 && (
-                <div className="flex justify-between text-[hsl(var(--muted-foreground))]">
-                  <span>+ {req.infant_seats}× infant seat (0–6m)</span>
-                  <span>+{fmtMoney(Math.round((preview.baby_seats_minor ?? 0) * (req.infant_seats ?? 0) / Math.max(1, (req.infant_seats ?? 0) + (req.toddler_seats ?? 0) + (req.booster_seats ?? 0))), selectedResult.currency)}</span>
-                </div>
-              )}
-              {(req.toddler_seats ?? 0) > 0 && (
-                <div className="flex justify-between text-[hsl(var(--muted-foreground))]">
-                  <span>+ {req.toddler_seats}× toddler seat (0–4yr)</span>
-                  <span>+{fmtMoney(Math.round((preview.baby_seats_minor ?? 0) * (req.toddler_seats ?? 0) / Math.max(1, (req.infant_seats ?? 0) + (req.toddler_seats ?? 0) + (req.booster_seats ?? 0))), selectedResult.currency)}</span>
-                </div>
-              )}
-              {(req.booster_seats ?? 0) > 0 && (
-                <div className="flex justify-between text-[hsl(var(--muted-foreground))]">
-                  <span>+ {req.booster_seats}× booster seat (4–8yr)</span>
-                  <span>+{fmtMoney(Math.round((preview.baby_seats_minor ?? 0) * (req.booster_seats ?? 0) / Math.max(1, (req.infant_seats ?? 0) + (req.toddler_seats ?? 0) + (req.booster_seats ?? 0))), selectedResult.currency)}</span>
-                </div>
-              )}
+
               {/* Surcharge items — one row per surcharge */}
               {(preview.surcharge_items?.length
                 ? preview.surcharge_items
