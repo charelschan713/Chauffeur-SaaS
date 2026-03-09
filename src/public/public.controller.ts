@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Get,
@@ -84,7 +85,18 @@ export class PublicController {
 
   /** Quote all car types for given trip — returns quote_id for handoff */
   @Post('pricing/quote')
-  async quote(@Query('tenant_slug') slug: string, @Body() body: any, @Req() req: any) {
+  async quote(@Query('tenant_slug') slugQuery: string, @Body() body: any, @Req() req: any) {
+    // Tenant slug resolution: prefer query param (?tenant_slug=), fallback to body.tenantSlug,
+    // then X-Tenant-Slug header (set by middleware). Allows callers from all surfaces.
+    const slug: string =
+      slugQuery ||
+      body?.tenantSlug ||
+      (req.headers?.['x-tenant-slug'] as string) ||
+      '';
+    if (!slug) {
+      throw new BadRequestException('tenant_slug is required');
+    }
+
     // Optionally extract customer ID from Bearer token (logged-in customers get loyalty discount)
     let customerId: string | null = null;
     try {

@@ -872,11 +872,10 @@ export class CustomerPortalService implements OnModuleInit {
     const stripe = await this.getStripe(b.tenant_id);
 
     // Use the same account mode the PI was created with — Connect or platform
-    const retrieveOpts: import('stripe').default.RequestOptions = stripeAccountId
-      ? { stripeAccount: stripeAccountId }  // Connect mode: PI lives on this account
-      : {};                                  // Platform mode: no stripeAccount option
-
-    const pi = await stripe.paymentIntents.retrieve(dto.paymentIntentId, {}, retrieveOpts);
+    // Stripe SDK v20: never pass {} as options arg — omit entirely in platform mode
+    const pi = stripeAccountId
+      ? await stripe.paymentIntents.retrieve(dto.paymentIntentId, {}, { stripeAccount: stripeAccountId })
+      : await stripe.paymentIntents.retrieve(dto.paymentIntentId);
     if (pi.status !== 'succeeded') {
       throw new BadRequestException(`Payment not completed: ${pi.status}`);
     }
