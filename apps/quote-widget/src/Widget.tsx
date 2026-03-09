@@ -133,16 +133,18 @@ export function Widget({ slug }: { slug: string }) {
       currency: result.currency,
     };
 
-    // Store in sessionStorage for portal
-    try {
-      sessionStorage.setItem('asc_quote_payload', JSON.stringify(payload));
-    } catch {}
-
-    // Build URL params
+    // Build URL params — URL params are the sole source of truth.
+    // sessionStorage is cross-origin isolated and will be empty after redirect.
     const params = new URLSearchParams();
     Object.entries(payload).forEach(([k, v]) => params.set(k, String(v)));
 
-    const portalBase = `https://book.${slug}.aschauffeured.com.au`;
+    // Portal base URL resolution (priority order):
+    // 1. VITE_PORTAL_BASE_URL build-time env (e.g. https://aschauffeured.chauffeurssolution.com)
+    // 2. Derive from slug using the chauffeurssolution.com pattern
+    const envBase = import.meta.env.VITE_PORTAL_BASE_URL as string | undefined;
+    const portalBase = envBase
+      ? envBase.replace(/\/$/, '')
+      : `https://${slug}.chauffeurssolution.com`;
     window.location.href = `${portalBase}/book?${params.toString()}`;
   }
 

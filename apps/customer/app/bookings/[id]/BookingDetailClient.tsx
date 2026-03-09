@@ -6,26 +6,25 @@ import { cn, fmtMoney } from '@/lib/utils';
 import { ArrowLeft, MapPin, CalendarDays, Car, User, Phone, AlertCircle, CheckCircle2, Clock, XCircle } from 'lucide-react';
 import { BackButton } from '@/components/BackButton';
 
+// Operational status — backend real values (UPPERCASE, stored in bookings.operational_status)
 const OP_STATUS: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
   PENDING_CUSTOMER_CONFIRMATION: { label: 'Pending Confirmation', color: 'text-amber-400',  icon: <Clock className="h-4 w-4" /> },
   AWAITING_CONFIRMATION:         { label: 'Awaiting Confirmation',color: 'text-amber-400',  icon: <Clock className="h-4 w-4" /> },
   CONFIRMED:                     { label: 'Confirmed',            color: 'text-emerald-400',icon: <CheckCircle2 className="h-4 w-4" /> },
-  DRIVER_ASSIGNED:               { label: 'Driver Assigned',      color: 'text-blue-400',   icon: <Car className="h-4 w-4" /> },
-  DRIVER_EN_ROUTE:               { label: 'Driver En Route',      color: 'text-blue-400',   icon: <Car className="h-4 w-4 animate-pulse" /> },
-  DRIVER_ARRIVED:                { label: 'Driver Arrived',       color: 'text-blue-300',   icon: <MapPin className="h-4 w-4" /> },
-  IN_PROGRESS:                   { label: 'Trip In Progress',     color: 'text-blue-400',   icon: <Car className="h-4 w-4 animate-pulse" /> },
-  COMPLETED:                     { label: 'Completed',            color: 'text-[hsl(var(--muted-foreground))]',   icon: <CheckCircle2 className="h-4 w-4" /> },
+  COMPLETED:                     { label: 'Completed',            color: 'text-[hsl(var(--muted-foreground))]', icon: <CheckCircle2 className="h-4 w-4" /> },
+  FULFILLED:                     { label: 'Fulfilled',            color: 'text-[hsl(var(--muted-foreground))]', icon: <CheckCircle2 className="h-4 w-4" /> },
   CANCELLED:                     { label: 'Cancelled',            color: 'text-red-400',    icon: <XCircle className="h-4 w-4" /> },
   PAYMENT_FAILED:                { label: 'Payment Failed',       color: 'text-red-400',    icon: <AlertCircle className="h-4 w-4" /> },
 };
 
+// Driver execution status — backend real values (lowercase, stored in assignments.driver_execution_status)
 const DRIVER_STATUS: Record<string, { label: string; color: string }> = {
-  NOT_STARTED:   { label: 'Not started',   color: 'text-[hsl(var(--muted-foreground))]' },
-  EN_ROUTE:      { label: 'En route',       color: 'text-blue-400' },
-  ARRIVED:       { label: 'Arrived',        color: 'text-amber-400' },
-  IN_PROGRESS:   { label: 'In progress',   color: 'text-blue-400' },
-  COMPLETED:     { label: 'Completed',      color: 'text-emerald-400' },
-  NO_SHOW:       { label: 'No show',        color: 'text-red-400' },
+  assigned:           { label: 'Driver Assigned',      color: 'text-blue-400' },
+  accepted:           { label: 'Driver Accepted',      color: 'text-blue-400' },
+  on_the_way:         { label: 'Driver En Route',      color: 'text-blue-400' },
+  arrived:            { label: 'Driver Arrived',       color: 'text-amber-400' },
+  passenger_on_board: { label: 'Passenger On Board',   color: 'text-blue-400' },
+  job_done:           { label: 'Job Done',             color: 'text-emerald-400' },
 };
 
 function fmtDate(utc?: string, tz = 'Australia/Sydney') {
@@ -86,7 +85,7 @@ export function BookingDetailClient({ id }: { id: string }) {
   };
   const driverStatus = DRIVER_STATUS[booking.driver_execution_status] ?? null;
 
-  const canCancel = ['PENDING_CUSTOMER_CONFIRMATION', 'CONFIRMED', 'AWAITING_CONFIRMATION'].includes(
+  const canCancel = ['PENDING_CUSTOMER_CONFIRMATION', 'AWAITING_CONFIRMATION', 'CONFIRMED'].includes(
     booking.operational_status ?? booking.status
   );
 
@@ -131,7 +130,7 @@ export function BookingDetailClient({ id }: { id: string }) {
         )}
 
         {/* Driver status (live) */}
-        {driverStatus && (booking.operational_status ?? booking.status) !== 'COMPLETED' && (booking.operational_status ?? booking.status) !== 'CANCELLED' && (
+        {driverStatus && !['COMPLETED', 'FULFILLED', 'CANCELLED'].includes(booking.operational_status ?? booking.status) && (
           <div className="rounded-2xl bg-[hsl(var(--card))] border border-[hsl(var(--border))] px-4 py-4 flex items-center gap-4">
             <div className="w-10 h-10 rounded-full bg-[hsl(var(--primary)/0.15)] border border-[hsl(var(--primary)/0.25)] flex items-center justify-center">
               <Car className="h-5 w-5 text-[hsl(var(--primary))]" />

@@ -6,13 +6,13 @@ import api from '@/lib/api';
 import { cn, fmtMoney } from '@/lib/utils';
 import { ChevronRight, Plus, CalendarDays, MapPin, Car } from 'lucide-react';
 
+// Mirrors bookings.operational_status backend real values (UPPERCASE)
 const STATUS_CONFIG: Record<string, { label: string; color: string; dot: string }> = {
   PENDING_CUSTOMER_CONFIRMATION: { label: 'Confirming', color: 'bg-amber-500/15 text-amber-400 border-amber-500/25',    dot: 'bg-amber-400' },
   AWAITING_CONFIRMATION:         { label: 'Confirming', color: 'bg-amber-500/15 text-amber-400 border-amber-500/25',    dot: 'bg-amber-400' },
   CONFIRMED:                     { label: 'Confirmed',  color: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/25', dot: 'bg-emerald-400' },
-  ASSIGNED:                      { label: 'Assigned',   color: 'bg-blue-500/15 text-blue-400 border-blue-500/25',       dot: 'bg-blue-400' },
-  IN_PROGRESS:                   { label: 'Ongoing',    color: 'bg-purple-500/15 text-purple-400 border-purple-500/25', dot: 'bg-purple-400 animate-pulse' },
-  COMPLETED:                     { label: 'Completed',  color: 'bg-[hsl(var(--muted)/0.2)] text-[hsl(var(--muted-foreground))] border-[hsl(var(--border))]',              dot: 'bg-[hsl(var(--muted-foreground))]' },
+  COMPLETED:                     { label: 'Completed',  color: 'bg-[hsl(var(--muted)/0.2)] text-[hsl(var(--muted-foreground))] border-[hsl(var(--border))]', dot: 'bg-[hsl(var(--muted-foreground))]' },
+  FULFILLED:                     { label: 'Fulfilled',  color: 'bg-[hsl(var(--muted)/0.2)] text-[hsl(var(--muted-foreground))] border-[hsl(var(--border))]', dot: 'bg-[hsl(var(--muted-foreground))]' },
   CANCELLED:                     { label: 'Cancelled',  color: 'bg-red-500/15 text-red-400 border-red-500/25',          dot: 'bg-red-400' },
   PAYMENT_FAILED:                { label: 'Pay Failed', color: 'bg-red-500/15 text-red-400 border-red-500/25',          dot: 'bg-red-400' },
 };

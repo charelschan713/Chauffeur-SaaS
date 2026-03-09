@@ -9,7 +9,7 @@ export default function InvoicesPage() {
   const router = useRouter();
   const { data: invoices = [], isLoading } = useQuery({
     queryKey: ['invoices'],
-    queryFn: () => api.get('/customer-portal/invoices').then((r) => r.data),
+    queryFn: () => api.get('/driver-app/invoices').then((r) => r.data),
   });
 
   return (
@@ -63,15 +63,15 @@ export default function InvoicesPage() {
               </div>
               <div className="flex justify-between items-center text-sm">
                 <span className="text-[hsl(var(--muted-foreground))]">
-                  Issued {new Date(inv.issue_date ?? inv.issued_at).toLocaleDateString('en-AU')}
+                  Issued {new Date(inv.created_at).toLocaleDateString('en-AU')}
                 </span>
                 <span className="font-semibold text-[hsl(var(--primary))]">
                   ${((inv.total_minor ?? 0) / 100).toFixed(2)} {inv.currency}
                 </span>
               </div>
-              {inv.due_date && (
+              {inv.submitted_at && (
                 <p className="text-xs text-[hsl(var(--muted-foreground)/0.6)]">
-                  Due {new Date(inv.due_date).toLocaleDateString('en-AU')}
+                  Submitted {new Date(inv.submitted_at).toLocaleDateString('en-AU')}
                 </p>
               )}
             </div>

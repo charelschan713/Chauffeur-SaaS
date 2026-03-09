@@ -11,15 +11,15 @@ import { useTenant } from '@/components/TenantProvider';
 
 // ── Status badge (light theme) ────────────────────────────────────────────────
 function StatusBadge({ status }: { status: string }) {
+  // Mirrors bookings.operational_status backend real values (UPPERCASE)
   const map: Record<string, { label: string; bg: string; text: string }> = {
-    PENDING_CUSTOMER_CONFIRMATION: { label: 'Awaiting Payment', bg: '#fef3c7', text: '#92400e' },
-    PENDING:                       { label: 'Pending',          bg: '#fef3c7', text: '#92400e' },
-    CONFIRMED:                     { label: 'Confirmed',        bg: '#dcfce7', text: '#166534' },
-    ASSIGNED:                      { label: 'Driver Assigned',  bg: '#dbeafe', text: '#1e40af' },
-    IN_PROGRESS:                   { label: 'In Progress',      bg: '#ede9fe', text: '#5b21b6' },
-    COMPLETED:                     { label: 'Completed',        bg: '#f3f4f6', text: '#6b7280' },
-    CANCELLED:                     { label: 'Cancelled',        bg: '#fee2e2', text: '#991b1b' },
-    NO_SHOW:                       { label: 'No Show',          bg: '#fee2e2', text: '#991b1b' },
+    PENDING_CUSTOMER_CONFIRMATION: { label: 'Awaiting Confirmation', bg: '#fef3c7', text: '#92400e' },
+    AWAITING_CONFIRMATION:         { label: 'Awaiting Confirmation', bg: '#fef3c7', text: '#92400e' },
+    CONFIRMED:                     { label: 'Confirmed',             bg: '#dcfce7', text: '#166534' },
+    COMPLETED:                     { label: 'Completed',             bg: '#f3f4f6', text: '#6b7280' },
+    FULFILLED:                     { label: 'Fulfilled',             bg: '#f3f4f6', text: '#6b7280' },
+    CANCELLED:                     { label: 'Cancelled',             bg: '#fee2e2', text: '#991b1b' },
+    PAYMENT_FAILED:                { label: 'Payment Failed',        bg: '#fee2e2', text: '#991b1b' },
   };
   const { label, bg, text } = map[status] ?? { label: status.replace(/_/g, ' '), bg: '#f3f4f6', text: '#6b7280' };
   return (
