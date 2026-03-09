@@ -566,7 +566,7 @@ export class CustomerPortalService implements OnModuleInit {
     const si = await stripe.setupIntents.create({
       customer: stripeCustomerId,
       usage: 'off_session',
-      automatic_payment_methods: { enabled: true },
+      payment_method_types: ['card'],
     });
 
     return { clientSecret: si.client_secret, setupIntentId: si.id };

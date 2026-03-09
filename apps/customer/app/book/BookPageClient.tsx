@@ -494,6 +494,7 @@ export function BookPageClient() {
   const [selectedSavedCard, setSelectedSavedCard] = useState<string | null>(null); // stripe_payment_method_id
   const selectedSavedCardRef = useRef<string | null>(null);
   const [useNewCard, setUseNewCard] = useState(false);
+  const [savedCardsLoading, setSavedCardsLoading] = useState(false);
 
   // "Is the passenger the same person?" toggle
   const [samePassenger, setSamePassenger]     = useState(true);
@@ -648,6 +649,7 @@ export function BookPageClient() {
   useEffect(() => {
     if (!token) return;
     // Always re-fetch when token changes (even if savedCards already populated)
+    setSavedCardsLoading(true);
     api.get('/customer-portal/payment-methods').then(r => {
       const cards = r.data ?? [];
       setSavedCards(cards);
@@ -661,7 +663,8 @@ export function BookPageClient() {
       } else {
         console.log('[BookPage] no saved cards found');
       }
-    }).catch((e) => console.error('[BookPage] fetch cards failed:', e?.message));
+    }).catch((e) => console.error('[BookPage] fetch cards failed:', e?.message))
+    .finally(() => setSavedCardsLoading(false));
   }, [token]);
 
   // Eagerly fetch setup intent when booking form loads so Stripe iframe has clientSecret
@@ -1545,10 +1548,10 @@ export function BookPageClient() {
             paddingTop: '12px',
           }}>
           <div className="max-w-lg mx-auto">
-            <button type="button" disabled={submitting}
+            <button type="button" disabled={submitting || savedCardsLoading}
               onClick={handleSavedCardPay}
               className="w-full bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] rounded-xl py-4 font-semibold text-sm disabled:opacity-60">
-              {submitting ? 'Processing…' : selectedResult
+              {submitting ? 'Processing…' : savedCardsLoading ? 'Loading card…' : selectedResult
                 ? `Confirm & Pay ${fmtMoney(loyaltyDiscount?.finalFareMinor ?? selectedResult.estimated_total_minor, selectedResult.currency)}`
                 : 'Confirm & Pay'}
             </button>
