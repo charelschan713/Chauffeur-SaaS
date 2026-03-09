@@ -42,24 +42,17 @@ export class PaymentService {
     }
 
     // stripe_account_id: non-NULL = Connect mode; NULL/undefined = platform mode
-    const piOpts: import('stripe').default.RequestOptions = dto.stripeAccountId
-      ? { stripeAccount: dto.stripeAccountId }
-      : {};
-
-    const paymentIntent = await this.stripe.paymentIntents.create(
-      {
-        amount: dto.amountMinor,
-        currency: dto.currency,
-        capture_method: 'manual',
-        ...(stripeCustomerId ? { customer: stripeCustomerId } : {}),
-        metadata: {
-          tenant_id: tenantId,
-          booking_id: bookingId,
-          payment_type: 'INITIAL',
-        },
-      },
-      piOpts,
-    );
+    // Stripe SDK v20: omit options entirely for platform mode (never pass {})
+    const createParams = {
+      amount: dto.amountMinor,
+      currency: dto.currency,
+      capture_method: 'manual' as const,
+      ...(stripeCustomerId ? { customer: stripeCustomerId } : {}),
+      metadata: { tenant_id: tenantId, booking_id: bookingId, payment_type: 'INITIAL' },
+    };
+    const paymentIntent = dto.stripeAccountId
+      ? await this.stripe.paymentIntents.create(createParams, { stripeAccount: dto.stripeAccountId })
+      : await this.stripe.paymentIntents.create(createParams);
 
     // P1-A: store actual requested amount; status reflects real lifecycle state
     // capture_method='manual' means PI is authorized-but-not-captured after confirmation
@@ -104,16 +97,17 @@ export class PaymentService {
     if (!rows.length) throw new NotFoundException('No authorized payment found for this booking');
     const payment = rows[0];
 
-    // stripe_account_id: non-NULL = tenant Connect account; NULL = platform mode
-    // Only pass stripeAccount option when a real Connect account ID exists
-    const captureOpts = payment.stripe_account_id
-      ? { stripeAccount: payment.stripe_account_id as string }
-      : {};
-    await this.stripe.paymentIntents.capture(
-      payment.stripe_payment_intent_id,
-      {},
-      captureOpts,
-    );
+    // stripe_account_id: non-NULL = Connect mode; NULL = platform mode
+    // Stripe SDK v20: never pass {} as options arg — omit entirely for platform mode
+    if (payment.stripe_account_id) {
+      await this.stripe.paymentIntents.capture(
+        payment.stripe_payment_intent_id,
+        {},
+        { stripeAccount: payment.stripe_account_id as string },
+      );
+    } else {
+      await this.stripe.paymentIntents.capture(payment.stripe_payment_intent_id);
+    }
 
     await this.dataSource.query(
       `update public.payments
@@ -136,17 +130,14 @@ export class PaymentService {
     if (!rows.length) throw new NotFoundException('Payment not found');
     const payment = rows[0];
 
-    // stripe_account_id: non-NULL = tenant Connect account; NULL = platform mode
-    const refundOpts = payment.stripe_account_id
-      ? { stripeAccount: payment.stripe_account_id as string }
-      : {};
-    await this.stripe.refunds.create(
-      {
-        payment_intent: payment.stripe_payment_intent_id,
-        amount: amountMinor,
-      },
-      refundOpts,
-    );
+    // stripe_account_id: non-NULL = Connect mode; NULL = platform mode
+    // Stripe SDK v20: never pass {} as options arg
+    const refundParams = { payment_intent: payment.stripe_payment_intent_id, amount: amountMinor };
+    if (payment.stripe_account_id) {
+      await this.stripe.refunds.create(refundParams, { stripeAccount: payment.stripe_account_id as string });
+    } else {
+      await this.stripe.refunds.create(refundParams);
+    }
 
     return { success: true };
   }

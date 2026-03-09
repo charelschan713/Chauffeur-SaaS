@@ -758,30 +758,28 @@ export class CustomerPortalService implements OnModuleInit {
     }
 
     // P0-1: create PI + immediately persist payment record
-    // stripe_account_id: non-NULL = tenant Connect account; NULL = platform mode
-    // DB migration M1 already dropped NOT NULL constraint.
-    // The stripeAccount REQUEST OPTION must match what we persist — always keep in sync.
-    const piRequestOpts: import('stripe').default.RequestOptions = stripeConnectAccountId
-      ? { stripeAccount: stripeConnectAccountId }   // Connect mode: route PI to tenant account
-      : {};                                          // Platform mode: no stripeAccount option
+    // NULL stripe_account_id = platform mode (no stripeAccount option)
+    // non-NULL = Connect mode (stripeAccount: acct_xxx)
+    // Stripe SDK v20: passing {} as second arg throws "Unknown arguments" — must omit entirely.
+    // Only pass options when stripeAccount has a real value.
+    const piParams: import('stripe').default.PaymentIntentCreateParams = {
+      amount: trustedAmountMinor,
+      currency: b.currency.toLowerCase(),
+      payment_method: dto.paymentMethodId,
+      ...(stripeCustomerId ? { customer: stripeCustomerId } : {}),
+      confirm: true,
+      return_url: `${appUrl}/pay/${token}?3ds=true`,
+      metadata: { booking_id: b.id, tenant_id: b.tenant_id },
+      payment_method_options: {
+        card: { request_three_d_secure: 'automatic' },
+      },
+    };
 
     let pi: import('stripe').default.PaymentIntent;
     try {
-      pi = await stripe.paymentIntents.create(
-        {
-          amount: trustedAmountMinor,
-          currency: b.currency.toLowerCase(),
-          payment_method: dto.paymentMethodId,
-          ...(stripeCustomerId ? { customer: stripeCustomerId } : {}),
-          confirm: true,
-          return_url: `${appUrl}/pay/${token}?3ds=true`,
-          metadata: { booking_id: b.id, tenant_id: b.tenant_id },
-          payment_method_options: {
-            card: { request_three_d_secure: 'automatic' },
-          },
-        },
-        piRequestOpts,  // Connect or platform mode — matches stripe_account_id persisted below
-      );
+      pi = stripeConnectAccountId
+        ? await stripe.paymentIntents.create(piParams, { stripeAccount: stripeConnectAccountId })
+        : await stripe.paymentIntents.create(piParams);
     } catch (stripeErr: any) {
       const msg = stripeErr?.message ?? String(stripeErr);
       console.error(`[payViaToken] Stripe PI creation failed for booking ${b.id}:`, msg);
