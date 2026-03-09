@@ -322,7 +322,7 @@ export class CustomerPortalService implements OnModuleInit {
           'Australia/Sydney',
           $12, $13,
           $14, $15,
-          $16, $17, $18, $14,
+          $16, $17, $18, $24,
           $19,
           'PENDING_CUSTOMER_CONFIRMATION', 'UNPAID',
           $20, $21, $22, $23,
@@ -341,6 +341,7 @@ export class CustomerPortalService implements OnModuleInit {
         passengerCount,
         dto.luggageCount ?? 0,
         notes,
+        totalPriceMinor,  // $24 — prepay_total_minor (avoid $14 dual-type conflict)
       ],
     );
 
@@ -952,7 +953,7 @@ export class CustomerPortalService implements OnModuleInit {
             $11, 'Australia/Sydney',
             $12, $13,
             $14, $15,
-            $16, $17, $18, $14,
+            $16, $17, $18, $27,
             $19,
             'PENDING_CUSTOMER_CONFIRMATION', 'UNPAID',
             $20, $21,
@@ -974,6 +975,7 @@ export class CustomerPortalService implements OnModuleInit {
           passengerCount, dto.luggageCount ?? 0,
           dto.flightNumber ?? null, dto.notes ?? null,
           dto.infantSeats ?? 0, dto.toddlerSeats ?? 0, dto.boosterSeats ?? 0,
+          totalMinor,  // $27 — prepay_total_minor (avoid $14 dual-type conflict)
         ],
       );
     } catch (err: any) {
