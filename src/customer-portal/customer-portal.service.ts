@@ -143,6 +143,35 @@ export class CustomerPortalService implements OnModuleInit {
     return { customer: customer[0], upcoming: upcomingRows, past: pastRows };
   }
 
+  // ── Resume booking ────────────────────────────────────────────────────────
+  // Returns the single best "continue" target for a logged-in customer.
+  // Priority:
+  //   1. Latest PENDING_CUSTOMER_CONFIRMATION booking (not yet paid/confirmed)
+  //   2. { type: 'none' } — frontend may fall back to a local quote draft
+  async resumeBooking(customerId: string, tenantId: string) {
+    // 1. Pending booking — customer created a booking but hasn't paid/confirmed yet
+    const [pending] = await this.db.query(
+      `SELECT id, service_class_id
+       FROM public.bookings
+       WHERE customer_id = $1
+         AND tenant_id   = $2
+         AND operational_status = 'PENDING_CUSTOMER_CONFIRMATION'
+       ORDER BY created_at DESC
+       LIMIT 1`,
+      [customerId, tenantId],
+    );
+
+    if (pending) {
+      return {
+        type: 'pending_booking',
+        booking_id: pending.id as string,
+      };
+    }
+
+    // 2. No pending booking — frontend should check local quote draft (localStorage)
+    return { type: 'none' };
+  }
+
   // ── Bookings list ─────────────────────────────────────────────────────────
   async listBookings(
     customerId: string,

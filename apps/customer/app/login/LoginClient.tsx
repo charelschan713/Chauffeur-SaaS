@@ -37,10 +37,14 @@ export function LoginClient() {
   const setAuth      = useAuthStore((s) => s.setAuth);
   const [tenantSlug, setTenantSlug] = useState('');
 
-  // After login, redirect to ?redirect= param, else /dashboard
+  // After login: redirect to ?redirect= param (with _logged=1 appended), else /dashboard
   const getPostLoginPath = () => {
     const r = searchParams.get('redirect');
-    if (r && r.startsWith('/')) return r;
+    if (r && r.startsWith('/')) {
+      // Append _logged=1 so the website can detect the portal session
+      const sep = r.includes('?') ? '&' : '?';
+      return `${r}${sep}_logged=1`;
+    }
     return '/dashboard';
   };
   const [tab, setTab]   = useState<Tab>('email');

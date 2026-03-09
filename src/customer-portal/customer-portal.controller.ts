@@ -81,6 +81,13 @@ export class CustomerPortalController {
     return this.svc.listBookings(req.customer.sub, req.customer.tenant_id, query);
   }
 
+  // NOTE: must be registered BEFORE bookings/:id to avoid route shadowing
+  @Get('bookings/resume')
+  @UseGuards(CustomerAuthGuard)
+  resumeBooking(@Req() req: any) {
+    return this.svc.resumeBooking(req.customer.sub, req.customer.tenant_id);
+  }
+
   @Get('bookings/:id')
   @UseGuards(CustomerAuthGuard)
   getBooking(@Req() req: any, @Param('id') id: string) {

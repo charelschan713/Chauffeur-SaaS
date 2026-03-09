@@ -547,6 +547,11 @@ export function BookPageClient() {
         setSelectedResult(result);
         selectedResultRef.current = result;
         setStep(currentToken ? 'details' : 'auth');
+        // Write quote draft to localStorage so /book/resume can restore it
+        try {
+          if (qid) localStorage.setItem('asc_last_quote_id', qid);
+          if (result?.service_class_id) localStorage.setItem('asc_last_car_type_id', result.service_class_id);
+        } catch { /* non-fatal */ }
       })
       .catch(() => {
         setQuoteError('Could not load quote details. Please check your connection.');
@@ -786,6 +791,11 @@ export function BookPageClient() {
       await fetch(`${API_URL}/public/pricing/quote/${quoteIdRef.current}`, { method: 'PATCH' }).catch(() => {});
       sessionStorage.removeItem('book_quote_id');
       sessionStorage.removeItem('book_car_type_id');
+      // Clear quote draft from localStorage (booking completed)
+      try {
+        localStorage.removeItem('asc_last_quote_id');
+        localStorage.removeItem('asc_last_car_type_id');
+      } catch { /* non-fatal */ }
       setStep('done');
     } catch (err: any) {
       const errData = err?.response?.data ?? err;
