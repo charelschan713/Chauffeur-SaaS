@@ -8,6 +8,7 @@ import { GlobalErrorBoundary } from '@/components/GlobalErrorBoundary';
 import { BottomNav } from '@/components/BottomNav';
 import { Sidebar } from '@/components/Sidebar';
 import { ScrollToInput } from '@/components/ScrollToInput';
+import { LoyaltyBanner } from '@/components/LoyaltyBanner';
 
 const geist = Geist({
   variable: '--font-geist-sans',
@@ -41,6 +42,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <QueryProvider>
             <TenantProvider>
               <ScrollToInput />
+              <LoyaltyBanner />
               {/* Desktop: sidebar + content. Mobile: full width + bottom nav */}
               <Sidebar />
               <div className="lg:pl-64">
