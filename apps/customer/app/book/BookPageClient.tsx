@@ -656,8 +656,10 @@ export function BookPageClient() {
       const cards = r.data ?? [];
       setSavedCards(cards);
       savedCardsRef.current = cards;
-      if (cards.length > 0) {
-        const def = cards.find((c: any) => c.is_default) ?? cards[0];
+      // Guard: only consider cards with a valid stripe_payment_method_id
+      const validCards = cards.filter((c: any) => !!c.stripe_payment_method_id);
+      if (validCards.length > 0) {
+        const def = validCards.find((c: any) => c.is_default) ?? validCards[0];
         setSelectedSavedCard(def.stripe_payment_method_id);
         selectedSavedCardRef.current = def.stripe_payment_method_id;
         setUseNewCard(false);
@@ -802,8 +804,15 @@ export function BookPageClient() {
     if (!passengerDetails.firstName.trim()) { setSubmitError('Please enter your first name.'); return; }
     if (!passengerDetails.lastName.trim())  { setSubmitError('Please enter your last name.'); return; }
     // Read from refs to avoid stale closure — always latest value
-    const cardId = selectedSavedCardRef.current ?? savedCardsRef.current[0]?.stripe_payment_method_id;
-    if (!cardId) { setSubmitError('No payment card found. Please add a card.'); return; }
+    const cardId = selectedSavedCardRef.current ?? savedCardsRef.current.find((c: any) => !!c.stripe_payment_method_id)?.stripe_payment_method_id;
+    // Distinguish between "no saved cards" and "cards exist but PM id missing (malformed API response)"
+    if (!cardId) {
+      const hasSavedCards = savedCardsRef.current.length > 0;
+      setSubmitError(hasSavedCards
+        ? 'Saved card is invalid. Please refresh the page or add a new card.'
+        : 'No payment card found. Please add a card.');
+      return;
+    }
     setSubmitting(true);
     setSubmitError('');
     try {
@@ -1469,29 +1478,35 @@ export function BookPageClient() {
                   {/* Saved cards (logged-in only) */}
                   {token && savedCards.length > 0 && (
                     <div className="space-y-2">
-                      {savedCards.map((c: any) => (
-                        <button key={c.stripe_payment_method_id} type="button"
-                          onClick={() => { setSelectedSavedCard(c.stripe_payment_method_id); selectedSavedCardRef.current = c.stripe_payment_method_id; setUseNewCard(false); }}
-                          className={`w-full flex items-center gap-3 p-3 rounded-xl border text-left transition-colors ${
-                            !useNewCard && selectedSavedCard === c.stripe_payment_method_id
-                              ? 'border-[hsl(var(--primary))] bg-[hsl(var(--primary)/0.08)]'
-                              : 'border-[hsl(var(--border))] hover:border-[hsl(var(--primary)/0.5)]'
-                          }`}>
-                          <div className="w-8 h-5 rounded bg-[hsl(var(--muted))] flex items-center justify-center text-[9px] font-bold uppercase text-[hsl(var(--muted-foreground))]">
-                            {c.brand?.slice(0,4)}
-                          </div>
-                          <div className="flex-1">
-                            <span className="text-sm font-medium capitalize">{c.brand}</span>
-                            <span className="text-sm text-[hsl(var(--muted-foreground))] ml-2">•••• {c.last4}</span>
-                          </div>
-                          <span className="text-xs text-[hsl(var(--muted-foreground))]">{c.exp_month}/{c.exp_year}</span>
-                          {!useNewCard && selectedSavedCard === c.stripe_payment_method_id && (
-                            <div className="w-4 h-4 rounded-full border-2 border-[hsl(var(--primary))] flex items-center justify-center">
-                              <div className="w-2 h-2 rounded-full bg-[hsl(var(--primary))]" />
+                      {savedCards.map((c: any) => {
+                        // Guard: skip cards missing stripe_payment_method_id — they cannot be charged
+                        const pmId: string | undefined = c.stripe_payment_method_id;
+                        if (!pmId) return null;
+                        const isSelected = !useNewCard && selectedSavedCard === pmId;
+                        return (
+                          <button key={pmId} type="button"
+                            onClick={() => { setSelectedSavedCard(pmId); selectedSavedCardRef.current = pmId; setUseNewCard(false); }}
+                            className={`w-full flex items-center gap-3 p-3 rounded-xl border text-left transition-colors ${
+                              isSelected
+                                ? 'border-[hsl(var(--primary))] bg-[hsl(var(--primary)/0.08)]'
+                                : 'border-[hsl(var(--border))] hover:border-[hsl(var(--primary)/0.5)]'
+                            }`}>
+                            <div className="w-8 h-5 rounded bg-[hsl(var(--muted))] flex items-center justify-center text-[9px] font-bold uppercase text-[hsl(var(--muted-foreground))]">
+                              {c.brand?.slice(0,4)}
                             </div>
-                          )}
-                        </button>
-                      ))}
+                            <div className="flex-1">
+                              <span className="text-sm font-medium capitalize">{c.brand}</span>
+                              <span className="text-sm text-[hsl(var(--muted-foreground))] ml-2">•••• {c.last4}</span>
+                            </div>
+                            <span className="text-xs text-[hsl(var(--muted-foreground))]">{c.exp_month}/{c.exp_year}</span>
+                            {isSelected && (
+                              <div className="w-4 h-4 rounded-full border-2 border-[hsl(var(--primary))] flex items-center justify-center">
+                                <div className="w-2 h-2 rounded-full bg-[hsl(var(--primary))]" />
+                              </div>
+                            )}
+                          </button>
+                        );
+                      })}
                       <button type="button"
                         onClick={() => { setUseNewCard(true); setSelectedSavedCard(null); }}
                         className={`w-full flex items-center gap-3 p-3 rounded-xl border text-left transition-colors ${
