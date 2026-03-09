@@ -973,8 +973,8 @@ export function BookPageClient() {
                 </div>
               ))}
 
-              {/* Dropoff */}
-              {req.dropoff_address && req.dropoff_address !== req.pickup_address && (
+              {/* Dropoff — always show if there's a dropoff (even same as pickup when there are waypoints) */}
+              {req.dropoff_address && (req.dropoff_address !== req.pickup_address || (req.waypoints?.filter(Boolean).length ?? 0) > 0) && (
                 <div className="relative flex items-start gap-2">
                   <div className="absolute -left-5 mt-1 w-3 h-3 rounded-full bg-[hsl(var(--primary)/0.8)] border-2 border-[hsl(var(--background))] shrink-0" />
                   <div>
@@ -995,9 +995,15 @@ export function BookPageClient() {
                       ? new Date(req.return_pickup_at_utc).toLocaleString('en-AU', {
                           weekday: 'short', day: 'numeric', month: 'short', year: 'numeric',
                           hour: 'numeric', minute: '2-digit', hour12: true,
-                          timeZone: req.timezone,
+                          timeZone: req.timezone ?? 'Australia/Sydney',
                         })
-                      : `${req.return_date ?? ''} ${req.return_time ?? ''}`}
+                      : (() => {
+                          const d = req.return_date ? new Date(`${req.return_date}T${req.return_time ?? '00:00'}`) : null;
+                          return d ? d.toLocaleString('en-AU', {
+                            weekday: 'short', day: 'numeric', month: 'short', year: 'numeric',
+                            hour: 'numeric', minute: '2-digit', hour12: true,
+                          }) : `${req.return_date ?? ''} ${req.return_time ?? ''}`;
+                        })()}
                   </span>
                   <span className="text-[10px] text-[hsl(var(--muted-foreground)/0.6)] uppercase tracking-wide">Return</span>
                 </div>
@@ -1007,7 +1013,10 @@ export function BookPageClient() {
                     <div className="absolute -left-5 mt-1 w-3 h-3 rounded-full bg-[hsl(var(--primary)/0.8)] border-2 border-[hsl(var(--background))] shrink-0" />
                     <div>
                       <p className="text-[10px] font-semibold uppercase tracking-widest text-[hsl(var(--muted-foreground)/0.6)] mb-0.5">Pickup</p>
-                      <p className="text-[hsl(var(--foreground)/0.85)] leading-snug">{req.dropoff_address ?? req.pickup_address}</p>
+                      {/* Return pickup = last waypoint (if exists) or dropoff or pickup */}
+                      <p className="text-[hsl(var(--foreground)/0.85)] leading-snug">
+                        {req.waypoints?.filter(Boolean).slice(-1)[0] ?? req.dropoff_address ?? req.pickup_address}
+                      </p>
                     </div>
                   </div>
                   <div className="relative flex items-start gap-2">
