@@ -38,7 +38,7 @@ type QuoteResult = {
   discount?: { name: string; type: string; value: number; discount_minor: number; capped_by_max: boolean } | null;
   pricing_snapshot_preview: {
     base_calculated_minor: number; toll_parking_minor: number;
-    surcharge_labels?: string[]; pre_discount_total_minor?: number;
+    surcharge_labels?: string[]; pre_discount_total_minor?: number; pre_discount_fare_minor?: number;
     discount_amount_minor: number; grand_total_minor: number; minimum_applied: boolean;
     waypoints_minor?: number; baby_seats_minor?: number; extras_minor?: number;
   };
@@ -666,7 +666,7 @@ export function QuoteClient() {
                         </div>
                         <div className="flex items-start gap-2.5 shrink-0">
                           <div className="text-right">
-                            {hasDiscount && <p className="text-[11px] text-gray-400 line-through leading-none mb-0.5">{fmtMoney((preview.pre_discount_total_minor??result.estimated_total_minor+(result.discount?.discount_minor??0)),currency)}</p>}
+                            {hasDiscount && <p className="text-[11px] text-gray-400 line-through leading-none mb-0.5">{fmtMoney((preview.pre_discount_fare_minor??preview.pre_discount_total_minor??result.estimated_total_minor+(result.discount?.discount_minor??0)),currency)}</p>}
                             <p className={cn('text-xl font-bold leading-none', isSelected?'text-gradient-gold':'text-white')}>{fmtMoney(result.estimated_total_minor,currency)}</p>
                             {hasDiscount ? <p className="text-[10px] text-emerald-400 font-semibold mt-0.5">-{fmtMoney(result.discount!.discount_minor,currency)} off</p> : <p className="text-[10px] text-gray-400 mt-0.5">{currency} incl. GST</p>}
                           </div>
