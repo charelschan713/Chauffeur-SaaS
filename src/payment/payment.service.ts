@@ -136,12 +136,16 @@ export class PaymentService {
     return { success: true };
   }
 
+  // P0-4: source_event_id anchors each outbox row to its Stripe event (e.g. event.id)
+  // ON CONFLICT (tenant_id, source_event_id) DO NOTHING prevents duplicate outbox rows
+  // even across crash-recovery / Stripe retries — idempotent by design
   async recordOutboxEvent(
     manager: EntityManager,
     tenantId: string,
     paymentIntentId: string,
     eventType: string,
     payload: any,
+    sourceEventId?: string,
   ) {
     await manager.query(
       `insert into public.outbox_events (
@@ -150,9 +154,13 @@ export class PaymentService {
         aggregate_id,
         event_type,
         event_schema_version,
-        payload
-      ) values ($1,'payment',$2,$3,1,$4)`,
-      [tenantId, paymentIntentId, eventType, payload],
+        payload,
+        source_event_id
+      ) values ($1,'payment',$2,$3,1,$4,$5)
+      on conflict (tenant_id, source_event_id)
+        where source_event_id is not null
+        do nothing`,
+      [tenantId, paymentIntentId, eventType, payload, sourceEventId ?? null],
     );
   }
 

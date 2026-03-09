@@ -748,43 +748,67 @@ export class CustomerPortalService implements OnModuleInit {
       stripeCustomerId = custRows[0]?.stripe_customer_id ?? undefined;
     }
 
-    const pi = await stripe.paymentIntents.create({
-      // P0-2: charge from trusted server-side amount, not client-supplied value
-      amount: trustedAmountMinor,
-      currency: b.currency.toLowerCase(),
-      payment_method: dto.paymentMethodId,
-      ...(stripeCustomerId ? { customer: stripeCustomerId } : {}),
-      confirm: true,
-      return_url: `${appUrl}/pay/${token}?3ds=true`,
-      metadata: { booking_id: b.id, tenant_id: b.tenant_id },
-      payment_method_options: {
-        card: { request_three_d_secure: 'automatic' },
-      },
-    });
+    // P0-1: create PI + immediately persist payment record
+    // stripe_account_id is NULL for platform-key payments (no Stripe Connect)
+    // DB migration M1 already dropped NOT NULL constraint on this column
+    let pi: import('stripe').default.PaymentIntent;
+    try {
+      pi = await stripe.paymentIntents.create({
+        amount: trustedAmountMinor,
+        currency: b.currency.toLowerCase(),
+        payment_method: dto.paymentMethodId,
+        ...(stripeCustomerId ? { customer: stripeCustomerId } : {}),
+        confirm: true,
+        return_url: `${appUrl}/pay/${token}?3ds=true`,
+        metadata: { booking_id: b.id, tenant_id: b.tenant_id },
+        payment_method_options: {
+          card: { request_three_d_secure: 'automatic' },
+        },
+      });
+    } catch (stripeErr: any) {
+      const msg = stripeErr?.message ?? String(stripeErr);
+      console.error(`[payViaToken] Stripe PI creation failed for booking ${b.id}:`, msg);
+      throw new BadRequestException(`Payment failed: ${msg}`);
+    }
 
-    // P0-A: persist payment record so markBookingPaid can verify ownership
-    // Map PI status → internal payment_status
-    const piPaymentStatus =
-      pi.status === 'succeeded'        ? 'PAID'       :
-      pi.status === 'requires_action'  ? 'AUTHORIZED' :
-      pi.status === 'processing'       ? 'AUTHORIZED' :
-      pi.status === 'canceled'         ? 'FAILED'     : 'UNPAID';
+    // P0-2: correct payment_status_full_enum mapping
+    // requires_action = 3DS/redirect pending → AUTHORIZATION_PENDING (not yet authorized)
+    // requires_capture = manual-capture hold confirmed → AUTHORIZED
+    // processing = async payment in progress → AUTHORIZATION_PENDING
+    // succeeded = direct confirm succeeded → PAID
+    // canceled → CANCELLED; all others → UNPAID
+    const piPaymentStatus: string =
+      pi.status === 'succeeded'          ? 'PAID'                   :
+      pi.status === 'requires_capture'   ? 'AUTHORIZED'             :
+      pi.status === 'requires_action'    ? 'AUTHORIZATION_PENDING'  :
+      pi.status === 'processing'         ? 'AUTHORIZATION_PENDING'  :
+      pi.status === 'canceled'           ? 'CANCELLED'              : 'UNPAID';
 
-    await this.db.query(
-      `INSERT INTO public.payments (
-         tenant_id, booking_id,
-         stripe_account_id,
-         stripe_payment_intent_id,
-         payment_type, currency,
-         amount_authorized_minor,
-         amount_captured_minor, amount_refunded_minor,
-         payment_status
-       ) VALUES ($1,$2,NULL,$3,'INITIAL',$4,$5,0,0,$6)
-       ON CONFLICT (tenant_id, stripe_payment_intent_id) DO UPDATE
-         SET payment_status = EXCLUDED.payment_status,
-             amount_authorized_minor = EXCLUDED.amount_authorized_minor`,
-      [b.tenant_id, b.id, pi.id, b.currency, trustedAmountMinor, piPaymentStatus],
-    );
+    try {
+      await this.db.query(
+        `INSERT INTO public.payments (
+           tenant_id, booking_id,
+           stripe_account_id,
+           stripe_payment_intent_id,
+           payment_type, currency,
+           amount_authorized_minor,
+           amount_captured_minor, amount_refunded_minor,
+           payment_status
+         ) VALUES ($1,$2,NULL,$3,'INITIAL',$4,$5,0,0,$6::payment_status_full_enum)
+         ON CONFLICT (tenant_id, stripe_payment_intent_id) DO UPDATE
+           SET payment_status        = EXCLUDED.payment_status,
+               amount_authorized_minor = EXCLUDED.amount_authorized_minor,
+               updated_at            = now()`,
+        [b.tenant_id, b.id, pi.id, b.currency, trustedAmountMinor, piPaymentStatus],
+      );
+    } catch (dbErr: any) {
+      // PI created but DB write failed — log PI id for manual recovery
+      console.error(
+        `[payViaToken] payments INSERT failed. PI=${pi.id} booking=${b.id} status=${pi.status}:`,
+        dbErr?.message ?? dbErr,
+      );
+      throw new BadRequestException('Payment intent created but record save failed — contact support');
+    }
 
     if (pi.status === 'succeeded') {
       await this.markBookingPaid(b.id, pi.id, b.tenant_id);

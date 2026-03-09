@@ -76,7 +76,12 @@ export class StripeWebhookController {
   ) {
     switch (event.type) {
       case 'payment_intent.amount_capturable_updated':
+        // manual-capture flow: PI is now capturable (AUTHORIZED)
         await this.handleAuthorized(event, tenantId, manager);
+        break;
+      case 'payment_intent.succeeded':
+        // direct-confirm flow: PI succeeded without manual capture (e.g. payViaToken)
+        await this.handleIntentSucceeded(event, tenantId, manager);
         break;
       case 'charge.captured':
         await this.handleCaptured(event, tenantId, manager);
@@ -98,28 +103,76 @@ export class StripeWebhookController {
     manager: EntityManager,
   ) {
     const intent = event.data.object as Stripe.PaymentIntent;
-    // P0-4: scope to tenant + state precondition (only advance from UNPAID)
+    // P0-3: amount_capturable_updated fires when PI is capturable (manual-capture hold confirmed)
+    // This is the correct AUTHORIZED state: card hold placed, awaiting capture
+    const amountAuth = intent.amount_capturable ?? intent.amount ?? 0;
     await manager.query(
       `update public.payments
        set payment_status = 'AUTHORIZED',
-           amount_authorized_minor = $1
+           amount_authorized_minor = $1,
+           updated_at = now()
        where stripe_payment_intent_id = $2
          and tenant_id = $3
-         and payment_status NOT IN ('PAID', 'CAPTURE_PENDING', 'REFUNDED', 'PARTIALLY_REFUNDED')`,
-      [intent.amount_capturable ?? intent.amount ?? 0, intent.id, tenantId],
+         and payment_status NOT IN ('PAID', 'CAPTURE_PENDING', 'REFUNDED', 'PARTIALLY_REFUNDED', 'CANCELLED')`,
+      [amountAuth, intent.id, tenantId],
     );
 
     await this.paymentService.recordOutboxEvent(
-      manager,
-      tenantId,
-      intent.id,
+      manager, tenantId, intent.id,
       PAYMENT_EVENTS.PAYMENT_AUTHORIZED,
-      {
-        tenant_id: tenantId,
-        payment_intent_id: intent.id,
-        amount_authorized_minor: intent.amount_capturable ?? intent.amount ?? 0,
-        currency: intent.currency,
-      },
+      { tenant_id: tenantId, payment_intent_id: intent.id, amount_authorized_minor: amountAuth, currency: intent.currency },
+      event.id,
+    );
+  }
+
+  // P0-3: direct-confirm flow — payment_intent.succeeded fires when PI succeeds without manual capture
+  private async handleIntentSucceeded(
+    event: Stripe.Event,
+    tenantId: string,
+    manager: EntityManager,
+  ) {
+    const intent = event.data.object as Stripe.PaymentIntent;
+    const bookingId = intent.metadata?.booking_id;
+    const amountCaptured = intent.amount_received ?? intent.amount ?? 0;
+
+    await manager.query(
+      `update public.payments
+       set payment_status = 'PAID',
+           amount_captured_minor = $1,
+           updated_at = now()
+       where stripe_payment_intent_id = $2
+         and tenant_id = $3
+         and payment_status NOT IN ('PAID', 'REFUNDED', 'PARTIALLY_REFUNDED', 'CANCELLED')`,
+      [amountCaptured, intent.id, tenantId],
+    );
+
+    // Sync bookings.payment_status
+    await manager.query(
+      `update public.bookings
+       set payment_status = 'PAID', updated_at = now()
+       where stripe_payment_intent_id = $1
+         and tenant_id = $2
+         and payment_status NOT IN ('PAID', 'REFUNDED', 'PARTIALLY_REFUNDED')`,
+      [intent.id, tenantId],
+    );
+
+    // If booking_id in metadata, also mark confirmed via bookingId match
+    if (bookingId) {
+      await manager.query(
+        `update public.bookings
+         set operational_status = 'CONFIRMED', payment_status = 'PAID', updated_at = now()
+         where id = $1
+           and tenant_id = $2
+           and payment_status NOT IN ('PAID', 'REFUNDED', 'PARTIALLY_REFUNDED')`,
+        [bookingId, tenantId],
+      );
+    }
+
+    await this.paymentService.recordOutboxEvent(
+      manager, tenantId, intent.id,
+      PAYMENT_EVENTS.PAYMENT_CAPTURED,
+      { tenant_id: tenantId, payment_intent_id: intent.id, amount_captured_minor: amountCaptured, currency: intent.currency },
+      event.id,
     );
   }
 
@@ -157,6 +210,7 @@ export class StripeWebhookController {
       manager, tenantId, piId,
       PAYMENT_EVENTS.PAYMENT_CAPTURED,
       { tenant_id: tenantId, payment_intent_id: piId, amount_captured_minor: amountCaptured, currency: charge.currency },
+      event.id,
     );
   }
 
@@ -196,6 +250,7 @@ export class StripeWebhookController {
       manager, tenantId, piId,
       PAYMENT_EVENTS.PAYMENT_REFUNDED,
       { tenant_id: tenantId, payment_intent_id: piId, amount_refunded_minor: refunded, status },
+      event.id,
     );
   }
 
@@ -231,6 +286,7 @@ export class StripeWebhookController {
       manager, tenantId, intent.id,
       PAYMENT_EVENTS.PAYMENT_FAILED,
       { tenant_id: tenantId, payment_intent_id: intent.id },
+      event.id,
     );
   }
 }
