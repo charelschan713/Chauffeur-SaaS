@@ -390,7 +390,8 @@ export function QuoteClient() {
         luggage_count: Number(luggage),
         distance_km: route.distance_km,
         duration_minutes: route.duration_minutes,
-        waypoints_count: waypoints.filter(Boolean).length,
+        // Return trip: each waypoint is visited twice (outbound + return leg)
+        waypoints_count: waypoints.filter(Boolean).length * (tripType === 'RETURN' ? 2 : 1),
         waypoints: waypoints.filter(Boolean),
         infant_seats: Number(infantSeats),
         toddler_seats: Number(toddlerSeats),
