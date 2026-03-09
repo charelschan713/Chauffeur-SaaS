@@ -1063,16 +1063,10 @@ export function BookPageClient() {
           {/* Price breakdown */}
           {(preview.base_calculated_minor > 0 || preview.toll_parking_minor > 0) && (
             <div className="space-y-1 text-xs border-t border-[hsl(var(--border))] pt-2">
-              {preview.base_calculated_minor > 0 && (
+              {(preview.base_calculated_minor > 0 || (preview.waypoints_minor ?? 0) > 0) && (
                 <div className="flex justify-between text-[hsl(var(--muted-foreground))]">
                   <span>Base fare</span>
-                  <span>{fmtMoney(preview.base_calculated_minor, selectedResult.currency)}</span>
-                </div>
-              )}
-              {(preview.waypoints_minor ?? 0) > 0 && (
-                <div className="flex justify-between text-[hsl(var(--muted-foreground))]">
-                  <span>+ {req.waypoints?.filter(Boolean).length ?? 1} waypoint stop{(req.waypoints?.filter(Boolean).length ?? 1) > 1 ? 's' : ''}</span>
-                  <span>+{fmtMoney(preview.waypoints_minor!, selectedResult.currency)}</span>
+                  <span>{fmtMoney((preview.base_calculated_minor ?? 0) + (preview.waypoints_minor ?? 0), selectedResult.currency)}</span>
                 </div>
               )}
               {(req.infant_seats ?? 0) > 0 && (

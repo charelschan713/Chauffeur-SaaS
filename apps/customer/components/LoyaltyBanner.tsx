@@ -14,23 +14,28 @@ export function LoyaltyBanner() {
       .catch(() => {});
   }, [token]);
 
-  if (!info || (!info.tier || info.tier === 'STANDARD') && !(Number(info.discount_rate) > 0)) return null;
+  if (!info) return null;
+  const rate = Number(info.discount_rate ?? 0);
+  const tier = info.tier && info.tier !== 'STANDARD' ? info.tier : null;
+  if (!tier && rate <= 0) return null;
+
+  // Build label: "VIP Member — 20% OFF" or "Loyalty Member — 10% OFF"
+  const tierLabel = tier ? `${tier} Member` : 'Loyalty Member';
+  const label = rate > 0 ? `${tierLabel} — ${rate.toFixed(0)}% OFF applied to all bookings` : tierLabel;
 
   return (
     <div className="fixed top-0 left-0 right-0 z-[9998] flex items-center justify-center gap-2 px-4 py-1.5"
       style={{ background: 'linear-gradient(90deg, #1A1A2E 0%, #222236 100%)', borderBottom: '1px solid #C8A87033' }}>
-      {info.tier && info.tier !== 'STANDARD' && (
+      {tier && (
         <span className="text-[10px] font-bold px-2 py-0.5 rounded-full text-white"
           style={{ backgroundColor: '#333355' }}>
-          {info.tier}
+          {tier}
         </span>
       )}
-      {Number(info.discount_rate) > 0 && (
-        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full"
-          style={{ backgroundColor: '#C8A870', color: '#1A1A2E' }}>
-          {Number(info.discount_rate).toFixed(0)}% OFF — Applied to all bookings
-        </span>
-      )}
+      <span className="text-[10px] font-semibold"
+        style={{ color: '#C8A870' }}>
+        {label}
+      </span>
     </div>
   );
 }
