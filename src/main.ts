@@ -8,7 +8,9 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule, { rawBody: true });
   app.use(cookieParser());
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
-  app.use('/webhooks/stripe', express.raw({ type: 'application/json' }));
+  // rawBody is enabled via NestFactory.create({ rawBody: true }) above.
+  // Do NOT add express.raw() here — it conflicts with NestJS rawBody injection
+  // and causes stripe.webhooks.constructEvent() signature verification to fail.
   app.enableCors({
     origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
       // Always allow public widget + portal origins

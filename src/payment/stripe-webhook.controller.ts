@@ -27,7 +27,12 @@ export class StripeWebhookController {
   @Post('stripe')
   @HttpCode(200)
   async handleWebhook(@Req() req: Request, @Res() res: Response, @Body() body: any) {
-    const rawBody: Buffer = (req as any).rawBody ?? Buffer.from(JSON.stringify(body));
+    // NestFactory.create({ rawBody: true }) injects req.rawBody as raw bytes.
+    // Fallback: if rawBody is missing but req.body is already a Buffer (express.raw legacy),
+    // use that. Never re-serialize parsed JSON — signature will not match.
+    const rawBody: Buffer = (req as any).rawBody
+      ?? (Buffer.isBuffer(req.body) ? req.body : undefined);
+    if (!rawBody) throw new BadRequestException('Raw body unavailable — check NestJS rawBody config');
     const signature = req.headers['stripe-signature'];
     if (!signature) throw new BadRequestException('Missing Stripe signature');
 
