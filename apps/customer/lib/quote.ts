@@ -1,3 +1,10 @@
+/**
+ * @deprecated This module is not used by the main booking flow.
+ * BookPageClient.tsx handles quote loading inline via loadQuoteSession().
+ * Canonical booking types moved to lib/types/booking.ts.
+ * Safe to delete once confirmed no external callers remain.
+ * Last audited: Phase 4 — 0 imports found outside this file.
+ */
 export const QUOTE_STORAGE_KEY = 'asc_quote_payload';
 export const QUOTE_TTL_MS = 30 * 60 * 1000; // 30 min
 

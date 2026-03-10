@@ -23,376 +23,17 @@ import {
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'https://chauffeur-saas-production.up.railway.app';
 
-// ── Types ──────────────────────────────────────────────────────────────────
-interface QuoteSession {
-  id: string;
-  tenant_id: string;
-  payload: {
-    slug: string;
-    request: {
-      pickup_address: string;
-      dropoff_address: string;
-      pickup_at_utc: string;
-      timezone: string;
-      passenger_count: number;
-      luggage_count?: number;
-      trip_mode: string;
-      service_type_id: string;
-      city_id?: string;
-      infant_seats?: number;
-      toddler_seats?: number;
-      booster_seats?: number;
-      waypoints?: string[];
-      waypoints_count?: number;
-      return_date?: string;
-      return_time?: string;
-      return_pickup_at_utc?: string;
-    };
-    results: Array<{
-      service_class_id: string;
-      service_class_name: string;
-      estimated_total_minor: number;
-      currency: string;
-      pricing_snapshot_preview: {
-        base_calculated_minor: number;
-        toll_parking_minor: number;
-        surcharge_minor: number;
-        surcharge_labels?: string[];
-        surcharge_items?: { label: string; amount_minor: number }[];
-        grand_total_minor: number;
-        minimum_applied: boolean;
-        discount_amount_minor?: number;
-        discount_type?: string;
-        discount_value?: number;
-        pre_discount_fare_minor?: number;    // fare before discount (includes waypoints+seats, excludes toll)
-        extras_minor?: number;
-        waypoints_minor?: number;
-        baby_seats_minor?: number;
-        toll_minor?: number;
-        parking_minor?: number;
-      };
-    }>;
-    currency: string;
-    quoted_at: string;
-    expires_at: string;
-  };
-  expires_at: string;
-  converted: boolean;
-}
+// ── Types (extracted to lib/types/booking.ts) ──────────────────────────────
+import type { QuoteSession, QuoteResult } from '@/lib/types/booking';
 
-// ── Countdown hook ─────────────────────────────────────────────────────────
-function useCountdown(expiresAt: string) {
-  // Start with null — means "not yet computed". Prevents false-expiry on first render.
-  const [remaining, setRemaining] = useState<number | null>(null);
-  useEffect(() => {
-    const tick = () => {
-      const ms = new Date(expiresAt).getTime() - Date.now();
-      setRemaining(Math.max(0, Math.floor(ms / 1000)));
-    };
-    tick();
-    const id = setInterval(tick, 1000);
-    return () => clearInterval(id);
-  }, [expiresAt]);
-  const mins = remaining !== null ? Math.floor(remaining / 60) : 30;
-  const secs = remaining !== null ? remaining % 60 : 0;
-  // Only mark expired once we've actually computed a value (remaining === 0, not null)
-  return { remaining: remaining ?? 9999, mins, secs, expired: remaining === 0 };
-}
+// ── Sub-components (extracted from this file) ────────────────────────────
+import { useCountdown }     from '@/hooks/useCountdown';
+import { CardSetupForm }    from '@/components/book/CardSetupForm';
+import { AuthGate }         from '@/components/book/AuthGate';
+import { InlineLoginForm }  from '@/components/book/InlineLoginForm';
+import { GuestActivateOtp } from '@/components/book/GuestActivateOtp';
+import { GuestForm }        from '@/components/book/GuestForm';
 
-// ── Card setup form ────────────────────────────────────────────────────────
-function CardSetupForm({ onSuccess, isGuest, billingName, submitLabel, submitting: externalSubmitting, clientSecret, onValidate }: {
-  onSuccess: (setupIntentId: string) => void;
-  isGuest?: boolean;
-  billingName?: string;
-  submitLabel?: string;
-  submitting?: boolean;
-  clientSecret: string;
-  onValidate?: () => string | null; // returns error string or null if ok
-}) {
-  const stripe   = useStripe();
-  const elements = useElements();
-  const [loading, setLoading] = useState(false);
-  const [error, setError]     = useState('');
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!stripe || !elements) {
-      console.error('[CardSetupForm] stripe or elements is null', { stripe: !!stripe, elements: !!elements });
-      return;
-    }
-    // Run contact details validation before touching Stripe
-    if (onValidate) {
-      const validationError = onValidate();
-      if (validationError) {
-        setError(validationError);
-        return;
-      }
-    }
-    setLoading(true);
-    setError('');
-    try {
-
-      const sp = new URLSearchParams(window.location.search);
-      const returnUrl = `${window.location.origin}/book?quote_id=${sp.get('quote_id') ?? ''}&car_type_id=${sp.get('car_type_id') ?? ''}&3ds=1`;
-      const { setupIntent, error: stripeErr } = await stripe.confirmCardSetup(clientSecret, {
-        payment_method: {
-          card: elements.getElement(CardElement)!,
-          billing_details: { name: billingName?.trim() || undefined },
-        },
-        return_url: returnUrl,
-      });
-      // confirmCardSetup handles 3DS inline — if it returns, authentication is complete or failed
-      if (stripeErr) { console.error('[CardSetupForm] stripeErr:', stripeErr); throw new Error(stripeErr.message); }
-      if (!setupIntent || setupIntent.status !== 'succeeded') throw new Error('Card verification failed. Please try again.');
-      onSuccess(setupIntent.id);
-    } catch (err: any) {
-      console.error('[CardSetupForm] error:', err);
-      setError(err.message ?? 'Card setup failed');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      {error && (
-        <div className="flex items-start gap-2 p-3 rounded-lg bg-[hsl(var(--destructive)/0.1)] border border-[hsl(var(--destructive)/0.3)] text-sm text-[hsl(var(--destructive))]">
-          <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
-          {error}
-        </div>
-      )}
-      <div>
-        <div className="rounded-[--radius] border border-[hsl(var(--input-border))] bg-[hsl(var(--input))] px-3 py-3.5">
-          <CardElement options={{
-            hidePostalCode: true,
-            style: {
-              base: { fontSize: '15px', color: '#e2e8f0', '::placeholder': { color: '#64748b' } },
-              invalid: { color: '#ef4444' },
-            },
-          }} />
-        </div>
-      </div>
-      <div className="flex items-start gap-2 p-3 rounded-lg bg-[hsl(var(--muted))] text-xs text-[hsl(var(--muted-foreground))]">
-        Secured by Stripe · Your card details are encrypted. Your bank may prompt for 3D Secure verification.
-      </div>
-      <Button type="submit" size="lg" className="w-full" disabled={loading || externalSubmitting || !stripe}>
-        {loading || externalSubmitting
-          ? <><Spinner className="h-4 w-4 mr-2" /> Processing…</>
-          : submitLabel ?? 'Confirm & Pay'
-        }
-      </Button>
-    </form>
-  );
-}
-
-// ── Auth gate ──────────────────────────────────────────────────────────────
-function AuthGate({ onLogin, onRegister, onGuest }: {
-  onLogin: () => void;
-  onRegister: () => void;
-  onGuest: () => void;
-}) {
-  return (
-    <div className="space-y-3">
-      <p className="text-sm text-[hsl(var(--muted-foreground))] text-center pb-2">
-        To complete your booking, please sign in or continue as guest.
-      </p>
-      <Button size="lg" className="w-full" onClick={onLogin}>Sign In</Button>
-      <Button size="lg" variant="secondary" className="w-full" onClick={onRegister}>Create Account</Button>
-      <Button size="lg" variant="outline" className="w-full" onClick={onGuest}>Continue as Guest</Button>
-    </div>
-  );
-}
-
-// ── Login form ─────────────────────────────────────────────────────────────
-function InlineLoginForm({ onSuccess, onBack }: { onSuccess: () => void; onBack: () => void }) {
-  const setAuth   = useAuthStore(s => s.setAuth);
-  const [email, setEmail]     = useState('');
-  const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [error, setError]     = useState('');
-
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setError('');
-    try {
-      const slug = document.cookie.split('; ').find(r => r.startsWith('tenant_slug='))?.split('=')[1] ?? '';
-      const { data } = await api.post('/customer-auth/login', { tenantSlug: slug, email, password });
-      setAuth(data.accessToken, data.customerId, slug);
-      onSuccess();
-    } catch (err: any) {
-      setError(err.response?.data?.message ?? 'Login failed');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <form onSubmit={submit} className="space-y-3">
-      {error && <p className="text-sm text-[hsl(var(--destructive))]">{error}</p>}
-      <div className="space-y-1.5">
-        <Label>Email</Label>
-        <Input type="email" value={email} onChange={e => setEmail(e.target.value)} required />
-      </div>
-      <div className="space-y-1.5">
-        <Label>Password</Label>
-        <Input type="password" value={password} onChange={e => setPassword(e.target.value)} required />
-      </div>
-      <div className="flex gap-3 pt-1">
-        <Button type="submit" size="lg" className="flex-1" disabled={loading}>
-          {loading ? <Spinner className="h-4 w-4 mr-2" /> : null} Sign In
-        </Button>
-        <Button type="button" variant="outline" size="lg" onClick={onBack}>Back</Button>
-      </div>
-    </form>
-  );
-}
-
-// ── Guest Activate via OTP (shown on Thank You page) ──────────────────────
-function GuestActivateOtp({
-  email, phoneCode, phone, bookingRef, onActivated,
-}: { email: string; phoneCode: string; phone: string; bookingRef: string; onActivated: () => void }) {
-  const [stage, setStage]     = useState<'prompt' | 'otp' | 'done'>('prompt');
-  const [otp, setOtp]         = useState('');
-  const [loading, setLoading] = useState(false);
-  const [error, setError]     = useState('');
-  const [countdown, setCountdown] = useState(0);
-
-  // Countdown timer
-  useEffect(() => {
-    if (countdown <= 0) return;
-    const t = setTimeout(() => setCountdown(c => c - 1), 1000);
-    return () => clearTimeout(t);
-  }, [countdown]);
-
-  const sendOtp = async () => {
-    setLoading(true); setError('');
-    try {
-      await api.post('/customer-portal/auth/send-otp', { phone_country_code: phoneCode, phone_number: phone });
-      setStage('otp');
-      setCountdown(60);
-    } catch (e: any) {
-      setError(e?.response?.data?.message ?? 'Failed to send OTP');
-    } finally { setLoading(false); }
-  };
-
-  const verifyOtp = async () => {
-    if (!otp.trim()) return;
-    setLoading(true); setError('');
-    try {
-      const { data } = await api.post('/customer-portal/auth/verify-otp', {
-        phone_country_code: phoneCode,
-        phone_number: phone,
-        otp_code: otp.trim(),
-      });
-      if (data.accessToken) {
-        localStorage.setItem('customer_token', data.accessToken);
-        if (data.customerId) localStorage.setItem('customer_id', data.customerId);
-        if (data.refreshToken) localStorage.setItem('refreshToken', data.refreshToken);
-        useAuthStore.getState().hydrate();
-        setStage('done');
-        setTimeout(onActivated, 1200);
-      }
-    } catch (e: any) {
-      setError(e?.response?.data?.message ?? 'Invalid OTP. Please try again.');
-    } finally { setLoading(false); }
-  };
-
-  if (stage === 'done') return (
-    <div className="w-full rounded-2xl bg-emerald-500/10 border border-emerald-500/20 px-4 py-4 text-center">
-      <p className="text-emerald-400 font-medium text-sm">Activated! Redirecting…</p>
-    </div>
-  );
-
-  return (
-    <div className="w-full rounded-2xl bg-[hsl(var(--card))] border border-[hsl(var(--border))] px-5 py-5 space-y-4">
-      <div>
-        <p className="text-sm font-semibold text-white">Track your booking</p>
-        <p className="text-xs text-gray-500 mt-0.5">
-          Verify your phone number to access your bookings anytime.
-        </p>
-      </div>
-
-      {stage === 'prompt' && (
-        <>
-          <div className="rounded-xl bg-[hsl(var(--card))] px-4 py-3 text-sm text-[hsl(var(--muted-foreground))]">
-            {phoneCode} {phone}
-          </div>
-          {error && <p className="text-xs text-red-400">{error}</p>}
-          <Button size="lg" className="w-full" onClick={sendOtp} disabled={loading}>
-            {loading ? 'Sending…' : 'Send OTP to my phone'}
-          </Button>
-        </>
-      )}
-
-      {stage === 'otp' && (
-        <>
-          <p className="text-xs text-gray-500">
-            Enter the 6-digit code sent to {phoneCode} {phone}
-          </p>
-          <input
-            value={otp}
-            onChange={e => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
-            placeholder="000000"
-            inputMode="numeric"
-            className="w-full text-center text-2xl tracking-[0.5em] font-mono rounded-xl border border-gray-100 bg-white/5 px-4 py-3 text-[#1a1a1a] placeholder-white/20 focus:outline-none focus:border-[hsl(var(--primary)/0.6)]"
-          />
-          {error && <p className="text-xs text-red-400">{error}</p>}
-          <Button size="lg" className="w-full" onClick={verifyOtp} disabled={loading || otp.length < 6}>
-            {loading ? 'Verifying…' : 'Verify & View Booking'}
-          </Button>
-          <button
-            onClick={countdown > 0 ? undefined : sendOtp}
-            disabled={countdown > 0}
-            className="w-full text-center text-xs text-gray-400 disabled:opacity-50"
-          >
-            {countdown > 0 ? `Resend in ${countdown}s` : 'Resend OTP'}
-          </button>
-        </>
-      )}
-    </div>
-  );
-}
-
-// ── Guest form ─────────────────────────────────────────────────────────────
-function GuestForm({ onSuccess, onBack }: { onSuccess: (guestData: any) => void; onBack: () => void }) {
-  const [form, setForm] = useState({ firstName: '', lastName: '', email: '', phoneCode: '+61', phoneNumber: '' });
-  const f = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
-    setForm(p => ({ ...p, [k]: e.target.value }));
-
-  return (
-    <form onSubmit={e => {
-      e.preventDefault();
-      onSuccess({ ...form, phone: `${form.phoneCode}${form.phoneNumber}` });
-    }} className="space-y-3">
-      <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-1.5">
-          <Label>First Name *</Label>
-          <Input value={form.firstName} onChange={f('firstName')} required />
-        </div>
-        <div className="space-y-1.5">
-          <Label>Last Name *</Label>
-          <Input value={form.lastName} onChange={f('lastName')} required />
-        </div>
-      </div>
-      <div className="space-y-1.5">
-        <Label>Email *</Label>
-        <Input type="email" value={form.email} onChange={f('email')} required />
-      </div>
-      <div className="space-y-1.5">
-        <Label>Phone</Label>
-        <div className="flex gap-2">
-          <PhoneCountrySelect value={form.phoneCode} onChange={v => setForm(p => ({ ...p, phoneCode: v }))} className="w-28 shrink-0" />
-          <Input type="tel" className="flex-1" value={form.phoneNumber} onChange={f('phoneNumber')} placeholder="400 000 000" />
-        </div>
-      </div>
-      <div className="flex gap-3 pt-1">
-        <Button type="submit" size="lg" className="flex-1">Continue</Button>
-        <Button type="button" variant="outline" size="lg" onClick={onBack}>Back</Button>
-      </div>
-    </form>
-  );
-}
 
 // ── Main component ─────────────────────────────────────────────────────────
 // 'expired' removed — expiry is now shown as an inline banner, not a full-page redirect
@@ -471,7 +112,7 @@ export function BookPageClient() {
   useEffect(() => {
     if (session?.tenant_id) loadStripeKey(session.tenant_id);
   }, [session?.tenant_id, loadStripeKey]); // eslint-disable-line
-  const [selectedResult, setSelectedResult] = useState<QuoteSession['payload']['results'][0] | null>(null);
+  const [selectedResult, setSelectedResult] = useState<QuoteResult | null>(null);
   const [guestData, setGuestData]           = useState<any>(null);
 
   // Logged-in customer discount (may be higher than base quote discount)
@@ -1328,6 +969,16 @@ export function BookPageClient() {
             <Button size="lg" variant="outline" className="w-full" onClick={() => router.push('/quote')}>
               Book Another Ride
             </Button>
+            {/* Return to website */}
+            <div className="pt-2 flex justify-center">
+              <a
+                href={typeof window !== 'undefined' && window.location.hostname.includes('chauffeurssolution') ? `https://${window.location.hostname.split('.')[0]}.com.au` : 'https://aschauffeured.com.au'}
+                className="text-xs font-medium transition-opacity hover:opacity-70"
+                style={{ color: '#C8A870' }}
+              >
+                ← Return to Website
+              </a>
+            </div>
           </div>
 
         </div>
