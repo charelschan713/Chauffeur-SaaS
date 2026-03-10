@@ -8,11 +8,17 @@ import { DriverInviteController, DriverOnboardingController } from './driver-inv
 import { DriverInviteService } from './driver-invite.service';
 import { NetworkModule } from '../network/network.module';
 import { NotificationModule } from '../notification/notification.module';
+import { AdminDriverController, AdminDriverPayController } from './admin-driver.controller';
+import { AdminDriverService } from './admin-driver.service';
 
 @Module({
   imports: [JwtModule.register({}), NetworkModule, NotificationModule],
-  controllers: [DriverController, DriverAppController, DriverInviteController, DriverOnboardingController],
-  providers: [DriverService, DriverAppService, DriverInviteService],
-  exports: [DriverAppService],
+  controllers: [
+    DriverController, DriverAppController,
+    DriverInviteController, DriverOnboardingController,
+    AdminDriverController, AdminDriverPayController,
+  ],
+  providers: [DriverService, DriverAppService, DriverInviteService, AdminDriverService],
+  exports: [DriverAppService, AdminDriverService],
 })
 export class DriverModule {}

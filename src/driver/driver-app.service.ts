@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ForbiddenException, OnModuleInit, Logger } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, BadRequestException, OnModuleInit, Logger } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 
 /**
@@ -39,9 +39,100 @@ export class DriverAppService implements OnModuleInit {
         extra_parking    NUMERIC(10,2),
         notes            TEXT,
         status           TEXT NOT NULL DEFAULT 'pending',
+        admin_note       TEXT,
+        reviewed_by      UUID,
+        reviewed_at      TIMESTAMPTZ,
         created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         updated_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
       )
+    `).catch(() => {});
+
+    // ── Driver settlement: driver_payable_reviews ─────────────────────────────
+    // Authoritative per-assignment driver payout confirmed by admin after
+    // job completion and fulfil review. Used as the source for driver invoice
+    // line-item amounts. Driver CANNOT create or edit this record.
+    await this.dataSource.query(`
+      CREATE TABLE IF NOT EXISTS public.driver_payable_reviews (
+        id                        UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        tenant_id                 UUID NOT NULL,
+        booking_id                UUID NOT NULL,
+        assignment_id             UUID NOT NULL UNIQUE,
+        driver_id                 UUID NOT NULL,
+
+        base_driver_pay_minor     INT  NOT NULL DEFAULT 0,
+        extra_waiting_pay_minor   INT  NOT NULL DEFAULT 0,
+        extra_waypoint_pay_minor  INT  NOT NULL DEFAULT 0,
+        toll_parking_reimburse_minor INT NOT NULL DEFAULT 0,
+        other_adjustment_minor    INT  NOT NULL DEFAULT 0,
+        total_driver_payable_minor INT  NOT NULL GENERATED ALWAYS AS (
+          base_driver_pay_minor + extra_waiting_pay_minor +
+          extra_waypoint_pay_minor + toll_parking_reimburse_minor +
+          other_adjustment_minor
+        ) STORED,
+
+        currency                  TEXT NOT NULL DEFAULT 'AUD',
+        review_notes              TEXT,
+        reviewed_at               TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        reviewed_by               UUID NOT NULL,
+
+        CONSTRAINT fk_dpr_assignment FOREIGN KEY (assignment_id)
+          REFERENCES public.assignments(id) ON DELETE CASCADE
+      );
+    `).catch(() => {});
+
+    // ── Driver invoice items table ────────────────────────────────────────────
+    // One row per job/assignment per driver invoice.
+    // driver_payable_amount sourced from driver_payable_reviews.total_driver_payable_minor.
+    await this.dataSource.query(`
+      CREATE TABLE IF NOT EXISTS public.driver_invoice_items (
+        id                     UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        driver_invoice_id      UUID NOT NULL,
+        tenant_id              UUID NOT NULL,
+        assignment_id          UUID NOT NULL,
+        booking_id             UUID NOT NULL,
+        booking_reference      TEXT,
+        service_date           TIMESTAMPTZ,
+        description            TEXT,
+        driver_payable_minor   INT  NOT NULL DEFAULT 0,
+        currency               TEXT NOT NULL DEFAULT 'AUD',
+        payable_review_id      UUID,   -- reference to driver_payable_reviews.id
+        created_at             TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS idx_dii_invoice ON public.driver_invoice_items(driver_invoice_id);
+      CREATE UNIQUE INDEX IF NOT EXISTS uix_dii_assignment
+        ON public.driver_invoice_items(driver_invoice_id, assignment_id);
+    `).catch(() => {});
+
+    // ── Extend driver_invoices table ─────────────────────────────────────────
+    await this.dataSource.query(`
+      ALTER TABLE public.driver_invoices
+        ADD COLUMN IF NOT EXISTS invoice_status         TEXT,
+        ADD COLUMN IF NOT EXISTS paid_by_admin_at       TIMESTAMPTZ,
+        ADD COLUMN IF NOT EXISTS paid_by_admin_by       UUID,
+        ADD COLUMN IF NOT EXISTS received_by_driver_at  TIMESTAMPTZ,
+        ADD COLUMN IF NOT EXISTS received_by_driver_by  UUID,
+        ADD COLUMN IF NOT EXISTS dispute_reason         TEXT,
+        ADD COLUMN IF NOT EXISTS item_count             INT DEFAULT 0;
+    `).catch(() => {});
+
+    // Normalise legacy status column (old col is 'status'; new col is 'invoice_status')
+    // Copy non-null status → invoice_status for existing rows
+    await this.dataSource.query(`
+      UPDATE public.driver_invoices
+        SET invoice_status = status
+      WHERE invoice_status IS NULL AND status IS NOT NULL;
+    `).catch(() => {});
+
+    // ── driver_payout_status CHECK constraint ────────────────────────────────
+    await this.dataSource.query(`
+      ALTER TABLE public.assignments
+        DROP CONSTRAINT IF EXISTS assignments_driver_payout_status_check;
+      ALTER TABLE public.assignments
+        ADD CONSTRAINT assignments_driver_payout_status_check
+          CHECK (driver_payout_status IS NULL OR driver_payout_status IN (
+            'NOT_READY','AWAITING_ADMIN_REVIEW','READY_FOR_DRIVER_INVOICE',
+            'INVOICED','PAID_BY_ADMIN','RECEIVED_BY_DRIVER','DISPUTED'
+          ));
     `).catch(() => {});
   }
 
@@ -304,6 +395,7 @@ export class DriverAppService implements OnModuleInit {
     // COMPLETED = trip is physically done. Admin retains authority to:
     //   fulfilBooking() — review extra charges, finalise, invoice
     // Driver must submit a driver_extra_report for admin review.
+    // ── Settlement: mark driver payout as awaiting admin review ──────────────
     if (newStatus === 'job_done') {
       await this.dataSource.query(
         `UPDATE bookings
@@ -311,6 +403,13 @@ export class DriverAppService implements OnModuleInit {
          WHERE id = $1
            AND operational_status NOT IN ('FULFILLED','CANCELLED')`,
         [rows[0].booking_id],
+      );
+      // Mark driver payout awaiting admin review (settlement state machine)
+      await this.dataSource.query(
+        `UPDATE public.assignments
+         SET driver_payout_status = 'AWAITING_ADMIN_REVIEW', updated_at = NOW()
+         WHERE id = $1`,
+        [assignmentId],
       );
       // Record transition
       await this.dataSource.query(
@@ -743,47 +842,177 @@ export class DriverAppService implements OnModuleInit {
     );
   }
 
+  // ── Settlement: list jobs eligible for driver invoice ───────────────────
+  // Only returns jobs where admin has confirmed the final driver payable.
+  // Driver cannot see jobs that are not yet admin-reviewed.
   async getInvoiceableJobs(driverId: string) {
     return this.dataSource.query(
-      `SELECT a.id, a.driver_pay_minor, a.currency,
-              b.booking_reference, b.pickup_at_utc, b.pickup_address_text, b.dropoff_address_text
+      `SELECT a.id, a.driver_payout_status, a.currency,
+              dpr.total_driver_payable_minor,
+              dpr.id AS review_id,
+              b.booking_reference, b.pickup_at_utc,
+              b.pickup_address_text, b.dropoff_address_text
        FROM assignments a
        JOIN bookings b ON b.id = a.booking_id
+       LEFT JOIN public.driver_payable_reviews dpr ON dpr.assignment_id = a.id
        WHERE a.driver_id = $1
-         AND a.status = 'COMPLETED'
-         AND a.id NOT IN (
-           SELECT unnest(di.assignment_ids) FROM driver_invoices di WHERE di.driver_id = $1
-         )
+         AND a.driver_payout_status = 'READY_FOR_DRIVER_INVOICE'
        ORDER BY b.pickup_at_utc DESC`,
       [driverId],
     );
   }
 
+  // ── Settlement: create driver invoice (multi-job) ────────────────────────
+  // Amounts sourced ONLY from admin-confirmed driver_payable_reviews.
+  // Driver cannot pass arbitrary amounts.
   async createDriverInvoice(driverId: string, tenantId: string, assignmentIds: string[]) {
-    if (!assignmentIds?.length) throw new Error('No assignments provided');
-    const rows = await this.dataSource.query(
-      `SELECT COALESCE(SUM(driver_pay_minor), 0) AS total, MAX(currency) AS currency
-       FROM assignments WHERE id = ANY($1) AND driver_id = $2`,
+    if (!assignmentIds?.length) throw new BadRequestException('No assignments provided');
+
+    // 1. Verify all assignments are eligible (READY_FOR_DRIVER_INVOICE + belong to driver)
+    const eligible = await this.dataSource.query(
+      `SELECT a.id, dpr.total_driver_payable_minor, dpr.id AS review_id,
+              dpr.currency,
+              b.booking_reference, b.pickup_at_utc, b.id AS booking_id
+         FROM assignments a
+         JOIN public.driver_payable_reviews dpr ON dpr.assignment_id = a.id
+         JOIN bookings b ON b.id = a.booking_id
+        WHERE a.id = ANY($1)
+          AND a.driver_id = $2
+          AND a.driver_payout_status = 'READY_FOR_DRIVER_INVOICE'`,
       [assignmentIds, driverId],
     );
-    const total = Number(rows[0]?.total ?? 0);
-    const currency = rows[0]?.currency ?? 'AUD';
-    const num = `INV-${Date.now()}`;
-    const [inv] = await this.dataSource.query(
-      `INSERT INTO driver_invoices (driver_id, tenant_id, invoice_number, assignment_ids, total_minor, currency, status)
-       VALUES ($1, $2, $3, $4, $5, $6, 'DRAFT') RETURNING id, invoice_number, status`,
-      [driverId, tenantId, num, assignmentIds, total, currency],
+
+    if (eligible.length !== assignmentIds.length) {
+      const found = new Set(eligible.map((r: any) => r.id));
+      const bad = assignmentIds.filter(id => !found.has(id));
+      throw new BadRequestException(
+        `Some assignments are not eligible for invoicing: [${bad.join(', ')}]. ` +
+        `Assignments must be in READY_FOR_DRIVER_INVOICE status with admin-confirmed payout.`,
+      );
+    }
+
+    const totalMinor = eligible.reduce((s: number, r: any) => s + (Number(r.total_driver_payable_minor) || 0), 0);
+    const currency = eligible[0]?.currency ?? 'AUD';
+
+    // 2. Generate tenant-prefixed invoice number: <BOOKING_REF_PREFIX>-DRIVER-<SEQ>
+    const [tenant] = await this.dataSource.query(
+      `SELECT COALESCE(booking_ref_prefix, 'DRV') AS prefix FROM public.tenants WHERE id = $1`,
+      [tenantId],
     );
+    const [seqRow] = await this.dataSource.query(
+      `SELECT COUNT(*) AS n FROM public.driver_invoices WHERE tenant_id = $1`,
+      [tenantId],
+    );
+    const seq = String(Number(seqRow.n) + 1).padStart(4, '0');
+    const invoiceNumber = `${tenant.prefix}-DRIVER-${seq}`;
+
+    // 3. Insert driver invoice header
+    const [inv] = await this.dataSource.query(
+      `INSERT INTO public.driver_invoices
+         (driver_id, tenant_id, invoice_number, assignment_ids,
+          total_minor, currency, status, invoice_status, item_count)
+       VALUES ($1, $2, $3, $4, $5, $6, 'DRAFT', 'DRAFT', $7)
+       RETURNING id, invoice_number, status, invoice_status, total_minor`,
+      [driverId, tenantId, invoiceNumber, assignmentIds, totalMinor, currency, eligible.length],
+    );
+
+    // 4. Insert per-job line items (amounts from admin-confirmed reviews)
+    for (const row of eligible) {
+      await this.dataSource.query(
+        `INSERT INTO public.driver_invoice_items
+           (driver_invoice_id, tenant_id, assignment_id, booking_id, booking_reference,
+            service_date, driver_payable_minor, currency, payable_review_id,
+            description)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+        [
+          inv.id, tenantId, row.id, row.booking_id, row.booking_reference,
+          row.pickup_at_utc,
+          Number(row.total_driver_payable_minor),
+          currency,
+          row.review_id,
+          `Job — ${row.booking_reference}`,
+        ],
+      );
+      // 5. Mark assignment as INVOICED
+      await this.dataSource.query(
+        `UPDATE public.assignments
+           SET driver_payout_status = 'INVOICED', updated_at = NOW()
+         WHERE id = $1`,
+        [row.id],
+      );
+    }
+
     return inv;
   }
 
   async submitDriverInvoice(driverId: string, invoiceId: string) {
     await this.dataSource.query(
-      `UPDATE driver_invoices SET status = 'SUBMITTED', submitted_at = now()
-       WHERE id = $1 AND driver_id = $2 AND status = 'DRAFT'`,
+      `UPDATE public.driver_invoices
+       SET status = 'SUBMITTED', invoice_status = 'SUBMITTED', submitted_at = now(), updated_at = now()
+       WHERE id = $1 AND driver_id = $2 AND invoice_status = 'DRAFT'`,
       [invoiceId, driverId],
     );
     return { submitted: true };
+  }
+
+  // ── Settlement: driver marks invoice received ────────────────────────────
+  // Final settlement step. Driver confirms funds received.
+  async markDriverInvoiceReceived(driverId: string, invoiceId: string) {
+    const [inv] = await this.dataSource.query(
+      `UPDATE public.driver_invoices
+       SET invoice_status = 'RECEIVED_BY_DRIVER',
+           received_by_driver_at = NOW(),
+           received_by_driver_by = $1,
+           updated_at = NOW()
+       WHERE id = $2 AND driver_id = $1 AND invoice_status = 'PAID_BY_ADMIN'
+       RETURNING id, invoice_number, invoice_status`,
+      [driverId, invoiceId],
+    );
+    if (!inv) throw new BadRequestException('Invoice not eligible to mark received (must be PAID_BY_ADMIN)');
+
+    // Mark all assignments on this invoice as RECEIVED_BY_DRIVER
+    await this.dataSource.query(
+      `UPDATE public.assignments
+         SET driver_payout_status = 'RECEIVED_BY_DRIVER', updated_at = NOW()
+       WHERE id IN (
+         SELECT assignment_id FROM public.driver_invoice_items WHERE driver_invoice_id = $1
+       )`,
+      [invoiceId],
+    );
+    return { success: true, invoice_number: inv.invoice_number };
+  }
+
+  // ── Settlement: driver invoice detail (with line items) ─────────────────
+  async getDriverInvoiceDetail(driverId: string, invoiceId: string) {
+    const [inv] = await this.dataSource.query(
+      `SELECT * FROM public.driver_invoices WHERE id = $1 AND driver_id = $2`,
+      [invoiceId, driverId],
+    );
+    if (!inv) throw new NotFoundException('Invoice not found');
+
+    const items = await this.dataSource.query(
+      `SELECT dii.*, b.pickup_at_utc, b.pickup_address_text, b.dropoff_address_text
+         FROM public.driver_invoice_items dii
+         JOIN public.bookings b ON b.id = dii.booking_id
+        WHERE dii.driver_invoice_id = $1
+        ORDER BY dii.service_date ASC`,
+      [invoiceId],
+    );
+    return { ...inv, items };
+  }
+
+  // ── Settlement: list driver invoices (with item count) ───────────────────
+  async listDriverInvoicesEnriched(driverId: string) {
+    const invoices = await this.dataSource.query(
+      `SELECT i.id, i.invoice_number, i.invoice_status, i.total_minor, i.currency,
+              i.created_at, i.submitted_at, i.paid_by_admin_at, i.received_by_driver_at,
+              i.dispute_reason, i.item_count
+         FROM public.driver_invoices i
+        WHERE i.driver_id = $1
+        ORDER BY i.created_at DESC`,
+      [driverId],
+    );
+    return invoices;
   }
 
   async verifyAbn(abn: string) {

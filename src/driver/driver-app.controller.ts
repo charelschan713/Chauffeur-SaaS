@@ -171,19 +171,28 @@ export class DriverAppController {
 
   // ─── Invoices ─────────────────────────────────────────────────────────────
 
-  /** List driver's invoices */
+  /** List driver's invoices (enriched with item_count + settlement status) */
   @Get('invoices')
   async listInvoices(@CurrentUser('sub') driverId: string) {
-    return this.service.listDriverInvoices(driverId);
+    return this.service.listDriverInvoicesEnriched(driverId);
   }
 
-  /** Completed assignments not yet invoiced */
+  /** Jobs eligible for driver invoicing (admin-reviewed payout only) */
   @Get('invoices/invoiceable')
   async invoiceableJobs(@CurrentUser('sub') driverId: string) {
     return this.service.getInvoiceableJobs(driverId);
   }
 
-  /** Create a draft invoice */
+  /** Driver invoice detail with per-job line items */
+  @Get('invoices/:id')
+  async getInvoiceDetail(
+    @CurrentUser('sub') driverId: string,
+    @Param('id') invoiceId: string,
+  ) {
+    return this.service.getDriverInvoiceDetail(driverId, invoiceId);
+  }
+
+  /** Create a driver invoice from admin-reviewed eligible jobs */
   @Post('invoices')
   async createInvoice(
     @CurrentUser('sub') driverId: string,
@@ -193,13 +202,22 @@ export class DriverAppController {
     return this.service.createDriverInvoice(driverId, tenantId, assignmentIds);
   }
 
-  /** Submit invoice to admin */
+  /** Submit invoice to admin for payment */
   @Patch('invoices/:id/submit')
   async submitInvoice(
     @CurrentUser('sub') driverId: string,
     @Param('id') invoiceId: string,
   ) {
     return this.service.submitDriverInvoice(driverId, invoiceId);
+  }
+
+  /** Driver confirms funds received (final settlement step) */
+  @Patch('invoices/:id/received')
+  async markReceived(
+    @CurrentUser('sub') driverId: string,
+    @Param('id') invoiceId: string,
+  ) {
+    return this.service.markDriverInvoiceReceived(driverId, invoiceId);
   }
 
   /** Verify ABN via ABR */

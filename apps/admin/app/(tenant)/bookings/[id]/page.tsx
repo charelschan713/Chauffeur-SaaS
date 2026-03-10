@@ -1,5 +1,5 @@
 'use client';
-import { useMemo, useState, useEffect, Suspense } from 'react';
+import { useMemo, useState, useEffect, Suspense, useCallback } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
@@ -683,6 +683,9 @@ function BookingDetailInner() {
         {/* ── Right column ── */}
         <div className="space-y-6">
 
+          {/* ── Driver Pay Review (Phase 3 — settlement) ─────────────────── */}
+          <DriverPayReviewPanel bookingId={booking.id} tenantId={booking.tenant_id} />
+
           {/* Assignment */}
           <Card title="Assignment">
             {latestAssignment ? (
@@ -1104,6 +1107,159 @@ function BookingDetailInner() {
     </div>
   );
 }
+
+// ── Driver Pay Review Panel ───────────────────────────────────────────────────
+// Phase 3 — Driver settlement: admin confirms final driver payable for this booking.
+// This sets driver_payout_status=READY_FOR_DRIVER_INVOICE on the assignment,
+// allowing the driver to include the job in a driver invoice.
+function DriverPayReviewPanel({ bookingId, tenantId }: { bookingId: string; tenantId?: string }) {
+  const qc = useQueryClient();
+  const [expanded, setExpanded] = useState(false);
+  const [form, setForm] = useState({
+    assignment_id: '',
+    base_driver_pay_minor: 0,
+    extra_waiting_pay_minor: 0,
+    extra_waypoint_pay_minor: 0,
+    toll_parking_reimburse_minor: 0,
+    other_adjustment_minor: 0,
+    currency: 'AUD',
+    review_notes: '',
+  });
+
+  const { data: reviews = [] } = useQuery({
+    queryKey: ['driver-pay-review', bookingId],
+    queryFn: async () => (await api.get(`/bookings/${bookingId}/driver-pay-review`)).data,
+    enabled: !!bookingId,
+  });
+
+  const { data: bookingDetail } = useQuery({
+    queryKey: ['booking', bookingId],
+    queryFn: async () => (await api.get(`/bookings/${bookingId}`)).data,
+    enabled: !!bookingId,
+  });
+
+  const primaryAssignment = bookingDetail?.assignments?.find((a: any) => a.leg === 'A' || !a.leg) ?? bookingDetail?.assignments?.[0];
+
+  useEffect(() => {
+    if (primaryAssignment) {
+      setForm(f => ({
+        ...f,
+        assignment_id: primaryAssignment.id ?? '',
+        base_driver_pay_minor: primaryAssignment.driver_pay_minor ?? 0,
+        toll_parking_reimburse_minor: primaryAssignment.toll_parking_minor ?? 0,
+      }));
+    }
+  }, [primaryAssignment?.id]);
+
+  const mutation = useMutation({
+    mutationFn: () => api.post(`/bookings/${bookingId}/driver-pay-review`, form),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['driver-pay-review', bookingId] });
+      setExpanded(false);
+    },
+  });
+
+  const latestReview = reviews[0];
+  const settlementReady = primaryAssignment?.driver_payout_status === 'READY_FOR_DRIVER_INVOICE';
+  const alreadySettled = ['INVOICED','PAID_BY_ADMIN','RECEIVED_BY_DRIVER'].includes(primaryAssignment?.driver_payout_status);
+  const fmt = (minor: number) => `AUD ${(minor / 100).toFixed(2)}`;
+  const total = (form.base_driver_pay_minor + form.extra_waiting_pay_minor +
+    form.extra_waypoint_pay_minor + form.toll_parking_reimburse_minor + form.other_adjustment_minor);
+
+  if (!primaryAssignment) return null;
+
+  return (
+    <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+      <div
+        className="px-5 py-4 flex items-center justify-between cursor-pointer hover:bg-gray-50"
+        onClick={() => setExpanded(!expanded)}
+      >
+        <div>
+          <p className="text-sm font-semibold text-gray-900">Driver Pay Review</p>
+          <p className="text-xs text-gray-400 mt-0.5">
+            {alreadySettled
+              ? `✅ Settlement status: ${primaryAssignment.driver_payout_status}`
+              : settlementReady
+              ? `✅ Ready — ${fmt(latestReview?.total_driver_payable_minor ?? 0)} approved`
+              : latestReview
+              ? `Reviewed ${fmt(latestReview.total_driver_payable_minor ?? 0)}`
+              : `Payout status: ${primaryAssignment.driver_payout_status ?? 'NOT_READY'}`}
+          </p>
+        </div>
+        <span className="text-gray-400 text-sm">{expanded ? '▲' : '▼'}</span>
+      </div>
+
+      {expanded && (
+        <div className="px-5 py-4 border-t border-gray-100 space-y-4">
+          {latestReview && (
+            <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-sm">
+              <p className="font-semibold text-green-800">Last review: {fmt(latestReview.total_driver_payable_minor)}</p>
+              <p className="text-green-600 text-xs mt-0.5">
+                By {latestReview.reviewed_by_name ?? 'admin'} · {new Date(latestReview.reviewed_at).toLocaleString('en-AU')}
+              </p>
+              {latestReview.review_notes && <p className="text-green-700 text-xs mt-1 italic">"{latestReview.review_notes}"</p>}
+            </div>
+          )}
+
+          <p className="text-xs text-gray-500">
+            Confirm the final driver payable amount. This is the authoritative source for driver invoice line items.
+            Driver cannot modify these amounts.
+          </p>
+
+          <div className="grid grid-cols-2 gap-3">
+            {[
+              { k: 'base_driver_pay_minor',          l: 'Base Driver Pay' },
+              { k: 'extra_waiting_pay_minor',         l: 'Extra Waiting Pay' },
+              { k: 'extra_waypoint_pay_minor',        l: 'Extra Waypoint Pay' },
+              { k: 'toll_parking_reimburse_minor',    l: 'Toll/Parking Reimburse' },
+              { k: 'other_adjustment_minor',          l: 'Other Adjustment' },
+            ].map(({ k, l }) => (
+              <div key={k}>
+                <label className="block text-xs text-gray-500 mb-1">{l} (cents)</label>
+                <input
+                  type="number"
+                  className="w-full border rounded-lg px-2 py-1.5 text-sm"
+                  value={(form as any)[k]}
+                  onChange={e => setForm(f => ({ ...f, [k]: parseInt(e.target.value) || 0 }))}
+                />
+              </div>
+            ))}
+          </div>
+
+          <div className="bg-gray-50 rounded-lg p-3 flex items-center justify-between">
+            <span className="text-sm text-gray-600 font-medium">Total Driver Payable</span>
+            <span className="text-base font-bold text-gray-900">{fmt(total)}</span>
+          </div>
+
+          <div>
+            <label className="block text-xs text-gray-500 mb-1">Review notes (optional)</label>
+            <input
+              className="w-full border rounded-lg px-3 py-2 text-sm"
+              value={form.review_notes}
+              onChange={e => setForm(f => ({ ...f, review_notes: e.target.value }))}
+              placeholder="e.g. Extra stop approved, standard toll rate applied"
+            />
+          </div>
+
+          <button
+            onClick={() => mutation.mutate()}
+            disabled={mutation.isPending || !form.assignment_id || alreadySettled}
+            className="w-full px-4 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
+          >
+            {mutation.isPending ? 'Saving…' : '✅ Confirm Driver Pay — Set READY_FOR_DRIVER_INVOICE'}
+          </button>
+
+          {alreadySettled && (
+            <p className="text-xs text-gray-400 text-center">
+              Settlement is in {primaryAssignment.driver_payout_status} — no further review needed.
+            </p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+// ─────────────────────────────────────────────────────────────────────────────
 
 export default function BookingDetailPage() {
   return (
