@@ -528,7 +528,7 @@ export class BookingService {
              cancellation_reason = 'Booking cancelled',
              updated_at = now()
          WHERE booking_id = $1
-           AND status NOT IN ('CANCELLED','DECLINED','JOB_COMPLETED','COMPLETED','FULFILLED')`,
+           AND status NOT IN ('CANCELLED','DECLINED','JOB_COMPLETED','COMPLETED')`,
         [bookingId],
       );
       // ─────────────────────────────────────────────────────────────────────
