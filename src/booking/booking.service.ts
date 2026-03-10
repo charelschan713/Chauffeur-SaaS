@@ -746,8 +746,8 @@ export class BookingService {
         [pi.id, bookingId],
       );
 
-      // Record in payments table — same conventions as fulfilBooking ADJUSTMENT path:
-      //   payment_type = 'PREPAY'  (initial booking charge on confirmation, not an adjustment)
+      // Record in payments table — same conventions as fulfilBooking path:
+      //   payment_type = 'INITIAL' (initial booking charge on customer confirmation)
       //   payment_status = 'PAID'  (PI confirmed + captured inline with off_session=true)
       //   ON CONFLICT DO NOTHING   (idempotent: unique on tenant_id+stripe_payment_intent_id)
       await this.dataSource.query(
@@ -755,7 +755,7 @@ export class BookingService {
            tenant_id, booking_id, stripe_payment_intent_id, payment_type,
            currency, amount_authorized_minor, amount_captured_minor,
            amount_refunded_minor, payment_status, created_at, updated_at
-         ) VALUES ($1,$2,$3,'PREPAY',$4,$5,$5,0,'PAID',NOW(),NOW())
+         ) VALUES ($1,$2,$3,'INITIAL',$4,$5,$5,0,'PAID',NOW(),NOW())
          ON CONFLICT (tenant_id, stripe_payment_intent_id) DO NOTHING`,
         [tenantId, bookingId, pi.id, b.currency ?? 'AUD', b.total_price_minor],
       );
