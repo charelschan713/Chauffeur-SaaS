@@ -745,12 +745,33 @@ export class BookingService {
          WHERE id=$2`,
         [pi.id, bookingId],
       );
+
+      // Record in payments table — same conventions as fulfilBooking ADJUSTMENT path:
+      //   payment_type = 'PREPAY'  (initial booking charge on confirmation, not an adjustment)
+      //   payment_status = 'PAID'  (PI confirmed + captured inline with off_session=true)
+      //   ON CONFLICT DO NOTHING   (idempotent: unique on tenant_id+stripe_payment_intent_id)
+      await this.dataSource.query(
+        `INSERT INTO public.payments (
+           tenant_id, booking_id, stripe_payment_intent_id, payment_type,
+           currency, amount_authorized_minor, amount_captured_minor,
+           amount_refunded_minor, payment_status, created_at, updated_at
+         ) VALUES ($1,$2,$3,'PREPAY',$4,$5,$5,0,'PAID',NOW(),NOW())
+         ON CONFLICT (tenant_id, stripe_payment_intent_id) DO NOTHING`,
+        [tenantId, bookingId, pi.id, b.currency ?? 'AUD', b.total_price_minor],
+      );
+
       return { success: true, paymentIntentId: pi.id };
     } catch (err: any) {
       // FIX (original): was SET status='PAYMENT_FAILED' (wrong column, silent no-op)
       // FIX (enum):     'PAYMENT_FAILED' is not in operational_status_enum
       // Correct behaviour: leave operational_status as-is (allows admin to retry);
-      // set payment_status='FAILED' (valid in payment_status_enum) to surface failure
+      // set payment_status='FAILED' (valid in payment_status_enum) to surface failure.
+      // Payments table: do NOT insert a row for failed confirmAndCharge.
+      //   Rationale: failed off-session PI creates Stripe PI in 'requires_action' or
+      //   'canceled' state — it cannot be re-confirmed. No PI ID to record that's safe
+      //   to expose as a payments row. Booking remains PENDING_CUSTOMER_CONFIRMATION
+      //   so admin can retry (new PI generated on retry). This matches fulfilBooking
+      //   FAILED path (also no payments row on failure).
       await this.dataSource.query(
         `UPDATE public.bookings SET payment_status='FAILED', updated_at=now() WHERE id=$1`,
         [bookingId],
