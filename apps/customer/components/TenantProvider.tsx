@@ -7,12 +7,13 @@ const API_URL =
 
 export interface TenantTheme {
   id: string;
-  name: string;
+  name: string;          // normalised display name (mapped from company_name)
+  company_name: string;  // raw field from /public/tenant-info response
   slug: string;
   currency: string;
   timezone: string;
   logo_url?: string | null;
-  // ── Step B: tenant-specific CSS overrides ──
+  // ── Tenant-specific CSS overrides ──
   primary_color?: string | null;        // hsl string e.g. "39 46% 60%"
   primary_foreground?: string | null;   // hsl string
   font_family?: string | null;          // e.g. "Playfair Display"
@@ -64,8 +65,13 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
 
     fetch(`${API_URL}/public/tenant-info?tenant_slug=${slug}`)
       .then((r) => r.json())
-      .then((data: TenantTheme) => {
-        if (data?.id) {
+      .then((raw: any) => {
+        if (raw?.id) {
+          // Normalise: backend sends company_name; expose as .name for convenience
+          const data: TenantTheme = {
+            ...raw,
+            name: raw.company_name ?? raw.name ?? '',
+          };
           setTenant(data);
           applyTenantTheme(data);
         }

@@ -1,44 +1,22 @@
 'use client';
-import React, { useEffect, useState } from 'react';
+import React from 'react';
+import { useTenant } from './TenantProvider';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'https://chauffeur-saas-production.up.railway.app';
-
-interface TenantBranding {
-  company_name: string;
-  logo_url?: string;
-  tagline?: string;
-}
-
-function getTenantSlug(): string {
-  if (typeof window === 'undefined') return '';
-  // 1. Cookie
-  const cookieSlug = document.cookie.split('; ')
-    .find(r => r.startsWith('tenant_slug='))?.split('=')[1];
-  if (cookieSlug) return cookieSlug;
-  // 2. localStorage
-  const lsSlug = localStorage.getItem('tenant_slug');
-  if (lsSlug) return lsSlug;
-  // 3. Subdomain (e.g. aschauffeured.chauffeurssolution.com)
-  const host = window.location.hostname;
-  const sub = host.split('.')[0];
-  if (sub && sub !== 'www' && sub !== 'chauffeurssolution') return sub;
-  return '';
-}
-
+/**
+ * AuthLogo — tenant-branded mark for auth screens (login, register, etc.)
+ *
+ * Reads tenant branding from TenantProvider context.
+ * TenantProvider fetches /public/tenant-info once at root layout mount.
+ * This component DOES NOT fetch independently — zero duplicate API calls.
+ *
+ * Fallback: if TenantProvider hasn't resolved yet or tenant has no logo,
+ * shows company name as styled text with gold divider line.
+ */
 export function AuthLogo({ subtitle }: { subtitle?: string }) {
-  const [branding, setBranding] = useState<TenantBranding | null>(null);
+  const tenant = useTenant();
 
-  useEffect(() => {
-    const slug = getTenantSlug();
-    if (!slug) return;
-    fetch(`${API_URL}/public/tenant-info?tenant_slug=${slug}`)
-      .then(r => r.ok ? r.json() : null)
-      .then(d => { if (d) setBranding(d); })
-      .catch(() => {});
-  }, []);
-
-  const name = branding?.company_name ?? 'ASChauffeured';
-  const logoUrl = branding?.logo_url;
+  const name   = tenant?.name ?? 'ASChauffeured';
+  const logoUrl = tenant?.logo_url;
 
   return (
     <div className="text-center w-full lg:hidden">
@@ -57,13 +35,13 @@ export function AuthLogo({ subtitle }: { subtitle?: string }) {
         ) : (
           <>
             <span
-              className="text-[#c8a96b] text-base font-medium tracking-[0.18em] uppercase"
-              style={{ fontFamily: "'Playfair Display', serif" }}
+              className="text-primary text-base font-medium tracking-[0.18em] uppercase"
+              style={{ fontFamily: "var(--font-display, 'Playfair Display', serif)" }}
             >
               {name}
             </span>
-            <div className="w-40 h-px bg-[#c8a96b]/50" />
-            <span className="text-[#c8a96b]/60 text-[9px] tracking-[0.12em] uppercase italic">
+            <div className="w-40 h-px bg-primary/50" />
+            <span className="text-primary/60 text-[9px] tracking-[0.12em] uppercase italic">
               Premium Chauffeur Services
             </span>
           </>
@@ -76,24 +54,28 @@ export function AuthLogo({ subtitle }: { subtitle?: string }) {
   );
 }
 
-/** Shared page shell for auth pages */
+/**
+ * AuthShell — full-screen split layout for auth pages.
+ * Left panel: brand (desktop only). Right panel: form.
+ * Colors use CSS variables for tenant theme support.
+ */
 export function AuthShell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="fixed inset-0 bg-[#0d0f14] overflow-y-auto flex flex-col lg:flex-row">
+    <div className="fixed inset-0 bg-[hsl(var(--background))] overflow-y-auto flex flex-col lg:flex-row">
 
       {/* ── Left brand panel (desktop only) ─────────────────── */}
       <div className="hidden lg:flex lg:w-1/2 flex-col items-center justify-center relative overflow-hidden">
         {/* gradient bg */}
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_#1e1500_0%,_#0d0f14_65%)]" />
-        {/* decorative rings */}
-        <div className="absolute w-[700px] h-[700px] rounded-full border border-[#c8a96b]/4" />
-        <div className="absolute w-[520px] h-[520px] rounded-full border border-[#c8a96b]/6" />
-        <div className="absolute w-[360px] h-[360px] rounded-full border border-[#c8a96b]/10" />
-        <div className="absolute w-[200px] h-[200px] rounded-full border border-[#c8a96b]/15" />
+        {/* decorative rings — use primary color with opacity */}
+        <div className="absolute w-[700px] h-[700px] rounded-full border border-primary/4" />
+        <div className="absolute w-[520px] h-[520px] rounded-full border border-primary/6" />
+        <div className="absolute w-[360px] h-[360px] rounded-full border border-primary/10" />
+        <div className="absolute w-[200px] h-[200px] rounded-full border border-primary/15" />
         {/* content */}
         <div className="relative flex flex-col items-center text-center gap-8 max-w-sm px-12">
           <BrandPanel />
-          <div className="w-32 h-px bg-gradient-to-r from-transparent via-[#c8a96b]/40 to-transparent" />
+          <div className="w-32 h-px bg-gradient-to-r from-transparent via-primary/40 to-transparent" />
           <p className="text-white/25 text-sm leading-relaxed tracking-wider font-light">
             Premium chauffeur services.<br />
             Luxury at your fingertips.
@@ -111,7 +93,7 @@ export function AuthShell({ children }: { children: React.ReactNode }) {
         {/* desktop subtle gradient */}
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_#0f1118_0%,_#0d0f14_100%)] pointer-events-none hidden lg:block" />
         {/* divider line on desktop */}
-        <div className="hidden lg:block absolute left-0 top-0 bottom-0 w-px bg-gradient-to-b from-transparent via-[#c8a96b]/15 to-transparent" />
+        <div className="hidden lg:block absolute left-0 top-0 bottom-0 w-px bg-gradient-to-b from-transparent via-primary/15 to-transparent" />
         <div className="relative flex-1 flex items-center justify-center px-6 py-12 lg:px-16">
           <div className="w-full max-w-md flex flex-col items-stretch gap-8">
             {children}
@@ -125,22 +107,14 @@ export function AuthShell({ children }: { children: React.ReactNode }) {
   );
 }
 
-/** Brand content used inside the left panel */
+/**
+ * BrandPanel — logo or company name wordmark for the desktop left panel.
+ * Reads from TenantProvider context — no independent fetch.
+ */
 function BrandPanel() {
-  const [logoUrl, setLogoUrl] = React.useState<string | null>(null);
-  const [name, setName] = React.useState('ASChauffeured');
-
-  React.useEffect(() => {
-    const host = typeof window !== 'undefined' ? window.location.hostname : '';
-    const sub = host.split('.')[0];
-    const slug = (sub && sub !== 'www' && sub !== 'chauffeurssolution') ? sub : '';
-    if (!slug) return;
-    const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'https://chauffeur-saas-production.up.railway.app';
-    fetch(`${API_URL}/public/tenant-info?tenant_slug=${slug}`)
-      .then(r => r.ok ? r.json() : null)
-      .then(d => { if (d) { setName(d.company_name ?? 'ASChauffeured'); if (d.logo_url) setLogoUrl(d.logo_url); } })
-      .catch(() => {});
-  }, []);
+  const tenant = useTenant();
+  const name   = tenant?.name ?? 'ASChauffeured';
+  const logoUrl = tenant?.logo_url;
 
   if (logoUrl) {
     return (
@@ -151,30 +125,38 @@ function BrandPanel() {
   }
   return (
     <div className="flex flex-col items-center gap-2">
-      <span className="text-[#c8a96b] text-xl font-medium tracking-[0.18em] uppercase"
-        style={{ fontFamily: "'Playfair Display', serif" }}>{name}</span>
-      <div className="w-40 h-px bg-[#c8a96b]/50" />
-      <span className="text-[#c8a96b]/60 text-[10px] tracking-[0.12em] uppercase italic">
+      <span
+        className="text-primary text-xl font-medium tracking-[0.18em] uppercase"
+        style={{ fontFamily: "var(--font-display, 'Playfair Display', serif)" }}
+      >
+        {name}
+      </span>
+      <div className="w-40 h-px bg-primary/50" />
+      <span className="text-primary/60 text-[10px] tracking-[0.12em] uppercase italic">
         Premium Chauffeur Services
       </span>
     </div>
   );
 }
 
-export const inputCls = "w-full h-12 px-4 rounded-xl bg-white/5 border border-white/10 text-white text-sm placeholder-white/20 focus:outline-none focus:border-[#c8a96b]/50 transition-all";
-export const labelCls = "block text-xs font-semibold uppercase tracking-widest text-[#c8a96b]/60 mb-2";
+export const inputCls = "w-full h-12 px-4 rounded-xl bg-white/5 border border-white/10 text-white text-sm placeholder-white/20 focus:outline-none focus:border-primary/50 transition-all";
+export const labelCls = "block text-xs font-semibold uppercase tracking-widest text-primary/60 mb-2";
 
-export function GoldButton({ loading, children, disabled, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement> & { loading?: boolean }) {
+export function GoldButton({
+  loading,
+  children,
+  disabled,
+  ...props
+}: React.ButtonHTMLAttributes<HTMLButtonElement> & { loading?: boolean }) {
   return (
     <button
       {...props}
       disabled={loading || disabled}
-      className="w-full h-12 rounded-xl font-semibold text-sm tracking-widest uppercase transition-all disabled:opacity-40 disabled:cursor-not-allowed active:scale-[0.98]"
-      style={{ background: 'linear-gradient(135deg, #c8a96b, #a8853d)', color: '#0d0f14' }}
+      className="w-full h-12 rounded-xl font-semibold text-sm tracking-widest uppercase transition-all disabled:opacity-40 disabled:cursor-not-allowed active:scale-[0.98] bg-primary text-primary-foreground hover:opacity-90"
     >
       {loading ? (
         <span className="flex items-center justify-center gap-2">
-          <span className="w-4 h-4 border-2 border-[#0d0f14]/30 border-t-[#0d0f14] rounded-full animate-spin" />
+          <span className="w-4 h-4 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
           {children}
         </span>
       ) : children}
@@ -184,7 +166,7 @@ export function GoldButton({ loading, children, disabled, ...props }: React.Butt
 
 export function AuthCard({ children }: { children: React.ReactNode }) {
   return (
-    <div className="w-full bg-white/[0.03] border border-[#c8a96b]/20 rounded-2xl p-8 lg:p-10 backdrop-blur-sm shadow-[0_24px_64px_rgba(0,0,0,0.5)]">
+    <div className="w-full bg-white/[0.03] border border-primary/20 rounded-2xl p-8 lg:p-10 backdrop-blur-sm shadow-[0_24px_64px_rgba(0,0,0,0.5)]">
       {children}
     </div>
   );
