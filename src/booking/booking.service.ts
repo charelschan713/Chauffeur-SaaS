@@ -4,6 +4,7 @@ import { PricingResolver } from '../pricing/pricing.resolver';
 import { NotificationService } from '../notification/notification.service';
 import { DebugTraceService } from '../debug/debug-trace.service';
 import { PaymentService } from '../payment/payment.service';
+import { InvoicePdfService } from '../invoice/invoice-pdf.service';
 import { randomUUID } from 'crypto';
 
 @Injectable()
@@ -14,6 +15,7 @@ export class BookingService {
     private readonly notificationService: NotificationService,
     private readonly trace: DebugTraceService,
     private readonly paymentService: PaymentService,
+    private readonly invoicePdf: InvoicePdfService,
   ) {}
 
   async listBookings(tenantId: string, query: Record<string, any>) {
@@ -624,6 +626,109 @@ export class BookingService {
       [bookingId, tenantId],
     );
     return { success: true };
+  }
+
+  // ── Resend final invoice email (admin action) ─────────────────────────────
+  /**
+   * Re-fires the InvoiceSent notification for the most recent SENT/PAID
+   * CUSTOMER invoice attached to this booking.
+   * Returns { success: true, invoice_number } on success.
+   * Returns { success: false, reason } if no invoice exists yet.
+   */
+  async resendInvoice(tenantId: string, bookingId: string): Promise<{ success: boolean; invoice_number?: string; reason?: string }> {
+    const [invoice] = await this.dataSource.query(
+      `SELECT * FROM public.invoices
+       WHERE booking_id=$1 AND tenant_id=$2
+         AND invoice_type='CUSTOMER' AND status IN ('SENT','PAID')
+         AND deleted_at IS NULL
+       ORDER BY created_at DESC LIMIT 1`,
+      [bookingId, tenantId],
+    );
+    if (!invoice) return { success: false, reason: 'No final invoice found for this booking' };
+
+    await this.notificationService.handleEvent('InvoiceSent', {
+      tenant_id:      tenantId,
+      invoice_id:     invoice.id,
+      invoice_number: invoice.invoice_number,
+      recipient_name:  invoice.recipient_name,
+      recipient_email: invoice.recipient_email,
+      total_minor:     invoice.total_minor,
+      currency:        invoice.currency,
+      due_date:        invoice.due_date,
+      line_items:      invoice.line_items,
+      notes:           invoice.notes,
+      subtotal_minor:  invoice.subtotal_minor,
+      tax_minor:       invoice.tax_minor,
+      discount_minor:  invoice.discount_minor,
+    });
+
+    return { success: true, invoice_number: invoice.invoice_number };
+  }
+
+  // ── Admin invoice PDF download ─────────────────────────────────────────────
+  /**
+   * Generates the final invoice PDF for admin download.
+   * Admin auth is handled by the controller (JwtGuard + tenant_id check).
+   * Returns null if no SENT/PAID CUSTOMER invoice exists for this booking.
+   */
+  async getInvoicePdfForAdmin(
+    tenantId: string,
+    bookingId: string,
+  ): Promise<{ buffer: Buffer; filename: string } | null> {
+    const [booking] = await this.dataSource.query(
+      `SELECT booking_reference, currency FROM public.bookings
+       WHERE id=$1 AND tenant_id=$2`,
+      [bookingId, tenantId],
+    );
+    if (!booking) throw new NotFoundException('Booking not found');
+
+    const [invoice] = await this.dataSource.query(
+      `SELECT i.*, ii.description, ii.quantity, ii.unit_price_minor, ii.total_minor as item_total
+       FROM public.invoices i
+       LEFT JOIN public.invoice_items ii ON ii.invoice_id = i.id
+       WHERE i.booking_id=$1 AND i.tenant_id=$2
+         AND i.invoice_type='CUSTOMER' AND i.status IN ('SENT','PAID')
+         AND i.deleted_at IS NULL
+       ORDER BY i.created_at DESC LIMIT 1`,
+      [bookingId, tenantId],
+    );
+    if (!invoice) return null;
+
+    const [branding] = await this.dataSource.query(
+      `SELECT company_name, contact_email, contact_phone
+       FROM public.tenant_branding WHERE tenant_id=$1 LIMIT 1`,
+      [tenantId],
+    ).catch(() => []);
+
+    let lineItems: any[] | null = null;
+    if (invoice.description) {
+      lineItems = [{ description: invoice.description, quantity: invoice.quantity, unit_price_minor: invoice.unit_price_minor, total_minor: invoice.item_total }];
+    }
+    if (invoice.line_items && (!lineItems || !lineItems.length)) {
+      try { lineItems = typeof invoice.line_items === 'string' ? JSON.parse(invoice.line_items) : invoice.line_items; } catch { lineItems = null; }
+    }
+
+    const buffer = await this.invoicePdf.generate({
+      invoice_number:    invoice.invoice_number,
+      issue_date:        invoice.issue_date ?? invoice.created_at,
+      due_date:          invoice.due_date ?? null,
+      booking_reference: booking.booking_reference,
+      company_name:      branding?.company_name ?? 'ASChauffeured',
+      company_email:     branding?.contact_email ?? null,
+      company_phone:     branding?.contact_phone ?? null,
+      recipient_name:    invoice.recipient_name,
+      recipient_email:   invoice.recipient_email,
+      currency:          invoice.currency ?? booking.currency ?? 'AUD',
+      subtotal_minor:    Number(invoice.subtotal_minor ?? 0),
+      tax_minor:         Number(invoice.tax_minor ?? 0),
+      discount_minor:    Number(invoice.discount_minor ?? 0),
+      total_minor:       Number(invoice.total_minor ?? 0),
+      line_items:        lineItems,
+      notes:             invoice.notes ?? null,
+    });
+
+    const filename = `Invoice-${booking.booking_reference ?? invoice.invoice_number}.pdf`;
+    return { buffer, filename };
   }
 
   async sendPaymentLink(tenantId: string, bookingId: string) {

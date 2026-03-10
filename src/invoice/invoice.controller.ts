@@ -21,13 +21,15 @@ export class InvoiceController {
   async list(@Req() req: any,
     @Query('status') status?: string,
     @Query('type') type?: string,
+    @Query('booking_id') bookingId?: string,
     @Query('limit') limit = '100',
     @Query('offset') offset = '0',
   ) {
     const conds: string[] = ['i.tenant_id = $1', 'i.deleted_at IS NULL'];
     const params: any[] = [req.user.tenant_id];
-    if (status) { conds.push(`i.status = $${params.length + 1}`); params.push(status); }
-    if (type) { conds.push(`i.invoice_type = $${params.length + 1}`); params.push(type); }
+    if (status)    { conds.push(`i.status = $${params.length + 1}`); params.push(status); }
+    if (type)      { conds.push(`i.invoice_type = $${params.length + 1}`); params.push(type); }
+    if (bookingId) { conds.push(`i.booking_id = $${params.length + 1}`); params.push(bookingId); }
     const where = conds.join(' AND ');
     const [rows, count] = await Promise.all([
       this.db.query(

@@ -2,12 +2,15 @@ import {
   Body,
   Controller,
   Get,
+  NotFoundException,
   Param,
   Patch,
   Post,
   Query,
+  Res,
   UseGuards,
 } from '@nestjs/common';
+import type { Response } from 'express';
 import { BookingService } from './booking.service';
 import { JwtGuard } from '../common/guards/jwt.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
@@ -82,6 +85,33 @@ export class BookingController {
     @CurrentUser('tenant_id') tenantId: string,
   ) {
     return this.service.sendPaymentLink(tenantId, bookingId);
+  }
+
+  /** Re-fires InvoiceSent notification for the most recent SENT/PAID CUSTOMER invoice */
+  @Post(':id/resend-invoice')
+  resendInvoice(
+    @Param('id') bookingId: string,
+    @CurrentUser('tenant_id') tenantId: string,
+  ) {
+    return this.service.resendInvoice(tenantId, bookingId);
+  }
+
+  /** Admin-side download of the final invoice PDF */
+  @Get(':id/invoice-pdf')
+  async downloadInvoicePdfAdmin(
+    @Param('id') bookingId: string,
+    @CurrentUser('tenant_id') tenantId: string,
+    @Res() res: Response,
+  ) {
+    const result = await this.service.getInvoicePdfForAdmin(tenantId, bookingId);
+    if (!result) throw new NotFoundException('No final invoice found for this booking');
+    res.set({
+      'Content-Type':        'application/pdf',
+      'Content-Disposition': `attachment; filename="${result.filename}"`,
+      'Content-Length':      result.buffer.length,
+      'Cache-Control':       'no-store',
+    });
+    res.end(result.buffer);
   }
 
   @Post(':id/fulfil')

@@ -5,9 +5,10 @@ import { OutboxWorkerService } from './outbox-worker.service';
 import { PricingModule } from '../pricing/pricing.module';
 import { NotificationModule } from '../notification/notification.module';
 import { PaymentModule } from '../payment/payment.module';
+import { InvoiceModule } from '../invoice/invoice.module';
 
 @Module({
-  imports: [PricingModule, NotificationModule, PaymentModule],
+  imports: [PricingModule, NotificationModule, PaymentModule, InvoiceModule],
   providers: [BookingService, OutboxWorkerService],
   controllers: [BookingController],
   exports: [BookingService],

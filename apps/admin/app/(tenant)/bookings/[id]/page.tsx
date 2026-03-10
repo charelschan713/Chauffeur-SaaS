@@ -75,6 +75,8 @@ function BookingDetailInner() {
   const [driverReport, setDriverReport] = useState<any>(null);
   const [editPayAssignmentId, setEditPayAssignmentId] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; tone: 'success' | 'error' } | null>(null);
+  const [resendingInvoice, setResendingInvoice] = useState(false);
+  const [downloadingInvoicePdf, setDownloadingInvoicePdf] = useState(false);
 
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['booking', bookingId],
@@ -84,6 +86,20 @@ function BookingDetailInner() {
     },
     enabled: Boolean(bookingId),
   });
+
+  // Invoice state — fetched in parallel; null = not yet available; false = fetch failed
+  const { data: invoiceData, refetch: refetchInvoice } = useQuery({
+    queryKey: ['booking-invoice', bookingId],
+    queryFn: async () => {
+      const res = await api.get(`/invoices`, { params: { booking_id: bookingId, type: 'CUSTOMER', limit: 1 } });
+      return res.data?.data?.[0] ?? null;
+    },
+    enabled: Boolean(bookingId),
+    staleTime: 30_000,
+  });
+  const invoice = invoiceData ?? null;
+  const invoiceStatus: string | null = invoice?.status ?? null;
+  const invoiceHasFinal = invoiceStatus === 'SENT' || invoiceStatus === 'PAID';
 
   // Always refetch fresh data on mount
   useEffect(() => {
@@ -298,6 +314,180 @@ function BookingDetailInner() {
             >
               🔄 Retry Charge
             </button>
+          </div>
+        )}
+
+        {/* ── CONFIRMED + payment_status=FAILED (charge succeeded but DB persist issue) ── */}
+        {booking.operational_status === 'CONFIRMED' && booking.payment_status === 'FAILED' && (
+          <div className="lg:col-span-3 bg-orange-50 border border-orange-300 rounded-xl p-4 flex items-start justify-between gap-4">
+            <div>
+              <p className="font-semibold text-orange-900">⚠️ Payment Recording Issue</p>
+              <p className="text-sm text-orange-700 mt-1">
+                Booking is CONFIRMED but payment_status shows FAILED — this may indicate
+                the Stripe charge succeeded but the payments record failed to save.
+                Check Stripe dashboard for PI on this booking before taking action.
+              </p>
+              {booking.stripe_payment_intent_id && (
+                <p className="text-xs text-orange-600 mt-1 font-mono">PI: {booking.stripe_payment_intent_id}</p>
+              )}
+            </div>
+            <a
+              href={`https://dashboard.stripe.com/test/payment_intents/${booking.stripe_payment_intent_id}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-4 py-2 bg-orange-600 text-white rounded-lg text-sm font-medium hover:bg-orange-700 shrink-0 whitespace-nowrap"
+            >
+              🔍 View in Stripe
+            </a>
+          </div>
+        )}
+
+        {/* ── Adjustment exception panels ── */}
+        {booking.adjustment_status === 'FAILED' && (
+          <div className="lg:col-span-3 bg-red-50 border border-red-300 rounded-xl p-4 flex items-start justify-between gap-4">
+            <div>
+              <p className="font-semibold text-red-900">❌ Extra Charge Failed</p>
+              <p className="text-sm text-red-700 mt-1">
+                The extra charge at fulfilment was declined by Stripe.
+                The customer's saved card was charged or verified but the extra amount was not captured.
+              </p>
+              <p className="text-xs text-red-600 mt-1">
+                Next step: contact customer to collect the extra amount manually, or send a payment link.
+              </p>
+            </div>
+            <div className="flex flex-col gap-2 shrink-0">
+              <button
+                onClick={async () => {
+                  try {
+                    const res = await api.post(`/bookings/${booking.id}/send-payment-link`);
+                    if (res.data?.payment_link) {
+                      setToast({ message: 'Payment link sent to customer', tone: 'success' });
+                    } else {
+                      setToast({ message: 'Payment link sent', tone: 'success' });
+                    }
+                  } catch (e: any) {
+                    setToast({ message: e.response?.data?.message ?? 'Failed to send payment link', tone: 'error' });
+                  }
+                }}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 whitespace-nowrap"
+              >
+                💳 Send Payment Link
+              </button>
+            </div>
+          </div>
+        )}
+
+        {booking.adjustment_status === 'NO_PAYMENT_METHOD' && (
+          <div className="lg:col-span-3 bg-amber-50 border border-amber-300 rounded-xl p-4 flex items-start justify-between gap-4">
+            <div>
+              <p className="font-semibold text-amber-900">⚠️ No Payment Method on File</p>
+              <p className="text-sm text-amber-700 mt-1">
+                The extra charge at fulfilment could not be attempted — this customer has no saved
+                payment method (guest booking). Manual collection or a payment link is required.
+              </p>
+              <p className="text-xs text-amber-600 mt-1">
+                Extra amount was not captured. Send a payment link or collect manually.
+              </p>
+            </div>
+            <button
+              onClick={async () => {
+                try {
+                  await api.post(`/bookings/${booking.id}/send-payment-link`);
+                  setToast({ message: 'Payment link sent to customer', tone: 'success' });
+                } catch (e: any) {
+                  setToast({ message: e.response?.data?.message ?? 'Failed to send payment link', tone: 'error' });
+                }
+              }}
+              className="px-4 py-2 bg-amber-600 text-white rounded-lg text-sm font-medium hover:bg-amber-700 shrink-0 whitespace-nowrap"
+            >
+              💳 Send Payment Link
+            </button>
+          </div>
+        )}
+
+        {/* ── Invoice state panel (FULFILLED/COMPLETED bookings) ── */}
+        {['FULFILLED', 'COMPLETED'].includes(booking.operational_status) && (
+          <div className={`lg:col-span-3 rounded-xl p-4 border flex items-start justify-between gap-4 ${
+            invoiceHasFinal
+              ? 'bg-green-50 border-green-300'
+              : 'bg-gray-50 border-gray-300'
+          }`}>
+            <div>
+              {invoiceHasFinal ? (
+                <>
+                  <p className="font-semibold text-green-900">🧾 Final Invoice Sent</p>
+                  <p className="text-sm text-green-700 mt-1">
+                    Invoice {invoice?.invoice_number ?? ''} · Status: <strong>{invoiceStatus}</strong>
+                    {invoice?.recipient_email && ` · Sent to ${invoice.recipient_email}`}
+                  </p>
+                </>
+              ) : invoice ? (
+                <>
+                  <p className="font-semibold text-gray-800">🧾 Invoice Draft — Not Sent</p>
+                  <p className="text-sm text-gray-600 mt-1">
+                    Invoice {invoice?.invoice_number ?? ''} exists but is in <strong>{invoiceStatus}</strong> status.
+                    Update and send from the <a href="/invoices" className="underline text-blue-600">Invoices</a> page.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p className="font-semibold text-gray-800">🧾 No Invoice Yet</p>
+                  <p className="text-sm text-gray-600 mt-1">
+                    No customer invoice has been created for this booking.
+                    Create one from the <a href="/invoices" className="underline text-blue-600">Invoices</a> page.
+                  </p>
+                </>
+              )}
+            </div>
+            {invoiceHasFinal && (
+              <div className="flex gap-2 shrink-0">
+                <button
+                  disabled={downloadingInvoicePdf}
+                  onClick={async () => {
+                    setDownloadingInvoicePdf(true);
+                    try {
+                      const res = await api.get(`/bookings/${booking.id}/invoice-pdf`, { responseType: 'blob' });
+                      const url = URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
+                      const a = document.createElement('a');
+                      a.href = url;
+                      a.download = `Invoice-${booking.booking_reference ?? booking.id}.pdf`;
+                      document.body.appendChild(a); a.click();
+                      document.body.removeChild(a);
+                      URL.revokeObjectURL(url);
+                    } catch {
+                      setToast({ message: 'Failed to download invoice PDF', tone: 'error' });
+                    } finally {
+                      setDownloadingInvoicePdf(false);
+                    }
+                  }}
+                  className="px-3 py-2 bg-white border border-green-400 text-green-700 rounded-lg text-sm font-medium hover:bg-green-100 disabled:opacity-50 whitespace-nowrap"
+                >
+                  {downloadingInvoicePdf ? 'Downloading…' : '⬇ Download PDF'}
+                </button>
+                <button
+                  disabled={resendingInvoice}
+                  onClick={async () => {
+                    setResendingInvoice(true);
+                    try {
+                      const res = await api.post(`/bookings/${booking.id}/resend-invoice`);
+                      if (res.data?.success) {
+                        setToast({ message: `Invoice ${res.data.invoice_number} re-sent to customer`, tone: 'success' });
+                      } else {
+                        setToast({ message: res.data?.reason ?? 'No final invoice to resend', tone: 'error' });
+                      }
+                    } catch (e: any) {
+                      setToast({ message: e.response?.data?.message ?? 'Failed to resend invoice', tone: 'error' });
+                    } finally {
+                      setResendingInvoice(false);
+                      refetchInvoice();
+                    }
+                  }}
+                  className="px-3 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 disabled:opacity-50 whitespace-nowrap"
+                >
+                  {resendingInvoice ? 'Sending…' : '✉ Resend Invoice'}
+                </button>
+              </div>
+            )}
           </div>
         )}
 
@@ -615,13 +805,40 @@ function BookingDetailInner() {
                 </ComingSoon>
               )}
 
-              {/* View Invoice — no endpoint yet */}
-              {['COMPLETED', 'JOB_COMPLETED'].includes(booking.operational_status) && (
-                <ComingSoon>
-                  <Button variant="ghost" disabled className="w-full cursor-not-allowed opacity-60">
-                    View Invoice
+              {/* View Invoice — download PDF if final invoice exists */}
+              {['COMPLETED', 'JOB_COMPLETED', 'FULFILLED'].includes(booking.operational_status) && (
+                invoiceHasFinal ? (
+                  <Button
+                    variant="ghost"
+                    className="w-full"
+                    disabled={downloadingInvoicePdf}
+                    onClick={async () => {
+                      setDownloadingInvoicePdf(true);
+                      try {
+                        const res = await api.get(`/bookings/${booking.id}/invoice-pdf`, { responseType: 'blob' });
+                        const url = URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `Invoice-${booking.booking_reference ?? booking.id}.pdf`;
+                        document.body.appendChild(a); a.click();
+                        document.body.removeChild(a);
+                        URL.revokeObjectURL(url);
+                      } catch {
+                        setToast({ message: 'Failed to download invoice PDF', tone: 'error' });
+                      } finally {
+                        setDownloadingInvoicePdf(false);
+                      }
+                    }}
+                  >
+                    {downloadingInvoicePdf ? 'Downloading…' : '⬇ Download Invoice PDF'}
                   </Button>
-                </ComingSoon>
+                ) : (
+                  <ComingSoon>
+                    <Button variant="ghost" disabled className="w-full cursor-not-allowed opacity-60">
+                      No Invoice Yet
+                    </Button>
+                  </ComingSoon>
+                )
               )}
 
               {/* Terminal — no actions */}
