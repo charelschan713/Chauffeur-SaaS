@@ -1,5 +1,6 @@
-import { Injectable, NotFoundException, ForbiddenException, BadRequestException, OnModuleInit, Logger } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, BadRequestException, OnModuleInit, Logger, Optional } from '@nestjs/common';
 import { DataSource } from 'typeorm';
+import { TripEvidenceService } from '../trip-evidence/trip-evidence.service';
 
 /**
  * DriverAppService — driver-facing API (iOS/Android driver app)
@@ -8,7 +9,10 @@ import { DataSource } from 'typeorm';
 @Injectable()
 export class DriverAppService implements OnModuleInit {
   private readonly logger = new Logger('DriverAppService');
-  constructor(private readonly dataSource: DataSource) {}
+  constructor(
+    private readonly dataSource: DataSource,
+    @Optional() private readonly tripEvidence?: TripEvidenceService,
+  ) {}
 
   async onModuleInit() {
     // ── Item 5: DB CHECK constraint for driver_execution_status ───────────────
@@ -424,6 +428,44 @@ export class DriverAppService implements OnModuleInit {
 
     // NOTE: 'fulfilled' block removed — driver cannot trigger FULFILLED.
     // Admin must call BookingService.fulfilBooking() after reviewing the driver report.
+
+    // ── Trip Evidence: GPS milestone + lifecycle hooks ────────────────────────
+    if (this.tripEvidence && location) {
+      const bookingId = rows[0].booking_id;
+      const tenantId  = me.tenant_id;
+
+      // Record GPS milestone for every execution status with location
+      const isMilestone = ['on_the_way','arrived','passenger_on_board','job_done'].includes(newStatus);
+      if (isMilestone) {
+        const milestoneType = newStatus === 'passenger_on_board' ? 'pob' : newStatus as any;
+        await this.tripEvidence.recordMilestone({
+          tenantId, bookingId, driverId: userId,
+          milestoneType,
+          latitude: location.lat,
+          longitude: location.lng,
+        }).catch(() => {});
+      }
+
+      // on_the_way: open evidence record (idempotent upsert)
+      if (newStatus === 'on_the_way') {
+        // Fetch passenger phone from booking
+        const bRows = await this.dataSource.query(
+          `SELECT COALESCE(passenger_phone_country_code,'') || COALESCE(passenger_phone_number,'')
+             AS passenger_phone,
+             COALESCE(customer_phone_country_code,'') || COALESCE(customer_phone_number,'')
+             AS customer_phone
+           FROM public.bookings WHERE id = $1`, [bookingId],
+        );
+        const passengerPhone = bRows[0]?.passenger_phone || bRows[0]?.customer_phone || null;
+        await this.tripEvidence.openEvidence(tenantId, bookingId, userId, passengerPhone, null).catch(() => {});
+      }
+
+      // job_done: close tracking + bridge
+      if (newStatus === 'job_done') {
+        await this.tripEvidence.closeTracking(tenantId, bookingId).catch(() => {});
+      }
+    }
+    // ─────────────────────────────────────────────────────────────────────────
 
     return { success: true, new_status: newStatus };
   }

@@ -7,6 +7,8 @@ import { DebugTraceService } from '../debug/debug-trace.service';
 import { PaymentService } from '../payment/payment.service';
 import { InvoicePdfService } from '../invoice/invoice-pdf.service';
 import { randomUUID } from 'crypto';
+import { Optional } from '@nestjs/common';
+import { TripEvidenceService } from '../trip-evidence/trip-evidence.service';
 
 // ─── Booking operational_status transition rules ──────────────────────────────
 // Confirmed product decisions (2026-03-10 state-machine audit):
@@ -48,6 +50,7 @@ export class BookingService {
     private readonly paymentService: PaymentService,
     private readonly invoicePdf: InvoicePdfService,
     private readonly tenantInvoice: TenantInvoiceService,
+    @Optional() private readonly tripEvidence?: TripEvidenceService,
   ) {}
 
   async listBookings(tenantId: string, query: Record<string, any>) {
@@ -746,6 +749,14 @@ export class BookingService {
     }).catch((e: any) =>
       console.error('[Notification] JobFulfilledWithExtras FAILED:', e?.message ?? e),
     );
+
+    // ── Phase 3: freeze trip evidence when booking is FULFILLED ──────────────
+    // Evidence freeze rule: all GPS, SMS, and operation log data becomes read-only.
+    // This is the canonical audit evidence point for dispute resolution.
+    if (this.tripEvidence) {
+      await this.tripEvidence.freezeEvidence(tenantId, bookingId).catch(() => {});
+    }
+    // ─────────────────────────────────────────────────────────────────────────
 
     return { success: true, actual_total_minor: actualTotal, adjustment_status: adjustmentStatus };
   }

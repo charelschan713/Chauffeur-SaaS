@@ -7,9 +7,10 @@ import { NotificationModule } from '../notification/notification.module';
 import { PaymentModule } from '../payment/payment.module';
 import { InvoiceModule } from '../invoice/invoice.module';
 import { TenantModule } from '../tenant/tenant.module';
+import { TripEvidenceModule } from '../trip-evidence/trip-evidence.module';
 
 @Module({
-  imports: [PricingModule, NotificationModule, PaymentModule, InvoiceModule, TenantModule],
+  imports: [PricingModule, NotificationModule, PaymentModule, InvoiceModule, TenantModule, TripEvidenceModule],
   providers: [BookingService, OutboxWorkerService],
   controllers: [BookingController],
   exports: [BookingService],

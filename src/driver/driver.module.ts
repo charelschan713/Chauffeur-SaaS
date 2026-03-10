@@ -10,9 +10,10 @@ import { NetworkModule } from '../network/network.module';
 import { NotificationModule } from '../notification/notification.module';
 import { AdminDriverController, AdminDriverPayController } from './admin-driver.controller';
 import { AdminDriverService } from './admin-driver.service';
+import { TripEvidenceModule } from '../trip-evidence/trip-evidence.module';
 
 @Module({
-  imports: [JwtModule.register({}), NetworkModule, NotificationModule],
+  imports: [JwtModule.register({}), NetworkModule, NotificationModule, TripEvidenceModule],
   controllers: [
     DriverController, DriverAppController,
     DriverInviteController, DriverOnboardingController,

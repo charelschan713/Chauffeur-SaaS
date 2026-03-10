@@ -32,6 +32,7 @@ import { AssignmentModule } from './assignment/assignment.module';
 import { TenantModule } from './tenant/tenant.module';
 import { TenantContextMiddleware } from './common/middleware/tenant-context.middleware';
 import { DebugModule } from './debug/debug.module';
+import { TripEvidenceModule } from './trip-evidence/trip-evidence.module';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 
 @Module({
@@ -76,6 +77,7 @@ import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
     SurchargeModule,
     AssignmentModule,
     TenantModule,
+    TripEvidenceModule,
     DebugModule,
   ],
   controllers: [HealthController],

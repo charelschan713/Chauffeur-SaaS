@@ -23,6 +23,7 @@ import { getBookingStatusBadge } from '@/lib/ui/statusBadge';
 import { formatPhone } from '@/components/ui/PhoneSplitField';
 import { getVerificationBadge, getTransferBadge } from '@/lib/badges/getVerificationBadge';
 import { formatStatus } from '@/lib/ui/formatStatus';
+import { TripEvidencePanel } from '@/components/TripEvidencePanel';
 
 // Statuses that allow cancellation
 const CANCELABLE_STATUSES = new Set(['DRAFT', 'PENDING', 'CONFIRMED', 'ASSIGNED', 'AWAITING_CONFIRMATION', 'PENDING_CUSTOMER_CONFIRMATION']);
@@ -682,6 +683,9 @@ function BookingDetailInner() {
 
         {/* ── Right column ── */}
         <div className="space-y-6">
+
+          {/* ── Trip Evidence (GPS + SMS + Route + Audit Report) ─────────── */}
+          <TripEvidencePanel bookingId={booking.id} tenantId={booking.tenant_id} />
 
           {/* ── Driver Pay Review (Phase 3 — settlement) ─────────────────── */}
           <DriverPayReviewPanel bookingId={booking.id} tenantId={booking.tenant_id} />
