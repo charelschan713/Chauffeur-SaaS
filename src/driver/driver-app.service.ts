@@ -11,6 +11,20 @@ export class DriverAppService implements OnModuleInit {
   constructor(private readonly dataSource: DataSource) {}
 
   async onModuleInit() {
+    // ── Item 5: DB CHECK constraint for driver_execution_status ───────────────
+    // All live values are NULL — safe to add. Guards against direct DB writes.
+    await this.dataSource.query(`
+      ALTER TABLE public.assignments
+        DROP CONSTRAINT IF EXISTS assignments_execution_status_check;
+      ALTER TABLE public.assignments
+        ADD CONSTRAINT assignments_execution_status_check
+          CHECK (driver_execution_status IS NULL OR driver_execution_status IN (
+            'assigned','accepted','on_the_way','arrived',
+            'passenger_on_board','job_done'
+          ));
+    `).catch(() => {});
+    // ─────────────────────────────────────────────────────────────────────────
+
     // Auto-migrate: driver_extra_reports table (if not already exists)
     await this.dataSource.query(`
       CREATE TABLE IF NOT EXISTS public.driver_extra_reports (
@@ -197,6 +211,33 @@ export class DriverAppService implements OnModuleInit {
     return this.shapeFullAssignment(rows[0]);
   }
 
+  // ─── Dual-line model constants ────────────────────────────────────────────
+  // DRIVER LINE = execution progress only. Max milestone: job_done.
+  // ADMIN LINE  = official business lifecycle (fulfil, settle, invoice).
+  // Driver cannot directly move booking to FULFILLED, COMPLETED (accounting),
+  // or trigger invoice. Admin remains the authority for those transitions.
+  //
+  // Item 3 + 7: 'fulfilled' removed from driver-controlled transitions.
+  //   Before: job_done → fulfilled (driver could trigger booking=FULFILLED)
+  //   After:  job_done is the terminal driver milestone; handoff to admin via report
+  //
+  // Item 5: ALLOWED_EXECUTION_STATUSES validated at runtime and in DB constraint
+  static readonly ALLOWED_EXECUTION_STATUSES = new Set([
+    'assigned', 'accepted', 'on_the_way', 'arrived',
+    'passenger_on_board', 'job_done',
+    // 'fulfilled' intentionally excluded — admin line only
+  ]);
+
+  // Valid driver-controlled transitions (sequential; no skipping)
+  private static readonly EXECUTION_TRANSITIONS: Record<string, string[]> = {
+    assigned:           ['accepted'],
+    accepted:           ['on_the_way'],
+    on_the_way:         ['arrived'],
+    arrived:            ['passenger_on_board'],
+    passenger_on_board: ['job_done'],
+    // job_done: no driver-controlled next state — must submit report + await admin
+  };
+
   async updateExecutionStatus(
     userId: string,
     assignmentId: string,
@@ -206,24 +247,40 @@ export class DriverAppService implements OnModuleInit {
   ) {
     const me = await this.getMe(userId);
 
+    // ── Item 5: validate canonical status value ──────────────────────────────
+    if (!DriverAppService.ALLOWED_EXECUTION_STATUSES.has(newStatus)) {
+      throw new ForbiddenException(
+        `Invalid execution status: '${newStatus}'. ` +
+        `Allowed: [${[...DriverAppService.ALLOWED_EXECUTION_STATUSES].join(', ')}]`,
+      );
+    }
+
     const rows = await this.dataSource.query(
-      `SELECT id, driver_execution_status FROM assignments WHERE id = $1 AND driver_id = $2`,
+      `SELECT a.id, a.driver_execution_status, a.booking_id, b.adjustment_status
+       FROM assignments a
+       JOIN bookings b ON b.id = a.booking_id
+       WHERE a.id = $1 AND a.driver_id = $2`,
       [assignmentId, me.driver_id],
     );
     if (!rows.length) throw new ForbiddenException('Assignment not found');
 
-    const validTransitions: Record<string, string[]> = {
-      assigned: ['accepted'],
-      accepted: ['on_the_way'],
-      on_the_way: ['arrived'],
-      arrived: ['passenger_on_board'],
-      passenger_on_board: ['job_done'],
-      job_done: ['fulfilled'],
-    };
-
     const current = rows[0].driver_execution_status;
-    if (!validTransitions[current]?.includes(newStatus)) {
-      throw new ForbiddenException(`Cannot transition from ${current} to ${newStatus}`);
+
+    // ── Item 3/7: dual-line guard — block any attempt to drive admin semantics ──
+    if (newStatus === 'fulfilled') {
+      throw new ForbiddenException(
+        `Driver cannot set execution status to 'fulfilled'. ` +
+        `Submit a job report after job_done and await admin review to finalise the booking.`,
+      );
+    }
+
+    // ── Transition guard ─────────────────────────────────────────────────────
+    const allowed = DriverAppService.EXECUTION_TRANSITIONS[current ?? ''] ?? [];
+    if (!allowed.includes(newStatus)) {
+      throw new ForbiddenException(
+        `Cannot transition execution status from '${current ?? 'null'}' to '${newStatus}'. ` +
+        `Allowed next steps: [${allowed.join(', ') || 'none — submit job report for admin review'}]`,
+      );
     }
 
     const locationUpdate = location
@@ -243,33 +300,31 @@ export class DriverAppService implements OnModuleInit {
       params,
     );
 
-    // job_done → booking COMPLETED
+    // ── job_done: driver line milestone — update booking to COMPLETED ─────────
+    // COMPLETED = trip is physically done. Admin retains authority to:
+    //   fulfilBooking() — review extra charges, finalise, invoice
+    // Driver must submit a driver_extra_report for admin review.
     if (newStatus === 'job_done') {
       await this.dataSource.query(
-        `UPDATE bookings SET operational_status = 'COMPLETED', updated_at = NOW()
-         WHERE id = (SELECT booking_id FROM assignments WHERE id = $1)`,
-        [assignmentId],
+        `UPDATE bookings
+         SET operational_status = 'COMPLETED', updated_at = NOW()
+         WHERE id = $1
+           AND operational_status NOT IN ('FULFILLED','CANCELLED')`,
+        [rows[0].booking_id],
       );
+      // Record transition
+      await this.dataSource.query(
+        `INSERT INTO public.booking_status_history
+         (id, tenant_id, booking_id, previous_status, new_status, triggered_by, reason, created_at)
+         VALUES (gen_random_uuid(),
+           (SELECT tenant_id FROM bookings WHERE id=$1),
+           $1, 'IN_PROGRESS', 'COMPLETED', 'DRIVER', 'Driver job_done', NOW())`,
+        [rows[0].booking_id],
+      ).catch(() => {});
     }
 
-    // fulfilled → booking FULFILLED (triggers invoice generation)
-    if (newStatus === 'fulfilled') {
-      const bookingRows = await this.dataSource.query(
-        `UPDATE bookings SET operational_status = 'FULFILLED', settled_at = NOW(), updated_at = NOW()
-         WHERE id = (SELECT booking_id FROM assignments WHERE id = $1)
-         RETURNING id, tenant_id, pricing_snapshot, total_price_minor`,
-        [assignmentId],
-      );
-      // Emit event for invoice auto-generation (no extra = auto)
-      if (bookingRows[0]) {
-        await this.dataSource.query(
-          `INSERT INTO public.booking_status_history
-           (id, tenant_id, booking_id, previous_status, new_status, triggered_by, reason, created_at)
-           VALUES (gen_random_uuid(), $1, $2, 'COMPLETED', 'FULFILLED', 'DRIVER', 'Driver fulfilled', NOW())`,
-          [bookingRows[0].tenant_id, bookingRows[0].id],
-        ).catch(() => {});
-      }
-    }
+    // NOTE: 'fulfilled' block removed — driver cannot trigger FULFILLED.
+    // Admin must call BookingService.fulfilBooking() after reviewing the driver report.
 
     return { success: true, new_status: newStatus };
   }

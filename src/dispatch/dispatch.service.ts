@@ -222,6 +222,16 @@ export class DispatchService {
         [tenantId, assignmentId, driverId],
       );
 
+      // ── Item 6: dual-line alignment — JOB_STARTED → booking IN_PROGRESS ──
+      await manager.query(
+        `UPDATE public.bookings
+         SET operational_status = 'IN_PROGRESS', updated_at = NOW()
+         WHERE id = $1
+           AND operational_status NOT IN ('FULFILLED','CANCELLED','COMPLETED')`,
+        [assignment.booking_id],
+      );
+      // ──────────────────────────────────────────────────────────────────────
+
       await this.insertOutboxEvent(manager, tenantId, assignment.booking_id, assignmentId, DISPATCH_EVENTS.DRIVER_STARTED_TRIP, {
         tenant_id: tenantId,
         booking_id: assignment.booking_id,
@@ -259,6 +269,20 @@ export class DispatchService {
         ) values ($1,$2,'JOB_COMPLETED',$3)`,
         [tenantId, assignmentId, driverId],
       );
+
+      // ── Item 6: dual-line alignment ────────────────────────────────────────
+      // Driver line: JOB_COMPLETED = trip physically done.
+      // Admin line: booking moves to COMPLETED (awaiting admin fulfilBooking).
+      // COMPLETED is a handoff milestone, NOT FULFILLED.
+      // Admin remains the authority to call fulfilBooking() / settle / invoice.
+      await manager.query(
+        `UPDATE public.bookings
+         SET operational_status = 'COMPLETED', updated_at = NOW()
+         WHERE id = $1
+           AND operational_status NOT IN ('FULFILLED','CANCELLED')`,
+        [assignment.booking_id],
+      );
+      // ──────────────────────────────────────────────────────────────────────
 
       await this.insertOutboxEvent(manager, tenantId, assignment.booking_id, assignmentId, DISPATCH_EVENTS.DRIVER_COMPLETED_TRIP, {
         tenant_id: tenantId,

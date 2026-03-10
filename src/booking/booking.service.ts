@@ -519,6 +519,20 @@ export class BookingService {
         [randomUUID(), tenantId, bookingId, booking.operational_status, 'CANCELLED', actor, null, new Date().toISOString()],
       );
 
+      // ── Item 2: cascade cancellation to open assignments ──────────────────
+      // Any assignment in an unresolved state must be cancelled so drivers no
+      // longer see the booking as active work.
+      await manager.query(
+        `UPDATE public.assignments
+         SET status = 'CANCELLED',
+             cancellation_reason = 'Booking cancelled',
+             updated_at = now()
+         WHERE booking_id = $1
+           AND status NOT IN ('CANCELLED','DECLINED','JOB_COMPLETED','COMPLETED','FULFILLED')`,
+        [bookingId],
+      );
+      // ─────────────────────────────────────────────────────────────────────
+
       // Fire cancellation notification (non-blocking)
       this.notificationService.handleEvent('BookingCancelled', { tenant_id: booking.tenant_id ?? tenantId, booking_id: bookingId, cancelled_by: 'admin' })
         .catch((e) => console.error('[Notification] BookingCancelled FAILED:', e?.message ?? e));

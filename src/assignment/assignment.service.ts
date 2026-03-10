@@ -29,13 +29,22 @@ export class AssignmentService {
     const tollMinor = dto.toll_minor ?? Math.round((dto.toll_parking_minor ?? 0) * 0.7);
     const parkingMinor = dto.parking_minor ?? Math.round((dto.toll_parking_minor ?? 0) * 0.3);
     const tollParkingMinor = tollMinor + parkingMinor;
+    // ── Item 1: guard — booking must be CONFIRMED before dispatch ─────────────
     const bookings = await this.dataSource.query(
-      `SELECT total_price_minor, pricing_snapshot
+      `SELECT total_price_minor, pricing_snapshot, operational_status
        FROM public.bookings
        WHERE id = $1 AND tenant_id = $2`,
       [bookingId, tenantId],
     );
     if (!bookings.length) throw new NotFoundException('Booking not found');
+    // ASSIGNED is allowed for reassignment; all other non-CONFIRMED states are blocked
+    const allowedForDispatch = new Set(['CONFIRMED', 'ASSIGNED']);
+    if (!allowedForDispatch.has(bookings[0].operational_status)) {
+      throw new BadRequestException(
+        `Cannot assign driver: booking must be CONFIRMED or ASSIGNED ` +
+        `(current: ${bookings[0].operational_status})`,
+      );
+    }
     const booking = bookings[0];
     const snapshotTotal = booking.pricing_snapshot?.grand_total_minor ?? null;
     const customerTotal = Number(snapshotTotal ?? booking.total_price_minor ?? 0);
@@ -98,9 +107,11 @@ export class AssignmentService {
   }
 
   async accept(tenantId: string, assignmentId: string, driverId: string) {
+    // ── Item 4: initialise driver_execution_status='accepted' on accept ────────
     await this.dataSource.query(
       `UPDATE public.assignments
-       SET status = 'ACCEPTED', accepted_at = now()
+       SET status = 'ACCEPTED', accepted_at = now(),
+           driver_execution_status = 'accepted'
        WHERE id = $1 AND tenant_id = $2 AND driver_id = $3 AND status = 'PENDING'`,
       [assignmentId, tenantId, driverId],
     );
