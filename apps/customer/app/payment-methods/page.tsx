@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
+import { useAuthGuard } from '@/hooks/useAuthGuard';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import api from '@/lib/api';
@@ -91,6 +92,7 @@ function AddCardForm({ onSuccess, onCancel }: { onSuccess: () => void; onCancel:
 
 // ── Main Page ───────────────────────────────────────────────────────────────
 export default function PaymentMethodsPage() {
+  useAuthGuard();
   const router   = useRouter();
   const qc       = useQueryClient();
   const [showAdd, setShowAdd]   = useState(false);

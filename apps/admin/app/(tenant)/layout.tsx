@@ -1,4 +1,5 @@
 'use client';
+import { useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 import { AdminTopbar } from '@/components/admin/AdminTopbar';
@@ -65,6 +66,17 @@ const NAV_SECTIONS = [
 export default function TenantLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
+
+  // Mount-time auth guard: redirect to /login if no token present.
+  // This prevents unauthenticated users from seeing the tenant admin shell.
+  // Note: actual API calls are also guarded by the backend JWT; this guard
+  // is for immediate UX — no flash of the admin shell before redirect.
+  useEffect(() => {
+    const token = localStorage.getItem('accessToken');
+    if (!token) {
+      router.replace('/login');
+    }
+  }, [router]);
 
   async function handleLogout() {
     await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/logout`, {

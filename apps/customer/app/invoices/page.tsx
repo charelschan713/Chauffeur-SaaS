@@ -1,4 +1,5 @@
 'use client';
+import { useAuthGuard } from '@/hooks/useAuthGuard';
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
@@ -6,6 +7,7 @@ import { BottomNav } from '@/components/BottomNav';
 import { BackButton } from '@/components/BackButton';
 
 export default function InvoicesPage() {
+  useAuthGuard();
   const router = useRouter();
   const { data: invoices = [], isLoading } = useQuery({
     queryKey: ['invoices'],

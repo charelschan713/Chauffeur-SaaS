@@ -1,8 +1,6 @@
-export default function DispatchPage() {
-  return (
-    <div className="bg-white border rounded p-6">
-      <h1 className="text-xl font-semibold text-gray-900">Dispatch</h1>
-      <p className="text-sm text-gray-500 mt-2">Coming soon</p>
-    </div>
-  );
-}
+/**
+ * LEGACY REDIRECT — /admin/dispatch
+ * Canonical route: /(tenant)/dispatch → /dispatch
+ */
+import { redirect } from 'next/navigation';
+export default function AdminDispatchLegacy() { redirect('/dispatch'); }

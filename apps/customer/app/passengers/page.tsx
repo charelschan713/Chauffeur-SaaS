@@ -1,4 +1,5 @@
 'use client';
+import { useAuthGuard } from '@/hooks/useAuthGuard';
 import { useState, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
@@ -67,6 +68,7 @@ function fmtPhone(code: string | null, number: string | null) {
 
 // ── Component ─────────────────────────────────────────────────────────────────
 export default function PassengersPage() {
+  useAuthGuard();
   const qc = useQueryClient();
   const [editingId, setEditingId] = useState<string | 'new' | null>(null);
   const [form, setForm] = useState(emptyForm);

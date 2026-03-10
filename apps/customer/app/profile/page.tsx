@@ -2,12 +2,14 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { useAuthGuard } from '@/hooks/useAuthGuard';
 import api from '@/lib/api';
 import { useAuthStore } from '@/lib/auth-store';
 import { PhoneCountrySelect } from '@/components/PhoneCountrySelect';
 import { CreditCard, Users, User, ChevronRight, LogOut, Edit2, Check, X } from 'lucide-react';
 
 export default function ProfilePage() {
+  useAuthGuard();
   const router = useRouter();
   const qc     = useQueryClient();
   const { clearAuth } = useAuthStore();

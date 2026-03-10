@@ -1,8 +1,6 @@
-export default function PricingPage() {
-  return (
-    <div className="bg-white border rounded p-6">
-      <h1 className="text-xl font-semibold text-gray-900">Pricing</h1>
-      <p className="text-sm text-gray-500 mt-2">Coming soon</p>
-    </div>
-  );
-}
+/**
+ * LEGACY REDIRECT — /admin/pricing
+ * Canonical route: /(tenant)/pricing/service-types → /pricing/service-types
+ */
+import { redirect } from 'next/navigation';
+export default function AdminPricingLegacy() { redirect('/pricing/service-types'); }

@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
+import { useAuthGuard } from '@/hooks/useAuthGuard';
 import api from '@/lib/api';
 import { cn, fmtMoney } from '@/lib/utils';
 import { ChevronRight, Plus, CalendarDays, MapPin, Car } from 'lucide-react';
@@ -19,6 +20,7 @@ function fmtDate(utc: string, tz = 'Australia/Sydney') {
 }
 
 export default function BookingsPage() {
+  useAuthGuard();
   const [tab, setTab] = useState<Tab>('Upcoming');
 
   const { data, isLoading } = useQuery({
