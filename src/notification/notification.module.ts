@@ -7,9 +7,10 @@ import { TemplateResolver } from './template.resolver';
 import { NotificationTemplateController } from './notification-template.controller';
 import { Reflector } from '@nestjs/core';
 import { TenantRoleGuard } from '../common/guards/tenant-role.guard';
+import { InvoiceModule } from '../invoice/invoice.module';
 
 @Module({
-  imports: [IntegrationModule],
+  imports: [IntegrationModule, InvoiceModule],
   controllers: [NotificationTemplateController],
   providers: [NotificationService, EmailProvider, SmsProvider, TemplateResolver, Reflector, TenantRoleGuard],
   exports: [NotificationService],

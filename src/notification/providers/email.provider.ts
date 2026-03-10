@@ -2,12 +2,19 @@ import { Injectable, Logger } from '@nestjs/common';
 import * as nodemailer from 'nodemailer';
 import { ResolvedIntegration } from '../../integration/integration.resolver';
 
+export interface EmailAttachment {
+  filename:    string;
+  content:     Buffer;
+  contentType: string;
+}
+
 export interface SendEmailParams {
   to: string;
   subject: string;
   html: string;
-  fromAddress?: string | null;
-  fromName?: string | null;
+  fromAddress?:  string | null;
+  fromName?:     string | null;
+  attachments?:  EmailAttachment[];
 }
 
 @Injectable()
@@ -53,6 +60,13 @@ export class EmailProvider {
           to: [params.to],
           subject: params.subject,
           html: params.html,
+          ...(params.attachments?.length ? {
+            attachments: params.attachments.map(a => ({
+              filename:    a.filename,
+              content:     a.content.toString('base64'),
+              content_type: a.contentType,
+            })),
+          } : {}),
         }),
       });
       this.logger.log(`Resend response status: ${res.status}`);
@@ -83,6 +97,14 @@ export class EmailProvider {
           from: { email: params.fromAddress, name: params.fromName },
           subject: params.subject,
           content: [{ type: 'text/html', value: params.html }],
+          ...(params.attachments?.length ? {
+            attachments: params.attachments.map(a => ({
+              filename:     a.filename,
+              content:      a.content.toString('base64'),
+              type:         a.contentType,
+              disposition:  'attachment',
+            })),
+          } : {}),
         }),
       });
       this.logger.log(`SendGrid response status: ${res.status}`);
@@ -118,6 +140,13 @@ export class EmailProvider {
         to: params.to,
         subject: params.subject,
         html: params.html,
+        ...(params.attachments?.length ? {
+          attachments: params.attachments.map(a => ({
+            filename:    a.filename,
+            content:     a.content,
+            contentType: a.contentType,
+          })),
+        } : {}),
       });
 
       this.logger.log(`SMTP email sent to ${params.to}`);

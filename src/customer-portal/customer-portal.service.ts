@@ -10,6 +10,7 @@ import Stripe from 'stripe';
 import { NotificationService } from '../notification/notification.service';
 import { DebugTraceService } from '../debug/debug-trace.service';
 import { LoyaltyPricingService } from './loyalty-pricing.service';
+import { InvoicePdfService } from '../invoice/invoice-pdf.service';
 
 @Injectable()
 export class CustomerPortalService implements OnModuleInit {
@@ -18,6 +19,7 @@ export class CustomerPortalService implements OnModuleInit {
     private readonly notificationService: NotificationService,
     private readonly trace: DebugTraceService,
     private readonly loyaltyPricing: LoyaltyPricingService,
+    private readonly invoicePdf: InvoicePdfService,
   ) {}
 
   async onModuleInit() {
@@ -206,6 +208,92 @@ export class CustomerPortalService implements OnModuleInit {
         options_count:     results.length,
       };
     });
+  }
+
+  // ── Invoice PDF (customer download) ──────────────────────────────────────
+  /**
+   * Generates and returns the final invoice PDF for a booking.
+   * Enforces: booking belongs to this customer + same tenant.
+   * Returns null if no SENT/PAID invoice exists for the booking.
+   */
+  async getInvoicePdf(
+    customerId: string,
+    tenantId: string,
+    bookingId: string,
+  ): Promise<{ buffer: Buffer; filename: string } | null> {
+    // Verify booking ownership
+    const [booking] = await this.db.query(
+      `SELECT b.booking_reference, b.currency,
+              c.first_name, c.last_name, c.email as customer_email
+       FROM public.bookings b
+       JOIN public.customers c ON c.id = b.customer_id
+       WHERE b.id = $1 AND b.tenant_id = $2 AND b.customer_id = $3`,
+      [bookingId, tenantId, customerId],
+    );
+    if (!booking) throw new NotFoundException('Booking not found');
+
+    // Fetch the final CUSTOMER invoice (SENT or PAID)
+    const [invoice] = await this.db.query(
+      `SELECT i.*, ii.description, ii.quantity, ii.unit_price_minor, ii.total_minor as item_total
+       FROM public.invoices i
+       LEFT JOIN public.invoice_items ii ON ii.invoice_id = i.id
+       WHERE i.booking_id = $1 AND i.tenant_id = $2
+         AND i.invoice_type = 'CUSTOMER'
+         AND i.status IN ('SENT','PAID')
+         AND i.deleted_at IS NULL
+       ORDER BY i.created_at DESC LIMIT 1`,
+      [bookingId, tenantId],
+    );
+    if (!invoice) return null;
+
+    // Fetch branding
+    const [branding] = await this.db.query(
+      `SELECT tb.company_name, tb.contact_email, tb.contact_phone
+       FROM public.tenant_branding tb WHERE tb.tenant_id = $1 LIMIT 1`,
+      [tenantId],
+    ).catch(() => []);
+
+    // Build line_items from invoice_items if available; else use a single-line summary
+    let lineItems: any[] | null = null;
+    if (invoice.description) {
+      lineItems = [{
+        description:      invoice.description,
+        quantity:         invoice.quantity,
+        unit_price_minor: invoice.unit_price_minor,
+        total_minor:      invoice.item_total,
+      }];
+    }
+
+    // If invoice has a line_items JSON field (stored on the invoices row itself)
+    if (invoice.line_items && (!lineItems || lineItems.length === 0)) {
+      try {
+        lineItems = typeof invoice.line_items === 'string'
+          ? JSON.parse(invoice.line_items)
+          : invoice.line_items;
+      } catch { lineItems = null; }
+    }
+
+    const buffer = await this.invoicePdf.generate({
+      invoice_number:    invoice.invoice_number,
+      issue_date:        invoice.issue_date ?? invoice.created_at,
+      due_date:          invoice.due_date ?? null,
+      booking_reference: booking.booking_reference,
+      company_name:      branding?.company_name ?? 'ASChauffeured',
+      company_email:     branding?.contact_email ?? null,
+      company_phone:     branding?.contact_phone ?? null,
+      recipient_name:    invoice.recipient_name ?? `${booking.first_name} ${booking.last_name}`.trim(),
+      recipient_email:   invoice.recipient_email ?? booking.customer_email,
+      currency:          invoice.currency ?? booking.currency ?? 'AUD',
+      subtotal_minor:    Number(invoice.subtotal_minor ?? 0),
+      tax_minor:         Number(invoice.tax_minor ?? 0),
+      discount_minor:    Number(invoice.discount_minor ?? 0),
+      total_minor:       Number(invoice.total_minor ?? 0),
+      line_items:        lineItems,
+      notes:             invoice.notes ?? null,
+    });
+
+    const filename = `Invoice-${booking.booking_reference ?? invoice.invoice_number}.pdf`;
+    return { buffer, filename };
   }
 
   // ── Dashboard ─────────────────────────────────────────────────────────────

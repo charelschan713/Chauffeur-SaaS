@@ -10,8 +10,10 @@ import {
   Put,
   Query,
   Req,
+  Res,
   UseGuards,
 } from '@nestjs/common';
+import type { Response } from 'express';
 import { CustomerPortalService } from './customer-portal.service';
 import { LoyaltyPricingService } from './loyalty-pricing.service';
 import { CustomerAuthGuard } from '../customer-auth/customer-auth.guard';
@@ -86,6 +88,35 @@ export class CustomerPortalController {
   @UseGuards(CustomerAuthGuard)
   getDashboard(@Req() req: any) {
     return this.svc.getDashboard(req.customer.sub, req.customer.tenant_id);
+  }
+
+  /**
+   * Download final invoice PDF for a booking.
+   * Enforces: booking belongs to authenticated customer + same tenant.
+   * Returns 404 if no SENT/PAID invoice exists for the booking.
+   */
+  @Get('bookings/:id/invoice-pdf')
+  @UseGuards(CustomerAuthGuard)
+  async downloadInvoicePdf(
+    @Param('id') bookingId: string,
+    @Req() req: any,
+    @Res() res: Response,
+  ) {
+    const result = await this.svc.getInvoicePdf(
+      req.customer.sub,
+      req.customer.tenant_id,
+      bookingId,
+    );
+    if (!result) {
+      throw new NotFoundException('Invoice not available for this booking');
+    }
+    res.set({
+      'Content-Type':        'application/pdf',
+      'Content-Disposition': `attachment; filename="${result.filename}"`,
+      'Content-Length':      result.buffer.length,
+      'Cache-Control':       'no-store',
+    });
+    res.end(result.buffer);
   }
 
   @Get('bookings')

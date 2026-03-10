@@ -5,9 +5,10 @@ import { CustomerPortalService } from './customer-portal.service';
 import { LoyaltyPricingService } from './loyalty-pricing.service';
 import { CustomerAuthModule } from '../customer-auth/customer-auth.module';
 import { NotificationModule } from '../notification/notification.module';
+import { InvoiceModule } from '../invoice/invoice.module';
 
 @Module({
-  imports: [JwtModule.register({}), CustomerAuthModule, NotificationModule],
+  imports: [JwtModule.register({}), CustomerAuthModule, NotificationModule, InvoiceModule],
   controllers: [CustomerPortalController],
   providers: [CustomerPortalService, LoyaltyPricingService],
 })

@@ -5,6 +5,7 @@ import { IntegrationResolver } from '../integration/integration.resolver';
 import { EmailProvider } from './providers/email.provider';
 import { SmsProvider } from './providers/sms.provider';
 import { TemplateResolver } from './template.resolver';
+import { InvoicePdfService } from '../invoice/invoice-pdf.service';
 import { renderTemplate } from './template.renderer';
 import { TemplateVariables } from './notification.types';
 import {
@@ -45,6 +46,7 @@ export class NotificationService {
     private readonly emailProvider: EmailProvider,
     private readonly smsProvider: SmsProvider,
     private readonly templateResolver: TemplateResolver,
+    private readonly invoicePdf: InvoicePdfService,
   ) {}
 
   async handleEvent(eventType: string, payload: any): Promise<void> {
@@ -608,7 +610,7 @@ export class NotificationService {
     tenantId: string,
     eventType: string,
     integration: any,
-    opts: { to: string; subject: string; html: string; fromAddress?: string | null; fromName?: string | null },
+    opts: { to: string; subject: string; html: string; fromAddress?: string | null; fromName?: string | null; attachments?: import('./providers/email.provider').EmailAttachment[] },
     bookingId?: string,
     templateVars?: Record<string, string>,
   ): Promise<void> {
@@ -956,13 +958,69 @@ export class NotificationService {
 
   private async onInvoiceSent(tenantId: string, payload: any) {
     const vars = {
-      customer_name: payload.customer_name ?? '',
+      customer_name:  payload.customer_name  ?? '',
       invoice_number: payload.invoice_number ?? '',
-      amount: payload.amount ?? '',
-      due_date: payload.due_date ?? '',
-      invoice_url: payload.invoice_url ?? '',
+      amount:         payload.amount         ?? '',
+      due_date:       payload.due_date        ?? '',
+      invoice_url:    payload.invoice_url    ?? '',
     };
-    await this.sendBoth(tenantId, 'InvoiceSent', vars, payload.customer_email, payload.customer_phone);
+
+    // ── Generate invoice PDF for attachment ─────────────────────────────────
+    let pdfBuffer: Buffer | null = null;
+    try {
+      // Fetch branding for company name/contact
+      const [branding] = await this.dataSource.query(
+        `SELECT tb.company_name, tb.contact_email, tb.contact_phone
+         FROM public.tenant_branding tb WHERE tb.tenant_id = $1 LIMIT 1`,
+        [tenantId],
+      ).catch(() => []);
+
+      pdfBuffer = await this.invoicePdf.generate({
+        invoice_number:   payload.invoice_number ?? 'INV',
+        issue_date:       payload.issue_date ?? new Date(),
+        due_date:         payload.due_date ?? null,
+        booking_reference: payload.booking_reference ?? null,
+        company_name:     branding?.company_name ?? payload.company_name ?? 'ASChauffeured',
+        company_email:    branding?.contact_email ?? null,
+        company_phone:    branding?.contact_phone ?? null,
+        recipient_name:   payload.customer_name ?? '',
+        recipient_email:  payload.customer_email ?? null,
+        currency:         payload.currency ?? 'AUD',
+        subtotal_minor:   Number(payload.subtotal_minor ?? 0),
+        tax_minor:        Number(payload.tax_minor ?? 0),
+        discount_minor:   Number(payload.discount_minor ?? 0),
+        total_minor:      Number(payload.total_minor ?? payload.amount_minor ?? 0),
+        line_items:       payload.line_items ?? null,
+        notes:            payload.notes ?? null,
+      });
+    } catch (err: any) {
+      this.logger.error('[onInvoiceSent] PDF generation failed — sending email without attachment', err?.message);
+      // Non-fatal: email still sends without attachment
+    }
+
+    const booking_ref = payload.booking_reference ?? payload.invoice_number ?? 'Invoice';
+    const attachments = pdfBuffer
+      ? [{ filename: `Invoice-${booking_ref}.pdf`, content: pdfBuffer, contentType: 'application/pdf' }]
+      : [];
+
+    // Send via template (with attachments passed inline)
+    const { email: emailIntegration } = await this.resolveIntegrations(tenantId);
+    if (emailIntegration && payload.customer_email) {
+      const tpl = await this.templateResolver.resolve(tenantId, 'InvoiceSent', 'email');
+      if (tpl?.active && tpl?.body) {
+        const { renderTemplate: rt } = await import('./template.renderer');
+        const html    = rt(tpl.body, vars);
+        const subject = rt(tpl.subject ?? 'Your Invoice', vars);
+        await this.sendEmailWithLog(
+          tenantId, 'InvoiceSent', emailIntegration,
+          { to: payload.customer_email, subject, html, attachments },
+          payload.booking_id,
+          vars,
+        ).catch((e: any) => this.logger.error('[onInvoiceSent] Email send failed', e?.message));
+      }
+    }
+    // SMS fallback (no attachment)
+    await this.sendBoth(tenantId, 'InvoiceSent', vars, null, payload.customer_phone);
   }
 
   private async onInvoiceOverdue(tenantId: string, payload: any) {

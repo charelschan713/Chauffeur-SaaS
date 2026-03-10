@@ -3,9 +3,10 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
 import { cn, fmtMoney } from '@/lib/utils';
-import { ArrowLeft, MapPin, CalendarDays, Car, User, Phone, AlertCircle, CheckCircle2, Clock, XCircle } from 'lucide-react';
+import { ArrowLeft, MapPin, CalendarDays, Car, User, Phone, AlertCircle, CheckCircle2, Clock, XCircle, Download } from 'lucide-react';
 import { BackButton } from '@/components/BackButton';
 import { getOpStatusBadge, DRIVER_STATUS_LABELS } from '@/lib/booking-status';
+import { useState } from 'react';
 
 function fmtDate(utc?: string, tz = 'Australia/Sydney') {
   if (!utc) return '—';
@@ -66,6 +67,55 @@ export function BookingDetailClient({ id }: { id: string }) {
   const canCancel = ['PENDING_CUSTOMER_CONFIRMATION', 'AWAITING_CONFIRMATION', 'CONFIRMED'].includes(
     booking.operational_status ?? booking.status
   );
+
+  // Invoice PDF download — only show for FULFILLED/COMPLETED bookings
+  const invoiceStates = ['FULFILLED', 'COMPLETED'];
+  const showInvoice = invoiceStates.includes(booking.operational_status ?? booking.status ?? '');
+
+  const [invoiceChecked, setInvoiceChecked] = useState(false);
+  const [invoiceAvailable, setInvoiceAvailable] = useState<boolean | null>(null);
+  const [downloadingInvoice, setDownloadingInvoice] = useState(false);
+
+  // Probe once whether an invoice exists (HEAD-like: we use a small signal via error handling)
+  const checkInvoice = async () => {
+    if (invoiceChecked) return invoiceAvailable;
+    try {
+      // A 404 means no invoice; 200 means available
+      await api.head(`/customer-portal/bookings/${id}/invoice-pdf`).catch(() =>
+        api.get(`/customer-portal/bookings/${id}/invoice-pdf`, { responseType: 'blob' })
+      );
+      setInvoiceAvailable(true);
+    } catch {
+      setInvoiceAvailable(false);
+    }
+    setInvoiceChecked(true);
+    return invoiceAvailable;
+  };
+
+  const handleDownloadInvoice = async () => {
+    setDownloadingInvoice(true);
+    try {
+      const resp = await api.get(`/customer-portal/bookings/${id}/invoice-pdf`, {
+        responseType: 'blob',
+      });
+      const url = URL.createObjectURL(new Blob([resp.data], { type: 'application/pdf' }));
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Invoice-${booking.booking_reference ?? id}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      setInvoiceAvailable(true);
+    } catch (err: any) {
+      if (err?.response?.status === 404) {
+        setInvoiceAvailable(false);
+        alert('Final invoice is not yet available for this booking.');
+      }
+    } finally {
+      setDownloadingInvoice(false);
+    }
+  };
 
   return (
     <div className="min-h-screen" style={{ paddingBottom: 'calc(96px + env(safe-area-inset-bottom, 0px))' }}>
@@ -182,6 +232,20 @@ export function BookingDetailClient({ id }: { id: string }) {
           <Row label="Total" value={fmtMoney(booking.total_price_minor, booking.currency ?? 'AUD')} valueClass="text-[hsl(var(--primary))] text-base" />
           <Row label="Payment" value={booking.payment_status ?? '—'} />
         </Section>
+
+        {/* Download Final Invoice — shown only for FULFILLED/COMPLETED bookings */}
+        {showInvoice && invoiceAvailable !== false && (
+          <div className="pt-1">
+            <button
+              onClick={handleDownloadInvoice}
+              disabled={downloadingInvoice}
+              className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border border-[hsl(var(--primary)/0.4)] text-[hsl(var(--primary))] text-sm font-medium hover:bg-[hsl(var(--primary)/0.06)] transition-all disabled:opacity-50"
+            >
+              <Download className="h-4 w-4" />
+              {downloadingInvoice ? 'Preparing…' : 'Download Final Invoice'}
+            </button>
+          </div>
+        )}
 
         {/* Cancel */}
         {canCancel && (
