@@ -464,13 +464,15 @@ export class ProjectService implements OnModuleInit {
     const allEvents = [...milestones, ...adminStatusEvents]
       .map((e: any) => {
         const bookingCtx = driverMap[e.booking_id] ?? {};
+        const label = TIMELINE_LABELS[e.event_type] ?? e.event_type;
         return {
           ...e,
+          type:              e.event_type,
+          detail:            label,
+          event_label:       label,
           booking_reference: (bookingCtx as any).booking_reference ?? null,
           driver_name:       (bookingCtx as any).driver_name ?? null,
           vehicle_rego:      (bookingCtx as any).vehicle_rego ?? null,
-          // Customer-friendly label
-          event_label: TIMELINE_LABELS[e.event_type] ?? e.event_type,
         };
       })
       .sort((a: any, b: any) => new Date(a.occurred_at).getTime() - new Date(b.occurred_at).getTime());
