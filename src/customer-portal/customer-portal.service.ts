@@ -105,7 +105,7 @@ export class CustomerPortalService implements OnModuleInit {
     await this.db.query(`
       ALTER TABLE public.bookings ADD CONSTRAINT bookings_adjustment_status_check
         CHECK (adjustment_status = ANY (ARRAY[
-          'NONE', 'PENDING', 'CAPTURED', 'REFUNDED', 'FAILED', 'NO_PAYMENT_METHOD'
+          'NONE', 'PENDING', 'CAPTURED', 'REFUNDED', 'FAILED', 'NO_PAYMENT_METHOD', 'SETTLED'
         ]))
     `).catch(() => {});
   }

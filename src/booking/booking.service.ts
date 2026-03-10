@@ -7,6 +7,11 @@ import { PaymentService } from '../payment/payment.service';
 import { InvoicePdfService } from '../invoice/invoice-pdf.service';
 import { randomUUID } from 'crypto';
 
+// ─── Deprecated operational_status_enum values (exist in DB, never written by code) ─
+// ACCEPTED, ON_THE_WAY, PENDING_ADMIN_CONFIRMATION, PAYMENT_FAILED
+// Do not use in new features. See state-machine audit 2026-03-10.
+// ─────────────────────────────────────────────────────────────────────────────
+
 @Injectable()
 export class BookingService {
   constructor(
