@@ -697,9 +697,11 @@ export class BookingService {
     );
     if (!rows.length) throw new NotFoundException('Booking not found');
     const b = rows[0];
-    // FIX: was b.status (non-existent) — must read operational_status
-    if (b.operational_status !== 'AWAITING_CONFIRMATION') {
-      throw new BadRequestException('Booking is not in AWAITING_CONFIRMATION state');
+    // FIX (original): was b.status (non-existent column) — b.status was always undefined
+    // FIX (enum):     'AWAITING_CONFIRMATION' is not in operational_status_enum;
+    //                 the DB stores 'PENDING_CUSTOMER_CONFIRMATION' for bookings awaiting payment
+    if (b.operational_status !== 'PENDING_CUSTOMER_CONFIRMATION') {
+      throw new BadRequestException('Booking is not in PENDING_CUSTOMER_CONFIRMATION state');
     }
     if (!b.stripe_customer_id) {
       throw new BadRequestException('No Stripe customer on file');
@@ -743,9 +745,12 @@ export class BookingService {
       );
       return { success: true, paymentIntentId: pi.id };
     } catch (err: any) {
-      // FIX: was SET status='PAYMENT_FAILED' — must use operational_status
+      // FIX (original): was SET status='PAYMENT_FAILED' (wrong column, silent no-op)
+      // FIX (enum):     'PAYMENT_FAILED' is not in operational_status_enum
+      // Correct behaviour: leave operational_status as-is (allows admin to retry);
+      // set payment_status='FAILED' (valid in payment_status_enum) to surface failure
       await this.dataSource.query(
-        `UPDATE public.bookings SET operational_status='PAYMENT_FAILED', updated_at=now() WHERE id=$1`,
+        `UPDATE public.bookings SET payment_status='FAILED', updated_at=now() WHERE id=$1`,
         [bookingId],
       );
       return { success: false, error: err.message };

@@ -88,6 +88,12 @@ export class CustomerPortalService implements OnModuleInit {
         ON public.quote_sessions(customer_id)
         WHERE customer_id IS NOT NULL
     `).catch(() => {});
+
+    // operational_status_enum safety: add PAYMENT_FAILED if not present
+    // ALTER TYPE ... ADD VALUE IF NOT EXISTS requires Postgres 9.6+; runs outside transaction (catch is fine)
+    await this.db.query(`
+      ALTER TYPE public.operational_status_enum ADD VALUE IF NOT EXISTS 'PAYMENT_FAILED'
+    `).catch(() => {});
   }
 
   // ── Stripe helper ─────────────────────────────────────────────────────────
