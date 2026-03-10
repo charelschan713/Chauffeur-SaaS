@@ -9,6 +9,7 @@ import { DataSource } from 'typeorm';
 import Stripe from 'stripe';
 import { NotificationService } from '../notification/notification.service';
 import { DebugTraceService } from '../debug/debug-trace.service';
+import { LoyaltyPricingService } from './loyalty-pricing.service';
 
 @Injectable()
 export class CustomerPortalService implements OnModuleInit {
@@ -16,6 +17,7 @@ export class CustomerPortalService implements OnModuleInit {
     @InjectDataSource() private readonly db: DataSource,
     private readonly notificationService: NotificationService,
     private readonly trace: DebugTraceService,
+    private readonly loyaltyPricing: LoyaltyPricingService,
   ) {}
 
   async onModuleInit() {
@@ -320,9 +322,35 @@ export class CustomerPortalService implements OnModuleInit {
       if (!result) {
         throw new BadRequestException('Selected vehicle class not found in quote. Please re-quote.');
       }
-      // Server price is authoritative — client totalPriceMinor is ignored
-      totalPriceMinor = result.estimated_total_minor;
-      pricingSnapshot = result.pricing_snapshot_preview ?? null;
+
+      // Apply loyalty discount server-side — client totalPriceMinor and discountMinor are ignored.
+      // LoyaltyPricingService uses the same logic as GET /customer-portal/discount-preview,
+      // guaranteeing preview amount == booking amount == charge amount.
+      const loyalty = await this.loyaltyPricing.compute(
+        customerId,
+        tenantId,
+        result,
+        payload.currency ?? currency,
+      );
+      totalPriceMinor = loyalty.finalFareMinor;
+      currency        = loyalty.currency;
+
+      // Merge loyalty breakdown into pricing snapshot for downstream charge (payViaToken)
+      pricingSnapshot = {
+        ...(result.pricing_snapshot_preview ?? {}),
+        // Overwrite with loyalty-adjusted values so payViaToken reads correct amounts
+        final_fare_minor:     loyalty.finalFareMinor,
+        grand_total_minor:    loyalty.finalFareMinor,
+        discount_amount_minor: loyalty.discountMinor,
+        discount_rate:        loyalty.discountRate,
+        discount_name:        loyalty.discountName,
+        toll_minor:           loyalty.tollParkingMinor > 0
+                                ? (result.pricing_snapshot_preview?.toll_minor ?? loyalty.tollParkingMinor)
+                                : 0,
+        parking_minor:        result.pricing_snapshot_preview?.parking_minor ?? 0,
+        loyalty_applied:      true,
+        snapshot_source:      loyalty.snapshotSource,
+      };
       vehicleClassId  = result.service_class_id ?? dto.vehicleClassId ?? null;
     }
 
@@ -333,10 +361,13 @@ export class CustomerPortalService implements OnModuleInit {
     const refPrefix = (tenantRow?.booking_ref_prefix ?? 'BK').trim().toUpperCase();
     const ref = `${refPrefix}-${Math.random().toString(36).slice(2, 10).toUpperCase()}`;
 
-    // Extract toll/parking breakdown from pricing snapshot
-    const tollMinor    = pricingSnapshot?.toll_minor    ?? 0;
-    const parkingMinor = pricingSnapshot?.parking_minor ?? 0;
-    const baseFareMinor = pricingSnapshot?.base_calculated_minor ?? (totalPriceMinor - tollMinor - parkingMinor);
+    // Extract toll/parking breakdown from pricing snapshot (loyalty-adjusted snapshot when quoteId present)
+    const tollMinor    = Number(pricingSnapshot?.toll_minor    ?? 0);
+    const parkingMinor = Number(pricingSnapshot?.parking_minor ?? 0);
+    // baseFareMinor = final total minus toll pass-through (toll is never discounted)
+    const baseFareMinor = pricingSnapshot?.base_calculated_minor != null
+      ? Number(pricingSnapshot.base_calculated_minor)
+      : Math.max(0, totalPriceMinor - tollMinor - parkingMinor);
 
     // Load customer info for passenger fields
     const [customer] = await this.db.query(
@@ -990,8 +1021,12 @@ export class CustomerPortalService implements OnModuleInit {
       context: { slug: tenantSlug, quoteId: dto.quoteId, vehicleClassId: dto.vehicleClassId, email: dto.email ? dto.email.substring(0,3)+'***' : undefined },
     });
 
+    // Guest checkout resolves tenant from body.tenantSlug (no JWT).
+    // Guard: quote session must exist for this tenant — an unknown slug cannot forge a booking
+    // against a real quote because quote_sessions is filtered by tenant_id below.
+    // Additional guard: only active tenants are matched.
     const tenant = await this.db.query(
-      `SELECT id, booking_ref_prefix FROM public.tenants WHERE slug=$1 LIMIT 1`,
+      `SELECT id, booking_ref_prefix FROM public.tenants WHERE slug=$1 AND status='active' LIMIT 1`,
       [tenantSlug],
     );
     if (!tenant.length) throw new NotFoundException('Tenant not found');

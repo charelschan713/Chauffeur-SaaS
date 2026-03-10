@@ -1,8 +1,10 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
   Get,
+  NotFoundException,
   Param,
   Post,
   Put,
@@ -11,9 +13,9 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { CustomerPortalService } from './customer-portal.service';
+import { LoyaltyPricingService } from './loyalty-pricing.service';
 import { CustomerAuthGuard } from '../customer-auth/customer-auth.guard';
 import { JwtService } from '@nestjs/jwt';
-import { DiscountService } from '../discount/discount.service';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 
@@ -21,8 +23,8 @@ import { DataSource } from 'typeorm';
 export class CustomerPortalController {
   constructor(
     private readonly svc: CustomerPortalService,
+    private readonly loyaltyPricing: LoyaltyPricingService,
     private readonly jwt: JwtService,
-    private readonly discountSvc: DiscountService,
     @InjectDataSource() private readonly db: DataSource,
   ) {}
 
@@ -119,10 +121,11 @@ export class CustomerPortalController {
   }
 
   /**
-   * After login on /book page: re-calculate discount with customer's personal rate stacked on top
-   * of any base discount. Returns adjusted price breakdown.
+   * GET /customer-portal/discount-preview
    *
-   * Only the displayed price changes on the frontend — the actual charge happens at booking submit.
+   * Computes the loyalty-adjusted fare for the authenticated customer against a stored quote.
+   * Uses LoyaltyPricingService — same logic that createBooking will apply at booking time.
+   * Guaranteed: preview amount == booking amount == charge amount.
    */
   @Get('discount-preview')
   @UseGuards(CustomerAuthGuard)
@@ -131,69 +134,43 @@ export class CustomerPortalController {
     @Query('quote_id') quoteId: string,
     @Query('car_type_id') carTypeId: string,
   ) {
-    // Load quote session
-    const now = new Date();
+    if (!quoteId) throw new BadRequestException('quote_id is required');
+
+    // Load quote session — enforce expiry at DB level
     const [session] = await this.db.query(
-      `SELECT * FROM public.quote_sessions WHERE id = $1 AND expires_at > $2 LIMIT 1`,
-      [quoteId, now],
+      `SELECT id, tenant_id, payload, expires_at
+       FROM public.quote_sessions
+       WHERE id = $1 AND expires_at > now()
+       LIMIT 1`,
+      [quoteId],
     );
-    if (!session) return { error: 'Quote expired or not found' };
+    if (!session) throw new NotFoundException('Quote expired or not found');
+
+    // Validate tenant: quote must belong to the customer's tenant (from JWT)
+    if (session.tenant_id !== req.customer.tenant_id) {
+      throw new BadRequestException('Quote does not belong to this tenant');
+    }
 
     const payload = session.payload;
-    const result = (payload.results ?? []).find((r: any) => r.service_class_id === carTypeId)
+    const result  = (payload.results ?? []).find((r: any) => r.service_class_id === carTypeId)
       ?? payload.results?.[0];
-    if (!result) return { error: 'Car type not found in quote' };
+    if (!result) throw new NotFoundException('Car type not found in quote');
 
-    const snap = result.pricing_snapshot_preview ?? {};
-    const tollParkingMinor = (snap.toll_minor ?? 0) + (snap.parking_minor ?? 0);
-
-    // TRUE discountable base = pre_discount_fare_minor (includes base + distance + time + waypoints + seats)
-    // For RETURN trips, base_calculated_minor is undefined — use pre_discount_fare_minor instead
-    const trueBase = snap.pre_discount_fare_minor
-      ?? (snap.base_calculated_minor
-          ? snap.base_calculated_minor
-              + (snap.surcharge_minor ?? 0)
-              + (snap.time_surcharge_minor ?? 0)
-              + (snap.extras_minor ?? 0)
-              + (snap.waypoints_minor ?? 0)
-              + (snap.baby_seats_minor ?? 0)
-          : Math.max(0, result.estimated_total_minor - tollParkingMinor));
-
-    // Get customer tier rate + extra discount_rate
-    const customerRows = await this.db.query(
-      `SELECT tier, discount_rate FROM public.customers WHERE id = $1 AND tenant_id = $2`,
-      [req.customer.sub, req.customer.tenant_id],
+    const pricing = await this.loyaltyPricing.compute(
+      req.customer.sub,
+      req.customer.tenant_id,
+      result,
+      payload.currency ?? 'AUD',
     );
-    const TIER_DISCOUNT: Record<string, number> = { STANDARD: 0, SILVER: 5, GOLD: 10, PLATINUM: 15, VIP: 20 };
-    const tierRate = TIER_DISCOUNT[customerRows[0]?.tier ?? 'STANDARD'] ?? 0;
-    const extraRate = Number(customerRows[0]?.discount_rate ?? 0);
-
-    // Check max_discount_pct cap from any active discount rule
-    const [capRow] = await this.db.query(
-      `SELECT max_discount_pct FROM public.tenant_discounts
-       WHERE tenant_id = $1 AND active = true AND max_discount_pct IS NOT NULL
-       ORDER BY max_discount_pct DESC LIMIT 1`,
-      [session.tenant_id],
-    );
-    const maxPctCap: number | null = capRow?.max_discount_pct ? Number(capRow.max_discount_pct) : null;
-
-    const rawCombinedRate = tierRate + extraRate;
-    const cappedCombinedRate = maxPctCap != null ? Math.min(rawCombinedRate, maxPctCap) : rawCombinedRate;
-    const cappedByMax = maxPctCap != null && rawCombinedRate > maxPctCap;
-
-    // Recalculate from scratch using true base
-    const totalDiscountMinor = Math.round(trueBase * cappedCombinedRate / 100);
-    const finalFareMinor = Math.max(0, trueBase - totalDiscountMinor) + tollParkingMinor;
-    const combinedRate = cappedCombinedRate;
 
     return {
-      base_fare_minor:          trueBase + tollParkingMinor,
-      discount_minor:           totalDiscountMinor,
-      final_fare_minor:         finalFareMinor,
-      discount_name:            combinedRate > 0 ? `${combinedRate}% loyalty` : null,
-      discount_rate:            combinedRate,
-      capped_by_max:            cappedByMax,
-      currency:                 payload.currency ?? 'AUD',
+      base_fare_minor:  pricing.trueBase + pricing.tollParkingMinor,
+      discount_minor:   pricing.discountMinor,
+      final_fare_minor: pricing.finalFareMinor,
+      discount_name:    pricing.discountName,
+      discount_rate:    pricing.discountRate,
+      capped_by_max:    pricing.cappedByMax,
+      currency:         pricing.currency,
     };
   }
 
