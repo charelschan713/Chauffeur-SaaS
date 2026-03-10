@@ -12,7 +12,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
-import { BackButton } from '@/components/BackButton';
 import { PhoneCountrySelect } from '@/components/PhoneCountrySelect';
 import { BookDebugPanel } from '@/components/BookDebugPanel';
 import {
@@ -287,8 +286,10 @@ function GuestActivateOtp({
         otp_code: otp.trim(),
       });
       if (data.accessToken) {
-        localStorage.setItem('token', data.accessToken);
+        localStorage.setItem('customer_token', data.accessToken);
+        if (data.customerId) localStorage.setItem('customer_id', data.customerId);
         if (data.refreshToken) localStorage.setItem('refreshToken', data.refreshToken);
+        useAuthStore.getState().hydrate();
         setStage('done');
         setTimeout(onActivated, 1200);
       }
@@ -1348,7 +1349,15 @@ export function BookPageClient() {
         }}
       >
         <div className="max-w-lg mx-auto px-4 pb-4 flex items-center gap-3">
-          <BackButton fallback="/quote" />
+          <button
+            onClick={() => router.replace('/quote')}
+            aria-label="Back to quote"
+            className="flex items-center justify-center w-10 h-10 rounded-full text-white/60 bg-white/[0.06] border border-white/[0.08] active:bg-white/12 active:scale-90 transition-all shrink-0"
+          >
+            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+            </svg>
+          </button>
           <h1 className="font-serif text-lg font-medium text-[hsl(var(--foreground))]">Complete Booking</h1>
         </div>
       </header>

@@ -79,7 +79,7 @@ api.interceptors.response.use(
         // Preserve current path as redirect target so login can return user here
         const currentPath = window.location.pathname + window.location.search;
         const loginUrl = `/login?redirect=${encodeURIComponent(currentPath)}`;
-        window.location.href = loginUrl;
+        window.location.replace(loginUrl);
       }
     }
     return Promise.reject(err);

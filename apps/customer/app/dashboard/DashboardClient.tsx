@@ -129,7 +129,7 @@ export function DashboardClient() {
   useEffect(() => { hydrate(); }, [hydrate]);
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    if (!localStorage.getItem('customer_token')) router.push('/login');
+    if (!localStorage.getItem('customer_token')) router.replace('/login');
   }, [token, router]);
 
   const { data, isLoading } = useQuery({

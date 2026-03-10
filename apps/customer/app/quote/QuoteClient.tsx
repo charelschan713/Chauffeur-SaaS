@@ -485,7 +485,7 @@ export function QuoteClient() {
           gap: 12,
         }}
       >
-        <BackButton fallback="/dashboard" />
+        <BackButton fallback="/login" />
         <h1 className="font-semibold text-white">Get a Quote</h1>
       </div>
 

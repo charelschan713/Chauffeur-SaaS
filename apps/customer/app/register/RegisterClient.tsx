@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import api from '@/lib/api';
 import { useAuthStore } from '@/lib/auth-store';
 import { PhoneCountrySelect } from '@/components/PhoneCountrySelect';
@@ -9,6 +9,7 @@ import { AuthShell, AuthLogo, AuthCard, GoldButton, ErrorAlert, inputCls, labelC
 
 export function RegisterClient() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const setAuth = useAuthStore((s) => s.setAuth);
   const [form, setForm] = useState({ firstName: '', lastName: '', email: '', password: '', phoneCountryCode: '+61', phoneNumber: '' });
   const [tenantSlug, setTenantSlug] = useState('');
@@ -28,7 +29,8 @@ export function RegisterClient() {
     try {
       const { data } = await api.post('/customer-auth/register', { tenantSlug, ...form });
       setAuth(data.accessToken, data.customerId, tenantSlug);
-      router.push('/dashboard');
+      const redirect = searchParams.get('redirect');
+      router.push(redirect?.startsWith('/') ? redirect : '/dashboard');
     } catch (err: any) {
       setError(err.response?.data?.message ?? 'Registration failed');
     } finally {
