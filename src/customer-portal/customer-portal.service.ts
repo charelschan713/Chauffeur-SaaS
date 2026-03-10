@@ -94,6 +94,18 @@ export class CustomerPortalService implements OnModuleInit {
     await this.db.query(`
       ALTER TYPE public.operational_status_enum ADD VALUE IF NOT EXISTS 'PAYMENT_FAILED'
     `).catch(() => {});
+
+    // adjustment_status check constraint: extend to include NO_PAYMENT_METHOD
+    // Drop + re-add is safe — check constraints carry no foreign key data
+    await this.db.query(`
+      ALTER TABLE public.bookings DROP CONSTRAINT IF EXISTS bookings_adjustment_status_check
+    `).catch(() => {});
+    await this.db.query(`
+      ALTER TABLE public.bookings ADD CONSTRAINT bookings_adjustment_status_check
+        CHECK (adjustment_status = ANY (ARRAY[
+          'NONE', 'PENDING', 'CAPTURED', 'REFUNDED', 'FAILED', 'NO_PAYMENT_METHOD'
+        ]))
+    `).catch(() => {});
   }
 
   // ── Stripe helper ─────────────────────────────────────────────────────────
