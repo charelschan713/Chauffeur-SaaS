@@ -71,6 +71,17 @@ export class CustomerPortalController {
   }
 
   // ── PROTECTED ──────────────────────────────────────────────────────────────
+
+  /**
+   * Returns active (unexpired, non-converted) quote sessions for this customer.
+   * Used by the portal to show resumable quotes above the quote form.
+   */
+  @Get('pending-quotes')
+  @UseGuards(CustomerAuthGuard)
+  listPendingQuotes(@Req() req: any) {
+    return this.svc.listPendingQuotes(req.customer.sub, req.customer.tenant_id);
+  }
+
   @Get('dashboard')
   @UseGuards(CustomerAuthGuard)
   getDashboard(@Req() req: any) {

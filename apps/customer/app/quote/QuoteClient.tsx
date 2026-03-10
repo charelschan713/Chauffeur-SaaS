@@ -320,6 +320,34 @@ export function QuoteClient() {
 
   const clearQuote = useCallback(() => { setQuoteId(null); setQuoteResults([]); setSelectedCarTypeId(null); }, []);
 
+  // ── Pending Quotes (logged-in customers only) ────────────────────────────
+  type PendingQuote = {
+    quote_id: string;
+    expires_at: string;
+    created_at: string;
+    currency: string;
+    pickup_address: string | null;
+    dropoff_address: string | null;
+    pickup_at_utc: string | null;
+    trip_mode: 'ONE_WAY' | 'RETURN';
+    from_minor: number | null;
+    options_count: number;
+  };
+  const [pendingQuotes, setPendingQuotes] = useState<PendingQuote[]>([]);
+  const [loadingPending, setLoadingPending] = useState(false);
+
+  useEffect(() => {
+    if (!token) { setPendingQuotes([]); return; }
+    setLoadingPending(true);
+    fetch(`${API_URL}/customer-portal/pending-quotes`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(r => r.ok ? r.json() : [])
+      .then(data => setPendingQuotes(Array.isArray(data) ? data : []))
+      .catch(() => setPendingQuotes([]))
+      .finally(() => setLoadingPending(false));
+  }, [token]);
+
   // Load config
   useEffect(() => {
     const slug = getTenantSlug();
@@ -490,6 +518,51 @@ export function QuoteClient() {
       </div>
 
       <div className="max-w-2xl mx-auto px-4 pt-5 pb-8">
+
+        {/* ── Pending / Resumable Quotes ── */}
+        {token && !loadingPending && pendingQuotes.length > 0 && (
+          <div className="mb-5 rounded-xl border border-amber-400/20 bg-amber-400/5 p-4 space-y-3">
+            <p className="text-xs font-semibold tracking-widest text-amber-400/80 uppercase">
+              Resume a Recent Quote
+            </p>
+            {pendingQuotes.map(q => {
+              const fmt = (v: number | null) =>
+                v != null ? `${q.currency} ${(v / 100).toFixed(0)}` : '';
+              const pickupDate = q.pickup_at_utc
+                ? new Date(q.pickup_at_utc).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' })
+                : null;
+              const origin  = q.pickup_address  ? q.pickup_address.split(',')[0]  : '—';
+              const dest    = q.dropoff_address ? q.dropoff_address.split(',')[0] : '—';
+              const minsLeft = Math.max(0, Math.floor((new Date(q.expires_at).getTime() - Date.now()) / 60000));
+              return (
+                <button
+                  key={q.quote_id}
+                  className="w-full text-left rounded-lg bg-white/4 hover:bg-white/8 border border-white/10 px-4 py-3 transition-colors"
+                  onClick={() => router.push(`/book?quote_id=${q.quote_id}`)}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-white truncate">
+                        {origin} → {dest}
+                      </p>
+                      {pickupDate && (
+                        <p className="text-xs text-gray-400 mt-0.5">{pickupDate} · {q.trip_mode === 'RETURN' ? 'Return' : 'One Way'}</p>
+                      )}
+                      <p className="text-xs text-gray-500 mt-0.5">{q.options_count} option{q.options_count !== 1 ? 's' : ''} · expires in {minsLeft}m</p>
+                    </div>
+                    <div className="shrink-0 text-right">
+                      {q.from_minor != null && (
+                        <p className="text-sm font-semibold text-[hsl(var(--primary))]">from {fmt(q.from_minor)}</p>
+                      )}
+                      <p className="text-xs text-amber-400/70 mt-0.5">Resume →</p>
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
         <div className="rounded-xl border border-white/10 bg-white/2 shadow-2xl p-5 sm:p-8 space-y-6">
 
           {/* Row 1 — City + Service Type */}

@@ -191,11 +191,12 @@ export class PublicPricingService {
       currency: tenant.currency,
     };
 
+    const customerId = dto.customerId ?? null;
     const [session] = await this.db.query(
-      `INSERT INTO public.quote_sessions (tenant_id, payload, expires_at)
-       VALUES ($1, $2, $3)
+      `INSERT INTO public.quote_sessions (tenant_id, customer_id, payload, expires_at)
+       VALUES ($1, $2, $3, $4)
        RETURNING id`,
-      [tenant.id, JSON.stringify(payload), expiresAt],
+      [tenant.id, customerId, JSON.stringify(payload), expiresAt],
     );
 
     return {

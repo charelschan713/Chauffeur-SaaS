@@ -76,6 +76,18 @@ export class CustomerPortalService implements OnModuleInit {
       WHERE phone_number LIKE '0%'
         AND phone_country_code IS NOT NULL AND phone_country_code != ''
     `).catch(() => {});
+
+    // quote_sessions.customer_id — associates logged-in customers to their quote sessions
+    // Enables pending-quotes list and quote resume for authenticated customers.
+    await this.db.query(`
+      ALTER TABLE public.quote_sessions
+        ADD COLUMN IF NOT EXISTS customer_id uuid REFERENCES public.customers(id) ON DELETE SET NULL
+    `).catch(() => {});
+    await this.db.query(`
+      CREATE INDEX IF NOT EXISTS idx_quote_sessions_customer_id
+        ON public.quote_sessions(customer_id)
+        WHERE customer_id IS NOT NULL
+    `).catch(() => {});
   }
 
   // ── Stripe helper ─────────────────────────────────────────────────────────
@@ -132,6 +144,50 @@ export class CustomerPortalService implements OnModuleInit {
     );
     if (!rows.length) throw new NotFoundException('Tenant not found');
     return rows[0];
+  }
+
+  // ── Pending Quotes ────────────────────────────────────────────────────────
+  /**
+   * Returns active (unexpired, non-converted) quote sessions owned by this customer.
+   * Sorted by newest first. Maximum 10 results.
+   */
+  async listPendingQuotes(customerId: string, tenantId: string) {
+    const rows = await this.db.query(
+      `SELECT id, payload, expires_at, created_at
+       FROM public.quote_sessions
+       WHERE customer_id = $1
+         AND tenant_id   = $2
+         AND expires_at  > now()
+         AND (converted IS NULL OR converted = false)
+         AND (converted_at IS NULL)
+       ORDER BY created_at DESC
+       LIMIT 10`,
+      [customerId, tenantId],
+    );
+
+    return rows.map((r: any) => {
+      const payload = r.payload ?? {};
+      const req     = payload.request ?? {};
+      const results = payload.results ?? [];
+      const cheapest = results.length > 0
+        ? results.reduce((min: any, cur: any) =>
+            (cur.estimated_total_minor < min.estimated_total_minor ? cur : min), results[0])
+        : null;
+
+      return {
+        quote_id:          r.id,
+        expires_at:        r.expires_at,
+        created_at:        r.created_at,
+        currency:          payload.currency ?? 'AUD',
+        pickup_address:    req.pickup_address ?? null,
+        dropoff_address:   req.dropoff_address ?? null,
+        pickup_at_utc:     req.pickup_at_utc ?? null,
+        trip_mode:         req.trip_mode ?? 'ONE_WAY',
+        service_type_name: results[0]?.service_type_name ?? null,
+        from_minor:        cheapest?.estimated_total_minor ?? null,
+        options_count:     results.length,
+      };
+    });
   }
 
   // ── Dashboard ─────────────────────────────────────────────────────────────
