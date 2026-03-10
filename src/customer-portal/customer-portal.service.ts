@@ -33,7 +33,33 @@ export class CustomerPortalService implements OnModuleInit {
     await this.db.query(`
       ALTER TABLE public.bookings
         ADD COLUMN IF NOT EXISTS service_class_id uuid,
-        ADD COLUMN IF NOT EXISTS service_type_id uuid
+        ADD COLUMN IF NOT EXISTS service_type_id uuid,
+        ADD COLUMN IF NOT EXISTS is_return_trip boolean NOT NULL DEFAULT false,
+        ADD COLUMN IF NOT EXISTS return_pickup_at_utc timestamptz,
+        ADD COLUMN IF NOT EXISTS return_pickup_address_text text,
+        ADD COLUMN IF NOT EXISTS waypoints text[] NOT NULL DEFAULT '{}',
+        ADD COLUMN IF NOT EXISTS pricing_snapshot jsonb,
+        ADD COLUMN IF NOT EXISTS prepay_base_fare_minor integer NOT NULL DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS prepay_toll_minor integer NOT NULL DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS prepay_parking_minor integer NOT NULL DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS prepay_total_minor integer NOT NULL DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS discount_total_minor integer NOT NULL DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS passenger_is_customer boolean NOT NULL DEFAULT true,
+        ADD COLUMN IF NOT EXISTS passenger_first_name text,
+        ADD COLUMN IF NOT EXISTS passenger_last_name text,
+        ADD COLUMN IF NOT EXISTS passenger_phone_country_code text,
+        ADD COLUMN IF NOT EXISTS passenger_phone_number text,
+        ADD COLUMN IF NOT EXISTS customer_phone_country_code text,
+        ADD COLUMN IF NOT EXISTS customer_phone_number text,
+        ADD COLUMN IF NOT EXISTS luggage_count integer NOT NULL DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS infant_seats integer NOT NULL DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS toddler_seats integer NOT NULL DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS booster_seats integer NOT NULL DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS flight_number text,
+        ADD COLUMN IF NOT EXISTS payment_token text,
+        ADD COLUMN IF NOT EXISTS payment_token_expires_at timestamptz,
+        ADD COLUMN IF NOT EXISTS payment_captured_at timestamptz,
+        ADD COLUMN IF NOT EXISTS stripe_payment_intent_id text
     `).catch(() => { /* columns may already exist */ });
 
     // Normalize dirty phone numbers: strip accidental duplicate country code
