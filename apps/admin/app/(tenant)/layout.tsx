@@ -55,6 +55,7 @@ const NAV_SECTIONS = [
     title: 'Settings',
     items: [
       { href: '/settings/general', label: 'General', icon: Settings },
+      { href: '/projects', label: 'Projects', icon: FileText },
       { href: '/driver-invoices', label: 'Driver Invoices', icon: FileText },
       { href: '/settings/invoice', label: 'Invoice Setup', icon: FileText },
       { href: '/settings/cities', label: 'Cities', icon: Building2 },

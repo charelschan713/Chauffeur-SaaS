@@ -4,6 +4,7 @@ import {
   Controller,
   Delete,
   Get,
+  Inject,
   NotFoundException,
   Param,
   Post,
@@ -17,6 +18,7 @@ import type { Response } from 'express';
 import { CustomerPortalService } from './customer-portal.service';
 import { LoyaltyPricingService } from './loyalty-pricing.service';
 import { CustomerAuthGuard } from '../customer-auth/customer-auth.guard';
+import { ProjectService } from '../project/project.service';
 import { JwtService } from '@nestjs/jwt';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
@@ -28,6 +30,7 @@ export class CustomerPortalController {
     private readonly loyaltyPricing: LoyaltyPricingService,
     private readonly jwt: JwtService,
     @InjectDataSource() private readonly db: DataSource,
+    @Inject(ProjectService) private readonly projectSvc: ProjectService,
   ) {}
 
   // ── PUBLIC ─────────────────────────────────────────────────────────────────
@@ -296,5 +299,24 @@ export class CustomerPortalController {
   @UseGuards(CustomerAuthGuard)
   verifyEmailOtp(@Req() req: any, @Body() body: { otp: string }) {
     return this.svc.verifyEmailOtp(req.customer.sub, req.customer.tenant_id, body.otp);
+  }
+
+  // ── CUSTOMER PROJECTS ─────────────────────────────────────────────────────
+  // Strict isolation: customer only sees projects assigned to them + visible=true.
+
+  /** List projects for this customer */
+  @Get('projects')
+  @UseGuards(CustomerAuthGuard)
+  listProjects(@Req() req: any) {
+    return this.projectSvc.getCustomerProjects(req.customer.tenant_id, req.customer.sub);
+  }
+
+  /** Get project detail (customer-safe view) */
+  @Get('projects/:id')
+  @UseGuards(CustomerAuthGuard)
+  getProject(@Req() req: any, @Param('id') id: string) {
+    return this.projectSvc.getCustomerProjectDetail(
+      req.customer.tenant_id, req.customer.sub, id,
+    );
   }
 }
