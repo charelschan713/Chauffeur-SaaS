@@ -20,7 +20,7 @@ function fmtDate(utc?: string, tz = 'Australia/Sydney') {
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="rounded-2xl bg-[hsl(var(--card))] border border-[hsl(var(--border))] overflow-hidden">
-      <div className="px-4 py-3 border-b border-gray-100">
+      <div className="px-4 py-3 border-b border-[hsl(var(--border))]">
         <p className="text-[11px] font-semibold uppercase tracking-widest text-[hsl(var(--muted-foreground))]">{title}</p>
       </div>
       <div className="px-4 py-4 space-y-3">{children}</div>

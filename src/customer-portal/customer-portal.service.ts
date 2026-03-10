@@ -411,9 +411,13 @@ export class CustomerPortalService implements OnModuleInit {
     let rows = await this.db.query(
       `SELECT b.*,
               a.driver_execution_status,
-              u.first_name AS driver_first_name,
-              u.last_name  AS driver_last_name,
-              u.first_name || ' ' || u.last_name AS driver_name
+              u.full_name AS driver_name,
+              CASE
+                WHEN u.phone_country_code IS NOT NULL AND u.phone_number IS NOT NULL
+                  THEN (u.phone_country_code || ' ' || u.phone_number)
+                WHEN u.phone_number IS NOT NULL THEN u.phone_number
+                ELSE NULL
+              END AS driver_phone
        FROM public.bookings b
        LEFT JOIN public.assignments a
          ON a.booking_id = b.id
@@ -435,8 +439,21 @@ export class CustomerPortalService implements OnModuleInit {
       if (email) {
         // Match bookings where: customer_id is NULL and email matches, OR customer_email matches
         rows = await this.db.query(
-          `SELECT b.*
+          `SELECT b.*,
+                  a.driver_execution_status,
+                  u.full_name AS driver_name,
+                  CASE
+                    WHEN u.phone_country_code IS NOT NULL AND u.phone_number IS NOT NULL
+                      THEN (u.phone_country_code || ' ' || u.phone_number)
+                    WHEN u.phone_number IS NOT NULL THEN u.phone_number
+                    ELSE NULL
+                  END AS driver_phone
            FROM public.bookings b
+           LEFT JOIN public.assignments a
+             ON a.booking_id = b.id
+            AND a.status NOT IN ('CANCELLED','DECLINED','EXPIRED','REJECTED')
+            AND a.driver_id IS NOT NULL
+           LEFT JOIN public.users u ON u.id = a.driver_id
            WHERE b.id=$1 AND b.tenant_id=$2
              AND (
                (b.customer_id IS NULL AND b.customer_email = $3)
