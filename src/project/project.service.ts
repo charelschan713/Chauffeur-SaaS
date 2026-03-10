@@ -328,8 +328,8 @@ export class ProjectService implements OnModuleInit {
               a.driver_execution_status,
               a.status AS assignment_status,
               u.full_name AS driver_name,
-              v.registration_number AS vehicle_rego,
-              v.make AS vehicle_make, v.model AS vehicle_model,
+              v.plate AS vehicle_plate,
+              pv.make AS vehicle_make, pv.model AS vehicle_model,
               -- Last GPS location for map marker
               tgm.latitude AS last_lat,
               tgm.longitude AS last_lng,
@@ -341,7 +341,8 @@ export class ProjectService implements OnModuleInit {
          AND a.status NOT IN ('CANCELLED','DECLINED','EXPIRED','REJECTED')
          AND a.driver_id IS NOT NULL
        LEFT JOIN public.users u ON u.id = a.driver_id
-       LEFT JOIN public.vehicles v ON v.id = a.vehicle_id
+       LEFT JOIN public.tenant_vehicles v ON v.id = a.vehicle_id
+       LEFT JOIN public.platform_vehicles pv ON pv.id = v.platform_vehicle_id
        LEFT JOIN LATERAL (
          SELECT latitude, longitude, milestone_type, recorded_at
          FROM public.trip_gps_milestones
@@ -366,7 +367,7 @@ export class ProjectService implements OnModuleInit {
         passenger_name:    [row.passenger_first_name, row.passenger_last_name].filter(Boolean).join(' ') || null,
         // Driver + vehicle — always shown (admin visibility)
         driver_name:       row.driver_name ?? null,
-        vehicle_rego:      row.vehicle_rego ?? null,
+        vehicle_rego:      row.vehicle_plate ?? null,
         vehicle_make:      row.vehicle_make ?? null,
         vehicle_model:     row.vehicle_model ?? null,
         // Badge
@@ -378,7 +379,7 @@ export class ProjectService implements OnModuleInit {
           milestone_type:  row.last_milestone,
           recorded_at:     row.last_location_at,
           driver_name:     row.driver_name ?? null,
-          vehicle_rego:    row.vehicle_rego ?? null,
+          vehicle_rego:    row.vehicle_plate ?? null,
           badge_label:     badge.label,
           badge_color:     badge.color,
         } : null,
@@ -405,14 +406,15 @@ export class ProjectService implements OnModuleInit {
     const pb = await this.dataSource.query(
       `SELECT pb.booking_id, b.booking_reference,
               u.full_name AS driver_name,
-              v.registration_number AS vehicle_rego
+              v.plate AS vehicle_rego
        FROM public.project_bookings pb
        JOIN public.bookings b ON b.id = pb.booking_id
        LEFT JOIN public.assignments a ON a.booking_id = b.id
          AND a.status NOT IN ('CANCELLED','DECLINED','EXPIRED','REJECTED')
          AND a.driver_id IS NOT NULL
        LEFT JOIN public.users u ON u.id = a.driver_id
-       LEFT JOIN public.vehicles v ON v.id = a.vehicle_id
+       LEFT JOIN public.tenant_vehicles v ON v.id = a.vehicle_id
+       LEFT JOIN public.platform_vehicles pv ON pv.id = v.platform_vehicle_id
        WHERE pb.project_id = $1 AND b.tenant_id = $2`,
       [projectId, tenantId],
     );
