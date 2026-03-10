@@ -992,6 +992,36 @@ export class NotificationService {
         total_minor:      Number(payload.total_minor ?? payload.amount_minor ?? 0),
         line_items:       payload.line_items ?? null,
         notes:            payload.notes ?? null,
+        // Trip evidence reference — query live if booking_id provided
+        trip_evidence_summary: await (async () => {
+          const bId = payload.booking_id;
+          if (!bId) return null;
+          try {
+            const [rec] = await this.dataSource.query(
+              `SELECT id, evidence_status, evidence_frozen_at, route_image_url FROM public.trip_evidence_records WHERE booking_id=$1 AND tenant_id=$2`,
+              [bId, tenantId],
+            );
+            if (!rec) return null;
+            const milestones = await this.dataSource.query(
+              `SELECT DISTINCT milestone_type FROM public.trip_gps_milestones WHERE booking_id=$1 ORDER BY 1`,
+              [bId],
+            );
+            const smsCnt = await this.dataSource.query(
+              `SELECT COUNT(*) n FROM public.trip_sms_messages WHERE booking_id=$1`,
+              [bId],
+            );
+            return {
+              is_available:     true,
+              is_frozen:        rec.evidence_status === 'frozen',
+              finalized_at:     rec.evidence_frozen_at ?? null,
+              milestone_types:  milestones.map((m: any) => m.milestone_type),
+              has_route_image:  !!rec.route_image_url,
+              has_sms:          Number(smsCnt[0]?.n ?? 0) > 0,
+              message_count:    Number(smsCnt[0]?.n ?? 0),
+              evidence_id:      rec.id,
+            };
+          } catch { return null; }
+        })(),
       });
     } catch (err: any) {
       this.logger.error('[onInvoiceSent] PDF generation failed — sending email without attachment', err?.message);

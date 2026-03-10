@@ -23,6 +23,17 @@ export interface InvoicePdfData {
     total_minor: number;
   }> | null;
   notes?: string | null;
+  // Trip evidence reference — populated when evidence exists for the booking
+  trip_evidence_summary?: {
+    is_available:       boolean;
+    is_frozen:          boolean;
+    finalized_at?:      string | null;
+    milestone_types?:   string[];
+    has_route_image?:   boolean;
+    has_sms?:           boolean;
+    message_count?:     number;
+    evidence_id?:       string | null;
+  } | null;
 }
 
 function fmtMoney(minor: number, currency: string): string {
@@ -153,6 +164,39 @@ export class InvoicePdfService {
         if (data.notes) {
           doc.fillColor(GREY).fontSize(8).font('Helvetica-Bold').text('NOTES', LEFT, rowY);
           doc.fillColor(DARK).fontSize(9).font('Helvetica').text(data.notes, LEFT, rowY + 12, { width: W });
+          rowY += 28;
+        }
+
+        // ── Trip Evidence Reference ───────────────────────────────────────────
+        // Evidence summary block — shown when trip evidence has been finalized.
+        // Does NOT embed raw transcript/map — invoice is finance-focused.
+        const ev = data.trip_evidence_summary;
+        if (ev?.is_available) {
+          doc.moveTo(LEFT, rowY + 4).lineTo(LEFT + W, rowY + 4).strokeColor('#E5E7EB').stroke();
+          rowY += 16;
+          doc.fillColor(GREY).fontSize(8).font('Helvetica-Bold').text('TRIP EVIDENCE', LEFT, rowY);
+          rowY += 12;
+          const evidenceLines: string[] = [];
+          if (ev.is_frozen && ev.finalized_at) {
+            evidenceLines.push(`Finalized at: ${fmtDate(ev.finalized_at)}`);
+          } else {
+            evidenceLines.push('Status: Pending finalization');
+          }
+          if (ev.milestone_types?.length) {
+            evidenceLines.push(`GPS milestones: ${ev.milestone_types.join(', ')}`);
+          }
+          if (ev.has_route_image) {
+            evidenceLines.push('Route map: Available');
+          }
+          if (ev.has_sms) {
+            evidenceLines.push(`SMS communication log: ${ev.message_count ?? 0} message(s) recorded`);
+          }
+          if (ev.evidence_id) {
+            evidenceLines.push(`Evidence ref: ${ev.evidence_id.substring(0, 8).toUpperCase()}`);
+          }
+          evidenceLines.push('Full evidence accessible via booking details.');
+          doc.fillColor(DARK).fontSize(8).font('Helvetica')
+             .text(evidenceLines.join('\n'), LEFT, rowY, { width: W });
         }
 
         // ── Footer ───────────────────────────────────────────────────────────
