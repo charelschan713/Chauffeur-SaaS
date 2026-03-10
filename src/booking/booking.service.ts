@@ -545,13 +545,14 @@ export class BookingService {
         if (!pmRows.length) {
           adjustmentStatus = 'NO_PAYMENT_METHOD';
         } else {
-          // Resolve tenant Stripe key
+          // Resolve tenant Stripe key from tenant_settings (plaintext column)
+          // tenant_integrations.config is encrypted — use tenant_settings.stripe_secret_key instead
           const intRows = await this.dataSource.query(
-            `SELECT config FROM public.tenant_integrations
-             WHERE tenant_id=$1 AND type='stripe' LIMIT 1`,
+            `SELECT stripe_secret_key FROM public.tenant_settings
+             WHERE tenant_id=$1 LIMIT 1`,
             [tenantId],
           );
-          const secretKey = intRows[0]?.config?.secret_key ?? process.env.STRIPE_SECRET_KEY;
+          const secretKey = intRows[0]?.stripe_secret_key ?? process.env.STRIPE_SECRET_KEY;
 
           if (!secretKey) {
             adjustmentStatus = 'FAILED';
@@ -714,12 +715,13 @@ export class BookingService {
     );
     if (!pmRows.length) throw new BadRequestException('No default payment method saved');
 
-    // Get tenant Stripe key
+    // Get tenant Stripe key from tenant_settings (plaintext column)
+    // tenant_integrations.config is encrypted — use tenant_settings.stripe_secret_key instead
     const intRows = await this.dataSource.query(
-      `SELECT config FROM public.tenant_integrations WHERE tenant_id=$1 AND type='stripe' LIMIT 1`,
+      `SELECT stripe_secret_key FROM public.tenant_settings WHERE tenant_id=$1 LIMIT 1`,
       [tenantId],
     );
-    const secretKey = intRows[0]?.config?.secret_key ?? process.env.STRIPE_SECRET_KEY;
+    const secretKey = intRows[0]?.stripe_secret_key ?? process.env.STRIPE_SECRET_KEY;
     if (!secretKey) throw new BadRequestException('Stripe not configured');
 
     const Stripe = (await import('stripe')).default;
