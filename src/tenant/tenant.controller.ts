@@ -1,11 +1,15 @@
 import { Body, Controller, Get, Patch, Req, UseGuards } from '@nestjs/common';
 import { JwtGuard } from '../common/guards/jwt.guard';
 import { DataSource } from 'typeorm';
+import { TenantInvoiceService } from './tenant-invoice.service';
 
 @Controller('tenants')
 @UseGuards(JwtGuard)
 export class TenantController {
-  constructor(private readonly dataSource: DataSource) {}
+  constructor(
+    private readonly dataSource: DataSource,
+    private readonly invoiceProfileService: TenantInvoiceService,
+  ) {}
 
   @Get('settings')
   async getSettings(@Req() req: any) {
@@ -38,14 +42,16 @@ export class TenantController {
     return rows[0];
   }
 
-  // ── Business / Invoice Info ───────────────────────────────────────────────
+  // ── Business / Company Profile ────────────────────────────────────────────
 
   @Get('business')
   async getBusiness(@Req() req: any) {
     const rows = await this.dataSource.query(
-      `SELECT id, name, slug, custom_domain, booking_ref_prefix, business_name, abn,
+      `SELECT id, name, slug, custom_domain, booking_ref_prefix,
+              business_name, trading_name, abn, is_gst_registered,
               address_line1, address_line2, city, state, postcode, country,
               phone, email, website, logo_url,
+              accounts_contact_name, support_email, company_profile_short,
               invoice_notes, invoice_footer,
               bank_name, bank_account_name, bank_bsb, bank_account_number
          FROM public.tenants WHERE id = $1`,
@@ -59,32 +65,43 @@ export class TenantController {
     await this.dataSource.query(
       `UPDATE public.tenants
           SET business_name        = COALESCE($1,  business_name),
-              abn                  = COALESCE($2,  abn),
-              address_line1        = COALESCE($3,  address_line1),
-              address_line2        = COALESCE($4,  address_line2),
-              city                 = COALESCE($5,  city),
-              state                = COALESCE($6,  state),
-              postcode             = COALESCE($7,  postcode),
-              country              = COALESCE($8,  country),
-              phone                = COALESCE($9,  phone),
-              email                = COALESCE($10, email),
-              website              = COALESCE($11, website),
-              logo_url             = COALESCE($12, logo_url),
-              invoice_notes        = COALESCE($13, invoice_notes),
-              invoice_footer       = COALESCE($14, invoice_footer),
-              bank_name            = COALESCE($15, bank_name),
-              bank_account_name    = COALESCE($16, bank_account_name),
-              bank_bsb             = COALESCE($17, bank_bsb),
-              bank_account_number  = COALESCE($18, bank_account_number),
-              custom_domain        = COALESCE($19, custom_domain),
-              booking_ref_prefix   = COALESCE($20, booking_ref_prefix),
+              trading_name         = COALESCE($2,  trading_name),
+              abn                  = COALESCE($3,  abn),
+              is_gst_registered    = COALESCE($4,  is_gst_registered),
+              address_line1        = COALESCE($5,  address_line1),
+              address_line2        = COALESCE($6,  address_line2),
+              city                 = COALESCE($7,  city),
+              state                = COALESCE($8,  state),
+              postcode             = COALESCE($9,  postcode),
+              country              = COALESCE($10, country),
+              phone                = COALESCE($11, phone),
+              email                = COALESCE($12, email),
+              website              = COALESCE($13, website),
+              logo_url             = COALESCE($14, logo_url),
+              accounts_contact_name = COALESCE($15, accounts_contact_name),
+              support_email        = COALESCE($16, support_email),
+              company_profile_short = COALESCE($17, company_profile_short),
+              invoice_notes        = COALESCE($18, invoice_notes),
+              invoice_footer       = COALESCE($19, invoice_footer),
+              bank_name            = COALESCE($20, bank_name),
+              bank_account_name    = COALESCE($21, bank_account_name),
+              bank_bsb             = COALESCE($22, bank_bsb),
+              bank_account_number  = COALESCE($23, bank_account_number),
+              custom_domain        = COALESCE($24, custom_domain),
+              booking_ref_prefix   = COALESCE($25, booking_ref_prefix),
               updated_at           = now()
-        WHERE id = $21`,
+        WHERE id = $26`,
       [
-        body.business_name ?? null, body.abn ?? null,
+        body.business_name ?? null,
+        body.trading_name ?? null,
+        body.abn ?? null,
+        body.is_gst_registered ?? null,
         body.address_line1 ?? null, body.address_line2 ?? null,
         body.city ?? null, body.state ?? null, body.postcode ?? null, body.country ?? null,
         body.phone ?? null, body.email ?? null, body.website ?? null, body.logo_url ?? null,
+        body.accounts_contact_name ?? null,
+        body.support_email ?? null,
+        body.company_profile_short ?? null,
         body.invoice_notes ?? null, body.invoice_footer ?? null,
         body.bank_name ?? null, body.bank_account_name ?? null,
         body.bank_bsb ?? null, body.bank_account_number ?? null,
@@ -93,7 +110,7 @@ export class TenantController {
         req.user.tenant_id,
       ],
     );
-    // Also sync logo_url → tenant_branding (used by public /tenant-info endpoint)
+    // Sync logo_url → tenant_branding (used by public /tenant-info endpoint)
     if (body.logo_url !== undefined) {
       await this.dataSource.query(
         `INSERT INTO public.tenant_branding (tenant_id, logo_url)
@@ -103,5 +120,26 @@ export class TenantController {
       );
     }
     return { success: true };
+  }
+
+  // ── Invoice Profile ───────────────────────────────────────────────────────
+
+  @Get('invoice-profile')
+  getInvoiceProfile(@Req() req: any) {
+    return this.invoiceProfileService.getProfile(req.user.tenant_id);
+  }
+
+  @Patch('invoice-profile')
+  upsertInvoiceProfile(@Req() req: any, @Body() body: any) {
+    return this.invoiceProfileService.upsertProfile(req.user.tenant_id, body);
+  }
+
+  // ── Invoice Readiness ─────────────────────────────────────────────────────
+  // Returns structured summary: company_profile / invoice_profile / payment_instruction
+  // invoice_ready = true only when all 3 pass.
+
+  @Get('invoice-readiness')
+  getInvoiceReadiness(@Req() req: any) {
+    return this.invoiceProfileService.checkReadiness(req.user.tenant_id);
   }
 }

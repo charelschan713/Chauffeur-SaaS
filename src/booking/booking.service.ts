@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { DataSource } from 'typeorm';
 import { PricingResolver } from '../pricing/pricing.resolver';
 import { NotificationService } from '../notification/notification.service';
+import { TenantInvoiceService } from '../tenant/tenant-invoice.service';
 import { DebugTraceService } from '../debug/debug-trace.service';
 import { PaymentService } from '../payment/payment.service';
 import { InvoicePdfService } from '../invoice/invoice-pdf.service';
@@ -46,6 +47,7 @@ export class BookingService {
     private readonly trace: DebugTraceService,
     private readonly paymentService: PaymentService,
     private readonly invoicePdf: InvoicePdfService,
+    private readonly tenantInvoice: TenantInvoiceService,
   ) {}
 
   async listBookings(tenantId: string, query: Record<string, any>) {
@@ -770,6 +772,7 @@ export class BookingService {
   ): Promise<{ allowed: boolean; reason?: string }> {
     const adjStatus = booking.adjustment_status ?? 'NONE';
     const opStatus  = booking.operational_status;
+    const tenantId  = booking.tenant_id;
 
     // Booking must be in a final/fulfilled state
     if (!['FULFILLED', 'COMPLETED'].includes(opStatus)) {
@@ -785,6 +788,26 @@ export class BookingService {
       };
     }
 
+    // ── Tenant invoice readiness check ────────────────────────────────────────
+    // Blocks final invoice generation/send if company profile or invoice profile
+    // is incomplete. Optional branding fields (logo, colors) do NOT block.
+    if (tenantId) {
+      const readiness = await this.tenantInvoice.checkReadiness(tenantId);
+      if (!readiness.invoice_ready) {
+        const missing: string[] = [
+          ...readiness.company_profile.missing,
+          ...readiness.invoice_profile.missing,
+          ...readiness.payment_instruction.missing,
+        ];
+        return {
+          allowed: false,
+          reason: `Tenant is not invoice-ready. Complete the following before sending a final invoice: ` +
+                  missing.join('; '),
+        };
+      }
+    }
+    // ─────────────────────────────────────────────────────────────────────────
+
     // NONE (no extra charge) or CAPTURED/SETTLED (extra charge succeeded) → allowed
     return { allowed: true };
   }
@@ -799,7 +822,7 @@ export class BookingService {
   async resendInvoice(tenantId: string, bookingId: string): Promise<{ success: boolean; invoice_number?: string; reason?: string }> {
     // Check invoice gating rules (extra charge must be resolved first)
     const [bookingRow] = await this.dataSource.query(
-      `SELECT operational_status, adjustment_status FROM public.bookings WHERE id=$1 AND tenant_id=$2`,
+      `SELECT operational_status, adjustment_status, tenant_id FROM public.bookings WHERE id=$1 AND tenant_id=$2`,
       [bookingId, tenantId],
     );
     if (!bookingRow) return { success: false, reason: 'Booking not found' };

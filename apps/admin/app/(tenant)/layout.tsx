@@ -55,6 +55,7 @@ const NAV_SECTIONS = [
     title: 'Settings',
     items: [
       { href: '/settings/general', label: 'General', icon: Settings },
+      { href: '/settings/invoice', label: 'Invoice Setup', icon: FileText },
       { href: '/settings/cities', label: 'Cities', icon: Building2 },
       { href: '/settings/templates', label: 'Templates', icon: Map },
       { href: '/settings/notification-logs', label: 'Notification Logs', icon: FileText },

@@ -4,6 +4,7 @@ import {
 } from '@nestjs/common';
 import { JwtGuard } from '../common/guards/jwt.guard';
 import { DataSource } from 'typeorm';
+import { TenantInvoiceService } from '../tenant/tenant-invoice.service';
 
 // Adjustment statuses that block invoice send (extra charge still unresolved)
 const INVOICE_BLOCKED_ADJ = new Set(['FAILED', 'NO_PAYMENT_METHOD', 'PENDING']);
@@ -11,7 +12,10 @@ const INVOICE_BLOCKED_ADJ = new Set(['FAILED', 'NO_PAYMENT_METHOD', 'PENDING']);
 @Controller('invoices')
 @UseGuards(JwtGuard)
 export class InvoiceController {
-  constructor(private readonly db: DataSource) {}
+  constructor(
+    private readonly db: DataSource,
+    private readonly tenantInvoice: TenantInvoiceService,
+  ) {}
 
   private async nextNumber(tenantId: string): Promise<string> {
     const rows = await this.db.query(
@@ -187,6 +191,21 @@ export class InvoiceController {
         `Collect the extra amount first.`,
       );
     }
+
+    // ── Tenant invoice readiness ──────────────────────────────────────────────
+    // Only CUSTOMER invoices require tenant readiness (company profile + invoice config)
+    const readiness = await this.tenantInvoice.checkReadiness(tenantId);
+    if (!readiness.invoice_ready) {
+      const missing = [
+        ...readiness.company_profile.missing,
+        ...readiness.invoice_profile.missing,
+        ...readiness.payment_instruction.missing,
+      ];
+      throw new BadRequestException(
+        `Tenant is not invoice-ready. Complete the following: ${missing.join('; ')}`,
+      );
+    }
+    // ─────────────────────────────────────────────────────────────────────────
   }
 
   @Post(':id/approve')
