@@ -48,7 +48,7 @@ export class AuthService implements OnModuleInit {
       .digest('hex');
   }
 
-  async login(email: string, password: string) {
+  async login(email: string, password: string, tenantSlug?: string) {
     const rows = await this.dataSource.query(
       `select id, is_platform_admin, password_hash from public.users
        where email = $1`,
@@ -64,14 +64,31 @@ export class AuthService implements OnModuleInit {
     const ok = await bcrypt.compare(password, user.password_hash);
     if (!ok) throw new UnauthorizedException('Invalid credentials');
 
-    const memberships = await this.dataSource.query(
-      `select m.tenant_id, m.role, t.status as tenant_status
-       from public.memberships m
-       left join public.tenants t on t.id = m.tenant_id
-       where m.user_id = $1 and m.status = 'active'
-       limit 1`,
-      [user.id],
-    );
+    let memberships: any[];
+    if (tenantSlug) {
+      // Slug-scoped login: driver must have active membership in the specified tenant
+      memberships = await this.dataSource.query(
+        `select m.tenant_id, m.role, t.status as tenant_status
+         from public.memberships m
+         join public.tenants t on t.id = m.tenant_id
+         where m.user_id = $1 and m.status = 'active'
+           and lower(t.slug) = lower($2)
+         limit 1`,
+        [user.id, tenantSlug],
+      );
+      if (!memberships.length) {
+        throw new UnauthorizedException('Company not found or you do not have access');
+      }
+    } else {
+      memberships = await this.dataSource.query(
+        `select m.tenant_id, m.role, t.status as tenant_status
+         from public.memberships m
+         left join public.tenants t on t.id = m.tenant_id
+         where m.user_id = $1 and m.status = 'active'
+         limit 1`,
+        [user.id],
+      );
+    }
 
     const tenantId = memberships[0]?.tenant_id ?? null;
     const role = memberships[0]?.role ?? (user.is_platform_admin ? 'tenant_admin' : null);

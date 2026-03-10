@@ -142,7 +142,7 @@ export class AuthController {
   @Post('mobile/login')
   async mobileLogin(@Body() dto: LoginDto) {
     // Returns both tokens in response body for native app storage
-    const result = await this.auth.login(dto.email, dto.password);
+    const result = await this.auth.login(dto.email, dto.password, dto.tenantSlug);
     return {
       access_token: result.accessToken,
       refresh_token: result.refreshToken,
