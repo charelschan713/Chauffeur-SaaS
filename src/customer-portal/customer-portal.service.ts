@@ -407,10 +407,19 @@ export class CustomerPortalService implements OnModuleInit {
 
   // ── Booking detail ────────────────────────────────────────────────────────
   async getBooking(customerId: string, tenantId: string, bookingId: string) {
-    // First try: exact customer_id match
+    // First try: exact customer_id match (enriched with driver + vehicle info)
     let rows = await this.db.query(
-      `SELECT b.*
+      `SELECT b.*,
+              a.driver_execution_status,
+              u.first_name AS driver_first_name,
+              u.last_name  AS driver_last_name,
+              u.first_name || ' ' || u.last_name AS driver_name
        FROM public.bookings b
+       LEFT JOIN public.assignments a
+         ON a.booking_id = b.id
+        AND a.status NOT IN ('CANCELLED','DECLINED','EXPIRED','REJECTED')
+        AND a.driver_id IS NOT NULL
+       LEFT JOIN public.users u ON u.id = a.driver_id
        WHERE b.id=$1 AND b.customer_id=$2 AND b.tenant_id=$3`,
       [bookingId, customerId, tenantId],
     );

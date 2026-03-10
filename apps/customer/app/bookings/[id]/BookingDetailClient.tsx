@@ -41,6 +41,11 @@ export function BookingDetailClient({ id }: { id: string }) {
   const router = useRouter();
   const qc = useQueryClient();
 
+  // ── ALL hooks must be declared before any early returns (Rules of Hooks) ──
+  const [invoiceChecked, setInvoiceChecked] = useState(false);
+  const [invoiceAvailable, setInvoiceAvailable] = useState<boolean | null>(null);
+  const [downloadingInvoice, setDownloadingInvoice] = useState(false);
+
   const { data: booking, isLoading } = useQuery({
     queryKey: ['booking', id],
     queryFn: () => api.get(`/customer-portal/bookings/${id}`).then(r => r.data),
@@ -71,10 +76,6 @@ export function BookingDetailClient({ id }: { id: string }) {
   // Invoice PDF download — only show for FULFILLED/COMPLETED bookings
   const invoiceStates = ['FULFILLED', 'COMPLETED'];
   const showInvoice = invoiceStates.includes(booking.operational_status ?? booking.status ?? '');
-
-  const [invoiceChecked, setInvoiceChecked] = useState(false);
-  const [invoiceAvailable, setInvoiceAvailable] = useState<boolean | null>(null);
-  const [downloadingInvoice, setDownloadingInvoice] = useState(false);
 
   // Probe once whether an invoice exists (HEAD-like: we use a small signal via error handling)
   const checkInvoice = async () => {
