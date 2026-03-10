@@ -1,9 +1,12 @@
 import {
-  Body, Controller, Delete, Get, NotFoundException,
+  BadRequestException, Body, Controller, Delete, Get, NotFoundException,
   Param, Patch, Post, Query, Req, UseGuards,
 } from '@nestjs/common';
 import { JwtGuard } from '../common/guards/jwt.guard';
 import { DataSource } from 'typeorm';
+
+// Adjustment statuses that block invoice send (extra charge still unresolved)
+const INVOICE_BLOCKED_ADJ = new Set(['FAILED', 'NO_PAYMENT_METHOD', 'PENDING']);
 
 @Controller('invoices')
 @UseGuards(JwtGuard)
@@ -113,6 +116,10 @@ export class InvoiceController {
 
   @Patch(':id')
   async update(@Param('id') id: string, @Body() body: any, @Req() req: any) {
+    // Gate SENT transition via PATCH (same rules as POST :id/send)
+    if (body.status === 'SENT') {
+      await this.assertInvoiceGatingSafe(id, req.user.tenant_id);
+    }
     const rows = await this.db.query(
       `UPDATE public.invoices SET
          status = COALESCE($3, status),
@@ -154,6 +161,34 @@ export class InvoiceController {
     return rows[0];
   }
 
+  /** Shared helper: check invoice gating before any SENT transition */
+  private async assertInvoiceGatingSafe(invoiceId: string, tenantId: string): Promise<void> {
+    // Fetch the invoice + booking adjustment_status (only if booking_id set)
+    const [inv] = await this.db.query(
+      `SELECT i.invoice_type, i.booking_id, b.operational_status, b.adjustment_status
+       FROM public.invoices i
+       LEFT JOIN public.bookings b ON b.id = i.booking_id
+       WHERE i.id=$1 AND i.tenant_id=$2 AND i.deleted_at IS NULL`,
+      [invoiceId, tenantId],
+    );
+    if (!inv) throw new NotFoundException('Invoice not found');
+    // Only CUSTOMER invoices linked to a booking have gating
+    if (inv.invoice_type !== 'CUSTOMER' || !inv.booking_id) return;
+    // Booking must be fulfilled
+    if (!['FULFILLED','COMPLETED'].includes(inv.operational_status ?? '')) {
+      throw new BadRequestException(
+        `Cannot send final invoice: booking is not yet fulfilled (status: ${inv.operational_status ?? 'unknown'})`,
+      );
+    }
+    // Extra charge must be resolved
+    if (INVOICE_BLOCKED_ADJ.has(inv.adjustment_status)) {
+      throw new BadRequestException(
+        `Cannot send final invoice: extra charge is unresolved (adjustment_status: ${inv.adjustment_status}). ` +
+        `Collect the extra amount first.`,
+      );
+    }
+  }
+
   @Post(':id/approve')
   async approve(@Param('id') id: string, @Req() req: any) {
     const rows = await this.db.query(
@@ -164,6 +199,22 @@ export class InvoiceController {
       [id, req.user.tenant_id, req.user.sub],
     );
     if (!rows.length) throw new NotFoundException('Invoice not found');
+    return rows[0];
+  }
+
+  /** Send a CUSTOMER invoice — gated by booking fulfilment + extra-charge resolution */
+  @Post(':id/send')
+  async send(@Param('id') id: string, @Req() req: any) {
+    await this.assertInvoiceGatingSafe(id, req.user.tenant_id);
+    const rows = await this.db.query(
+      `UPDATE public.invoices
+         SET status='SENT', updated_at=now()
+       WHERE id=$1 AND tenant_id=$2 AND invoice_type='CUSTOMER'
+         AND status IN ('DRAFT','OVERDUE')
+       RETURNING *`,
+      [id, req.user.tenant_id],
+    );
+    if (!rows.length) throw new NotFoundException('Invoice not found or already sent');
     return rows[0];
   }
 

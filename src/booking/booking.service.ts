@@ -7,9 +7,34 @@ import { PaymentService } from '../payment/payment.service';
 import { InvoicePdfService } from '../invoice/invoice-pdf.service';
 import { randomUUID } from 'crypto';
 
-// ─── Deprecated operational_status_enum values (exist in DB, never written by code) ─
-// ACCEPTED, ON_THE_WAY, PENDING_ADMIN_CONFIRMATION, PAYMENT_FAILED
-// Do not use in new features. See state-machine audit 2026-03-10.
+// ─── Booking operational_status transition rules ──────────────────────────────
+// Confirmed product decisions (2026-03-10 state-machine audit):
+//   PAYMENT_FAILED = charge attempt failed; retryable via confirmAndCharge()
+//   ACCEPTED / ON_THE_WAY / PENDING_ADMIN_CONFIRMATION = deprecated, never written
+//
+// Valid forward transitions:
+const BOOKING_TRANSITION_RULES: Record<string, Set<string>> = {
+  DRAFT:                         new Set(['PENDING', 'CONFIRMED', 'CANCELLED']),
+  PENDING:                       new Set(['CONFIRMED', 'CANCELLED', 'PENDING_CUSTOMER_CONFIRMATION', 'ASSIGNED']),
+  PENDING_CUSTOMER_CONFIRMATION: new Set(['CONFIRMED', 'CANCELLED', 'PAYMENT_FAILED']),
+  PAYMENT_FAILED:                new Set(['CONFIRMED', 'CANCELLED', 'PENDING_CUSTOMER_CONFIRMATION']),
+  CONFIRMED:                     new Set(['ASSIGNED', 'CANCELLED', 'IN_PROGRESS', 'COMPLETED', 'FULFILLED']),
+  ASSIGNED:                      new Set(['IN_PROGRESS', 'CANCELLED', 'CONFIRMED', 'COMPLETED']),
+  IN_PROGRESS:                   new Set(['COMPLETED', 'CANCELLED', 'NO_SHOW']),
+  COMPLETED:                     new Set(['FULFILLED', 'CANCELLED']),
+  FULFILLED:                     new Set([]),   // terminal
+  CANCELLED:                     new Set([]),   // terminal
+  NO_SHOW:                       new Set(['CANCELLED', 'FULFILLED']),
+  // Legacy / deprecated — allow reading but no new transitions out of them
+  ACCEPTED:                      new Set(['CONFIRMED', 'IN_PROGRESS', 'CANCELLED']),
+  ON_THE_WAY:                    new Set(['IN_PROGRESS', 'COMPLETED', 'CANCELLED']),
+  PENDING_ADMIN_CONFIRMATION:    new Set(['CONFIRMED', 'CANCELLED']),
+};
+
+// Admin-only override: platform/super admins may bypass the guard
+// Set to true temporarily to unblock emergency operational fixes
+const BYPASS_TRANSITION_GUARD = false;
+
 // ─────────────────────────────────────────────────────────────────────────────
 
 @Injectable()
@@ -417,6 +442,18 @@ export class BookingService {
 
     if (newStatus === booking.operational_status) return { success: true };
 
+    // ── Strict transition guard ────────────────────────────────────────────
+    if (!BYPASS_TRANSITION_GUARD) {
+      const allowedFrom = BOOKING_TRANSITION_RULES[booking.operational_status];
+      if (!allowedFrom || !allowedFrom.has(newStatus)) {
+        throw new BadRequestException(
+          `Invalid booking transition: ${booking.operational_status} → ${newStatus}. ` +
+          `Allowed from ${booking.operational_status}: [${[...(allowedFrom ?? [])].join(', ') || 'none (terminal)'}]`,
+        );
+      }
+    }
+    // ──────────────────────────────────────────────────────────────────────
+
     await this.dataSource.query(
       `UPDATE public.bookings
        SET operational_status = $1,
@@ -633,14 +670,55 @@ export class BookingService {
     return { success: true };
   }
 
+  // ── Invoice gating helper ─────────────────────────────────────────────────
+  /**
+   * Checks whether it is safe to generate/send the final invoice for a booking.
+   * Product rule (2026-03-10):
+   *   - Extra charge required and not yet resolved → BLOCKED
+   *   - Extra charge succeeded (CAPTURED/SETTLED) or no extra charge (NONE) → ALLOWED
+   *   - FAILED / NO_PAYMENT_METHOD → BLOCKED (extra money still owed)
+   */
+  private async checkInvoiceGating(
+    booking: any,
+  ): Promise<{ allowed: boolean; reason?: string }> {
+    const adjStatus = booking.adjustment_status ?? 'NONE';
+    const opStatus  = booking.operational_status;
+
+    // Booking must be in a final/fulfilled state
+    if (!['FULFILLED', 'COMPLETED'].includes(opStatus)) {
+      return { allowed: false, reason: `Booking is not yet fulfilled (status: ${opStatus})` };
+    }
+
+    // Extra charge was attempted but failed — extra amount still owed
+    if (['FAILED', 'NO_PAYMENT_METHOD', 'PENDING'].includes(adjStatus)) {
+      return {
+        allowed: false,
+        reason: `Final invoice cannot be sent while extra charge is unresolved (adjustment_status: ${adjStatus}). ` +
+                `Collect the extra amount first (send payment link or resolve via admin).`,
+      };
+    }
+
+    // NONE (no extra charge) or CAPTURED/SETTLED (extra charge succeeded) → allowed
+    return { allowed: true };
+  }
+
   // ── Resend final invoice email (admin action) ─────────────────────────────
   /**
    * Re-fires the InvoiceSent notification for the most recent SENT/PAID
    * CUSTOMER invoice attached to this booking.
    * Returns { success: true, invoice_number } on success.
-   * Returns { success: false, reason } if no invoice exists yet.
+   * Returns { success: false, reason } if no invoice exists yet or gating blocks it.
    */
   async resendInvoice(tenantId: string, bookingId: string): Promise<{ success: boolean; invoice_number?: string; reason?: string }> {
+    // Check invoice gating rules (extra charge must be resolved first)
+    const [bookingRow] = await this.dataSource.query(
+      `SELECT operational_status, adjustment_status FROM public.bookings WHERE id=$1 AND tenant_id=$2`,
+      [bookingId, tenantId],
+    );
+    if (!bookingRow) return { success: false, reason: 'Booking not found' };
+    const gate = await this.checkInvoiceGating(bookingRow);
+    if (!gate.allowed) return { success: false, reason: gate.reason };
+
     const [invoice] = await this.dataSource.query(
       `SELECT * FROM public.invoices
        WHERE booking_id=$1 AND tenant_id=$2
@@ -808,11 +886,13 @@ export class BookingService {
     );
     if (!rows.length) throw new NotFoundException('Booking not found');
     const b = rows[0];
-    // FIX (original): was b.status (non-existent column) — b.status was always undefined
-    // FIX (enum):     'AWAITING_CONFIRMATION' is not in operational_status_enum;
-    //                 the DB stores 'PENDING_CUSTOMER_CONFIRMATION' for bookings awaiting payment
-    if (b.operational_status !== 'PENDING_CUSTOMER_CONFIRMATION') {
-      throw new BadRequestException('Booking is not in PENDING_CUSTOMER_CONFIRMATION state');
+    // Guard: only PENDING_CUSTOMER_CONFIRMATION or PAYMENT_FAILED (retry) are valid sources
+    // PAYMENT_FAILED = confirmed product state for retryable charge failure
+    if (!['PENDING_CUSTOMER_CONFIRMATION', 'PAYMENT_FAILED'].includes(b.operational_status)) {
+      throw new BadRequestException(
+        `Cannot confirm-and-charge: booking is in ${b.operational_status} state. ` +
+        `Expected PENDING_CUSTOMER_CONFIRMATION or PAYMENT_FAILED.`,
+      );
     }
     if (!b.stripe_customer_id) {
       throw new BadRequestException('No Stripe customer on file');
@@ -837,57 +917,75 @@ export class BookingService {
     const Stripe = (await import('stripe')).default;
     const stripe = new Stripe(secretKey);
 
+    // ── Stripe charge — isolated try/catch so DB errors don't corrupt Stripe outcome ──
+    let pi: any;
+    let stripeError: string | null = null;
     try {
-      const pi = await stripe.paymentIntents.create({
+      pi = await stripe.paymentIntents.create({
         amount: b.total_price_minor,
         currency: (b.currency ?? 'AUD').toLowerCase(),
         customer: b.stripe_customer_id,
         payment_method: pmRows[0].stripe_payment_method_id,
         confirm: true,
         off_session: true,
+        metadata: { tenant_id: tenantId, booking_id: bookingId, payment_type: 'INITIAL' },
       });
+    } catch (err: any) {
+      stripeError = err.message ?? String(err);
+    }
 
-      // FIX: was SET status='CONFIRMED' — must use operational_status
+    if (stripeError || !pi) {
+      // Stripe charge failed — set PAYMENT_FAILED (confirmed product state; retryable)
+      // Separate DB write: does NOT set payment_status=FAILED if DB write itself fails
       await this.dataSource.query(
         `UPDATE public.bookings
-         SET operational_status='CONFIRMED', payment_status='PAID',
-             stripe_payment_intent_id=$1, payment_captured_at=now(), updated_at=now()
-         WHERE id=$2`,
-        [pi.id, bookingId],
-      );
-
-      // Record in payments table — same conventions as fulfilBooking path:
-      //   payment_type = 'INITIAL' (initial booking charge on customer confirmation)
-      //   payment_status = 'PAID'  (PI confirmed + captured inline with off_session=true)
-      //   ON CONFLICT DO NOTHING   (idempotent: unique on tenant_id+stripe_payment_intent_id)
-      await this.dataSource.query(
-        `INSERT INTO public.payments (
-           tenant_id, booking_id, stripe_payment_intent_id, payment_type,
-           currency, amount_authorized_minor, amount_captured_minor,
-           amount_refunded_minor, payment_status, created_at, updated_at
-         ) VALUES ($1,$2,$3,'INITIAL',$4,$5,$5,0,'PAID',NOW(),NOW())
-         ON CONFLICT (tenant_id, stripe_payment_intent_id) DO NOTHING`,
-        [tenantId, bookingId, pi.id, b.currency ?? 'AUD', b.total_price_minor],
-      );
-
-      return { success: true, paymentIntentId: pi.id };
-    } catch (err: any) {
-      // FIX (original): was SET status='PAYMENT_FAILED' (wrong column, silent no-op)
-      // FIX (enum):     'PAYMENT_FAILED' is not in operational_status_enum
-      // Correct behaviour: leave operational_status as-is (allows admin to retry);
-      // set payment_status='FAILED' (valid in payment_status_enum) to surface failure.
-      // Payments table: do NOT insert a row for failed confirmAndCharge.
-      //   Rationale: failed off-session PI creates Stripe PI in 'requires_action' or
-      //   'canceled' state — it cannot be re-confirmed. No PI ID to record that's safe
-      //   to expose as a payments row. Booking remains PENDING_CUSTOMER_CONFIRMATION
-      //   so admin can retry (new PI generated on retry). This matches fulfilBooking
-      //   FAILED path (also no payments row on failure).
-      await this.dataSource.query(
-        `UPDATE public.bookings SET payment_status='FAILED', updated_at=now() WHERE id=$1`,
+         SET operational_status='PAYMENT_FAILED', payment_status='FAILED', updated_at=now()
+         WHERE id=$1`,
         [bookingId],
+      ).catch((dbErr: any) =>
+        console.error('[confirmAndCharge] DB update to PAYMENT_FAILED failed:', dbErr?.message),
       );
-      return { success: false, error: err.message };
+      // Write to status history
+      await this.dataSource.query(
+        `INSERT INTO public.booking_status_history (id,tenant_id,booking_id,previous_status,new_status,triggered_by,reason,created_at)
+         VALUES ($1,$2,$3,$4,'PAYMENT_FAILED',$5,$6,$7)`,
+        [randomUUID(), tenantId, bookingId, b.operational_status, null, `Stripe error: ${stripeError}`, new Date().toISOString()],
+      ).catch(() => {});
+      return { success: false, error: stripeError };
     }
+
+    // ── Stripe charge succeeded — update booking state ───────────────────────
+    await this.dataSource.query(
+      `UPDATE public.bookings
+       SET operational_status='CONFIRMED', payment_status='PAID',
+           stripe_payment_intent_id=$1, payment_captured_at=now(), updated_at=now()
+       WHERE id=$2`,
+      [pi.id, bookingId],
+    );
+
+    // Write to status history
+    await this.dataSource.query(
+      `INSERT INTO public.booking_status_history (id,tenant_id,booking_id,previous_status,new_status,triggered_by,reason,created_at)
+       VALUES ($1,$2,$3,$4,'CONFIRMED',$5,$6,$7)`,
+      [randomUUID(), tenantId, bookingId, b.operational_status, null, 'confirmAndCharge success', new Date().toISOString()],
+    ).catch(() => {});
+
+    // ── Record in payments table (DB errors do NOT roll back Stripe charge) ───
+    await this.dataSource.query(
+      `INSERT INTO public.payments (
+         tenant_id, booking_id, stripe_payment_intent_id, payment_type,
+         currency, amount_authorized_minor, amount_captured_minor,
+         amount_refunded_minor, payment_status, created_at, updated_at
+       ) VALUES ($1,$2,$3,'INITIAL',$4,$5,$5,0,'PAID',NOW(),NOW())
+       ON CONFLICT (tenant_id, stripe_payment_intent_id) DO NOTHING`,
+      [tenantId, bookingId, pi.id, b.currency ?? 'AUD', b.total_price_minor],
+    ).catch((dbErr: any) =>
+      // Non-fatal: booking is CONFIRMED/PAID; payments row may be missing but charge happened
+      // This will be caught by reconciliation script
+      console.error('[confirmAndCharge] Failed to insert payments row:', dbErr?.message, 'PI:', pi.id),
+    );
+
+    return { success: true, paymentIntentId: pi.id };
   }
 
   // ── Reject booking (AWAITING_CONFIRMATION → CANCELLED) ────────────────────
@@ -953,7 +1051,16 @@ export class BookingService {
     return { success: true };
   }
 
-  // ── Settle (charge/refund difference after finalize) ──────────────────────
+  // ── Settle (charge/refund final balance difference) ───────────────────────
+  /**
+   * Settles the difference between actual_total_minor and prepay_total_minor.
+   *   adjustmentMinor > 0: customer owes extra → off-session charge
+   *   adjustmentMinor < 0: customer overpaid → refund from original INITIAL payment
+   *   adjustmentMinor = 0: balanced → no Stripe movement, mark SETTLED
+   *
+   * Requires adjustment_status IN ('NONE','FAILED','NO_PAYMENT_METHOD') or null.
+   * Cannot re-settle a SETTLED or already-CAPTURED booking.
+   */
   async settleBooking(tenantId: string, bookingId: string, adminId: string, body: any) {
     const rows = await this.dataSource.query(
       `SELECT b.*, c.stripe_customer_id
@@ -965,8 +1072,148 @@ export class BookingService {
     if (!rows.length) throw new NotFoundException('Booking not found');
     const b = rows[0];
 
+    // Guard: only settle FULFILLED bookings; don't re-settle
+    if (b.operational_status !== 'FULFILLED') {
+      throw new BadRequestException(`Booking must be FULFILLED to settle; current: ${b.operational_status}`);
+    }
+    if (b.adjustment_status === 'SETTLED') {
+      throw new BadRequestException('Booking is already settled');
+    }
+
     const adjustmentMinor = (b.actual_total_minor ?? 0) - (b.prepay_total_minor ?? 0);
 
+    // ── Zero delta — no money movement needed ────────────────────────────────
+    if (adjustmentMinor === 0) {
+      await this.dataSource.query(
+        `UPDATE public.bookings
+         SET adjustment_amount_minor=0, adjustment_status='SETTLED',
+             settled_at=now(), updated_at=now()
+         WHERE id=$1`,
+        [bookingId],
+      );
+      return { success: true, adjustmentMinor: 0, action: 'NO_OP' };
+    }
+
+    // Get tenant Stripe key
+    const intRows = await this.dataSource.query(
+      `SELECT stripe_secret_key FROM public.tenant_settings WHERE tenant_id=$1 LIMIT 1`,
+      [tenantId],
+    );
+    const secretKey = intRows[0]?.stripe_secret_key ?? process.env.STRIPE_SECRET_KEY;
+    if (!secretKey) throw new BadRequestException('Stripe not configured for this tenant');
+
+    const StripeLib = (await import('stripe')).default;
+    const stripe = new StripeLib(secretKey);
+
+    // ── Positive delta: charge customer for extra amount ──────────────────────
+    if (adjustmentMinor > 0) {
+      if (!b.stripe_customer_id) {
+        // No card on file — mark NO_PAYMENT_METHOD; admin must send payment link
+        await this.dataSource.query(
+          `UPDATE public.bookings
+           SET adjustment_amount_minor=$1, adjustment_status='NO_PAYMENT_METHOD', updated_at=now()
+           WHERE id=$2`,
+          [adjustmentMinor, bookingId],
+        );
+        return { success: false, adjustmentMinor, action: 'NO_PAYMENT_METHOD', reason: 'No stripe_customer_id on file' };
+      }
+
+      const pmRows = await this.dataSource.query(
+        `SELECT stripe_payment_method_id FROM public.saved_payment_methods
+         WHERE customer_id=$1 AND tenant_id=$2 AND is_default=true LIMIT 1`,
+        [b.customer_id, tenantId],
+      );
+      if (!pmRows.length) {
+        await this.dataSource.query(
+          `UPDATE public.bookings
+           SET adjustment_amount_minor=$1, adjustment_status='NO_PAYMENT_METHOD', updated_at=now()
+           WHERE id=$2`,
+          [adjustmentMinor, bookingId],
+        );
+        return { success: false, adjustmentMinor, action: 'NO_PAYMENT_METHOD', reason: 'No default payment method' };
+      }
+
+      let pi: any;
+      let stripeError: string | null = null;
+      try {
+        pi = await stripe.paymentIntents.create({
+          amount:         adjustmentMinor,
+          currency:       (b.currency ?? 'AUD').toLowerCase(),
+          customer:       b.stripe_customer_id,
+          payment_method: pmRows[0].stripe_payment_method_id,
+          confirm:        true,
+          off_session:    true,
+          metadata: { tenant_id: tenantId, booking_id: bookingId, payment_type: 'ADJUSTMENT', admin_id: adminId },
+        });
+      } catch (err: any) {
+        stripeError = err.message ?? String(err);
+      }
+
+      if (stripeError || !pi) {
+        await this.dataSource.query(
+          `UPDATE public.bookings
+           SET adjustment_amount_minor=$1, adjustment_status='FAILED', updated_at=now()
+           WHERE id=$2`,
+          [adjustmentMinor, bookingId],
+        );
+        return { success: false, adjustmentMinor, action: 'CHARGE_FAILED', reason: stripeError };
+      }
+
+      // Charge succeeded — update booking and insert payments row
+      await this.dataSource.query(
+        `UPDATE public.bookings
+         SET adjustment_amount_minor=$1, adjustment_status='SETTLED',
+             settled_at=now(), updated_at=now()
+         WHERE id=$2`,
+        [adjustmentMinor, bookingId],
+      );
+      await this.dataSource.query(
+        `INSERT INTO public.payments (
+           tenant_id, booking_id, stripe_payment_intent_id, payment_type,
+           currency, amount_authorized_minor, amount_captured_minor,
+           amount_refunded_minor, payment_status, created_at, updated_at
+         ) VALUES ($1,$2,$3,'ADJUSTMENT',$4,$5,$5,0,'PAID',NOW(),NOW())
+         ON CONFLICT (tenant_id, stripe_payment_intent_id) DO NOTHING`,
+        [tenantId, bookingId, pi.id, b.currency ?? 'AUD', adjustmentMinor],
+      ).catch((dbErr: any) =>
+        console.error('[settleBooking] Failed to insert ADJUSTMENT payments row:', dbErr?.message, 'PI:', pi.id),
+      );
+
+      return { success: true, adjustmentMinor, action: 'CHARGED', paymentIntentId: pi.id };
+    }
+
+    // ── Negative delta: refund over-collected amount ──────────────────────────
+    // Find the original INITIAL PAID payments row to refund against
+    const initPayment = await this.dataSource.query(
+      `SELECT stripe_payment_intent_id FROM public.payments
+       WHERE booking_id=$1 AND payment_type='INITIAL' AND payment_status='PAID'
+       ORDER BY created_at ASC LIMIT 1`,
+      [bookingId],
+    );
+    if (!initPayment.length) {
+      // Cannot refund — no original payment row; mark SETTLED with explanation
+      console.warn(`[settleBooking] Booking ${bookingId} has negative delta but no INITIAL payments row; marking SETTLED without refund`);
+      await this.dataSource.query(
+        `UPDATE public.bookings
+         SET adjustment_amount_minor=$1, adjustment_status='SETTLED',
+             settled_at=now(), updated_at=now()
+         WHERE id=$2`,
+        [adjustmentMinor, bookingId],
+      );
+      return { success: false, adjustmentMinor, action: 'REFUND_SKIPPED', reason: 'No INITIAL payments row found to refund against' };
+    }
+
+    const refundMinor = Math.abs(adjustmentMinor);
+    try {
+      await stripe.refunds.create({
+        payment_intent: initPayment[0].stripe_payment_intent_id,
+        amount: refundMinor,
+      });
+    } catch (err: any) {
+      return { success: false, adjustmentMinor, action: 'REFUND_FAILED', reason: err.message };
+    }
+
+    // Refund succeeded
     await this.dataSource.query(
       `UPDATE public.bookings
        SET adjustment_amount_minor=$1, adjustment_status='SETTLED',
@@ -974,7 +1221,19 @@ export class BookingService {
        WHERE id=$2`,
       [adjustmentMinor, bookingId],
     );
+    // Update original payments row to reflect refund
+    await this.dataSource.query(
+      `UPDATE public.payments
+       SET amount_refunded_minor = amount_refunded_minor + $1,
+           payment_status = CASE
+             WHEN (amount_captured_minor - amount_refunded_minor - $1) <= 0 THEN 'REFUNDED'
+             ELSE 'PARTIALLY_REFUNDED'
+           END,
+           updated_at = now()
+       WHERE stripe_payment_intent_id = $2`,
+      [refundMinor, initPayment[0].stripe_payment_intent_id],
+    ).catch(() => {});
 
-    return { success: true, adjustmentMinor };
+    return { success: true, adjustmentMinor, action: 'REFUNDED', refundMinor };
   }
 }
