@@ -114,6 +114,15 @@ export class BookingController {
     res.end(result.buffer);
   }
 
+  /** Phase 2: Admin endpoint — get driver execution report for a booking */
+  @Get(':id/driver-report')
+  getDriverReport(
+    @Param('id') bookingId: string,
+    @CurrentUser('tenant_id') tenantId: string,
+  ) {
+    return this.service.getDriverExtraReportForAdmin(tenantId, bookingId);
+  }
+
   @Post(':id/fulfil')
   fulfil(
     @Param('id') bookingId: string,

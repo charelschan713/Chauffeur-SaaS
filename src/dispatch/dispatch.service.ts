@@ -13,6 +13,34 @@ interface AssignmentRecord {
   status: string;
 }
 
+// ─── FLOW A / FLOW B OWNERSHIP BOUNDARY (Phase 2 — DO NOT COLLAPSE) ─────────
+//
+// FLOW A  = DispatchService (this file)
+//   Purpose:  real-time offer/accept/decline/start/complete cycle with
+//             outbox events, driver shift management, dispatch_driver_status sync.
+//   Owns:     OFFERED→ACCEPTED→JOB_STARTED→JOB_COMPLETED assignment states
+//             dispatch_assignment_activity entries
+//             outbox events (DRIVER_ACCEPTED / DRIVER_DECLINED / etc.)
+//             dispatch_driver_status sync (AVAILABLE / ON_JOB)
+//
+// FLOW B  = AssignmentService + DriverAppService
+//   Purpose:  admin manual assignment + driver execution progress chain.
+//   Owns:     PENDING→ACCEPTED assignment states (manual dispatch)
+//             driver_execution_status chain (accepted→…→job_done)
+//             driver_extra_reports handoff after job_done
+//             post_job_status lifecycle
+//
+// SHARED responsibility (intentional, must remain consistent):
+//   booking.operational_status updates:
+//     CONFIRMED→IN_PROGRESS (startTrip / on_the_way)
+//     IN_PROGRESS→COMPLETED (completeTrip / job_done)
+//   driver_execution_status initialisation on accept (both flows must set it)
+//
+// FUTURE:    Phase 3+ may consolidate. Until then, treat as parallel safe flows.
+//            Do NOT add new booking-lifecycle semantics to DispatchService
+//            without updating the corresponding BookingService state machine.
+// ─────────────────────────────────────────────────────────────────────────────
+
 @Injectable()
 export class DispatchService {
   private readonly OFFER_TIMEOUT_MINUTES = 2;
@@ -136,8 +164,14 @@ export class DispatchService {
       if (assignment.status !== 'OFFERED') throw new BadRequestException('Assignment not offered');
       if (assignment.driver_id !== driverId) throw new ForbiddenException('Driver mismatch');
 
+      // ── Phase 2 / Flow A: init driver_execution_status='accepted' ──────────
+      // Mirrors AssignmentService.accept() (Flow B) so both flows are consistent.
+      // Without this, the first Flow B execution update would throw ForbiddenException
+      // (null current has no valid transition). Dual-line separation preserved:
+      // status='ACCEPTED' = admin/business line; driver_execution_status = driver line.
       await manager.query(
-        `update public.assignments set status = 'ACCEPTED'
+        `update public.assignments
+         set status = 'ACCEPTED', driver_execution_status = 'accepted'
          where id = $1`,
         [assignmentId],
       );

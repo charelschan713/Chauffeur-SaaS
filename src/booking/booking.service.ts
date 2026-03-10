@@ -154,7 +154,7 @@ export class BookingService {
     if (!bookings.length) throw new NotFoundException('Booking not found');
     const booking = bookings[0];
 
-    const [history, assignments, payments, savedCard] = await Promise.all([
+    const [history, assignments, payments, savedCard, driverExtraReport] = await Promise.all([
       this.dataSource.query(
         `SELECT * FROM public.booking_status_history
          WHERE booking_id = $1
@@ -196,6 +196,15 @@ export class BookingService {
           ORDER BY spm.created_at DESC LIMIT 1`,
         [booking.customer_id],
       ).catch(() => []) : Promise.resolve([]),
+      // Driver extra report for the primary (leg A) assignment — used by admin Review & Fulfil
+      this.dataSource.query(
+        `SELECT r.*, u.full_name AS driver_name
+           FROM public.driver_extra_reports r
+           LEFT JOIN public.users u ON u.id = r.driver_id
+          WHERE r.booking_id = $1
+          ORDER BY r.created_at DESC LIMIT 1`,
+        [bookingId],
+      ).catch(() => []),
     ]);
 
     const summary = payments.length
@@ -207,6 +216,18 @@ export class BookingService {
         }
       : null;
 
+    // Compute has_extras flag for admin surface
+    const report = driverExtraReport?.[0] ?? null;
+    const reportWithMeta = report ? {
+      ...report,
+      has_extras: !!(
+        (report.extra_waypoints?.length) ||
+        report.waiting_minutes ||
+        report.extra_toll ||
+        report.extra_parking
+      ),
+    } : null;
+
     return {
       booking,
       status_history: history,
@@ -215,6 +236,40 @@ export class BookingService {
         ? { summary, items: payments }
         : null,
       saved_card: savedCard?.[0] ?? null,
+      // ── Phase 2: driver execution report (admin review surface) ──────────
+      // null = no report submitted yet; status: 'pending' | 'reviewed'
+      driver_extra_report: reportWithMeta,
+    };
+  }
+
+  // ── Phase 2: admin get driver extra report ───────────────────────────────
+  // Dedicated admin endpoint for driver execution report for a booking.
+  // Admin line uses this to review before calling fulfilBooking().
+  async getDriverExtraReportForAdmin(tenantId: string, bookingId: string) {
+    const rows = await this.dataSource.query(
+      `SELECT r.*, u.full_name AS driver_name,
+              a.driver_execution_status, a.post_job_status
+         FROM public.driver_extra_reports r
+         LEFT JOIN public.users u ON u.id = r.driver_id
+         LEFT JOIN public.assignments a ON a.id = r.assignment_id
+        WHERE r.booking_id = $1 AND r.tenant_id = $2
+        ORDER BY r.created_at DESC LIMIT 1`,
+      [bookingId, tenantId],
+    );
+    const report = rows[0] ?? null;
+    if (!report) return { report: null, has_report: false };
+
+    return {
+      has_report: true,
+      report: {
+        ...report,
+        has_extras: !!(
+          (report.extra_waypoints?.length) ||
+          report.waiting_minutes ||
+          report.extra_toll ||
+          report.extra_parking
+        ),
+      },
     };
   }
 
@@ -582,6 +637,24 @@ export class BookingService {
        VALUES (gen_random_uuid(),$1,$2,$3,'FULFILLED',$4,$5,NOW())`,
       [tenantId, bookingId, booking.operational_status, adminId, body.note ?? null],
     ).catch(() => {});
+
+    // ── Phase 2: mark driver extra report as reviewed ─────────────────────────
+    // Admin has reviewed the report (with or without acting on extras).
+    // This closes the pending-review state visible in admin UI.
+    await this.dataSource.query(
+      `UPDATE public.driver_extra_reports
+         SET status = 'reviewed', updated_at = NOW()
+       WHERE booking_id = $1 AND status = 'pending'`,
+      [bookingId],
+    ).catch(() => {});
+    // Also mark assignment post_job_status = 'reviewed' for dispatch visibility
+    await this.dataSource.query(
+      `UPDATE public.assignments
+         SET post_job_status = 'reviewed', updated_at = NOW()
+       WHERE booking_id = $1 AND post_job_status = 'submitted'`,
+      [bookingId],
+    ).catch(() => {});
+    // ─────────────────────────────────────────────────────────────────────────
 
     // ── Extra amount: off-session Stripe charge ───────────────────────────────
     // Replaces TODO stub. adjustment_status is resolved from actual Stripe outcome.

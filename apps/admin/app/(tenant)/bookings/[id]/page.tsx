@@ -120,6 +120,10 @@ function BookingDetailInner() {
   const latestAssignment = useMemo(() => assignments.at(0), [assignments]);
   const legAAssignment = useMemo(() => assignments.find((a: any) => a.leg === 'A' || !a.leg) ?? assignments.at(0), [assignments]);
   const legBAssignment = useMemo(() => assignments.find((a: any) => a.leg === 'B'), [assignments]);
+  // Phase 2: driver extra report from booking detail (no separate API call needed)
+  const driverExtraReport: any = data?.driver_extra_report ?? null;
+  const reportPendingReview = driverExtraReport?.status === 'pending';
+  const reportHasExtras = driverExtraReport?.has_extras === true;
   const canCancel = booking && CANCELABLE_STATUSES.has(booking.operational_status);
   const canAssign = booking && !NO_ASSIGN_STATUSES.has(booking.operational_status);
 
@@ -194,17 +198,17 @@ function BookingDetailInner() {
               💳 Payment
             </Button>
             {booking.operational_status === 'COMPLETED' && (
-              <Button variant="primary" onClick={async () => {
-                try {
-                  const assignment = booking.assignments?.[0];
-                  if (assignment?.id) {
-                    const res = await api.get(`/driver-app/extra-report/${assignment.id}`);
-                    setDriverReport(res.data);
-                  }
-                } catch {}
-                setFulfilOpen(true);
-              }}>
-                ✅ Review & Fulfil
+              <Button
+                variant="primary"
+                onClick={() => {
+                  // Phase 2: use already-loaded driver_extra_report from booking detail
+                  setDriverReport(driverExtraReport);
+                  setFulfilOpen(true);
+                }}
+              >
+                {reportPendingReview
+                  ? (reportHasExtras ? '⚠️ Review Extras & Fulfil' : '📋 Review Report & Fulfil')
+                  : '✅ Review & Fulfil'}
               </Button>
             )}
           </div>
@@ -490,6 +494,87 @@ function BookingDetailInner() {
             )}
           </div>
         )}
+
+        {/* ── Phase 2: Driver report exception banners ──────────────────── */}
+
+        {/* Case A: driver reached job_done but has NOT submitted a report yet */}
+        {booking.operational_status === 'COMPLETED' && !driverExtraReport && (
+          <div className="lg:col-span-3 bg-blue-50 border border-blue-300 rounded-xl p-4 flex items-start justify-between gap-4">
+            <div>
+              <p className="font-semibold text-blue-900">🚗 Driver Completed — Awaiting Report</p>
+              <p className="text-sm text-blue-700 mt-1">
+                Driver has reached <strong>job_done</strong>. No execution report has been submitted yet.
+                You can still review and fulfil, or wait for the driver to submit their report.
+              </p>
+            </div>
+            <Button variant="primary" onClick={() => { setDriverReport(null); setFulfilOpen(true); }}>
+              ✅ Fulfil Anyway
+            </Button>
+          </div>
+        )}
+
+        {/* Case B: driver submitted report WITH extras — action required */}
+        {booking.operational_status === 'COMPLETED' && reportPendingReview && reportHasExtras && (
+          <div className="lg:col-span-3 bg-amber-50 border border-amber-400 rounded-xl p-4 flex items-start justify-between gap-4">
+            <div>
+              <p className="font-semibold text-amber-900">⚠️ Driver Report — Extra Charges Require Review</p>
+              <p className="text-sm text-amber-800 mt-1">
+                Driver submitted a report with extra charges/waypoints/waiting.
+                Review the report before fulfilling to decide whether to add an extra charge.
+              </p>
+              <div className="mt-2 text-xs text-amber-700 space-y-0.5">
+                {driverExtraReport.extra_waypoints?.length > 0 && (
+                  <p>📍 Extra stops: {driverExtraReport.extra_waypoints.join(' → ')}</p>
+                )}
+                {driverExtraReport.waiting_minutes && (
+                  <p>⏱ Waiting: {driverExtraReport.waiting_minutes} min</p>
+                )}
+                {driverExtraReport.extra_toll && (
+                  <p>🚗 Toll: {booking.currency} {Number(driverExtraReport.extra_toll).toFixed(2)}</p>
+                )}
+                {driverExtraReport.extra_parking && (
+                  <p>🅿️ Parking: {booking.currency} {Number(driverExtraReport.extra_parking).toFixed(2)}</p>
+                )}
+                {driverExtraReport.notes && (
+                  <p className="italic">"{driverExtraReport.notes}"</p>
+                )}
+              </div>
+            </div>
+            <Button variant="primary" onClick={() => { setDriverReport(driverExtraReport); setFulfilOpen(true); }}>
+              ⚠️ Review Extras & Fulfil
+            </Button>
+          </div>
+        )}
+
+        {/* Case C: driver submitted report NO extras — standard review */}
+        {booking.operational_status === 'COMPLETED' && reportPendingReview && !reportHasExtras && (
+          <div className="lg:col-span-3 bg-green-50 border border-green-300 rounded-xl p-4 flex items-start justify-between gap-4">
+            <div>
+              <p className="font-semibold text-green-900">📋 Driver Report Submitted — No Extras</p>
+              <p className="text-sm text-green-700 mt-1">
+                Driver submitted their execution report. No extra charges reported.
+                {driverExtraReport.notes && <span className="italic"> Notes: "{driverExtraReport.notes}"</span>}
+              </p>
+              <p className="text-xs text-green-600 mt-1">
+                Submitted by {driverExtraReport.driver_name ?? 'driver'} at {new Date(driverExtraReport.created_at).toLocaleString()}
+              </p>
+            </div>
+            <Button variant="primary" onClick={() => { setDriverReport(driverExtraReport); setFulfilOpen(true); }}>
+              ✅ Review & Fulfil
+            </Button>
+          </div>
+        )}
+
+        {/* Case D: driver report already reviewed (post-fulfil) */}
+        {['FULFILLED'].includes(booking.operational_status) && driverExtraReport?.status === 'reviewed' && (
+          <div className="lg:col-span-3 bg-gray-50 border border-gray-200 rounded-xl p-3">
+            <p className="text-sm text-gray-600">
+              ✅ <strong>Driver report reviewed</strong> — submitted by {driverExtraReport.driver_name ?? 'driver'}.
+              {driverExtraReport.has_extras ? ' Extra charges were reported and handled during fulfilment.' : ' No extras were reported.'}
+            </p>
+          </div>
+        )}
+        {/* ─────────────────────────────────────────────────────────────────── */}
 
         {/* ── Left column ── */}
         <div className="lg:col-span-2 space-y-6">

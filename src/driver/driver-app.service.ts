@@ -352,10 +352,17 @@ export class DriverAppService implements OnModuleInit {
     const assignment = rows[0];
 
     // Upsert — one report per assignment
+    // Phase 2: block edits once admin has marked the report as 'reviewed'
     const existing = await this.dataSource.query(
-      `SELECT id FROM public.driver_extra_reports WHERE assignment_id = $1`,
+      `SELECT id, status FROM public.driver_extra_reports WHERE assignment_id = $1`,
       [body.assignment_id],
     );
+
+    if (existing.length && existing[0].status === 'reviewed') {
+      throw new ForbiddenException(
+        'Report has already been reviewed by admin and cannot be modified.',
+      );
+    }
 
     if (existing.length) {
       await this.dataSource.query(
