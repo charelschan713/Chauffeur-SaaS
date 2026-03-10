@@ -489,34 +489,35 @@ export class BookingService {
     adminId: string,
     body: { extra_amount_minor?: number; note?: string },
   ) {
+    // JOIN customers to obtain stripe_customer_id for potential extra charge
     const rows = await this.dataSource.query(
-      `SELECT id, total_price_minor, currency, operational_status
-       FROM public.bookings WHERE id = $1 AND tenant_id = $2`,
+      `SELECT b.id, b.total_price_minor, b.currency, b.operational_status,
+              b.customer_id, c.stripe_customer_id
+       FROM public.bookings b
+       LEFT JOIN public.customers c ON c.id = b.customer_id
+       WHERE b.id = $1 AND b.tenant_id = $2`,
       [bookingId, tenantId],
     );
     if (!rows.length) throw new NotFoundException('Booking not found');
     const booking = rows[0];
 
-    if (!['COMPLETED', 'job_done'].includes(booking.operational_status)) {
-      // Allow fulfil from COMPLETED or any terminal job state
-    }
-
     const extraMinor = body.extra_amount_minor ?? 0;
     const actualTotal = Number(booking.total_price_minor) + extraMinor;
 
+    // Mark FULFILLED immediately; adjustment_status starts PENDING (resolved after Stripe attempt)
     await this.dataSource.query(
       `UPDATE public.bookings
-       SET operational_status   = 'FULFILLED',
-           actual_total_minor   = $1,
+       SET operational_status      = 'FULFILLED',
+           actual_total_minor      = $1,
            adjustment_amount_minor = $2,
-           adjustment_status    = CASE WHEN $2 > 0 THEN 'CAPTURED' ELSE 'NONE' END,
-           settled_at           = NOW(),
-           updated_at           = NOW()
+           adjustment_status       = CASE WHEN $2 > 0 THEN 'PENDING' ELSE 'NONE' END,
+           settled_at              = NOW(),
+           updated_at              = NOW()
        WHERE id = $3`,
       [actualTotal, extraMinor, bookingId],
     );
 
-    // Log status history
+    // Log status transition
     await this.dataSource.query(
       `INSERT INTO public.booking_status_history
        (id, tenant_id, booking_id, previous_status, new_status, triggered_by, reason, created_at)
@@ -524,9 +525,95 @@ export class BookingService {
       [tenantId, bookingId, booking.operational_status, adminId, body.note ?? null],
     ).catch(() => {});
 
-    // TODO: trigger Stripe charge for extraMinor if > 0 + send fulfilled email
+    // ── Extra amount: off-session Stripe charge ───────────────────────────────
+    // Replaces TODO stub. adjustment_status is resolved from actual Stripe outcome.
+    let adjustmentStatus: string = extraMinor > 0 ? 'PENDING' : 'NONE';
 
-    return { success: true, actual_total_minor: actualTotal };
+    if (extraMinor > 0) {
+      const hasStripeCustomer = !!booking.stripe_customer_id;
+
+      if (!hasStripeCustomer) {
+        // Guest booking or no Stripe customer on file — flag for manual collection
+        adjustmentStatus = 'NO_PAYMENT_METHOD';
+      } else {
+        // Fetch default saved payment method
+        const pmRows = await this.dataSource.query(
+          `SELECT stripe_payment_method_id FROM public.saved_payment_methods
+           WHERE customer_id=$1 AND tenant_id=$2 AND is_default=true LIMIT 1`,
+          [booking.customer_id, tenantId],
+        );
+        if (!pmRows.length) {
+          adjustmentStatus = 'NO_PAYMENT_METHOD';
+        } else {
+          // Resolve tenant Stripe key
+          const intRows = await this.dataSource.query(
+            `SELECT config FROM public.tenant_integrations
+             WHERE tenant_id=$1 AND type='stripe' LIMIT 1`,
+            [tenantId],
+          );
+          const secretKey = intRows[0]?.config?.secret_key ?? process.env.STRIPE_SECRET_KEY;
+
+          if (!secretKey) {
+            adjustmentStatus = 'FAILED';
+          } else {
+            try {
+              const StripeLib = (await import('stripe')).default;
+              const stripe = new StripeLib(secretKey);
+
+              const pi = await stripe.paymentIntents.create({
+                amount:         extraMinor,
+                currency:       (booking.currency ?? 'AUD').toLowerCase(),
+                customer:       booking.stripe_customer_id,
+                payment_method: pmRows[0].stripe_payment_method_id,
+                confirm:        true,
+                off_session:    true,
+                metadata: {
+                  tenant_id:    tenantId,
+                  booking_id:   bookingId,
+                  payment_type: 'ADJUSTMENT',
+                  admin_id:     adminId,
+                },
+              });
+
+              // Record in payments table as PAID (PI was confirmed + captured inline)
+              await this.dataSource.query(
+                `INSERT INTO public.payments (
+                   tenant_id, booking_id, stripe_payment_intent_id, payment_type,
+                   currency, amount_authorized_minor, amount_captured_minor,
+                   amount_refunded_minor, payment_status, created_at, updated_at
+                 ) VALUES ($1,$2,$3,'ADJUSTMENT',$4,$5,$5,0,'PAID',NOW(),NOW())
+                 ON CONFLICT (tenant_id, stripe_payment_intent_id) DO NOTHING`,
+                [tenantId, bookingId, pi.id, booking.currency ?? 'AUD', extraMinor],
+              );
+
+              adjustmentStatus = 'CAPTURED';
+            } catch (err: any) {
+              console.error('[fulfilBooking] Extra charge failed:', err?.message ?? err);
+              adjustmentStatus = 'FAILED';
+            }
+          }
+        }
+      }
+
+      // Persist resolved adjustment_status
+      await this.dataSource.query(
+        `UPDATE public.bookings SET adjustment_status=$1, updated_at=NOW() WHERE id=$2`,
+        [adjustmentStatus, bookingId],
+      );
+    }
+
+    // Fulfillment notification (non-blocking)
+    this.notificationService.handleEvent('JobFulfilledWithExtras', {
+      tenant_id:           tenantId,
+      booking_id:          bookingId,
+      extra_minor:         extraMinor,
+      actual_total_minor:  actualTotal,
+      adjustment_status:   adjustmentStatus,
+    }).catch((e: any) =>
+      console.error('[Notification] JobFulfilledWithExtras FAILED:', e?.message ?? e),
+    );
+
+    return { success: true, actual_total_minor: actualTotal, adjustment_status: adjustmentStatus };
   }
 
   async markPaid(tenantId: string, bookingId: string) {
@@ -610,7 +697,8 @@ export class BookingService {
     );
     if (!rows.length) throw new NotFoundException('Booking not found');
     const b = rows[0];
-    if (b.status !== 'AWAITING_CONFIRMATION') {
+    // FIX: was b.status (non-existent) — must read operational_status
+    if (b.operational_status !== 'AWAITING_CONFIRMATION') {
       throw new BadRequestException('Booking is not in AWAITING_CONFIRMATION state');
     }
     if (!b.stripe_customer_id) {
@@ -645,17 +733,19 @@ export class BookingService {
         off_session: true,
       });
 
+      // FIX: was SET status='CONFIRMED' — must use operational_status
       await this.dataSource.query(
         `UPDATE public.bookings
-         SET status='CONFIRMED', payment_status='PAID',
+         SET operational_status='CONFIRMED', payment_status='PAID',
              stripe_payment_intent_id=$1, payment_captured_at=now(), updated_at=now()
          WHERE id=$2`,
         [pi.id, bookingId],
       );
       return { success: true, paymentIntentId: pi.id };
     } catch (err: any) {
+      // FIX: was SET status='PAYMENT_FAILED' — must use operational_status
       await this.dataSource.query(
-        `UPDATE public.bookings SET status='PAYMENT_FAILED', updated_at=now() WHERE id=$1`,
+        `UPDATE public.bookings SET operational_status='PAYMENT_FAILED', updated_at=now() WHERE id=$1`,
         [bookingId],
       );
       return { success: false, error: err.message };
