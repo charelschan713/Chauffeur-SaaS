@@ -889,7 +889,7 @@ export class DriverAppService implements OnModuleInit {
   // Driver cannot see jobs that are not yet admin-reviewed.
   async getInvoiceableJobs(driverId: string) {
     return this.dataSource.query(
-      `SELECT a.id, a.driver_payout_status, a.currency,
+      `SELECT a.id, a.driver_payout_status, b.currency,
               dpr.total_driver_payable_minor,
               dpr.id AS review_id,
               b.booking_reference, b.pickup_at_utc,
