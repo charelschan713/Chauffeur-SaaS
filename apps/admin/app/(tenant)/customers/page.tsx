@@ -48,6 +48,10 @@ export default function CustomersPage() {
   const [deleteCustomerConfirmText, setDeleteCustomerConfirmText] = useState('');
   const [deletingCustomer, setDeletingCustomer] = useState(false);
   const [toast, setToast] = useState<{ message: string; tone: 'success' | 'error' } | null>(null);
+  const [resetCustomerId, setResetCustomerId] = useState<string | null>(null);
+  const [resetPassword, setResetPassword] = useState('');
+  const [resetConfirm, setResetConfirm] = useState('');
+  const [resetLoading, setResetLoading] = useState(false);
 
   const { data: customers = [], isLoading, error, refetch } = useQuery({
     queryKey: ['customers', search],
@@ -257,6 +261,31 @@ export default function CustomersPage() {
     }
   }
 
+  async function handleResetCustomerPassword() {
+    if (!resetCustomerId) return;
+    if (!resetPassword || resetPassword.length < 8) {
+      setToast({ message: 'Password must be at least 8 characters', tone: 'error' });
+      return;
+    }
+    if (resetPassword !== resetConfirm) {
+      setToast({ message: 'Passwords do not match', tone: 'error' });
+      return;
+    }
+    setResetLoading(true);
+    try {
+      await api.post(`/customers/${resetCustomerId}/reset-password`, { newPassword: resetPassword });
+      setToast({ message: 'Customer password reset', tone: 'success' });
+      setResetCustomerId(null);
+      setResetPassword('');
+      setResetConfirm('');
+    } catch (err: any) {
+      const msg = err?.response?.data?.message ?? 'Failed to reset password';
+      setToast({ message: msg, tone: 'error' });
+    } finally {
+      setResetLoading(false);
+    }
+  }
+
   if (error) return <ErrorAlert message="Unable to load customers" onRetry={refetch} />;
 
   return (
@@ -302,6 +331,12 @@ export default function CustomersPage() {
                 <td className="px-4 py-3 text-right space-x-2">
                   <Button variant="ghost" onClick={() => openEditCustomer(c)}>Edit</Button>
                   <Button variant="ghost" onClick={() => setExpandedId(expandedId === c.id ? null : c.id)}>Passengers</Button>
+                  <Button
+                    variant="ghost"
+                    onClick={() => { setResetCustomerId(c.id); setResetPassword(''); setResetConfirm(''); }}
+                  >
+                    Reset Password
+                  </Button>
                   <Button
                     variant="ghost"
                     className="text-red-600 hover:text-red-700"
@@ -562,6 +597,38 @@ export default function CustomersPage() {
           </div>
         </div>
       )}
+
+      <ConfirmModal
+        title="Reset Customer Password"
+        description="Set a temporary password for this customer. Share it securely and ask them to change it after login."
+        isOpen={!!resetCustomerId}
+        onClose={() => { if (!resetLoading) { setResetCustomerId(null); } }}
+        onConfirm={handleResetCustomerPassword}
+        confirmText={resetLoading ? 'Resetting…' : 'Reset Password'}
+        loading={resetLoading}
+      >
+        <div className="space-y-3">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Temporary password</label>
+            <input
+              type="password"
+              value={resetPassword}
+              onChange={(e) => setResetPassword(e.target.value)}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Confirm password</label>
+            <input
+              type="password"
+              value={resetConfirm}
+              onChange={(e) => setResetConfirm(e.target.value)}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+            />
+          </div>
+          <p className="text-xs text-amber-600">This action is logged. The customer will need the temporary password to sign in.</p>
+        </div>
+      </ConfirmModal>
 
       <ConfirmModal
         title="Delete customer?"

@@ -8,6 +8,7 @@ import { Toast } from '@/components/ui/Toast';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { InlineSpinner } from '@/components/ui/LoadingSpinner';
+import { ConfirmModal } from '@/components/ui/ConfirmModal';
 
 const AU_STATES = ['NSW','VIC','QLD','WA','SA','TAS','ACT','NT'];
 const TABS = ['Personal','Licence & Accreditation','Emergency Contact','Banking','Notes','Calendar'] as const;
@@ -107,6 +108,10 @@ export default function DriverProfilePage() {
   });
   const [form, setForm] = useState(empty);
   const [toast, setToast] = useState<{ message: string; tone: 'success' | 'error' } | null>(null);
+  const [resetOpen, setResetOpen] = useState(false);
+  const [resetPassword, setResetPassword] = useState('');
+  const [resetConfirm, setResetConfirm] = useState('');
+  const [resetLoading, setResetLoading] = useState(false);
 
   const { data: profile, isLoading } = useQuery({
     queryKey: ['driver-profile', id],
@@ -168,6 +173,30 @@ export default function DriverProfilePage() {
     saveMutation.mutate(payload);
   }
 
+  async function handleResetPassword() {
+    if (!resetPassword || resetPassword.length < 8) {
+      setToast({ message: 'Password must be at least 8 characters', tone: 'error' });
+      return;
+    }
+    if (resetPassword !== resetConfirm) {
+      setToast({ message: 'Passwords do not match', tone: 'error' });
+      return;
+    }
+    setResetLoading(true);
+    try {
+      await api.post(`/drivers/${id}/reset-password`, { newPassword: resetPassword });
+      setToast({ message: 'Driver password reset', tone: 'success' });
+      setResetOpen(false);
+      setResetPassword('');
+      setResetConfirm('');
+    } catch (err: any) {
+      const msg = err?.response?.data?.message ?? 'Failed to reset password';
+      setToast({ message: msg, tone: 'error' });
+    } finally {
+      setResetLoading(false);
+    }
+  }
+
   const initials = [form.first_name, form.last_name].filter(Boolean).map(n => n[0].toUpperCase()).join('') || '?';
 
   const statusVariant: Record<string, 'success' | 'warning' | 'neutral' | 'danger'> = {
@@ -187,6 +216,38 @@ export default function DriverProfilePage() {
   return (
     <div className="max-w-2xl space-y-6">
       {toast && <Toast message={toast.message} tone={toast.tone} onClose={() => setToast(null)} />}
+
+      <ConfirmModal
+        title="Reset Driver Password"
+        description="Set a temporary password for this driver. Share it securely and ask them to change it after login."
+        isOpen={resetOpen}
+        onClose={() => { if (!resetLoading) { setResetOpen(false); } }}
+        onConfirm={handleResetPassword}
+        confirmText={resetLoading ? 'Resetting…' : 'Reset Password'}
+        loading={resetLoading}
+      >
+        <div className="space-y-3">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Temporary password</label>
+            <input
+              type="password"
+              value={resetPassword}
+              onChange={(e) => setResetPassword(e.target.value)}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Confirm password</label>
+            <input
+              type="password"
+              value={resetConfirm}
+              onChange={(e) => setResetConfirm(e.target.value)}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+            />
+          </div>
+          <p className="text-xs text-amber-600">This action is logged. The driver will need the temporary password to sign in.</p>
+        </div>
+      </ConfirmModal>
 
       {/* Back */}
       <button onClick={() => router.back()} className="text-sm text-gray-500 hover:text-gray-700 flex items-center gap-1">
@@ -215,12 +276,14 @@ export default function DriverProfilePage() {
             {form.abn && <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded font-mono">ABN: {form.abn}</span>}
           </div>
         </div>
-        {/* Licence expiry summary */}
-        <div className="text-right shrink-0 space-y-1">
-          <div className="text-xs text-gray-400">Driver Licence</div>
-          <ExpiryBadge date={form.driver_license_expiry} />
-          <div className="text-xs text-gray-400 mt-2">VHL</div>
-          <ExpiryBadge date={form.vehicle_hire_license_expiry} />
+        <div className="flex flex-col items-end gap-2">
+          <Button variant="secondary" onClick={() => setResetOpen(true)}>Reset Password</Button>
+          <div className="text-right shrink-0 space-y-1">
+            <div className="text-xs text-gray-400">Driver Licence</div>
+            <ExpiryBadge date={form.driver_license_expiry} />
+            <div className="text-xs text-gray-400 mt-2">VHL</div>
+            <ExpiryBadge date={form.vehicle_hire_license_expiry} />
+          </div>
         </div>
       </div>
 

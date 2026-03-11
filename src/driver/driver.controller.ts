@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Body,
   Controller,
+  ForbiddenException,
   Get,
   Param,
   Patch,
@@ -14,6 +15,8 @@ import { DataSource } from 'typeorm';
 import { JwtGuard } from '../common/guards/jwt.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { DriverService } from './driver.service';
+import { TenantRoleGuard, TenantRoles } from '../common/guards/tenant-role.guard';
+import * as bcrypt from 'bcrypt';
 
 class UpdateDriverStatusDto {
   availability_status!: string;
@@ -77,6 +80,48 @@ export class DriverController {
     @Param('id') driverId: string,
   ) {
     return this.drivers.setMembershipStatus(tenantId, driverId, 'suspended');
+  }
+
+  @Post(':id/reset-password')
+  @UseGuards(TenantRoleGuard)
+  @TenantRoles('tenant_admin')
+  async resetDriverPassword(
+    @CurrentUser('tenant_id') tenantId: string,
+    @CurrentUser('sub') actorId: string,
+    @Param('id') driverId: string,
+    @Body() body: { newPassword: string },
+  ) {
+    if (!body.newPassword || body.newPassword.length < 8) {
+      throw new BadRequestException('Password must be at least 8 characters');
+    }
+
+    const rows = await this.db.query(
+      `SELECT u.id, u.is_platform_admin, m.role
+       FROM public.users u
+       JOIN public.memberships m ON m.user_id = u.id
+       WHERE u.id = $1 AND m.tenant_id = $2
+       LIMIT 1`,
+      [driverId, tenantId],
+    );
+    const user = rows[0];
+    if (!user) throw new BadRequestException('User not found');
+    if (user.is_platform_admin) throw new ForbiddenException('Unsupported user type');
+    if (user.role !== 'driver') throw new ForbiddenException('Unsupported user type');
+
+    const hash = await bcrypt.hash(body.newPassword, 12);
+    await this.db.query(
+      `UPDATE public.users SET password_hash = $1, updated_at = now() WHERE id = $2`,
+      [hash, driverId],
+    );
+
+    await this.db.query(
+      `INSERT INTO public.admin_password_reset_logs
+         (tenant_id, actor_user_id, target_user_id, target_user_type, action_type, reset_mode, metadata)
+       VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb)`,
+      [tenantId, actorId, driverId, 'driver', 'password_reset', 'manual', JSON.stringify({})],
+    ).catch(() => {});
+
+    return { success: true };
   }
 
   /** Release (unbind) a driver from this tenant */

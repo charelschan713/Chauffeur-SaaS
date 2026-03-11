@@ -15,6 +15,8 @@ import { DataSource } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { JwtGuard } from '../common/guards/jwt.guard';
 import { NotificationService } from '../notification/notification.service';
+import { TenantRoleGuard, TenantRoles } from '../common/guards/tenant-role.guard';
+import { CurrentUser } from '../common/decorators/current-user.decorator';
 
 @Controller('customers')
 @UseGuards(JwtGuard)
@@ -244,16 +246,53 @@ export class CustomerController {
   }
 
   @Post(':id/reset-password')
-  async resetCustomerPassword(@Req() req: any, @Param('id') id: string, @Body() body: { newPassword: string }) {
+  @UseGuards(TenantRoleGuard)
+  @TenantRoles('tenant_admin')
+  async resetCustomerPassword(
+    @Req() req: any,
+    @CurrentUser('sub') actorId: string,
+    @Param('id') id: string,
+    @Body() body: { newPassword: string },
+  ) {
     if (!body.newPassword || body.newPassword.length < 8) {
       throw new BadRequestException('Password must be at least 8 characters');
     }
-    const hash = await bcrypt.hash(body.newPassword, 12);
-    await this.dataSource.query(
-      `UPDATE public.customer_auth SET password_hash = $1
-       WHERE customer_id = $2 AND tenant_id = $3`,
-      [hash, id, req.user.tenant_id],
+
+    const customerRows = await this.dataSource.query(
+      `SELECT id, email FROM public.customers WHERE id = $1 AND tenant_id = $2 LIMIT 1`,
+      [id, req.user.tenant_id],
     );
+    const customer = customerRows[0];
+    if (!customer) {
+      throw new BadRequestException('User not found');
+    }
+
+    const hash = await bcrypt.hash(body.newPassword, 12);
+    const update = await this.dataSource.query(
+      `UPDATE public.customer_auth
+       SET password_hash = $1, email = $2, updated_at = now()
+       WHERE customer_id = $3 AND tenant_id = $4`,
+      [hash, (customer.email ?? '').toLowerCase(), id, req.user.tenant_id],
+    );
+
+    if (!update?.rowCount) {
+      await this.dataSource.query(
+        `INSERT INTO public.customer_auth (tenant_id, customer_id, email, password_hash)
+         VALUES ($1, $2, $3, $4)
+         ON CONFLICT (customer_id) DO UPDATE
+         SET password_hash = EXCLUDED.password_hash,
+             email = EXCLUDED.email`,
+        [req.user.tenant_id, id, (customer.email ?? '').toLowerCase(), hash],
+      );
+    }
+
+    await this.dataSource.query(
+      `INSERT INTO public.admin_password_reset_logs
+         (tenant_id, actor_user_id, target_user_id, target_user_type, action_type, reset_mode, metadata)
+       VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb)`,
+      [req.user.tenant_id, actorId, id, 'customer', 'password_reset', 'manual', JSON.stringify({})],
+    ).catch(() => {});
+
     return { success: true };
   }
 
