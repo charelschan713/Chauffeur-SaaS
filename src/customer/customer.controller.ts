@@ -278,10 +278,10 @@ export class CustomerController {
     if (!update?.rowCount) {
       await this.dataSource.query(
         `INSERT INTO public.customer_auth (tenant_id, customer_id, email, password_hash)
-         VALUES ($1, $2, $3, $4)
-         ON CONFLICT (customer_id) DO UPDATE
-         SET password_hash = EXCLUDED.password_hash,
-             email = EXCLUDED.email`,
+         SELECT $1, $2, $3, $4
+         WHERE NOT EXISTS (
+           SELECT 1 FROM public.customer_auth WHERE customer_id = $2 AND tenant_id = $1
+         )`,
         [req.user.tenant_id, id, (customer.email ?? '').toLowerCase(), hash],
       );
     }
