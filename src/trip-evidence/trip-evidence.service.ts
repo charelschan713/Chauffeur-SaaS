@@ -1,5 +1,5 @@
 import {
-  Injectable, Logger, OnModuleInit, ForbiddenException, NotFoundException,
+  Injectable, Logger, ForbiddenException, NotFoundException,
 } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 
@@ -15,107 +15,10 @@ export type OperationEventType =
 // ─────────────────────────────────────────────────────────────────────────────
 
 @Injectable()
-export class TripEvidenceService implements OnModuleInit {
+export class TripEvidenceService {
   private readonly logger = new Logger(TripEvidenceService.name);
 
   constructor(private readonly dataSource: DataSource) {}
-
-  // ── DB migration ─────────────────────────────────────────────────────────
-
-  async onModuleInit() {
-    this.logger.log('TripEvidenceService: running schema migrations');
-
-    // trip_evidence_records — one umbrella record per booking
-    await this.dataSource.query(`
-      CREATE TABLE IF NOT EXISTS public.trip_evidence_records (
-        id                        UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        tenant_id                 UUID NOT NULL,
-        booking_id                UUID NOT NULL UNIQUE,
-        driver_id                 UUID,
-        passenger_phone           TEXT,
-        twilio_proxy_number       TEXT,
-        sms_bridge_opened_at      TIMESTAMPTZ,
-        sms_bridge_closed_at      TIMESTAMPTZ,
-        tracking_started_at       TIMESTAMPTZ,
-        tracking_closed_at        TIMESTAMPTZ,
-        route_image_url           TEXT,
-        route_image_generated_at  TIMESTAMPTZ,
-        evidence_status           TEXT NOT NULL DEFAULT 'active',
-        evidence_frozen_at        TIMESTAMPTZ,
-        audit_report_url          TEXT,
-        created_at                TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-        updated_at                TIMESTAMPTZ NOT NULL DEFAULT NOW()
-      )
-    `).catch(e => this.logger.warn('trip_evidence_records:', e.message));
-
-    await this.dataSource.query(`
-      CREATE INDEX IF NOT EXISTS idx_ter_booking ON public.trip_evidence_records(booking_id);
-      CREATE INDEX IF NOT EXISTS idx_ter_tenant  ON public.trip_evidence_records(tenant_id);
-    `).catch(() => {});
-
-    // trip_gps_milestones — milestone GPS captures
-    await this.dataSource.query(`
-      CREATE TABLE IF NOT EXISTS public.trip_gps_milestones (
-        id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        tenant_id       UUID NOT NULL,
-        booking_id      UUID NOT NULL,
-        driver_id       UUID NOT NULL,
-        milestone_type  TEXT NOT NULL,
-        latitude        NUMERIC(10,7) NOT NULL,
-        longitude       NUMERIC(10,7) NOT NULL,
-        accuracy_meters NUMERIC(8,2),
-        source          TEXT NOT NULL DEFAULT 'driver_app',
-        recorded_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-        metadata        JSONB
-      )
-    `).catch(e => this.logger.warn('trip_gps_milestones:', e.message));
-
-    await this.dataSource.query(`
-      CREATE INDEX IF NOT EXISTS idx_tgm_booking ON public.trip_gps_milestones(booking_id);
-      CREATE INDEX IF NOT EXISTS idx_tgm_type    ON public.trip_gps_milestones(booking_id, milestone_type);
-    `).catch(() => {});
-
-    // trip_sms_messages — SMS bridge transcript
-    await this.dataSource.query(`
-      CREATE TABLE IF NOT EXISTS public.trip_sms_messages (
-        id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        tenant_id       UUID NOT NULL,
-        booking_id      UUID NOT NULL,
-        driver_id       UUID NOT NULL,
-        direction       TEXT NOT NULL CHECK (direction IN ('outbound','inbound')),
-        from_number     TEXT,
-        to_number       TEXT,
-        body            TEXT NOT NULL,
-        twilio_sid      TEXT,
-        delivery_status TEXT NOT NULL DEFAULT 'sent',
-        sent_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-        metadata        JSONB
-      )
-    `).catch(e => this.logger.warn('trip_sms_messages:', e.message));
-
-    await this.dataSource.query(`
-      CREATE INDEX IF NOT EXISTS idx_tsm_booking ON public.trip_sms_messages(booking_id);
-    `).catch(() => {});
-
-    // trip_operation_logs — immutable append-only event log
-    await this.dataSource.query(`
-      CREATE TABLE IF NOT EXISTS public.trip_operation_logs (
-        id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        tenant_id   UUID NOT NULL,
-        booking_id  UUID NOT NULL,
-        event_type  TEXT NOT NULL,
-        actor       TEXT,
-        metadata    JSONB,
-        occurred_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-      )
-    `).catch(e => this.logger.warn('trip_operation_logs:', e.message));
-
-    await this.dataSource.query(`
-      CREATE INDEX IF NOT EXISTS idx_tol_booking ON public.trip_operation_logs(booking_id);
-    `).catch(() => {});
-
-    this.logger.log('TripEvidenceService: schema migrations complete');
-  }
 
   // ── Evidence record lifecycle ────────────────────────────────────────────
 
@@ -191,7 +94,7 @@ export class TripEvidenceService implements OnModuleInit {
     const rec = await this.getEvidenceRecord(params.tenantId, params.bookingId);
     if (rec?.evidence_status === 'frozen') {
       this.logger.warn(`GPS record blocked — evidence frozen for booking ${params.bookingId}`);
-      return;
+      throw new ForbiddenException('Trip evidence is frozen — conversation closed.');
     }
 
     await this.dataSource.query(
@@ -260,6 +163,10 @@ export class TripEvidenceService implements OnModuleInit {
     body: string;
     twilioSid?: string;
   }): Promise<void> {
+    const rec = await this.getEvidenceRecord(params.tenantId, params.bookingId);
+    if (rec?.evidence_status === 'frozen') {
+      throw new ForbiddenException('Trip evidence is frozen — conversation closed.');
+    }
     await this.dataSource.query(
       `INSERT INTO public.trip_sms_messages
          (tenant_id, booking_id, driver_id, direction,
