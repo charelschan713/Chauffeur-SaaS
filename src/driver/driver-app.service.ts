@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ForbiddenException, BadRequestException, OnModuleInit, Logger, Optional } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, BadRequestException, ConflictException, OnModuleInit, Logger, Optional } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { TripEvidenceService } from '../trip-evidence/trip-evidence.service';
 
@@ -988,6 +988,22 @@ export class DriverAppService implements OnModuleInit {
   }
 
   async submitDriverInvoice(driverId: string, invoiceId: string) {
+    const [existing] = await this.dataSource.query(
+      `SELECT id, invoice_status
+         FROM public.driver_invoices
+        WHERE id = $1 AND driver_id = $2
+        LIMIT 1`,
+      [invoiceId, driverId],
+    );
+
+    if (!existing) {
+      throw new NotFoundException('Invoice not found');
+    }
+
+    if (existing.invoice_status !== 'DRAFT') {
+      throw new BadRequestException('Invoice not eligible to submit (must be DRAFT)');
+    }
+
     const updated = await this.dataSource.query(
       `UPDATE public.driver_invoices
        SET status = 'SUBMITTED', invoice_status = 'SUBMITTED', submitted_at = now(), updated_at = now()
@@ -995,9 +1011,11 @@ export class DriverAppService implements OnModuleInit {
        RETURNING id`,
       [invoiceId, driverId],
     );
+
     if (!updated.length) {
-      throw new BadRequestException('Invoice not eligible to submit (must be DRAFT)');
+      throw new ConflictException('Invoice state changed, please refresh and retry');
     }
+
     return { submitted: true };
   }
 
