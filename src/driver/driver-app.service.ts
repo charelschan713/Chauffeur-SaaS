@@ -896,7 +896,7 @@ export class DriverAppService implements OnModuleInit {
               b.pickup_address_text, b.dropoff_address_text
        FROM assignments a
        JOIN bookings b ON b.id = a.booking_id
-       LEFT JOIN public.driver_payable_reviews dpr ON dpr.assignment_id = a.id
+       JOIN public.driver_payable_reviews dpr ON dpr.assignment_id = a.id
        WHERE a.driver_id = $1
          AND a.driver_payout_status = 'READY_FOR_DRIVER_INVOICE'
        ORDER BY b.pickup_at_utc DESC`,
@@ -988,12 +988,16 @@ export class DriverAppService implements OnModuleInit {
   }
 
   async submitDriverInvoice(driverId: string, invoiceId: string) {
-    await this.dataSource.query(
+    const updated = await this.dataSource.query(
       `UPDATE public.driver_invoices
        SET status = 'SUBMITTED', invoice_status = 'SUBMITTED', submitted_at = now(), updated_at = now()
-       WHERE id = $1 AND driver_id = $2 AND invoice_status = 'DRAFT'`,
+       WHERE id = $1 AND driver_id = $2 AND invoice_status = 'DRAFT'
+       RETURNING id`,
       [invoiceId, driverId],
     );
+    if (!updated.length) {
+      throw new BadRequestException('Invoice not eligible to submit (must be DRAFT)');
+    }
     return { submitted: true };
   }
 
