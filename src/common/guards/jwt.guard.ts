@@ -19,7 +19,12 @@ export class JwtGuard implements CanActivate {
     try {
       const payload = await this.jwtService.verifyAsync(token, {
         secret: process.env.JWT_ACCESS_SECRET!,
-      });
+      }) as any;
+      // Compatibility: keep canonical + legacy platform claim mappings synced even if
+      // older consumers only check the legacy key.
+      if (payload && payload.is_platform_admin === true && payload.isPlatformAdmin === undefined) {
+        payload.isPlatformAdmin = true;
+      }
       req.user = payload;
       return true;
     } catch {
