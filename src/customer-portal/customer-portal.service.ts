@@ -1218,11 +1218,12 @@ export class CustomerPortalService implements OnModuleInit {
   // ── Invoices ──────────────────────────────────────────────────────────────
   async listInvoices(customerId: string, tenantId: string) {
     return this.db.query(
-      `SELECT id, invoice_number, status, total_minor, currency,
-              issue_date AS issued_at, due_date, paid_at
-       FROM public.invoices
-       WHERE customer_id=$1 AND tenant_id=$2
-       ORDER BY issue_date DESC NULLS LAST`,
+      `SELECT i.id, i.invoice_number, i.booking_id, i.status, i.total_minor, i.currency,
+              i.issue_date AS issued_at, i.due_date, i.paid_at
+       FROM public.invoices i
+       JOIN public.bookings b ON b.id = i.booking_id AND b.tenant_id = i.tenant_id
+       WHERE b.customer_id = $1 AND i.tenant_id = $2
+       ORDER BY i.issue_date DESC NULLS LAST`,
       [customerId, tenantId],
     );
   }
