@@ -153,9 +153,10 @@ export class BookingController {
   rejectBooking(
     @Param('id') bookingId: string,
     @CurrentUser('tenant_id') tenantId: string,
+    @CurrentUser('sub') actorId: string,
     @Body() body: { reason?: string },
   ) {
-    return this.service.rejectBooking(tenantId, bookingId, body.reason);
+    return this.service.rejectBooking(tenantId, bookingId, actorId, body.reason);
   }
 
   @Post(':id/finalize')

@@ -1110,21 +1110,37 @@ export class BookingService {
   }
 
   // ── Reject booking (AWAITING_CONFIRMATION → CANCELLED) ────────────────────
-  async rejectBooking(tenantId: string, bookingId: string, reason?: string) {
+  async rejectBooking(tenantId: string, bookingId: string, actorId: string, reason?: string) {
     const rows = await this.dataSource.query(
-      `SELECT status FROM public.bookings WHERE id=$1 AND tenant_id=$2`,
+      `SELECT operational_status FROM public.bookings WHERE id=$1 AND tenant_id=$2`,
       [bookingId, tenantId],
     );
     if (!rows.length) throw new NotFoundException('Booking not found');
-    if (rows[0].status !== 'AWAITING_CONFIRMATION') {
-      throw new BadRequestException('Booking is not in AWAITING_CONFIRMATION state');
+    if (!['PENDING_CUSTOMER_CONFIRMATION', 'AWAITING_CONFIRMATION'].includes(rows[0].operational_status)) {
+      throw new BadRequestException('Booking is not in PENDING_CUSTOMER_CONFIRMATION state');
     }
     await this.dataSource.query(
       `UPDATE public.bookings
-       SET status='CANCELLED', notes=COALESCE($1, notes), updated_at=now()
-       WHERE id=$2`,
-      [reason ? `Rejected: ${reason}` : null, bookingId],
+       SET operational_status='CANCELLED', updated_at=now()
+       WHERE id=$1 AND tenant_id=$2`,
+      [bookingId, tenantId],
     );
+    await this.dataSource.query(
+      `INSERT INTO public.booking_status_history
+       (id, tenant_id, booking_id, previous_status, new_status, triggered_by, reason, created_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+       ON CONFLICT DO NOTHING`,
+      [
+        randomUUID(),
+        tenantId,
+        bookingId,
+        rows[0].operational_status,
+        'CANCELLED',
+        actorId,
+        reason ?? null,
+        new Date().toISOString(),
+      ],
+    ).catch(() => {});
     return { success: true };
   }
 
