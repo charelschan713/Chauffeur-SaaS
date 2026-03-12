@@ -168,6 +168,10 @@ export class PublicPricingService {
               final_fare_minor: finalTotal,
               grand_total_minor: finalTotal,
               minimum_applied: snapshot.minimum_applied ?? false,
+              leg1_minor: snapshot.leg1_minor ?? null,
+              leg2_minor: snapshot.leg2_minor ?? null,
+              combined_before_multiplier: snapshot.combined_before_multiplier ?? null,
+              trip_mode: dto.trip_mode,
             },
           };
         } catch {

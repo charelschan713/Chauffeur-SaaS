@@ -62,6 +62,18 @@ export function BookPageClient() {
       : null;
     carTypeIdRef.current = fromSearchParams || fromUrl;
   }
+  const bookingContextTokenRef = useRef<string | null>(null);
+  if (!bookingContextTokenRef.current) {
+    const fromSearchParams = searchParams.get('booking_context_token');
+    const fromUrl = typeof window !== 'undefined'
+      ? new URLSearchParams(window.location.search).get('booking_context_token')
+      : null;
+    bookingContextTokenRef.current = fromSearchParams || fromUrl;
+    if (bookingContextTokenRef.current && typeof window !== 'undefined') {
+      sessionStorage.setItem('book_context_token', bookingContextTokenRef.current);
+    }
+  }
+
   const quoteId   = quoteIdRef.current;
   const carTypeId = carTypeIdRef.current;
 
@@ -732,7 +744,7 @@ export function BookPageClient() {
                     <div className="absolute -left-5 mt-1 w-3 h-3 rounded-full bg-[hsl(var(--primary)/0.8)] border-2 border-[hsl(var(--background))] shrink-0" />
                     <div>
                       <p className="text-[10px] font-semibold uppercase tracking-widest text-[hsl(var(--muted-foreground)/0.6)] mb-0.5">Drop-off</p>
-                      <p className="text-[hsl(var(--foreground)/0.85)] leading-snug">{req.pickup_address}</p>
+                      <p className="text-[hsl(var(--foreground)/0.85)] leading-snug">{req.dropoff_address}</p>
                     </div>
                   </div>
                 </div>
@@ -772,6 +784,26 @@ export function BookPageClient() {
                     preview.pre_discount_fare_minor ?? preview.base_calculated_minor ?? 0,
                     selectedResult.currency
                   )}</span>
+                </div>
+              )}
+
+              {/* Return-trip leg breakdown (if provided by pricing snapshot) */}
+              {req.trip_mode === 'RETURN' && (preview.leg1_minor ?? 0) > 0 && (
+                <div className="flex justify-between text-[hsl(var(--muted-foreground))]">
+                  <span>Outbound leg</span>
+                  <span>{fmtMoney(preview.leg1_minor!, selectedResult.currency)}</span>
+                </div>
+              )}
+              {req.trip_mode === 'RETURN' && (preview.leg2_minor ?? 0) > 0 && (
+                <div className="flex justify-between text-[hsl(var(--muted-foreground))]">
+                  <span>Return leg</span>
+                  <span>{fmtMoney(preview.leg2_minor!, selectedResult.currency)}</span>
+                </div>
+              )}
+              {req.trip_mode === 'RETURN' && (preview.combined_before_multiplier ?? 0) > 0 && (
+                <div className="flex justify-between text-[hsl(var(--muted-foreground)/0.9)]">
+                  <span>Combined before trip rules</span>
+                  <span>{fmtMoney(preview.combined_before_multiplier!, selectedResult.currency)}</span>
                 </div>
               )}
 
@@ -1057,17 +1089,42 @@ export function BookPageClient() {
             {step === 'auth' && (
               <AuthGate
                 onLogin={() => setStep('login')}
-                onRegister={() => router.push(`/register?redirect=/book?quote_id=${quoteId}&car_type_id=${carTypeId}`)}
+                onRegister={() => {
+                  const ctx = bookingContextTokenRef.current || sessionStorage.getItem('book_context_token') || '';
+                  const target = `/book?quote_id=${quoteId}&car_type_id=${carTypeId}${ctx ? `&booking_context_token=${ctx}` : ''}`;
+                  router.push(`/register?redirect=${encodeURIComponent(target)}`);
+                }}
                 onGuest={() => setStep('guest')}
               />
             )}
 
-            {/* Inline login */}
+            {/* Login modal (multi-method) */}
             {step === 'login' && (
-              <InlineLoginForm
-                onSuccess={() => { setStep('details'); fetchLoyaltyDiscount(); }}
-                onBack={() => setStep('auth')}
-              />
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 p-4">
+                <div className="w-full max-w-md rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-5 shadow-2xl space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-semibold text-[hsl(var(--foreground))]">Sign In to Continue Booking</h3>
+                    <button
+                      type="button"
+                      onClick={() => setStep('auth')}
+                      className="text-xs text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]"
+                    >
+                      Close
+                    </button>
+                  </div>
+
+                  <InlineLoginForm
+                    onSuccess={() => {
+                      setStep('details');
+                      fetchLoyaltyDiscount();
+                      const u = new URL(window.location.href);
+                      ['token', 'access_token', 'auth', 'session'].forEach((p) => u.searchParams.delete(p));
+                      window.history.replaceState({}, '', u.toString());
+                    }}
+                    onBack={() => setStep('auth')}
+                  />
+                </div>
+              </div>
             )}
 
             {/* Guest details */}

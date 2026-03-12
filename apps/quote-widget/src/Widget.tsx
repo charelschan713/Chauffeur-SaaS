@@ -104,6 +104,8 @@ export function Widget({ slug }: { slug: string }) {
         luggage_count: bags,
         distance_km: route.distance_km,
         duration_minutes: route.duration_minutes,
+        return_distance_km: tripMode === 'RETURN' ? route.distance_km : undefined,
+        return_duration_minutes: tripMode === 'RETURN' ? route.duration_minutes : undefined,
       });
       setQuoteData(quote);
       setStep(2);
@@ -119,6 +121,7 @@ export function Widget({ slug }: { slug: string }) {
     const payload = {
       service_type_id: serviceTypeId,
       service_class_id: result.service_class_id,
+      trip_mode: tripMode,
       pickup_address: pickup,
       dropoff_address: dropoff,
       pickup_at_utc: localToUtc(datetime, tenant?.timezone ?? 'Australia/Sydney'),
@@ -128,6 +131,8 @@ export function Widget({ slug }: { slug: string }) {
       quoted_price_minor: result.estimated_total_minor,
       distance_km: result.distance_km,
       duration_minutes: result.duration_minutes,
+      return_distance_km: tripMode === 'RETURN' ? result.distance_km : undefined,
+      return_duration_minutes: tripMode === 'RETURN' ? result.duration_minutes : undefined,
       quoted_at: quoteData.quoted_at,
       quote_expires_at: quoteData.expires_at,
       currency: result.currency,

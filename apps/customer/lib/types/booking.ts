@@ -53,6 +53,10 @@ export interface QuotePricingSnapshot {
   baby_seats_minor?:      number;
   toll_minor?:            number;
   parking_minor?:         number;
+  leg1_minor?:            number;
+  leg2_minor?:            number;
+  combined_before_multiplier?: number;
+  trip_mode?:            'ONE_WAY' | 'RETURN' | string;
 }
 
 export interface QuoteResult {
