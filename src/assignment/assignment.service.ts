@@ -31,7 +31,7 @@ export class AssignmentService {
     const tollParkingMinor = tollMinor + parkingMinor;
     // ── Item 1: guard — booking must be CONFIRMED before dispatch ─────────────
     const bookings = await this.dataSource.query(
-      `SELECT total_price_minor, pricing_snapshot, operational_status
+      `SELECT total_price_minor, pricing_snapshot, operational_status, service_class_id
        FROM public.bookings
        WHERE id = $1 AND tenant_id = $2`,
       [bookingId, tenantId],
@@ -46,6 +46,37 @@ export class AssignmentService {
       );
     }
     const booking = bookings[0];
+
+    // ── Guard: driver must belong to tenant ───────────────────────────────
+    const driverCheck = await this.dataSource.query(
+      `SELECT 1 FROM public.memberships
+       WHERE user_id = $1 AND tenant_id = $2 AND role = 'driver' AND status = 'active'
+       LIMIT 1`,
+      [dto.driver_id, tenantId],
+    );
+    if (!driverCheck.length) throw new ForbiddenException('Driver not eligible for this tenant');
+
+    // ── Guard: vehicle must belong to tenant + be active ───────────────────
+    const vehicleCheck = await this.dataSource.query(
+      `SELECT tv.id, tv.platform_vehicle_id
+       FROM public.tenant_vehicles tv
+       WHERE tv.id = $1 AND tv.tenant_id = $2 AND tv.active = true AND tv.deleted_at IS NULL
+       LIMIT 1`,
+      [dto.vehicle_id, tenantId],
+    );
+    if (!vehicleCheck.length) throw new ForbiddenException('Vehicle not eligible for this tenant');
+
+    // ── Guard: vehicle must be compatible with booking service class ───────
+    if (booking.service_class_id) {
+      const compat = await this.dataSource.query(
+        `SELECT 1 FROM public.tenant_service_class_platform_vehicles
+         WHERE tenant_id = $1 AND service_class_id = $2 AND platform_vehicle_id = $3
+         LIMIT 1`,
+        [tenantId, booking.service_class_id, vehicleCheck[0].platform_vehicle_id],
+      );
+      if (!compat.length) throw new BadRequestException('Vehicle not compatible with booking service class');
+    }
+
     const snapshotTotal = booking.pricing_snapshot?.grand_total_minor ?? null;
     const customerTotal = Number(snapshotTotal ?? booking.total_price_minor ?? 0);
 
@@ -71,11 +102,11 @@ export class AssignmentService {
 
     const rows = await this.dataSource.query(
       `INSERT INTO public.assignments
-        (tenant_id, booking_id, driver_id, vehicle_id, status,
+        (tenant_id, booking_id, driver_id, vehicle_id, status, driver_execution_status,
          assignment_method, assigned_by, driver_pay_type, driver_pay_value,
          driver_pay_minor, platform_fee_minor, toll_parking_minor,
          toll_minor, parking_minor, offered_at, leg)
-       VALUES ($1,$2,$3,$4,'PENDING','MANUAL',$5,$6,$7,$8,$9,$10,$11,$12,now(),$13)
+       VALUES ($1,$2,$3,$4,'PENDING','assigned','MANUAL',$5,$6,$7,$8,$9,$10,$11,$12,now(),$13)
        RETURNING id`,
       [
         tenantId,
