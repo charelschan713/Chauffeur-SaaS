@@ -165,6 +165,14 @@ export default function CreateBookingPage() {
     },
   });
 
+  const { data: tenantBusiness } = useQuery({
+    queryKey: ['tenant-business'],
+    queryFn: async () => {
+      const res = await api.get('/tenants/business');
+      return res.data ?? null;
+    },
+  });
+
   const {
     register,
     handleSubmit,
@@ -385,15 +393,29 @@ export default function CreateBookingPage() {
       setQuote({ status: 'error', message: 'Please complete Service, Date & Time, and Route before quoting.' });
       return;
     }
+    if (values.is_return_trip && !values.return_pickup_at_utc) {
+      setQuote({ status: 'error', message: 'Return pickup time is required.' });
+      return;
+    }
+    const tenantSlug = tenantBusiness?.slug;
+    if (!tenantSlug) {
+      setQuote({ status: 'error', message: 'Tenant configuration missing (slug).' });
+      return;
+    }
+
     setQuote({ status: 'loading' });
     try {
-      const routeRes = await api.get('/maps/route', {
+      const outboundRoute = await api.get('/public/maps/route', {
         params: {
+          tenant_slug: tenantSlug,
           origin: values.pickup_address_text,
           destination: values.dropoff_address_text,
+          pickup_at: values.pickup_at_utc ? new Date(values.pickup_at_utc).toISOString() : undefined,
+          waypoints: waypoints.filter(Boolean),
         },
       });
-      if (!routeRes.data || !routeRes.data.distanceKm) {
+
+      if (!outboundRoute.data || !outboundRoute.data.distance_km) {
         setQuote({
           status: 'error',
           message: 'Route calculation unavailable. Please contact your administrator to configure Google Maps integration.',
@@ -401,34 +423,57 @@ export default function CreateBookingPage() {
         return;
       }
 
-      const classesRes = await api.get('/pricing/service-classes');
-      const classes = classesRes.data ?? [];
+      let returnRoute: { distance_km: number; duration_minutes: number } | null = null;
+      if (values.is_return_trip) {
+        const returnDestination = values.return_pickup_address_text?.trim() || values.pickup_address_text;
+        const returnRouteRes = await api.get('/public/maps/route', {
+          params: {
+            tenant_slug: tenantSlug,
+            origin: values.dropoff_address_text,
+            destination: returnDestination,
+            pickup_at: values.return_pickup_at_utc ? new Date(values.return_pickup_at_utc).toISOString() : undefined,
+          },
+        });
+        if (returnRouteRes.data?.distance_km) {
+          returnRoute = returnRouteRes.data;
+        }
+      }
 
+      const quoteRes = await api.post(`/public/pricing/quote?tenant_slug=${encodeURIComponent(tenantSlug)}`, {
+        service_type_id: values.service_type_id,
+        trip_mode: values.is_return_trip ? 'RETURN' : 'ONE_WAY',
+        pickup_address: values.pickup_address_text,
+        dropoff_address: values.dropoff_address_text,
+        pickup_at_utc: new Date(values.pickup_at_utc).toISOString(),
+        return_pickup_at_utc: values.return_pickup_at_utc ? new Date(values.return_pickup_at_utc).toISOString() : undefined,
+        return_pickup_address: values.return_pickup_address_text?.trim() || undefined,
+        timezone: values.timezone || 'Australia/Sydney',
+        passenger_count: values.passenger_count,
+        luggage_count: values.luggage_count ?? 0,
+        distance_km: outboundRoute.data.distance_km,
+        duration_minutes: outboundRoute.data.duration_minutes,
+        waypoints_count: waypoints.filter(Boolean).length,
+        return_distance_km: returnRoute?.distance_km,
+        return_duration_minutes: returnRoute?.duration_minutes,
+        return_waypoints_count: 0,
+        infant_seats: values.infant_seats ?? 0,
+        toddler_seats: values.toddler_seats ?? 0,
+        booster_seats: values.booster_seats ?? 0,
+      });
+
+      const results = quoteRes.data?.results ?? [];
       const estimates: Record<string, number> = {};
       const breakdowns: Record<string, any> = {};
-      for (const c of classes) {
-        const estimateRes = await api.post('/pricing/estimate', {
-          serviceClassId: c.id,
-          serviceTypeId: values.service_type_id,
-          distanceKm: routeRes.data.distanceKm,
-          durationMinutes: routeRes.data.durationMinutes,
-          waypointsCount: waypoints.filter(Boolean).length,
-          infant_seats: values.infant_seats ?? 0,
-          toddler_seats: values.toddler_seats ?? 0,
-          booster_seats: values.booster_seats ?? 0,
-          pickupAddress: values.pickup_address_text,
-          dropoffAddress: values.dropoff_address_text,
-          pickupAt: values.pickup_at_utc ? new Date(values.pickup_at_utc).toISOString() : undefined,
-          customerId: selectedCustomerId || undefined,
-        });
-        estimates[c.id] = estimateRes.data?.grand_total_minor ?? estimateRes.data?.total_minor ?? 0;
-        breakdowns[c.id] = estimateRes.data ?? {};
+      for (const r of results) {
+        const snap = r?.pricing_snapshot_preview ?? {};
+        estimates[r.service_class_id] = snap.final_fare_minor ?? r.estimated_total_minor ?? 0;
+        breakdowns[r.service_class_id] = snap;
       }
 
       setQuote({
         status: 'success',
-        distanceKm: routeRes.data.distanceKm,
-        durationMinutes: routeRes.data.durationMinutes,
+        distanceKm: outboundRoute.data.distance_km,
+        durationMinutes: outboundRoute.data.duration_minutes,
         estimates,
         breakdowns,
       });
@@ -751,6 +796,11 @@ export default function CreateBookingPage() {
                           {!(bd.toll_minor) && !(bd.parking_minor) && (bd.toll_parking_minor ?? 0) > 0 && (
                             <div className="flex justify-between text-amber-600">
                               <span>Tolls / Parking</span><span>+${toDisplay(bd.toll_parking_minor)}</span>
+                            </div>
+                          )}
+                          {(bd.discount_amount_minor ?? 0) > 0 && (
+                            <div className="flex justify-between text-emerald-600">
+                              <span>Discount</span><span>- ${toDisplay(bd.discount_amount_minor)}</span>
                             </div>
                           )}
                           <div className="flex justify-between text-blue-600 font-semibold pt-1 border-t border-gray-200 mt-1">
