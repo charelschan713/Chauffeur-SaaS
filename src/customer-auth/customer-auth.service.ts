@@ -194,21 +194,34 @@ export class CustomerAuthService {
   // ── OTP Verify ─────────────────────────────────────────────────────────────
   async verifyOtp(dto: { tenantSlug: string; phone: string; otp: string }) {
     const tenant = await this.getTenantBySlug(dto.tenantSlug);
-    // Strip country code if present
+
+    // Normalize phone to match sendOtp behavior
     let phoneNumber: string;
+    let fullPhone: string;
     if (dto.phone.startsWith('+')) {
       const match = dto.phone.match(/^(\+\d{1,3})(\d+)$/);
-      phoneNumber = match ? match[2] : dto.phone.replace(/^\+\d{1,3}/, '').replace(/^0/, '');
+      const code = match ? match[1] : '';
+      const number = match ? match[2] : dto.phone.replace(/^\+\d{1,3}/, '').replace(/^0/, '');
+      phoneNumber = number;
+      fullPhone = `${code}${number}`;
     } else {
       phoneNumber = dto.phone.replace(/^0/, '');
+      fullPhone = `+${phoneNumber}`;
     }
 
     const rows = await this.db.query(
       `SELECT ca.customer_id, ca.otp_code, ca.otp_expires_at
        FROM public.customer_auth ca
        JOIN public.customers c ON c.id = ca.customer_id
-       WHERE ca.tenant_id = $1 AND c.phone_number = $2`,
-      [tenant.id, phoneNumber],
+       WHERE ca.tenant_id = $1
+         AND (
+           ca.phone_number = $2
+           OR c.phone_number = $2
+           OR CONCAT(c.phone_country_code, c.phone_number) = $3
+         )
+       ORDER BY ca.last_otp_sent_at DESC NULLS LAST
+       LIMIT 1`,
+      [tenant.id, phoneNumber, fullPhone],
     );
     if (!rows.length) throw new UnauthorizedException('OTP not found');
     const r = rows[0];
