@@ -33,6 +33,7 @@ import { AuthGate }         from '@/components/book/AuthGate';
 import { InlineLoginForm }  from '@/components/book/InlineLoginForm';
 import { GuestActivateOtp } from '@/components/book/GuestActivateOtp';
 import { GuestForm }        from '@/components/book/GuestForm';
+import { BookedBySummary }  from '@/components/book/BookedBySummary';
 
 
 // ── Main component ─────────────────────────────────────────────────────────
@@ -42,7 +43,7 @@ type Step = 'loading' | 'auth' | 'login' | 'guest' | 'details' | 'done';
 export function BookPageClient() {
   const router       = useRouter();
   const searchParams = useSearchParams();
-  const { token, hydrate } = useAuthStore();
+  const { token, customerId, hydrate } = useAuthStore();
 
   // Read directly from window.location to avoid useSearchParams returning null during Stripe re-renders
   const quoteIdRef   = useRef<string | null>(null);
@@ -409,6 +410,7 @@ export function BookPageClient() {
           ? (passengerOverride.phoneCode + passengerOverride.phoneNumber).trim()
           : (passengerDetails.phoneCode + passengerDetails.phoneNumber).trim()
         ) || undefined,
+        ...(token && !guestData && customerId ? { customerId } : {}),
         ...(guestData && {
           guestCheckout: true,
           tenantSlug: process.env.NEXT_PUBLIC_TENANT_SLUG ?? 'aschauffeured',
@@ -1180,36 +1182,41 @@ export function BookPageClient() {
 
                 {/* submitError shown in sticky toast at top of page — see below */}
 
-                {/* ── Your Details ── */}
-                <div className="space-y-4">
-                  <h2 className="font-semibold text-[hsl(var(--foreground))]">Your Details</h2>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1.5">
-                      <Label>First Name *</Label>
-                      <Input value={passengerDetails.firstName} onChange={e => setPassengerDetails(p => ({ ...p, firstName: e.target.value }))} placeholder="John" required />
+                {/* ── Your Details / Booked By ── */}
+                {!token && (
+                  <div className="space-y-4">
+                    <h2 className="font-semibold text-[hsl(var(--foreground))]">Your Details</h2>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1.5">
+                        <Label>First Name *</Label>
+                        <Input value={passengerDetails.firstName} onChange={e => setPassengerDetails(p => ({ ...p, firstName: e.target.value }))} placeholder="John" required />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label>Last Name *</Label>
+                        <Input value={passengerDetails.lastName} onChange={e => setPassengerDetails(p => ({ ...p, lastName: e.target.value }))} placeholder="Smith" required />
+                      </div>
                     </div>
                     <div className="space-y-1.5">
-                      <Label>Last Name *</Label>
-                      <Input value={passengerDetails.lastName} onChange={e => setPassengerDetails(p => ({ ...p, lastName: e.target.value }))} placeholder="Smith" required />
+                      <Label>Email *</Label>
+                      <Input type="email" value={passengerDetails.email}
+                        onChange={e => setPassengerDetails(p => ({ ...p, email: e.target.value }))}
+                        placeholder="you@email.com" required={!!guestData}
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Phone <span className="text-[hsl(var(--muted-foreground))] font-normal normal-case">(optional)</span></Label>
+                      <div className="flex gap-2">
+                        <PhoneCountrySelect value={passengerDetails.phoneCode} onChange={v => setPassengerDetails(p => ({ ...p, phoneCode: v }))} className="w-28 shrink-0" />
+                        <Input type="tel" className="flex-1" value={passengerDetails.phoneNumber} onChange={e => setPassengerDetails(p => ({ ...p, phoneNumber: e.target.value }))} placeholder="400 000 000" />
+                      </div>
                     </div>
                   </div>
-                  <div className="space-y-1.5">
-                    <Label>Email *</Label>
-                    <Input type="email" value={passengerDetails.email}
-                      onChange={e => setPassengerDetails(p => ({ ...p, email: e.target.value }))}
-                      placeholder="you@email.com" required={!!guestData}
-                      readOnly={!!token && !guestData}
-                      className={token && !guestData ? 'opacity-60 cursor-default' : ''}
-                    />
+                )}
+                {token && (
+                  <div className="space-y-2">
+                    <BookedBySummary />
                   </div>
-                  <div className="space-y-1.5">
-                    <Label>Phone <span className="text-[hsl(var(--muted-foreground))] font-normal normal-case">(optional)</span></Label>
-                    <div className="flex gap-2">
-                      <PhoneCountrySelect value={passengerDetails.phoneCode} onChange={v => setPassengerDetails(p => ({ ...p, phoneCode: v }))} className="w-28 shrink-0" />
-                      <Input type="tel" className="flex-1" value={passengerDetails.phoneNumber} onChange={e => setPassengerDetails(p => ({ ...p, phoneNumber: e.target.value }))} placeholder="400 000 000" />
-                    </div>
-                  </div>
-                </div>
+                )}
 
                 {/* ── Passenger ── */}
                 <div className="space-y-3 border-t border-[hsl(var(--border))] pt-5">
@@ -1231,6 +1238,34 @@ export function BookPageClient() {
                     </label>
                   </div>
 
+                  {samePassenger && (
+                    <div className="space-y-3 pt-1">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1.5">
+                          <Label>Passenger First Name *</Label>
+                          <Input value={passengerDetails.firstName} onChange={e => setPassengerDetails(p => ({ ...p, firstName: e.target.value }))} placeholder="John" required />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label>Passenger Last Name *</Label>
+                          <Input value={passengerDetails.lastName} onChange={e => setPassengerDetails(p => ({ ...p, lastName: e.target.value }))} placeholder="Smith" required />
+                        </div>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label>Passenger Email *</Label>
+                        <Input type="email" value={passengerDetails.email}
+                          onChange={e => setPassengerDetails(p => ({ ...p, email: e.target.value }))}
+                          placeholder="you@email.com" required
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label>Passenger Phone <span className="text-[hsl(var(--muted-foreground))] font-normal normal-case">(optional)</span></Label>
+                        <div className="flex gap-2">
+                          <PhoneCountrySelect value={passengerDetails.phoneCode} onChange={v => setPassengerDetails(p => ({ ...p, phoneCode: v }))} className="w-28 shrink-0" />
+                          <Input type="tel" className="flex-1" value={passengerDetails.phoneNumber} onChange={e => setPassengerDetails(p => ({ ...p, phoneNumber: e.target.value }))} placeholder="400 000 000" />
+                        </div>
+                      </div>
+                    </div>
+                  )}
                   {!samePassenger && (
                     <div className="space-y-3 pt-1">
                       <div className="grid grid-cols-2 gap-3">
