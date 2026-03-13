@@ -23,7 +23,33 @@ interface QuoteResult {
   currency: string;
   distance_km: number;
   duration_minutes: number;
-  pricing_snapshot_preview: Record<string, unknown>;
+  pricing_snapshot_preview: {
+    leg1_minor?: number | null;
+    leg2_minor?: number | null;
+    combined_before_multiplier?: number | null;
+    multiplier_mode?: string | null;
+    multiplier_value?: number | null;
+    pre_discount_total_minor?: number;
+    surcharge_minor?: number;
+    surcharge_labels?: string[];
+    time_surcharge_minor?: number;
+    waypoints_minor?: number;
+    baby_seats_minor?: number;
+    trip_mode?: 'ONE_WAY' | 'RETURN' | string;
+    grand_total_minor?: number;
+    final_fare_minor?: number;
+    toll_minor?: number;
+    parking_minor?: number;
+    toll_parking_minor?: number;
+    leg1_minor?: number;
+    leg2_minor?: number;
+    combined_before_multiplier?: number;
+    multiplier_mode?: string;
+    multiplier_value?: number;
+    discount_type?: string;
+    discount_value?: number;
+    discount_amount_minor?: number;
+  };
 }
 
 interface QuoteData {
@@ -35,6 +61,18 @@ interface QuoteData {
 
 function fmt(minor: number, currency: string) {
   return `${currency} ${(minor / 100).toFixed(2)}`;
+}
+
+function toMoney(value: unknown, currency: string) {
+  const minor = typeof value === 'number' && Number.isFinite(value) ? value : 0;
+  return fmt(minor, currency);
+}
+
+function returnRuleLabel(mode?: string | null, value?: number | null) {
+  if (!mode || !value) return null;
+  if (mode === 'PERCENTAGE') return `${value}% return rule`;
+  if (mode === 'ADD_FIXED') return `+${fmt(value, '')} fixed surcharge`;
+  return `${value} ${mode.replace('_', ' ').toLowerCase()} return rule`;
 }
 
 function localToUtc(localDatetime: string, tz: string): string {
@@ -63,6 +101,7 @@ export function Widget({ slug }: { slug: string }) {
   const [pax, setPax] = useState(2);
   const [bags, setBags] = useState(1);
   const [tripMode, setTripMode] = useState<'ONE_WAY' | 'RETURN'>('ONE_WAY');
+  const allowReturnTrip = tenant?.booking_entry?.allow_return_trip ?? true;
 
   // Quote result
   const [quoteData, setQuoteData] = useState<QuoteData | null>(null);
@@ -117,31 +156,14 @@ export function Widget({ slug }: { slug: string }) {
   }
 
   function handleBookNow(result: QuoteResult) {
-    if (!quoteData || !routeData) return;
-    const payload = {
-      service_type_id: serviceTypeId,
-      service_class_id: result.service_class_id,
-      trip_mode: tripMode,
-      pickup_address: pickup,
-      dropoff_address: dropoff,
-      pickup_at_utc: localToUtc(datetime, tenant?.timezone ?? 'Australia/Sydney'),
-      timezone: tenant?.timezone ?? 'Australia/Sydney',
-      passenger_count: pax,
-      luggage_count: bags,
-      quoted_price_minor: result.estimated_total_minor,
-      distance_km: result.distance_km,
-      duration_minutes: result.duration_minutes,
-      return_distance_km: tripMode === 'RETURN' ? result.distance_km : undefined,
-      return_duration_minutes: tripMode === 'RETURN' ? result.duration_minutes : undefined,
-      quoted_at: quoteData.quoted_at,
-      quote_expires_at: quoteData.expires_at,
-      currency: result.currency,
-    };
+    if (!quoteData || !routeData || !quoteData.quote_id) return;
 
-    // Build URL params — URL params are the sole source of truth.
-    // sessionStorage is cross-origin isolated and will be empty after redirect.
-    const params = new URLSearchParams();
-    Object.entries(payload).forEach(([k, v]) => params.set(k, String(v)));
+    // Handoff contract for public booking page requires stable quote/carmap identifiers,
+    // not a full quote payload in URL (to avoid fragile shared-field coupling).
+    const params = new URLSearchParams({
+      quote_id: quoteData.quote_id,
+      car_type_id: result.service_class_id,
+    });
 
     // Portal base URL resolution (priority order):
     // 1. VITE_PORTAL_BASE_URL build-time env (e.g. https://aschauffeured.chauffeurssolution.com)
@@ -313,6 +335,62 @@ export function Widget({ slug }: { slug: string }) {
                     {fmt(r.estimated_total_minor, r.currency)}
                   </div>
                   <div style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>Estimated price</div>
+                  {r.pricing_snapshot_preview?.leg1_minor != null && r.pricing_snapshot_preview?.leg2_minor != null ? (
+                    <div
+                      style={{
+                        marginTop: 8,
+                        fontSize: 12,
+                        color: '#374151',
+                        lineHeight: 1.35,
+                        display: 'grid',
+                        gap: 2,
+                        width: 220,
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <span>Outbound price</span>
+                        <span>{toMoney(r.pricing_snapshot_preview.leg1_minor, r.currency)}</span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <span>Return price</span>
+                        <span>{toMoney(r.pricing_snapshot_preview.leg2_minor, r.currency)}</span>
+                      </div>
+                      {(r.pricing_snapshot_preview.combined_before_multiplier ?? 0) > 0 && (
+                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                          <span>Combined before return rule</span>
+                          <span>{toMoney(r.pricing_snapshot_preview.combined_before_multiplier, r.currency)}</span>
+                        </div>
+                      )}
+                      {returnRuleLabel(r.pricing_snapshot_preview.multiplier_mode, r.pricing_snapshot_preview.multiplier_value) && (
+                        <div style={{ display: 'flex', justifyContent: 'space-between', color: '#0f766e' }}>
+                          <span>Return trip rule</span>
+                          <span>{returnRuleLabel(r.pricing_snapshot_preview.multiplier_mode, r.pricing_snapshot_preview.multiplier_value)}</span>
+                        </div>
+                      )}
+                      {(r.pricing_snapshot_preview.toll_minor ?? 0) > 0 && (
+                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                          <span>Tolls (combined)</span>
+                          <span>+{toMoney(r.pricing_snapshot_preview.toll_minor, r.currency)}</span>
+                        </div>
+                      )}
+                      {(r.pricing_snapshot_preview.parking_minor ?? 0) > 0 && (
+                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                          <span>Parking (combined)</span>
+                          <span>+{toMoney(r.pricing_snapshot_preview.parking_minor, r.currency)}</span>
+                        </div>
+                      )}
+                      {r.pricing_snapshot_preview.discount_amount_minor > 0 && (
+                        <div style={{ display: 'flex', justifyContent: 'space-between', color: '#047857' }}>
+                          <span>Discount</span>
+                          <span>-{toMoney(r.pricing_snapshot_preview.discount_amount_minor, r.currency)}</span>
+                        </div>
+                      )}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 700, marginTop: 2 }}>
+                        <span>Total</span>
+                        <span>{toMoney(r.pricing_snapshot_preview.final_fare_minor ?? r.estimated_total_minor, r.currency)}</span>
+                      </div>
+                    </div>
+                  ) : null}
                 </div>
                 <button
                   onClick={() => handleBookNow(r)}

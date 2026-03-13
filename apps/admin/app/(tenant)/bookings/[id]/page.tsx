@@ -26,10 +26,10 @@ import { formatStatus } from '@/lib/ui/formatStatus';
 import { TripEvidencePanel } from '@/components/TripEvidencePanel';
 
 // Statuses that allow cancellation
-const CANCELABLE_STATUSES = new Set(['DRAFT', 'PENDING', 'CONFIRMED', 'ASSIGNED', 'AWAITING_CONFIRMATION', 'PENDING_CUSTOMER_CONFIRMATION']);
+const CANCELABLE_STATUSES = new Set(['DRAFT', 'PENDING', 'CONFIRMED', 'ASSIGNED', 'AWAITING_CONFIRMATION', 'PENDING_CUSTOMER_CONFIRMATION', 'FULFILLED']);
 
 // Statuses where assignment actions make no sense
-const NO_ASSIGN_STATUSES = new Set(['CANCELLED', 'COMPLETED', 'JOB_COMPLETED', 'NO_SHOW']);
+const NO_ASSIGN_STATUSES = new Set(['CANCELLED', 'COMPLETED', 'FULFILLED', 'JOB_COMPLETED', 'NO_SHOW']);
 
 const PAY_BADGE: Record<string, 'neutral' | 'warning' | 'success' | 'danger'> = {
   UNPAID: 'warning',
@@ -118,6 +118,13 @@ function BookingDetailInner() {
 
   const booking = data?.booking;
   const assignments = data?.assignments ?? [];
+  const pricingSnapshot = booking?.pricing_snapshot as Record<string, any> | null | undefined;
+  const hasReturnLegs = !!(booking?.trip_mode === 'RETURN' && (pricingSnapshot?.leg1_minor || pricingSnapshot?.leg2_minor));
+  const assignLegFareMinor =
+    assignLeg === 'A'
+      ? (hasReturnLegs ? (pricingSnapshot?.leg1_minor ?? pricingSnapshot?.base_fare_minor ?? pricingSnapshot?.final_fare_minor ?? booking?.total_price_minor ?? 0) : (pricingSnapshot?.final_fare_minor ?? pricingSnapshot?.base_fare_minor ?? booking?.total_price_minor ?? 0))
+      : (hasReturnLegs ? (pricingSnapshot?.leg2_minor ?? 0) : (pricingSnapshot?.final_fare_minor ?? booking?.total_price_minor ?? 0));
+
   const latestAssignment = useMemo(() => assignments.at(0), [assignments]);
   const legAAssignment = useMemo(() => assignments.find((a: any) => a.leg === 'A' || !a.leg) ?? assignments.at(0), [assignments]);
   const legBAssignment = useMemo(() => assignments.find((a: any) => a.leg === 'B'), [assignments]);
@@ -582,27 +589,64 @@ function BookingDetailInner() {
           <Card title="Booking Info">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-700">
               <InfoRow label="Reference" value={booking.booking_reference} />
+              <InfoRow label="Trip Type" value={booking.is_return_trip ? 'Return Trip' : 'One Way'} />
               <InfoRow label="Service Type" value={booking.service_type_name ?? '—'} />
               <InfoRow label="Car Type" value={booking.service_class_name ?? '—'} />
               <InfoRow label="Pickup Time" value={formatPickupTime(booking.pickup_at_utc, booking.timezone, booking.city_name)} />
               {booking.return_pickup_at_utc && (
                 <InfoRow label="Return Time" value={formatPickupTime(booking.return_pickup_at_utc, booking.timezone, booking.city_name)} />
               )}
+              {(booking.distance_km != null) && (
+                <InfoRow label="Distance" value={`${booking.distance_km} km`} />
+              )}
+              {(booking.duration_minutes != null) && (
+                <InfoRow label="Duration" value={`${booking.duration_minutes} min`} />
+              )}
             </div>
           </Card>
 
           <Card title="Route">
             <div className="space-y-2 text-sm text-gray-700">
-              <div><span className="text-gray-500">Pickup:</span> {booking.pickup_address_text}</div>
-              <div><span className="text-gray-500">Dropoff:</span> {booking.dropoff_address_text}</div>
+              <div><span className="text-gray-500">Outbound pickup:</span> {booking.pickup_address_text}</div>
+              <div><span className="text-gray-500">Outbound drop-off:</span> {booking.dropoff_address_text}</div>
               {booking.waypoints && booking.waypoints.length > 0 && (
                 <div>
-                  <div className="text-gray-500 mb-1">Waypoints:</div>
+                  <div className="text-gray-500 mb-1">Outbound waypoints:</div>
                   <ul className="list-disc pl-5 space-y-1">
                     {booking.waypoints.map((wp: any, idx: number) => (
                       <li key={idx}>{wp?.address ?? wp?.address_text ?? wp}</li>
                     ))}
                   </ul>
+                </div>
+              )}
+
+              {booking.is_return_trip && (
+                <div className="pt-3 border-t border-gray-200/70">
+                  <div className="text-gray-500 text-xs uppercase tracking-wider mb-1">Return Leg (Leg B)</div>
+                  <div>
+                    <span className="text-gray-500">Return pickup:</span>{' '}
+                    {booking.return_pickup_address_text ?? booking.dropoff_address_text}
+                  </div>
+                  <div>
+                    <span className="text-gray-500">Return drop-off:</span>{' '}
+                    {booking.pickup_address_text}
+                  </div>
+                  {booking.return_distance_km != null && (
+                    <div><span className="text-gray-500">Return distance:</span> {booking.return_distance_km} km</div>
+                  )}
+                  {booking.return_duration_minutes != null && (
+                    <div><span className="text-gray-500">Return duration:</span> {booking.return_duration_minutes} min</div>
+                  )}
+                  {booking.return_waypoints && booking.return_waypoints.length > 0 ? (
+                    <div className="mt-2">
+                      <div className="text-gray-500 mb-1">Return waypoints:</div>
+                      <ul className="list-disc pl-5 space-y-1">
+                        {booking.return_waypoints.map((wp: any, idx: number) => (
+                          <li key={idx}>{wp?.address ?? wp?.address_text ?? wp}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null}
                 </div>
               )}
             </div>
@@ -639,36 +683,80 @@ function BookingDetailInner() {
                   const snap = booking.pricing_snapshot;
                   const cur = booking.currency ?? 'AUD';
                   const fmt = (v: number) => `${cur} ${(v / 100).toFixed(2)}`;
-                  // pre_discount_fare_minor = fare before discount (includes base + distance + waypoints + seats, NO toll)
-                  // Waypoints and baby seats are already merged into pre_discount_fare_minor — do NOT show separately
-                  const baseFare = snap.pre_discount_fare_minor ?? snap.base_calculated_minor ?? snap.base_fare_minor ?? snap.base_price_minor ?? 0;
+                  const toMoney = (value: unknown) =>
+                    fmt(typeof value === 'number' && Number.isFinite(value) ? value : 0);
+                  const returnLabel =
+                    snap.multiplier_mode && snap.multiplier_value
+                      ? snap.multiplier_mode === 'PERCENTAGE'
+                        ? `${snap.multiplier_value}% return rule`
+                        : `${snap.multiplier_value} return surcharge`
+                      : null;
+                  const hasReturnLegs =
+                    (snap.leg1_minor != null && snap.leg2_minor != null) &&
+                    (snap.leg1_minor !== 0 || snap.leg2_minor !== 0);
+                  const baseFare = snap.pre_discount_fare_minor ?? snap.base_calculated_minor ?? 0;
+                  const outboundPriceMinor =
+                    hasReturnLegs
+                      ? (typeof snap.leg1_minor === 'number' ? snap.leg1_minor : baseFare)
+                      : baseFare;
+                  const returnRuleMinor =
+                    typeof snap.multiplier_mode === 'string' &&
+                    snap.multiplier_mode === 'ADD_FIXED' &&
+                    typeof snap.multiplier_value === 'number' && Number.isFinite(snap.multiplier_value)
+                      ? Math.max(0, Math.round(snap.multiplier_value))
+                      : typeof snap.multiplier_mode === 'string' &&
+                        snap.multiplier_mode === 'PERCENTAGE' &&
+                        typeof snap.multiplier_value === 'number' &&
+                        Number.isFinite(snap.multiplier_value)
+                        ? Math.max(0, Math.round((Number(snap.combined_before_multiplier ?? 0) * snap.multiplier_value) / 100))
+                        : 0;
                   const discountMinor = snap.discount_amount_minor ?? snap.discount_minor ?? 0;
                   const tollMinor = snap.toll_minor ?? 0;
                   const parkingMinor = snap.parking_minor ?? 0;
-                  return (<>
-                    {/* 1. Base fare (pre-discount, includes waypoints+seats, NO toll) */}
-                    {baseFare > 0 && <div className="flex justify-between"><span className="text-gray-500">Base Fare</span><span>{fmt(baseFare)}</span></div>}
-                    {/* 2. Surcharges */}
-                    {(snap.time_surcharge_minor ?? 0) > 0 && <div className="flex justify-between"><span className="text-gray-500">Time Surcharge</span><span>+{fmt(snap.time_surcharge_minor)}</span></div>}
-                    {snap.surcharge_items?.map((item: { label: string; amount_minor: number }, i: number) => (
-                      <div key={i} className="flex justify-between"><span className="text-gray-500">{item.label}</span><span>+{fmt(item.amount_minor)}</span></div>
-                    ))}
-                    {/* 3. Discount (fare only — toll NOT discounted) */}
-                    {discountMinor > 0 && (
-                      <div className="flex justify-between text-green-600"><span>Discount</span><span>− {fmt(discountMinor)}</span></div>
-                    )}
-                    {/* 4. Toll / Parking (added AFTER discount, never discounted) */}
-                    {tollMinor > 0 && <div className="flex justify-between"><span className="text-gray-500">Road Tolls</span><span>+{fmt(tollMinor)}</span></div>}
-                    {parkingMinor > 0 && <div className="flex justify-between"><span className="text-gray-500">Airport Parking</span><span>+{fmt(parkingMinor)}</span></div>}
-                    {tollMinor === 0 && parkingMinor === 0 && (snap.toll_parking_minor ?? 0) > 0 && (
-                      <div className="flex justify-between"><span className="text-gray-500">Tolls / Parking</span><span>+{fmt(snap.toll_parking_minor)}</span></div>
-                    )}
-                    {/* 5. Total */}
-                    <div className="flex justify-between font-semibold border-t pt-1 mt-1">
-                      <span>Total</span>
-                      <span>{fmt(snap.grand_total_minor ?? snap.final_fare_minor ?? booking.total_price_minor ?? 0)}</span>
-                    </div>
-                  </>);
+                  return (
+                    <>
+                      {/* 1. Fare legs */}
+                      {outboundPriceMinor > 0 && <div className="flex justify-between"><span className="text-gray-500">Outbound price</span><span>{fmt(outboundPriceMinor)}</span></div>}
+
+                      {/* 2. Return leg composition */}
+                      {hasReturnLegs && (
+                        <>
+                          <div className="mt-2 pt-2 border-t border-gray-200/70"></div>
+                          {snap.leg2_minor != null && snap.leg2_minor > 0 && <div className="flex justify-between"><span className="text-gray-500">Return price</span><span>{toMoney(snap.leg2_minor)}</span></div>}
+                          {(snap.combined_before_multiplier ?? 0) > 0 && (
+                            <div className="flex justify-between"><span className="text-gray-500">Combined before return rule</span><span>{toMoney(snap.combined_before_multiplier)}</span></div>
+                          )}
+                          {returnLabel && returnRuleMinor > 0 && (
+                            <div className="flex justify-between text-gray-500"><span>{returnLabel}</span><span>+{fmt(returnRuleMinor)}</span></div>
+                          )}
+                        </>
+                      )}
+
+                      {/* 3. Surcharges */}
+                      {(snap.time_surcharge_minor ?? 0) > 0 && <div className="flex justify-between"><span className="text-gray-500">Time Surcharge</span><span>+{fmt(snap.time_surcharge_minor)}</span></div>}
+                      {snap.surcharge_items?.map((item: { label: string; amount_minor: number }, i: number) => (
+                        <div key={i} className="flex justify-between"><span className="text-gray-500">{item.label}</span><span>+{fmt(item.amount_minor)}</span></div>
+                      ))}
+
+                      {/* 4. Discount (fare only — toll NOT discounted) */}
+                      {discountMinor > 0 && (
+                        <div className="flex justify-between text-green-600"><span>Discount</span><span>− {fmt(discountMinor)}</span></div>
+                      )}
+
+                      {/* 5. Toll / Parking (added AFTER discount, never discounted) */}
+                      {tollMinor > 0 && <div className="flex justify-between"><span className="text-gray-500">{hasReturnLegs ? "Tolls (combined)" : "Road tolls"}</span><span>+{fmt(tollMinor)}</span></div>}
+                      {parkingMinor > 0 && <div className="flex justify-between"><span className="text-gray-500">{hasReturnLegs ? "Parking (combined)" : "Airport parking"}</span><span>+{fmt(parkingMinor)}</span></div>}
+                      {tollMinor === 0 && parkingMinor === 0 && (snap.toll_parking_minor ?? 0) > 0 && (
+                        <div className="flex justify-between"><span className="text-gray-500">Tolls / Parking</span><span>+{fmt(snap.toll_parking_minor)}</span></div>
+                      )}
+
+                      {/* 6. Total (authoritative) */}
+                      <div className="flex justify-between font-semibold border-t pt-1 mt-1">
+                        <span>Total</span>
+                        <span>{fmt(snap.final_fare_minor ?? snap.grand_total_minor ?? booking.total_price_minor ?? 0)}</span>
+                      </div>
+                    </>
+                  );
                 })()}
                 {data?.payments?.summary && (
                   <div className="flex justify-between text-xs text-gray-500 pt-1">
@@ -881,7 +969,7 @@ function BookingDetailInner() {
                   Cancel Booking
                 </Button>
               ) : (
-                !['CANCELLED', 'COMPLETED', 'JOB_COMPLETED'].includes(booking.operational_status) && (
+                !['CANCELLED', 'COMPLETED', 'FULFILLED', 'JOB_COMPLETED'].includes(booking.operational_status) && (
                   <Button variant="ghost" disabled className="cursor-not-allowed opacity-50">
                     Cancel Booking
                   </Button>
@@ -1032,7 +1120,7 @@ function BookingDetailInner() {
         onClose={() => setAssignPartnerOpen(false)}
         bookingId={booking?.id ?? ''}
         leg={assignLeg}
-        fareMinor={booking?.pricing_snapshot?.final_fare_minor ?? booking?.pricing_snapshot?.base_fare_minor ?? booking?.total_price_minor ?? 0}
+        fareMinor={assignLegFareMinor}
         tollMinor={booking?.pricing_snapshot?.toll_minor ?? 0}
         parkingMinor={booking?.pricing_snapshot?.parking_minor ?? 0}
         totalPriceMinor={booking?.total_price_minor ?? 0}
@@ -1051,7 +1139,7 @@ function BookingDetailInner() {
         bookingId={booking?.id ?? ''}
         leg={assignLeg}
         carTypeId={booking?.service_class_id ?? null}
-        fareMinor={booking?.pricing_snapshot?.final_fare_minor ?? booking?.pricing_snapshot?.base_fare_minor ?? booking?.total_price_minor ?? 0}
+        fareMinor={assignLegFareMinor}
         tollMinor={booking?.pricing_snapshot?.toll_minor ?? 0}
         parkingMinor={booking?.pricing_snapshot?.parking_minor ?? 0}
         totalPriceMinor={booking?.total_price_minor ?? 0}
@@ -1083,8 +1171,14 @@ function BookingDetailInner() {
         onClose={() => setFulfilOpen(false)}
         bookingId={booking?.id ?? ''}
         bookingRef={booking?.booking_reference ?? ''}
-        originalMinor={booking?.total_price_minor ?? 0}
+        originalMinor={booking?.pricing_snapshot?.final_fare_minor ?? booking?.pricing_snapshot?.grand_total_minor ?? booking?.total_price_minor ?? 0}
         currency={booking?.currency ?? 'AUD'}
+        leg1Minor={booking?.pricing_snapshot?.leg1_minor}
+        leg2Minor={booking?.pricing_snapshot?.leg2_minor}
+        combinedBeforeMultiplier={booking?.pricing_snapshot?.combined_before_multiplier}
+        multiplierMode={booking?.pricing_snapshot?.multiplier_mode}
+        multiplierValue={booking?.pricing_snapshot?.multiplier_value}
+        bookingSnapshot={booking}
         driverReport={driverReport}
         onFulfilled={() => {
           setFulfilOpen(false);

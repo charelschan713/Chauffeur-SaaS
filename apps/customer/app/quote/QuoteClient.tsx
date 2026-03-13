@@ -37,10 +37,26 @@ type QuoteResult = {
   estimated_total_minor: number; currency: string;
   discount?: { name: string; type: string; value: number; discount_minor: number; capped_by_max: boolean } | null;
   pricing_snapshot_preview: {
-    base_calculated_minor: number; toll_parking_minor: number;
-    surcharge_labels?: string[]; pre_discount_total_minor?: number; pre_discount_fare_minor?: number;
-    discount_amount_minor: number; grand_total_minor: number; minimum_applied: boolean;
-    waypoints_minor?: number; baby_seats_minor?: number; extras_minor?: number;
+    base_calculated_minor: number;
+    toll_parking_minor: number;
+    surcharge_labels?: string[];
+    surcharge_items?: { label: string; amount_minor: number }[];
+    pre_discount_total_minor?: number;
+    pre_discount_fare_minor?: number;
+    discount_amount_minor: number;
+    grand_total_minor: number;
+    minimum_applied: boolean;
+    waypoints_minor?: number;
+    baby_seats_minor?: number;
+    extras_minor?: number;
+    toll_minor?: number;
+    parking_minor?: number;
+    time_surcharge_minor?: number;
+    leg1_minor?: number;
+    leg2_minor?: number;
+    combined_before_multiplier?: number;
+    multiplier_mode?: string;
+    multiplier_value?: number;
   };
 };
 
@@ -748,15 +764,28 @@ export function QuoteClient() {
                           </div>
                         </div>
                       </div>
-                      {/* Specs row */}
-                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-3 text-[11px] text-gray-400">
-                        {(carType?.max_passengers??0)>0 && <span className="flex items-center gap-1"><svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>Up to {carType!.max_passengers} passengers</span>}
-                        {(carType?.luggage_capacity??0)>0 && <span className="flex items-center gap-1"><svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>{carType!.luggage_capacity} bags</span>}
-                        {preview.toll_parking_minor>0 && <span>Incl. {fmtMoney(preview.toll_parking_minor,currency)} tolls</span>}
-                        {(preview.waypoints_minor??0)>0 && <span className="text-gray-500">+{fmtMoney(preview.waypoints_minor!,currency)} stops</span>}
-                        {(preview.baby_seats_minor??0)>0 && <span className="text-gray-500">+{fmtMoney(preview.baby_seats_minor!,currency)} seats</span>}
-                        {(preview.surcharge_labels?.length??0)>0 && <span className="flex items-center gap-1 text-amber-400/80"><svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>{preview.surcharge_labels!.join(', ')} surcharge incl.</span>}
-                      </div>
+                        {/* Specs row */}
+                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-3 text-[11px] text-gray-400">
+                          {(carType?.max_passengers??0)>0 && <span className="flex items-center gap-1"><svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>Up to {carType!.max_passengers} passengers</span>}
+                          {(carType?.luggage_capacity??0)>0 && <span className="flex items-center gap-1"><svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>{carType!.luggage_capacity} bags</span>}
+
+                          {(preview.leg1_minor != null && preview.leg2_minor != null) ? (
+                            <>
+                              <span className="text-gray-500">Outbound: {fmtMoney(preview.leg1_minor, currency)}</span>
+                              <span className="text-gray-500">Return: {fmtMoney(preview.leg2_minor, currency)}</span>
+                              {(preview.combined_before_multiplier ?? 0) > 0 && <span className="text-gray-500">Combined before return rule {fmtMoney(preview.combined_before_multiplier ?? 0, currency)}</span>}
+                            </>
+                          ) : (
+                            <span className="text-gray-500">One-way pricing</span>
+                          )}
+                          {(preview.toll_minor ?? 0) > 0 && <span className="text-gray-500">Tolls: +{fmtMoney(preview.toll_minor!, currency)}</span>}
+                          {(preview.parking_minor ?? 0) > 0 && <span className="text-gray-500">Parking: +{fmtMoney(preview.parking_minor!, currency)}</span>}
+                          {(preview.toll_parking_minor>0 && !(preview.toll_minor ?? 0) && !(preview.parking_minor ?? 0)) && <span>Incl. {fmtMoney(preview.toll_parking_minor,currency)} tolls / parking</span>}
+                          {(preview.waypoints_minor??0)>0 && <span className="text-gray-500">+{fmtMoney(preview.waypoints_minor!,currency)} stops</span>}
+                          {(preview.baby_seats_minor??0)>0 && <span className="text-gray-500">+{fmtMoney(preview.baby_seats_minor!,currency)} seats</span>}
+                          {(preview.surcharge_labels?.length??0)>0 && <span className="flex items-center gap-1 text-amber-400/80"><svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>{preview.surcharge_labels!.join(
+)} surcharge incl.</span>}
+                        </div>
                       {carType?.description && <p className="mt-2 text-[11px] text-gray-400 line-clamp-1">{carType.description}</p>}
                     </div>
                     {isSelected && <div className="h-px bg-gradient-to-r from-transparent via-[hsl(var(--primary)/0.6)] to-transparent"/>}

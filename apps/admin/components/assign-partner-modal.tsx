@@ -131,7 +131,7 @@ export function AssignPartnerModal({
             </h4>
             <div className="bg-gray-50 rounded-lg p-4 space-y-2 text-sm">
               <div className="flex justify-between">
-                <span className="text-gray-600">Base Fare</span>
+                <span className="text-gray-600">{leg === 'B' ? `Return Fare` : `Outbound Fare`}</span>
                 <span className="font-medium">{formatMinor(fareMinor, currency)}</span>
               </div>
               <div className="flex justify-between">

@@ -6,6 +6,7 @@ import { cn, fmtMoney } from '@/lib/utils';
 import { ArrowLeft, MapPin, CalendarDays, Car, User, Phone, AlertCircle, CheckCircle2, Clock, XCircle, Download } from 'lucide-react';
 import { BackButton } from '@/components/BackButton';
 import { getOpStatusBadge, DRIVER_STATUS_LABELS } from '@/lib/booking-status';
+import { useAuthGuard } from '@/hooks/useAuthGuard';
 import { useState } from 'react';
 
 function fmtDate(utc?: string, tz = 'Australia/Sydney') {
@@ -38,6 +39,8 @@ function Row({ label, value, valueClass }: { label: string; value: React.ReactNo
 }
 
 export function BookingDetailClient({ id }: { id: string }) {
+  useAuthGuard();
+
   const router = useRouter();
   const qc = useQueryClient();
 
@@ -204,6 +207,36 @@ export function BookingDetailClient({ id }: { id: string }) {
                   </div>
                 </div>
               )}
+              {booking.is_return_trip && (
+                <div className="pt-2 border-t border-[hsl(var(--border))]/60">
+                  <div className="text-[10px] text-[hsl(var(--muted-foreground))] uppercase tracking-widest mb-1">Return trip</div>
+                  <div className="space-y-2">
+                    <div className="relative flex items-start gap-2">
+                      <div className="absolute -left-6 mt-1 w-3 h-3 rounded-full bg-sky-500/80 shrink-0" />
+                      <div>
+                        <p className="text-[10px] text-[hsl(var(--muted-foreground))] uppercase tracking-widest mb-0.5">Return pickup</p>
+                        <p className="text-sm text-[hsl(var(--foreground))]">{booking.return_pickup_address_text ?? booking.dropoff_address ?? '—'}</p>
+                      </div>
+                    </div>
+                    <div className="relative flex items-start gap-2">
+                      <div className="absolute -left-6 mt-1 w-3 h-3 rounded-full bg-sky-500/80 shrink-0" />
+                      <div>
+                        <p className="text-[10px] text-[hsl(var(--muted-foreground))] uppercase tracking-widest mb-0.5">Return drop-off</p>
+                        <p className="text-sm text-[hsl(var(--foreground))]">{booking.pickup_address_text ?? booking.pickup_address ?? '—'}</p>
+                      </div>
+                    </div>
+                    {booking.return_pickup_at_utc && (
+                      <Row label="Return time" value={fmtDate(booking.return_pickup_at_utc, booking.timezone)} />
+                    )}
+                    {booking.return_distance_km != null && (
+                      <Row label="Return distance" value={`${booking.return_distance_km} km`} />
+                    )}
+                    {booking.return_duration_minutes != null && (
+                      <Row label="Return duration" value={`${booking.return_duration_minutes} min`} />
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
           {booking.flight_number && <Row label="Flight" value={booking.flight_number} />}
@@ -230,8 +263,108 @@ export function BookingDetailClient({ id }: { id: string }) {
 
         {/* Pricing */}
         <Section title="Pricing">
-          <Row label="Total" value={fmtMoney(booking.total_price_minor, booking.currency ?? 'AUD')} valueClass="text-[hsl(var(--primary))] text-base" />
-          <Row label="Payment" value={booking.payment_status ?? '—'} />
+          <div className="space-y-1">
+            {(() => {
+              if (!booking.pricing_snapshot) {
+                return (
+                  <Row
+                    label="Total"
+                    value={fmtMoney(booking.total_price_minor, booking.currency ?? 'AUD')}
+                    valueClass="text-[hsl(var(--primary))] text-base"
+                  />
+                );
+              }
+
+              const snap = booking.pricing_snapshot as Record<string, any>;
+              const cur = booking.currency ?? 'AUD';
+              const fmt = (value: unknown) => {
+                const safe = typeof value === 'number' && Number.isFinite(value) ? value : 0;
+                return fmtMoney(safe, cur);
+              };
+
+              const isReturnTrip = booking.trip_mode === 'RETURN';
+              const leg1 = typeof snap.leg1_minor === 'number' && Number.isFinite(snap.leg1_minor) ? snap.leg1_minor : 0;
+              const leg2 = typeof snap.leg2_minor === 'number' && Number.isFinite(snap.leg2_minor) ? snap.leg2_minor : 0;
+              const base = typeof snap.pre_discount_fare_minor === 'number' && Number.isFinite(snap.pre_discount_fare_minor)
+                ? snap.pre_discount_fare_minor
+                : typeof snap.base_calculated_minor === 'number' && Number.isFinite(snap.base_calculated_minor)
+                  ? snap.base_calculated_minor
+                  : 0;
+              const combined = typeof snap.combined_before_multiplier === 'number' && Number.isFinite(snap.combined_before_multiplier) ? snap.combined_before_multiplier : 0;
+              const toll = typeof snap.toll_minor === 'number' && Number.isFinite(snap.toll_minor) ? snap.toll_minor : 0;
+              const parking = typeof snap.parking_minor === 'number' && Number.isFinite(snap.parking_minor) ? snap.parking_minor : 0;
+              const tollParking = typeof snap.toll_parking_minor === 'number' && Number.isFinite(snap.toll_parking_minor) ? snap.toll_parking_minor : 0;
+              const timeSurcharge = typeof snap.time_surcharge_minor === 'number' && Number.isFinite(snap.time_surcharge_minor) ? snap.time_surcharge_minor : 0;
+              const discount = typeof snap.discount_amount_minor === 'number' && Number.isFinite(snap.discount_amount_minor) ? snap.discount_amount_minor : 0;
+              const total = typeof snap.final_fare_minor === 'number' && Number.isFinite(snap.final_fare_minor)
+                ? snap.final_fare_minor
+                : booking.total_price_minor ?? 0;
+
+              const hasReturn = isReturnTrip && (leg1 > 0 || leg2 > 0);
+              const returnRule = snap.multiplier_mode && snap.multiplier_value ?
+                (snap.multiplier_mode === 'PERCENTAGE' ? `${snap.multiplier_value}% return rule` : `${snap.multiplier_value} return surcharge`) : null;
+              const returnRuleAmount =
+                typeof snap.multiplier_mode === 'string' &&
+                snap.multiplier_mode === 'ADD_FIXED' &&
+                typeof snap.multiplier_value === 'number' && Number.isFinite(snap.multiplier_value)
+                  ? Math.max(0, Math.round(snap.multiplier_value))
+                  : typeof snap.multiplier_mode === 'string' &&
+                    snap.multiplier_mode === 'PERCENTAGE' &&
+                    typeof snap.multiplier_value === 'number' &&
+                    Number.isFinite(snap.multiplier_value)
+                    ? Math.max(0, Math.round((combined * snap.multiplier_value) / 100))
+                    : 0;
+
+              return (
+                <>
+                  {hasReturn ? (
+                    <Row label="Outbound price" value={fmt(leg1)} />
+                  ) : (
+                    <Row label="Outbound price" value={fmt(base)} />
+                  )}
+                  {hasReturn && leg2 > 0 && <Row label="Return price" value={fmt(leg2)} />}
+                  {hasReturn && combined > 0 && <Row label="Combined before return rule" value={fmt(combined)} />}
+                  {hasReturn && returnRule && returnRuleAmount > 0 ? <Row label={returnRule} value={fmt(returnRuleAmount)} /> : null}
+                  {timeSurcharge > 0 && <Row label="Time surcharge" value={fmt(timeSurcharge)} />}
+
+                  {(snap.surcharge_items?.length ? snap.surcharge_items : []).map((item: { label: string; amount_minor: number }, i: number) => (
+                    <Row key={i} label={item.label} value={`+${fmt(item.amount_minor)}`} />
+                  ))}
+
+                  {isReturnTrip ? (
+                    <>
+                      {toll > 0 && <Row label="Tolls (combined)" value={`+${fmt(toll)}`} />}
+                      {parking > 0 && <Row label="Parking (combined)" value={`+${fmt(parking)}`} />}
+                    </>
+                  ) : (
+                    <>
+                      {toll > 0 && <Row label="Road tolls" value={`+${fmt(toll)}`} />}
+                      {parking > 0 && <Row label="Airport parking" value={`+${fmt(parking)}`} />}
+                    </>
+                  )}
+
+                  {tollParking > 0 && !toll && !parking && <Row label="Tolls / parking" value={`+${fmt(tollParking)}`} />}
+
+                  {discount > 0 && (
+                    <Row
+                      label={snap.discount_type === 'PERCENTAGE' ? `Discount (${snap.discount_value ?? ''}%)` : 'Discount'}
+                      value={`-${fmt(discount)}`}
+                      valueClass="text-emerald-500"
+                    />
+                  )}
+
+                  <div className="pt-1 border-t border-[hsl(var(--border))]">
+                    <Row
+                      label="Total"
+                      value={fmt(total)}
+                      valueClass="text-[hsl(var(--primary))] text-base"
+                    />
+                  </div>
+                  <Row label="Payment" value={booking.payment_status ?? '—'} />
+                </>
+              );
+            })()}
+          </div>
         </Section>
 
         {/* Download Final Invoice — shown only for FULFILLED/COMPLETED bookings */}

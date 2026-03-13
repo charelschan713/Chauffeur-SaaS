@@ -26,6 +26,8 @@ export interface QuoteSession {
       return_date?:         string;
       return_time?:         string;
       return_pickup_at_utc?: string;
+      return_pickup_address_text?: string;
+      return_dropoff_address_text?: string;
     };
     results: QuoteResult[];
     currency:   string;
@@ -50,6 +52,7 @@ export interface QuotePricingSnapshot {
   pre_discount_fare_minor?: number;
   extras_minor?:          number;
   waypoints_minor?:       number;
+  time_surcharge_minor?:    number;
   baby_seats_minor?:      number;
   toll_minor?:            number;
   parking_minor?:         number;
