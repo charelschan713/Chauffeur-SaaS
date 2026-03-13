@@ -405,7 +405,10 @@ export default function CreateBookingPage() {
 
     setQuote({ status: 'loading' });
     try {
-      const outboundRoute = await api.get('/public/maps/route', {
+      const apiBase = process.env.NEXT_PUBLIC_API_URL ?? '';
+      const publicUrl = (path: string) => (apiBase ? `${apiBase}${path}` : path);
+
+      const outboundRoute = await api.get(publicUrl('/public/maps/route'), {
         params: {
           tenant_slug: tenantSlug,
           origin: values.pickup_address_text,
@@ -426,7 +429,7 @@ export default function CreateBookingPage() {
       let returnRoute: { distance_km: number; duration_minutes: number } | null = null;
       if (values.is_return_trip) {
         const returnDestination = values.return_pickup_address_text?.trim() || values.pickup_address_text;
-        const returnRouteRes = await api.get('/public/maps/route', {
+        const returnRouteRes = await api.get(publicUrl('/public/maps/route'), {
           params: {
             tenant_slug: tenantSlug,
             origin: values.dropoff_address_text,
@@ -439,7 +442,7 @@ export default function CreateBookingPage() {
         }
       }
 
-      const quoteRes = await api.post(`/public/pricing/quote?tenant_slug=${encodeURIComponent(tenantSlug)}`, {
+      const quoteRes = await api.post(publicUrl(`/public/pricing/quote?tenant_slug=${encodeURIComponent(tenantSlug)}`), {
         service_type_id: values.service_type_id,
         trip_mode: values.is_return_trip ? 'RETURN' : 'ONE_WAY',
         pickup_address: values.pickup_address_text,
