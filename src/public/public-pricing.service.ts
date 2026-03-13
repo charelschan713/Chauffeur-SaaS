@@ -18,6 +18,7 @@ interface QuoteRequest {
   duration_minutes: number;
   waypoints_count?: number;
   return_waypoints_count?: number;  // waypoints on return leg (may differ if asymmetric)
+  return_pickup_at_utc?: string;
   waiting_minutes?: number;
   infant_seats?: number;
   toddler_seats?: number;
@@ -37,9 +38,10 @@ export class PublicPricingService {
     private readonly discountSvc: DiscountService,
   ) {}
 
-  async quote(slug: string, dto: QuoteRequest) {
-    const tenant = await this.tenantSvc.resolveTenantBySlug(slug);
-
+  private async buildQuoteResults(
+    tenant: any,
+    dto: QuoteRequest,
+  ) {
     // Load all active car types for this tenant
     const carTypes = await this.db.query(
       `SELECT tsc.id, tsc.name
@@ -61,9 +63,6 @@ export class PublicPricingService {
       waypointChargeEnabled = st?.waypoint_charge_enabled ?? true;
     }
 
-    const quotedAt = new Date();
-    const expiresAt = new Date(quotedAt.getTime() + 30 * 60 * 1000);
-
     const results = await Promise.all(
       carTypes.map(async (ct: any) => {
         const ctx: PricingContext = {
@@ -75,6 +74,7 @@ export class PublicPricingService {
           durationMinutes: dto.duration_minutes,
           returnDistanceKm: dto.return_distance_km,
           returnDurationMinutes: dto.return_duration_minutes,
+          returnPickupAtUtc: dto.return_pickup_at_utc ? new Date(dto.return_pickup_at_utc) : undefined,
           // Outbound stops — pricing resolver handles return stops separately
           waypointsCount: waypointChargeEnabled ? (dto.waypoints_count ?? 0) : 0,
           returnWaypointsCount: waypointChargeEnabled ? (dto.return_waypoints_count ?? 0) : 0,
@@ -98,38 +98,31 @@ export class PublicPricingService {
         try {
           const snapshot = await this.pricing.resolve(ctx);
           // pricing.resolver already applied tier discount (DiscountResolver)
-          // grand_total_minor = tier-discounted fare + tolls/parking
           const grandTotal = snapshot.grand_total_minor ?? snapshot.totalPriceMinor;
           const tollParkingMinor = (snapshot.toll_minor ?? 0) + (snapshot.parking_minor ?? 0);
 
-          // Pre-discount base = fare before tier discount (excl. tolls)
+          // Pre-discount base = fare before tenant discount (excl. tolls)
           const preDiscountBase = snapshot.pre_discount_fare_minor ?? (grandTotal - tollParkingMinor);
 
-          // Tier discount already applied by DiscountResolver inside pricing.resolver
           const tierDiscountMinor = snapshot.discount_amount_minor ?? 0;
-          const tierDiscountRate  = snapshot.discount_value ?? 0;
+          const tierDiscountRate = snapshot.discount_value ?? 0;
 
-          // Check for tenant-level discount: promo code OR auto-apply (no code)
-          // resolveDiscount handles both: with code → code lookup, without → auto-apply lookup
+          // Tenant discount (promo / auto-apply)
           const tenantDiscountResult = await this.discountSvc.resolveDiscount(
             tenant.id,
             preDiscountBase,
             {
-              code:          dto.promo_code || undefined,
+              code: dto.promo_code || undefined,
               serviceTypeId: dto.service_type_id,
-              customerId:    dto.customerId ?? null,
+              customerId: dto.customerId ?? null,
               isNewCustomer: false,
             },
           );
 
-          // Combined: tier already in grand_total; add tenant promo discount if any
           const extraDiscountMinor = tenantDiscountResult?.discountMinor ?? 0;
           const totalDiscountMinor = tierDiscountMinor + extraDiscountMinor;
           const finalTotal = grandTotal - extraDiscountMinor;
-
-          // For display: combined discount rate
           const combinedRate = tierDiscountRate + (tenantDiscountResult?.value ?? 0);
-          const discountMinor = totalDiscountMinor;
 
           return {
             service_class_id: ct.id,
@@ -138,19 +131,17 @@ export class PublicPricingService {
             distance_km: dto.distance_km,
             duration_minutes: dto.duration_minutes,
             currency: tenant.currency,
-            // discount info for display (tier + any promo)
-            discount: (discountMinor > 0) ? {
+            discount: (totalDiscountMinor > 0) ? {
               id:             tenantDiscountResult?.discountId ?? 'tier',
               name:           tierDiscountRate > 0 ? `${combinedRate}% loyalty` : (tenantDiscountResult?.name ?? 'Discount'),
               type:           'PERCENTAGE',
               value:          combinedRate,
-              discount_minor: discountMinor,
+              discount_minor: totalDiscountMinor,
               capped_by_max:  tenantDiscountResult?.cappedByMax ?? false,
               max_discount_minor: tenantDiscountResult?.maxDiscountMinor ?? null,
             } : null,
             pricing_snapshot_preview: {
-              base_calculated_minor:
-                snapshot.base_calculated_minor ?? snapshot.subtotalMinor,
+              base_calculated_minor: snapshot.base_calculated_minor ?? snapshot.subtotalMinor,
               multiplier_mode: snapshot.multiplier_mode ?? null,
               multiplier_value: snapshot.multiplier_value ?? null,
               surcharge_minor: snapshot.surcharge_minor ?? 0,
@@ -163,14 +154,15 @@ export class PublicPricingService {
               extras_minor: snapshot.extras_minor ?? 0,
               waypoints_minor: snapshot.waypoints_minor ?? 0,
               baby_seats_minor: snapshot.baby_seats_minor ?? 0,
-              pre_discount_total_minor: preDiscountBase,  // true base before any discount (excl. toll/parking)
-              discount_amount_minor: discountMinor,
+              pre_discount_total_minor: preDiscountBase,
+              discount_amount_minor: totalDiscountMinor,
               final_fare_minor: finalTotal,
               grand_total_minor: finalTotal,
               minimum_applied: snapshot.minimum_applied ?? false,
               leg1_minor: snapshot.leg1_minor ?? null,
               leg2_minor: snapshot.leg2_minor ?? null,
               combined_before_multiplier: snapshot.combined_before_multiplier ?? null,
+              minimum_fare_minor: snapshot.minimum_fare_minor ?? null,
               trip_mode: dto.trip_mode,
             },
           };
@@ -180,16 +172,21 @@ export class PublicPricingService {
       }),
     );
 
-    const validResults = results
-      .filter(Boolean)
-      .sort((a, b) => a!.estimated_total_minor - b!.estimated_total_minor);
+    const validResults = (results.filter(Boolean) as any[]).sort((a, b) => (a?.estimated_total_minor ?? 0) - (b?.estimated_total_minor ?? 0));
+    return validResults;
+  }
 
-    // ── Persist quote session ──────────────────────────────
+  async quote(slug: string, dto: QuoteRequest) {
+    const tenant = await this.tenantSvc.resolveTenantBySlug(slug);
+    const results = await this.buildQuoteResults(tenant, dto);
+    const quotedAt = new Date();
+    const expiresAt = new Date(quotedAt.getTime() + 30 * 60 * 1000);
+
     const payload = {
       slug,
       tenant_id: tenant.id,
       request: dto,
-      results: validResults,
+      results,
       quoted_at: quotedAt.toISOString(),
       expires_at: expiresAt.toISOString(),
       currency: tenant.currency,
@@ -208,7 +205,7 @@ export class PublicPricingService {
       quoted_at: quotedAt.toISOString(),
       expires_at: expiresAt.toISOString(),
       currency: tenant.currency,
-      results: validResults,
+      results,
     };
   }
 

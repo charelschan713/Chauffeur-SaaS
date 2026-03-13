@@ -42,21 +42,55 @@ export class PricingResolver {
   // we use a per-km estimate based on known Sydney toll corridors.
   // If both pickup + dropoff are provided and toll_enabled, we fetch the
   // actual route distance and apply the estimate.
-  private async resolveToll(ctx: PricingContext): Promise<number> {
-    if (!ctx.tollEnabled) return 0;
-    if (!ctx.pickupAddress || !ctx.dropoffAddress) return 0;
+  private async resolveTollForRoute(
+    tenantId: string,
+    pickupAddress: string | null | undefined,
+    dropoffAddress: string | null | undefined,
+    currency: string,
+    pickupAtUtc: Date | string | null | undefined,
+    enabled: boolean,
+  ): Promise<number> {
+    if (!enabled) return 0;
+    if (!pickupAddress || !dropoffAddress) return 0;
     try {
       const route = await this.mapsService.getRouteWithToll(
-        ctx.tenantId,
-        ctx.pickupAddress,
-        ctx.dropoffAddress,
-        ctx.currency,
-        ctx.pickupAtUtc ?? null,
+        tenantId,
+        pickupAddress,
+        dropoffAddress,
+        currency,
+        pickupAtUtc ?? null,
       );
       if (!route) return 0;
       return route.tollAmountMinor;
     } catch (err) {
       this.logger.warn(`Toll calculation failed: ${(err as Error).message}`);
+      return 0;
+    }
+  }
+
+  private async resolveToll(ctx: PricingContext): Promise<number> {
+    return this.resolveTollForRoute(
+      ctx.tenantId,
+      ctx.pickupAddress,
+      ctx.dropoffAddress,
+      ctx.currency,
+      ctx.pickupAtUtc ?? null,
+      !!ctx.tollEnabled,
+    );
+  }
+
+  private async resolveParkingForPickup(
+    tenantId: string,
+    pickupAddress: string | null | undefined,
+  ): Promise<number> {
+    if (!pickupAddress) return 0;
+    try {
+      const parkingResult = await this.airportParkingService.resolveParking(
+        tenantId,
+        pickupAddress,
+      );
+      return ((parkingResult as { parkingAmountMinor?: number }).parkingAmountMinor ?? parkingResult.fee_minor);
+    } catch {
       return 0;
     }
   }
@@ -88,6 +122,29 @@ export class PricingResolver {
         surcharge_minor: 0,
       }
     );
+  }
+
+  private calculateReturnableLegMinor(
+    baseFareMinor: number,
+    distanceKm: number,
+    durationMinutes: number,
+    perKmMinor: number,
+    perMinMinor: number,
+    multiplierMode: MultiplierMode,
+    multiplierValue: number,
+    surchargeMinor: number,
+    minimumFareMinor: number,
+    waypointMinor: number,
+    waypointCount: number,
+  ): number {
+    const legCore =
+      baseFareMinor +
+      Math.round(distanceKm * perKmMinor) +
+      Math.round(durationMinutes * perMinMinor);
+    return Math.max(
+      this.applyMultiplier(legCore, multiplierMode, multiplierValue, surchargeMinor),
+      minimumFareMinor,
+    ) + Math.max(0, waypointCount) * waypointMinor;
   }
 
   async resolve(ctx: PricingContext): Promise<PricingSnapshot> {
@@ -204,32 +261,39 @@ export class PricingResolver {
     );
     const carType = classRows[0];
 
-    // Waypoint stops: for RETURN trips, charge both outbound + return stops
     const outboundWaypoints = Math.max(0, ctx.waypointsCount ?? 0);
-    const returnWaypoints   = ctx.tripType === 'RETURN'
+    const returnWaypoints = ctx.tripType === 'RETURN'
       ? Math.max(0, ctx.returnWaypointsCount ?? outboundWaypoints)
       : 0;
-    const totalWaypoints = outboundWaypoints + returnWaypoints;
 
-    const infantSeats  = Math.max(0, ctx.infantSeats  ?? ctx.babyseatCount ?? 0);
+    const infantSeats = Math.max(0, ctx.infantSeats ?? ctx.babyseatCount ?? 0);
     const toddlerSeats = Math.max(0, ctx.toddlerSeats ?? 0);
     const boosterSeats = Math.max(0, ctx.boosterSeats ?? 0);
-    const extras = totalWaypoints * (carType.waypoint_minor ?? 0)
-      + infantSeats  * (carType.infant_seat_minor   ?? 0)
-      + toddlerSeats * (carType.toddler_seat_minor  ?? 0)
-      + boosterSeats * (carType.booster_seat_minor  ?? 0);
+
+    // Trip-level extras applied after leg totals
+    const tripLevelExtras =
+      infantSeats * (carType.infant_seat_minor ?? 0) +
+      toddlerSeats * (carType.toddler_seat_minor ?? 0) +
+      boosterSeats * (carType.booster_seat_minor ?? 0);
 
     let baseMinor = 0;
     let multiplierMode: MultiplierMode = 'PERCENTAGE';
     let multiplierValue: number | null = null;
     let surchargeMinor = 0;
     let minimumApplied = false;
+    let minimumFareMinor = 0;
     let leg1Minor: number | undefined;
     let leg2Minor: number | undefined;
     let combinedBefore: number | undefined;
 
+    let tollMinor = 0;
+    let parkingMinor = 0;
+    let timeSurchargeMinor = 0;
+    let surchargeLabels: string[] = [];
+    let surchargeItems: { label: string; amount_minor: number }[] = [];
+    const totalWaypoints = outboundWaypoints + returnWaypoints;
+
     if (serviceType?.calculation_type === 'HOURLY_CHARTER' || ctx.bookedHours) {
-      // Hourly charter: no return trip concept — price covers the full charter period
       const bookedHours = ctx.bookedHours ?? 0;
       const actualHours = Math.max(bookedHours, serviceType?.minimum_hours ?? 2);
       const includedKm = actualHours * (serviceType?.km_per_hour_included ?? 0);
@@ -242,93 +306,148 @@ export class PricingResolver {
       multiplierMode = (tier.type ?? 'PERCENTAGE') as MultiplierMode;
       multiplierValue = multiplierMode === 'PERCENTAGE' ? (tier.value ?? 100) : null;
       surchargeMinor = tier.surcharge_minor ?? 0;
-      baseMinor = this.applyMultiplier(
-        subtotal,
-        multiplierMode,
-        tier.value ?? 100,
-        surchargeMinor,
-      );
-      baseMinor = baseMinor + extras;
-      // Skip return logic entirely for hourly charter — fall through to discount+toll resolution below
+      baseMinor = this.applyMultiplier(subtotal, multiplierMode, tier.value ?? 100, surchargeMinor) + tripLevelExtras;
+
+      tollMinor = await this.resolveToll(ctx);
+      parkingMinor = await this.resolveParkingForPickup(ctx.tenantId, ctx.pickupAddress);
+      if (ctx.pickupAtUtc) {
+        const sr = await this.surchargeService.resolve(
+          ctx.tenantId,
+          ctx.pickupAtUtc,
+          baseMinor,
+          ctx.timezone ?? 'Australia/Sydney',
+        );
+        timeSurchargeMinor = sr.total_surcharge_minor;
+        surchargeLabels = sr.surcharges.map((s) => s.label);
+        surchargeItems = sr.surcharges.map((s) => ({ label: s.label, amount_minor: s.amount_minor }));
+      }
     } else {
-      const leg =
-        (carType.base_fare_minor ?? 0) +
-        Math.round(ctx.distanceKm * (carType.per_km_minor ?? 0)) +
-        Math.round(ctx.durationMinutes * (carType.per_min_driving_minor ?? 0));
+      const oneWayMode = serviceType?.one_way_type ?? 'PERCENTAGE';
+      const oneWayValue = Number(serviceType?.one_way_value ?? 100);
+      const oneWaySurcharge = serviceType?.one_way_surcharge_minor ?? 0;
+      const minFare = carType.minimum_fare_minor ?? 0;
+      minimumFareMinor = minFare;
+
+      const carBase = carType.base_fare_minor ?? 0;
+      const perKm = carType.per_km_minor ?? 0;
+      const perMin = carType.per_min_driving_minor ?? 0;
+      const waypointMinor = carType.waypoint_minor ?? 0;
+
+      const outboundWithWaypoints = this.calculateReturnableLegMinor(
+        carBase,
+        ctx.distanceKm,
+        ctx.durationMinutes,
+        perKm,
+        perMin,
+        oneWayMode as MultiplierMode,
+        oneWayValue,
+        oneWaySurcharge,
+        minFare,
+        waypointMinor,
+        outboundWaypoints,
+      );
+      const outboundAfterMultiplier = this.applyMultiplier(
+        carBase + Math.round(ctx.distanceKm * perKm) + Math.round(ctx.durationMinutes * perMin),
+        oneWayMode as MultiplierMode,
+        oneWayValue,
+        oneWaySurcharge,
+      );
+      const outboundAfterMin = Math.max(outboundAfterMultiplier, minFare);
 
       if (ctx.tripType === 'RETURN') {
-        leg1Minor = leg;
         const returnDistance = ctx.returnDistanceKm ?? ctx.distanceKm;
         const returnDuration = ctx.returnDurationMinutes ?? ctx.durationMinutes;
-        leg2Minor =
-          (carType.base_fare_minor ?? 0) +
-          Math.round(returnDistance * (carType.per_km_minor ?? 0)) +
-          Math.round(returnDuration * (carType.per_min_driving_minor ?? 0));
-        combinedBefore = (leg1Minor ?? 0) + (leg2Minor ?? 0);
+
+        const returnWithWaypoints = this.calculateReturnableLegMinor(
+          carBase,
+          returnDistance,
+          returnDuration,
+          perKm,
+          perMin,
+          oneWayMode as MultiplierMode,
+          oneWayValue,
+          oneWaySurcharge,
+          minFare,
+          waypointMinor,
+          returnWaypoints,
+        );
+        const returnAfterMultiplier = this.applyMultiplier(
+          carBase + Math.round(returnDistance * perKm) + Math.round(returnDuration * perMin),
+          oneWayMode as MultiplierMode,
+          oneWayValue,
+          oneWaySurcharge,
+        );
+        const returnAfterMin = Math.max(returnAfterMultiplier, minimumFareMinor);
+
+        leg1Minor = outboundWithWaypoints;
+        leg2Minor = returnWithWaypoints;
+        combinedBefore = leg1Minor + leg2Minor;
+
+        // Trip-level return adjustment only after independent leg totals
         multiplierMode = serviceType?.return_type ?? 'PERCENTAGE';
-        multiplierValue =
-          multiplierMode === 'PERCENTAGE' ? Number(serviceType?.return_value ?? 100) : null;
+        multiplierValue = multiplierMode === 'PERCENTAGE' ? Number(serviceType?.return_value ?? 100) : null;
         surchargeMinor = serviceType?.return_surcharge_minor ?? 0;
-        const afterMultiplier = this.applyMultiplier(
+        baseMinor = this.applyMultiplier(
           combinedBefore,
           multiplierMode,
           Number(serviceType?.return_value ?? 100),
           surchargeMinor,
-        );
-        // Apply minimum to base BEFORE extras — extras always add on top
-        const afterMin = Math.max(afterMultiplier, carType.minimum_fare_minor ?? 0);
-        minimumApplied = afterMultiplier < (carType.minimum_fare_minor ?? 0);
-        baseMinor = afterMin + extras;
+        ) + tripLevelExtras;
+
+        minimumApplied = outboundAfterMultiplier < minimumFareMinor || returnAfterMultiplier < minimumFareMinor;
+
+        // Leg-specific toll/parking and time-context surcharges
+        const returnPickupAt = ctx.returnPickupAtUtc ?? ctx.pickupAtUtc ?? null;
+
+        const [outToll, retToll] = await Promise.all([
+          this.resolveTollForRoute(ctx.tenantId, ctx.pickupAddress, ctx.dropoffAddress, ctx.currency, ctx.pickupAtUtc ?? null, !!ctx.tollEnabled),
+          this.resolveTollForRoute(ctx.tenantId, ctx.dropoffAddress, ctx.pickupAddress, ctx.currency, returnPickupAt, !!ctx.tollEnabled),
+        ]);
+        tollMinor = outToll + retToll;
+
+        const [outParking, retParking] = await Promise.all([
+          this.resolveParkingForPickup(ctx.tenantId, ctx.pickupAddress),
+          this.resolveParkingForPickup(ctx.tenantId, ctx.dropoffAddress),
+        ]);
+        parkingMinor = outParking + retParking;
+
+        const outboundSr = ctx.pickupAtUtc
+          ? await this.surchargeService.resolve(ctx.tenantId, ctx.pickupAtUtc, leg1Minor, ctx.timezone ?? 'Australia/Sydney')
+          : { total_surcharge_minor: 0, surcharges: [] as any[] };
+        const returnSr = returnPickupAt
+          ? await this.surchargeService.resolve(ctx.tenantId, returnPickupAt, leg2Minor, ctx.timezone ?? 'Australia/Sydney')
+          : { total_surcharge_minor: 0, surcharges: [] as any[] };
+
+        timeSurchargeMinor = (outboundSr.total_surcharge_minor ?? 0) + (returnSr.total_surcharge_minor ?? 0);
+        surchargeItems = [
+          ...((outboundSr.surcharges ?? []).map((s: any) => ({ label: `Outbound: ${s.label}`, amount_minor: s.amount_minor }))),
+          ...((returnSr.surcharges ?? []).map((s: any) => ({ label: `Return: ${s.label}`, amount_minor: s.amount_minor }))),
+        ];
+        surchargeLabels = surchargeItems.map((s) => s.label);
       } else {
-        multiplierMode = serviceType?.one_way_type ?? 'PERCENTAGE';
-        multiplierValue =
-          multiplierMode === 'PERCENTAGE' ? Number(serviceType?.one_way_value ?? 100) : null;
-        surchargeMinor = serviceType?.one_way_surcharge_minor ?? 0;
-        const afterMultiplier = this.applyMultiplier(
-          leg,
-          multiplierMode,
-          Number(serviceType?.one_way_value ?? 100),
-          surchargeMinor,
-        );
-        // Apply minimum to base BEFORE extras — extras always add on top
-        const afterMin = Math.max(afterMultiplier, carType.minimum_fare_minor ?? 0);
-        minimumApplied = afterMultiplier < (carType.minimum_fare_minor ?? 0);
-        baseMinor = afterMin + extras;
+        multiplierMode = oneWayMode as MultiplierMode;
+        multiplierValue = multiplierMode === 'PERCENTAGE' ? oneWayValue : null;
+        surchargeMinor = oneWaySurcharge;
+        baseMinor = outboundWithWaypoints + tripLevelExtras;
+        minimumApplied = outboundAfterMultiplier < minimumFareMinor;
+
+        tollMinor = await this.resolveToll(ctx);
+        parkingMinor = await this.resolveParkingForPickup(ctx.tenantId, ctx.pickupAddress);
+        if (ctx.pickupAtUtc) {
+          const sr = await this.surchargeService.resolve(
+            ctx.tenantId,
+            ctx.pickupAtUtc,
+            baseMinor,
+            ctx.timezone ?? 'Australia/Sydney',
+          );
+          timeSurchargeMinor = sr.total_surcharge_minor;
+          surchargeLabels = sr.surcharges.map((s) => s.label);
+          surchargeItems = sr.surcharges.map((s) => ({ label: s.label, amount_minor: s.amount_minor }));
+        }
       }
     }
 
-    const tollMinor = await this.resolveToll(ctx);
-
-    // ── Airport parking fee ──────────────────────────────────────────
-    let parkingMinor = 0;
-    let parkingLabel: string | null = null;
-    if (ctx.pickupAddress) {
-      const parkingResult = await this.airportParkingService.resolveParking(
-        ctx.tenantId,
-        ctx.pickupAddress,
-      );
-      parkingMinor = parkingResult.fee_minor;
-      parkingLabel = parkingResult.label;
-    }
     const tollParkingMinor = tollMinor + parkingMinor;
-
-    // ── Time/Holiday surcharges ──────────────────────────────────────
-    let timeSurchargeMinor = 0;
-    let surchargeLabels: string[] = [];
-    let surchargeItems: { label: string; amount_minor: number }[] = [];
-    if (ctx.pickupAtUtc) {
-      const surchargeResult = await this.surchargeService.resolve(
-        ctx.tenantId,
-        ctx.pickupAtUtc,
-        baseMinor,
-        ctx.timezone ?? 'Australia/Sydney',
-      );
-      timeSurchargeMinor = surchargeResult.total_surcharge_minor;
-      surchargeLabels = surchargeResult.surcharges.map(s => s.label);
-      surchargeItems = surchargeResult.surcharges.map(s => ({ label: s.label, amount_minor: s.amount_minor }));
-    }
-    if (parkingLabel) surchargeLabels = [...surchargeLabels, `${parkingLabel} parking`];
-
     const fareWithSurcharge = baseMinor + timeSurchargeMinor;
 
     const discount = await this.discountResolver.resolve(
@@ -360,7 +479,7 @@ export class PricingResolver {
       parking_minor: parkingMinor,
       grand_total_minor: grandTotalMinor,
       discount_source_customer_id: ctx.customerId ?? null,
-      extras_minor: extras,
+      extras_minor: tripLevelExtras,
       waypoints_minor: totalWaypoints * (carType.waypoint_minor ?? 0),
       baby_seats_minor: (infantSeats * (carType.infant_seat_minor ?? 0))
         + (toddlerSeats * (carType.toddler_seat_minor ?? 0))
@@ -373,6 +492,7 @@ export class PricingResolver {
       multiplier_value: multiplierValue,
       surcharge_minor: surchargeMinor,
       minimum_applied: minimumApplied,
+      minimum_fare_minor: minimumFareMinor,
       time_surcharge_minor: timeSurchargeMinor,
       surcharge_labels: surchargeLabels,
       surcharge_items: surchargeItems,

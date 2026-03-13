@@ -23,6 +23,7 @@ export interface PricingContext {
   tripType?: 'ONE_WAY' | 'RETURN';
   returnDistanceKm?: number;
   returnDurationMinutes?: number;
+  returnPickupAtUtc?: Date | string | null;
   bookedHours?: number;
 }
 
@@ -64,6 +65,7 @@ export interface PricingSnapshot {
   multiplier_value?: number | null;
   surcharge_minor?: number;
   minimum_applied?: boolean;
+  minimum_fare_minor?: number;
   time_surcharge_minor?: number;
   surcharge_labels?: string[];
   surcharge_items?: { label: string; amount_minor: number }[];
