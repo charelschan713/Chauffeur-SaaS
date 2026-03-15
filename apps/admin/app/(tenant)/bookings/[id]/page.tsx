@@ -47,7 +47,8 @@ function ComingSoon({ children }: { children: React.ReactNode }) {
       {children}
       <div className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 hidden group-hover:flex items-center whitespace-nowrap rounded bg-gray-800 px-2 py-1 text-xs text-white shadow-lg">
         Coming soon
-      </div>
+            <BookingChangePanel booking={booking} />
+</div>
     </div>
   );
 }
@@ -1371,7 +1372,8 @@ function InfoRow({ label, value }: { label: string; value: string }) {
   return (
     <div>
       <div className="text-xs uppercase tracking-wider text-gray-500">{label}</div>
-      <div className="text-sm text-gray-900">{value}</div>
+      <div className="text-sm text-gray-900">{value}      <BookingChangePanel booking={booking} />
+</div>
     </div>
   );
 }
