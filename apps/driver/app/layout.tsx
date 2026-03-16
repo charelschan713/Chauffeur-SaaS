@@ -3,7 +3,6 @@ import { Geist } from 'next/font/google';
 import { Playfair_Display } from 'next/font/google';
 import './globals.css';
 import { QueryProvider } from '@/components/QueryProvider';
-import { TenantProvider } from '@/components/TenantProvider';
 import { GlobalErrorBoundary } from '@/components/GlobalErrorBoundary';
 import { BottomNav } from '@/components/BottomNav';
 import { Sidebar } from '@/components/Sidebar';
@@ -21,8 +20,8 @@ const playfair = Playfair_Display({
 });
 
 export const metadata: Metadata = {
-  title: 'Customer Portal',
-  description: 'Book your ride',
+  title: 'Driver Portal',
+  description: 'Chauffeur Solutions Driver Web Portal',
 };
 
 export const viewport: Viewport = {
@@ -39,18 +38,16 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className={`${geist.variable} ${playfair.variable} antialiased bg-[hsl(var(--background))]`}>
         <GlobalErrorBoundary>
           <QueryProvider>
-            <TenantProvider>
-              <ScrollToInput />
-              {/* Desktop: sidebar + content. Mobile: full width + bottom nav */}
-              <Sidebar />
-              <div className="lg:pl-64">
-                {children}
-              </div>
-              {/* BottomNav only on mobile */}
-              <div className="lg:hidden">
-                <BottomNav />
-              </div>
-            </TenantProvider>
+            <ScrollToInput />
+            {/* Desktop: sidebar + content. Mobile: full width + bottom nav */}
+            <Sidebar />
+            <div className="lg:pl-64">
+              {children}
+            </div>
+            {/* BottomNav only on mobile */}
+            <div className="lg:hidden">
+              <BottomNav />
+            </div>
           </QueryProvider>
         </GlobalErrorBoundary>
       </body>

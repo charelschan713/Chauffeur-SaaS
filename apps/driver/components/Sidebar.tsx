@@ -2,7 +2,6 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
-import { useTenant } from '@/components/TenantProvider';
 import { useAuthStore } from '@/lib/auth-store';
 
 const NAV_ITEMS = [
@@ -16,20 +15,11 @@ const NAV_ITEMS = [
     ),
   },
   {
-    href: '/quote',
-    label: 'Book a Ride',
+    href: '/jobs',
+    label: 'Assigned Jobs',
     icon: (
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
-        <path d="M12 4v16m8-8H4" />
-      </svg>
-    ),
-  },
-  {
-    href: '/bookings',
-    label: 'My Bookings',
-    icon: (
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
-        <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+        <path d="M5 17h14M5 7h14M5 12h14" />
       </svg>
     ),
   },
@@ -39,16 +29,6 @@ const NAV_ITEMS = [
     icon: (
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
         <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-      </svg>
-    ),
-  },
-  {
-    href: '/payment-methods',
-    label: 'Payment Methods',
-    icon: (
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
-        <rect x="1" y="4" width="22" height="16" rx="2" ry="2" />
-        <path d="M1 10h22" />
       </svg>
     ),
   },
@@ -65,12 +45,11 @@ const NAV_ITEMS = [
 ];
 
 // Pages that show the sidebar
-const NAV_PAGES = ['/dashboard', '/bookings', '/invoices', '/profile', '/passengers', '/payment-methods', '/quote'];
+const NAV_PAGES = ['/dashboard', '/jobs', '/invoices', '/profile'];
 
 export function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
-  const tenant = useTenant();
   const { clearAuth } = useAuthStore();
   const showSidebar = NAV_PAGES.some(p => pathname === p || pathname.startsWith(p + '/'));
 
@@ -88,17 +67,13 @@ export function Sidebar() {
     >
       {/* Logo */}
       <div className="px-6 py-6 border-b border-white/5">
-        {tenant?.logo_url ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={tenant.logo_url} alt={tenant.name} className="h-8 object-contain" />
-        ) : (
-          <span
-            className="text-xl font-semibold text-[#c8a96b]"
-            style={{ fontFamily: 'var(--font-playfair), Georgia, serif' }}
-          >
-            {tenant?.name ?? 'Portal'}
-          </span>
-        )}
+        <span
+          className="text-xl font-semibold text-[#c8a96b]"
+          style={{ fontFamily: 'var(--font-playfair), Georgia, serif' }}
+        >
+          Chauffeur Solutions
+        </span>
+        <p className="text-xs text-white/50 mt-1">Driver Portal</p>
       </div>
 
       {/* Nav links */}

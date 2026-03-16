@@ -16,6 +16,7 @@ import {
 } from '@nestjs/common';
 import type { Response } from 'express';
 import { CustomerPortalService } from './customer-portal.service';
+import { BookingChangeService } from '../booking/booking-change.service';
 import { LoyaltyPricingService } from './loyalty-pricing.service';
 import { CustomerAuthGuard } from '../customer-auth/customer-auth.guard';
 import { ProjectService } from '../project/project.service';

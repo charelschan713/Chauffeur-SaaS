@@ -1,73 +1,20 @@
 'use client';
-import React, { useEffect, useState } from 'react';
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'https://chauffeur-saas-production.up.railway.app';
-
-interface TenantBranding {
-  company_name: string;
-  logo_url?: string;
-  tagline?: string;
-}
-
-function getTenantSlug(): string {
-  if (typeof window === 'undefined') return '';
-  // 1. Cookie
-  const cookieSlug = document.cookie.split('; ')
-    .find(r => r.startsWith('tenant_slug='))?.split('=')[1];
-  if (cookieSlug) return cookieSlug;
-  // 2. localStorage
-  const lsSlug = localStorage.getItem('tenant_slug');
-  if (lsSlug) return lsSlug;
-  // 3. Subdomain (e.g. aschauffeured.chauffeurssolution.com)
-  const host = window.location.hostname;
-  const sub = host.split('.')[0];
-  if (sub && sub !== 'www' && sub !== 'chauffeurssolution') return sub;
-  return '';
-}
+import React from 'react';
 
 export function AuthLogo({ subtitle }: { subtitle?: string }) {
-  const [branding, setBranding] = useState<TenantBranding | null>(null);
-
-  useEffect(() => {
-    const slug = getTenantSlug();
-    if (!slug) return;
-    fetch(`${API_URL}/public/tenant-info?tenant_slug=${slug}`)
-      .then(r => r.ok ? r.json() : null)
-      .then(d => { if (d) setBranding(d); })
-      .catch(() => {});
-  }, []);
-
-  const name = branding?.company_name ?? 'ASChauffeured';
-  const logoUrl = branding?.logo_url;
-
   return (
     <div className="text-center w-full lg:hidden">
       <div className="flex flex-col items-center gap-1">
-        {logoUrl ? (
-          <div style={{ background: 'transparent' }}>
-            <img
-              src={logoUrl}
-              alt={name}
-              style={{ height: '110px', width: 'auto', objectFit: 'contain', display: 'block' }}
-              onError={(e) => {
-                (e.target as HTMLImageElement).parentElement!.style.display = 'none';
-              }}
-            />
-          </div>
-        ) : (
-          <>
-            <span
-              className="text-[#c8a96b] text-base font-medium tracking-[0.18em] uppercase"
-              style={{ fontFamily: "'Playfair Display', serif" }}
-            >
-              {name}
-            </span>
-            <div className="w-40 h-px bg-[#c8a96b]/50" />
-            <span className="text-[#c8a96b]/60 text-[9px] tracking-[0.12em] uppercase italic">
-              Premium Chauffeur Services
-            </span>
-          </>
-        )}
+        <span
+          className="text-[#c8a96b] text-base font-medium tracking-[0.18em] uppercase"
+          style={{ fontFamily: "'Playfair Display', serif" }}
+        >
+          Chauffeur Solutions
+        </span>
+        <div className="w-40 h-px bg-[#c8a96b]/50" />
+        <span className="text-[#c8a96b]/60 text-[9px] tracking-[0.12em] uppercase italic">
+          Driver Portal
+        </span>
       </div>
       {subtitle && (
         <p className="text-white/30 text-sm mt-3">{subtitle}</p>
@@ -95,8 +42,8 @@ export function AuthShell({ children }: { children: React.ReactNode }) {
           <BrandPanel />
           <div className="w-32 h-px bg-gradient-to-r from-transparent via-[#c8a96b]/40 to-transparent" />
           <p className="text-white/25 text-sm leading-relaxed tracking-wider font-light">
-            Premium chauffeur services.<br />
-            Luxury at your fingertips.
+            Operational companion portal.<br />
+            Built for driver workflows.
           </p>
         </div>
         <p className="absolute bottom-8 text-[10px] text-white/12 tracking-[0.2em] uppercase">
@@ -127,35 +74,15 @@ export function AuthShell({ children }: { children: React.ReactNode }) {
 
 /** Brand content used inside the left panel */
 function BrandPanel() {
-  const [logoUrl, setLogoUrl] = React.useState<string | null>(null);
-  const [name, setName] = React.useState('ASChauffeured');
-
-  React.useEffect(() => {
-    const host = typeof window !== 'undefined' ? window.location.hostname : '';
-    const sub = host.split('.')[0];
-    const slug = (sub && sub !== 'www' && sub !== 'chauffeurssolution') ? sub : '';
-    if (!slug) return;
-    const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'https://chauffeur-saas-production.up.railway.app';
-    fetch(`${API_URL}/public/tenant-info?tenant_slug=${slug}`)
-      .then(r => r.ok ? r.json() : null)
-      .then(d => { if (d) { setName(d.company_name ?? 'ASChauffeured'); if (d.logo_url) setLogoUrl(d.logo_url); } })
-      .catch(() => {});
-  }, []);
-
-  if (logoUrl) {
-    return (
-      <img src={logoUrl} alt={name}
-        style={{ height: '80px', width: 'auto', objectFit: 'contain' }}
-        onError={(e) => (e.target as HTMLImageElement).style.display = 'none'} />
-    );
-  }
   return (
     <div className="flex flex-col items-center gap-2">
       <span className="text-[#c8a96b] text-xl font-medium tracking-[0.18em] uppercase"
-        style={{ fontFamily: "'Playfair Display', serif" }}>{name}</span>
+        style={{ fontFamily: "'Playfair Display', serif" }}>
+        Chauffeur Solutions
+      </span>
       <div className="w-40 h-px bg-[#c8a96b]/50" />
       <span className="text-[#c8a96b]/60 text-[10px] tracking-[0.12em] uppercase italic">
-        Premium Chauffeur Services
+        Driver Portal
       </span>
     </div>
   );

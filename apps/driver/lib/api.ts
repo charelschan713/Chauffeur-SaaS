@@ -64,10 +64,10 @@ api.interceptors.response.use(
 
     if (err.response?.status === 401 && typeof window !== 'undefined') {
       // Only force-redirect to login on protected pages, NOT on public pages like /quote or /book
-      const publicPaths = ['/quote', '/book', '/login', '/register', '/no-tenant', '/reset-password'];
+      const publicPaths = ['/login', '/no-tenant'];
       const isPublic = publicPaths.some(p => window.location.pathname.startsWith(p));
       if (!isPublic) {
-        localStorage.removeItem('customer_token');
+        localStorage.removeItem('driver_token');
         window.location.href = '/login';
       }
     }

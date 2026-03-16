@@ -12,6 +12,7 @@ import {
 } from '@nestjs/common';
 import type { Response } from 'express';
 import { BookingService } from './booking.service';
+import { BookingChangeService } from './booking-change.service';
 import { JwtGuard } from '../common/guards/jwt.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 
