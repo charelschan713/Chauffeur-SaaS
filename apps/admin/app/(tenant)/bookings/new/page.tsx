@@ -483,8 +483,48 @@ export default function CreateBookingPage() {
       });
 
       console.debug('[admin][booking-new] before quote post');
-      const quoteRes = await api.post(publicUrl(`/public/pricing/quote?tenant_slug=${encodeURIComponent(tenantSlug)}`), quotePayload);
-      console.debug('[admin][booking-new] after quote post');
+      try {
+        const quoteRes = await api.post(
+          publicUrl(`/public/pricing/quote?tenant_slug=${encodeURIComponent(tenantSlug)}`),
+          quotePayload,
+        );
+        console.debug('[admin][booking-new] after quote post');
+
+        let results: any[] = [];
+        try {
+          results = quoteRes.data?.results ?? [];
+          const estimates: Record<string, number> = {};
+          const breakdowns: Record<string, any> = {};
+          for (const r of results) {
+            const snap = r?.pricing_snapshot_preview ?? {};
+            estimates[r.service_class_id] = snap.final_fare_minor ?? r.estimated_total_minor ?? 0;
+            breakdowns[r.service_class_id] = snap;
+          }
+
+          setQuote({
+            status: 'success',
+            distanceKm: outboundDistanceKm,
+            durationMinutes: outboundDurationMinutes,
+            estimates,
+            breakdowns,
+          });
+        } catch (e: any) {
+          console.error('[admin][booking-new] post-quote processing failed', {
+            error: e,
+            message: e?.message,
+            stack: e?.stack,
+            resultsPreview: Array.isArray(results) ? results.slice(0, 1) : results,
+          });
+          throw e;
+        }
+      } catch (err: any) {
+        console.error('[admin][booking-new] quote post failed', {
+          message: err?.message,
+          stack: err?.stack,
+          err,
+        });
+        throw err;
+      }
 
       let results: any[] = [];
       try {
