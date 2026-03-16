@@ -464,22 +464,33 @@ export default function CreateBookingPage() {
         booster_seats: values.booster_seats ?? 0,
       });
 
-      const results = quoteRes.data?.results ?? [];
-      const estimates: Record<string, number> = {};
-      const breakdowns: Record<string, any> = {};
-      for (const r of results) {
-        const snap = r?.pricing_snapshot_preview ?? {};
-        estimates[r.service_class_id] = snap.final_fare_minor ?? r.estimated_total_minor ?? 0;
-        breakdowns[r.service_class_id] = snap;
-      }
+      let results: any[] = [];
+      try {
+        results = quoteRes.data?.results ?? [];
+        const estimates: Record<string, number> = {};
+        const breakdowns: Record<string, any> = {};
+        for (const r of results) {
+          const snap = r?.pricing_snapshot_preview ?? {};
+          estimates[r.service_class_id] = snap.final_fare_minor ?? r.estimated_total_minor ?? 0;
+          breakdowns[r.service_class_id] = snap;
+        }
 
-      setQuote({
-        status: 'success',
-        distanceKm: outboundRoute.data.distance_km,
-        durationMinutes: outboundRoute.data.duration_minutes,
-        estimates,
-        breakdowns,
-      });
+        setQuote({
+          status: 'success',
+          distanceKm: outboundRoute.data.distance_km,
+          durationMinutes: outboundRoute.data.duration_minutes,
+          estimates,
+          breakdowns,
+        });
+      } catch (e: any) {
+        console.error('[admin][booking-new] post-quote processing failed', {
+          error: e,
+          message: e?.message,
+          stack: e?.stack,
+          resultsPreview: Array.isArray(results) ? results.slice(0, 1) : results,
+        });
+        throw e;
+      }
     } catch (err: any) {
       const status = err?.response?.status;
       const data = err?.response?.data;
