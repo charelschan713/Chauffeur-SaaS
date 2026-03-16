@@ -325,6 +325,7 @@ export function QuoteClient() {
   const [quoteResults, setQuoteResults] = useState<QuoteResult[]>([]);
   const [selectedCarTypeId, setSelectedCarTypeId] = useState<string | null>(null);
   const [currency, setCurrency]         = useState('AUD');
+  const [lastQuoteDebug, setLastQuoteDebug] = useState<any | null>(null);
 
   const resultsRef = useRef<HTMLDivElement>(null);
 
@@ -453,6 +454,11 @@ export function QuoteClient() {
         toddler_seats: Number(toddlerSeats),
         booster_seats: Number(boosterSeats),
       };
+      setLastQuoteDebug({
+        payload: body,
+        outboundRoute,
+        returnRoute: tripType === 'RETURN' ? returnRoute : null,
+      });
       if (isHourly(selectedServiceType)) body.duration_hours = Number(durationHours);
       if (tripType === 'RETURN') {
         body.return_distance_km = returnRoute.distance_km;
@@ -468,6 +474,7 @@ export function QuoteClient() {
         body: JSON.stringify(body),
       }).then(r => { if (!r.ok) throw new Error('Quote failed'); return r.json(); });
 
+      setLastQuoteDebug((prev: any) => ({ ...prev, quote }));
       setQuoteId(quote.quote_id);
       setQuoteResults(quote.results ?? []);
       setCurrency(quote.currency ?? 'AUD');
@@ -830,6 +837,18 @@ export function QuoteClient() {
               Fare is an estimate. Final price confirmed at booking.{' '}
               <span className="text-[hsl(var(--primary)/0.7)]">Quote valid for 30 minutes.</span>
             </p>
+
+            {lastQuoteDebug && (
+              <details className="mt-4 rounded-xl border border-white/10 bg-white/5 p-4 text-xs">
+                <summary className="cursor-pointer font-semibold text-gray-300">Debug · Quote Inputs + Snapshot</summary>
+                <div className="mt-3 grid gap-3">
+                  <div>
+                    <div className="font-semibold text-gray-400 mb-1">Quote Payload</div>
+                    <pre className="whitespace-pre-wrap break-all text-gray-300">{JSON.stringify(lastQuoteDebug, null, 2)}</pre>
+                  </div>
+                </div>
+              </details>
+            )}
           </div>
         )}
       </div>
