@@ -41,9 +41,10 @@ interface FulfilModalProps {
       waypoints_minor?: number | null;
       baby_seats_minor?: number | null;
       discount_amount_minor?: number | null;
-      combined_before_multiplier?: number | null;
       leg1_minor?: number | null;
+      leg1_surcharge_minor?: number | null;
       leg2_minor?: number | null;
+      leg2_surcharge_minor?: number | null;
       multiplier_mode?: string | null;
       multiplier_value?: number | null;
     };
@@ -304,7 +305,7 @@ export function FulfilModal({
               <div className="text-sm text-gray-700 border-t pt-2 mt-2 space-y-1">
                 <p><span className="text-gray-500">Original waypoints:</span> {Array.isArray(bookingSnapshot?.waypoints) && bookingSnapshot.waypoints.length ? bookingSnapshot.waypoints.join(' → ') : '—'}</p>
                 <p><span className="text-gray-500">Original waiting allowance:</span> {bookingSnapshot?.waiting_time_minutes ?? 0} min</p>
-                <p className="font-medium"><span className="text-gray-500">Original total:</span> {fmt(bookingSnapshot?.pricing_snapshot?.final_fare_minor ?? bookingSnapshot?.pricing_snapshot?.grand_total_minor ?? originalMinor, currency)}</p>
+                <p className="font-medium"><span className="text-gray-500">Original total:</span> {fmt(bookingSnapshot?.pricing_snapshot?.final_fare_minor ?? originalMinor, currency)}</p>
               </div>
             </div>
 
@@ -420,19 +421,32 @@ export function FulfilModal({
             <div className="bg-white border rounded-lg p-3">
               <p className="text-xs font-semibold text-gray-600 uppercase mb-2">Snapshot composition</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
-                <div className="flex justify-between"><span>Outbound price</span><span>{fmt(leg1Minor, currency)}</span></div>
-                <div className="flex justify-between"><span>Return price</span><span>{fmt(leg2Minor, currency)}</span></div>
-                {(combinedBeforeMultiplier ?? 0) > 0 && (
-                  <div className="flex justify-between"><span>Combined before return rule</span><span>{fmt(combinedBeforeMultiplier ?? 0, currency)}</span></div>
-                )}
                 {(() => {
-                  const rrMinor =
-                    multiplierMode === 'PERCENTAGE'
-                      ? Math.max(0, Math.round(((combinedBeforeMultiplier ?? 0) * (multiplierValue ?? 0)) / 100))
-                      : Math.max(0, Math.round(multiplierValue ?? 0));
-                  return returnRuleLabel(multiplierMode, multiplierValue) ? (
-                    <div className="flex justify-between"><span>{returnRuleLabel(multiplierMode, multiplierValue)}</span><span>{fmt(rrMinor, currency)}</span></div>
-                  ) : null
+                  const snap = bookingSnapshot?.pricing_snapshot ?? {};
+                  const leg1S = typeof snap.leg1_surcharge_minor === 'number' ? snap.leg1_surcharge_minor : 0;
+                  const leg2S = typeof snap.leg2_surcharge_minor === 'number' ? snap.leg2_surcharge_minor : 0;
+                  const toll = typeof snap.toll_minor === 'number' ? snap.toll_minor : 0;
+                  const parking = typeof snap.parking_minor === 'number' ? snap.parking_minor : 0;
+                  const discount = typeof snap.discount_amount_minor === 'number' ? snap.discount_amount_minor : 0;
+                  const total = typeof snap.final_fare_minor === 'number' ? snap.final_fare_minor : 0;
+                  return (
+                    <>
+                      <div className="flex justify-between"><span>Outbound price</span><span>{fmt(leg1Minor ?? 0, currency)}</span></div>
+                      {leg1S > 0 && <div className="flex justify-between"><span>Outbound surcharge</span><span>{fmt(leg1S, currency)}</span></div>}
+                      {toll > 0 && <div className="flex justify-between"><span>Outbound toll</span><span>{fmt(toll, currency)}</span></div>}
+                      {parking > 0 && <div className="flex justify-between"><span>Outbound parking</span><span>{fmt(parking, currency)}</span></div>}
+                      {leg2Minor != null && (
+                        <>
+                          <div className="flex justify-between"><span>Return price</span><span>{fmt(leg2Minor ?? 0, currency)}</span></div>
+                          {leg2S > 0 && <div className="flex justify-between"><span>Return surcharge</span><span>{fmt(leg2S, currency)}</span></div>}
+                          {toll > 0 && <div className="flex justify-between"><span>Return toll</span><span>{fmt(toll, currency)}</span></div>}
+                          {parking > 0 && <div className="flex justify-between"><span>Return parking</span><span>{fmt(parking, currency)}</span></div>}
+                        </>
+                      )}
+                      {discount > 0 && <div className="flex justify-between"><span>Discount</span><span>-{fmt(discount, currency)}</span></div>}
+                      {total > 0 && <div className="flex justify-between"><span>Total</span><span>{fmt(total, currency)}</span></div>}
+                    </>
+                  );
                 })()}
               </div>
             </div>

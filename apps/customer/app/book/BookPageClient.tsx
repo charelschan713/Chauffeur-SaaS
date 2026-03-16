@@ -565,77 +565,17 @@ export function BookPageClient() {
             </div>
             <div className="text-right shrink-0">
               {(() => {
-                const preview = selectedResult.pricing_snapshot_preview;
-
-                // ── Effective discount ────────────────────────────────────
-                // loyaltyDiscount replaces (not stacks on) the quote auto-discount.
-                // loyaltyDiscount.finalFareMinor is computed from the pre-discount
-                // base fare, so it is always the authoritative payable amount.
-                const baseDiscountMinor = preview?.discount_amount_minor ?? 0;
-                const effectiveDiscount = loyaltyDiscount ?? (baseDiscountMinor > 0 ? {
-                  finalFareMinor: selectedResult.estimated_total_minor,
-                  discountMinor:  baseDiscountMinor,
-                } : null);
-
-                // ── finalPrice ────────────────────────────────────────────
-                // BUG FIX: use loyaltyDiscount.finalFareMinor when available.
-                // estimated_total_minor has a separate auto-discount baked in
-                // and must NOT be shown as the final when loyalty overrides it.
-                const finalPrice =
-                  effectiveDiscount?.finalFareMinor ?? selectedResult.estimated_total_minor;
-
-                // ── originalPrice (crossed-out base) ──────────────────────
-                // Source priority: pre_discount_fare_minor → base_calculated_minor → fallback.
-                // NEVER compute as finalPrice + discount when loyalty is active,
-                // because finalPrice has already been discounted and the discount
-                // rate was applied against the pre-discount base, not the final.
-                const tollMinor     = preview?.toll_parking_minor ?? 0;
-                const preDiscountFare =
-                  (preview?.pre_discount_fare_minor ?? preview?.base_calculated_minor ?? 0);
-                const discountMinor = effectiveDiscount?.discountMinor ?? 0;
-
-                // Fallback: if snapshot is missing, add back discount to final.
-                // This is safe only when loyaltyDiscount is NOT active (loyalty
-                // final already absorbed the auto-discount; using it as base
-                // would under-report the original).
-                const originalPrice = preDiscountFare > 0
-                  ? preDiscountFare + tollMinor
-                  : loyaltyDiscount
-                    ? finalPrice + discountMinor  // loyalty active, snapshot missing — best effort
-                    : selectedResult.estimated_total_minor + discountMinor;
-
-                // ── Debug log ─────────────────────────────────────────────
-                if (process.env.NODE_ENV !== 'production') {
-                  console.log('[BookPageClient] summary prices', {
-                    source:            'renderQuoteSummary header',
-                    baseFare:          preDiscountFare,
-                    preDiscountTotal:  preDiscountFare + tollMinor,
-                    loyaltyDiscount:   loyaltyDiscount?.discountMinor,
-                    promoDiscount:     null,
-                    totalDiscount:     discountMinor,
-                    finalPayable:      finalPrice,
-                    estimatedTotal:    selectedResult.estimated_total_minor,
-                    originalDisplay:   originalPrice,
-                    toll:              tollMinor,
-                  });
-                }
-
+                const snap = selectedResult.pricing_snapshot_preview ?? {};
+                const finalFareMinor = typeof snap.final_fare_minor === 'number' ? snap.final_fare_minor : 0;
+                const discountMinor = typeof snap.discount_amount_minor === 'number' ? snap.discount_amount_minor : 0;
                 return (
                   <>
-                    {effectiveDiscount && effectiveDiscount.discountMinor > 0 && (
-                      <p className="text-xs text-[hsl(var(--muted-foreground))] line-through">
-                        {fmtMoney(originalPrice, selectedResult.currency)}
-                      </p>
-                    )}
-                    <p className={cn(
-                      "text-lg font-bold",
-                      effectiveDiscount ? "text-emerald-400" : "text-gradient-gold"
-                    )}>
-                      {fmtMoney(finalPrice, selectedResult.currency)}
+                    <p className="text-lg font-bold text-gradient-gold">
+                      {fmtMoney(finalFareMinor, selectedResult.currency)}
                     </p>
-                    {effectiveDiscount && effectiveDiscount.discountMinor > 0 && (
+                    {discountMinor > 0 && (
                       <p className="text-[11px] text-emerald-400 font-semibold">
-                        -{fmtMoney(effectiveDiscount.discountMinor, selectedResult.currency)} off
+                        -{fmtMoney(discountMinor, selectedResult.currency)} off
                       </p>
                     )}
                   </>
@@ -789,122 +729,90 @@ export function BookPageClient() {
           </div>
 
           {/* Price breakdown */}
-          {((preview.pre_discount_fare_minor ?? preview.base_calculated_minor ?? 0) > 0 || preview.toll_parking_minor > 0 || (preview.leg1_minor ?? 0) > 0 || (preview.leg2_minor ?? 0) > 0) && (
-            <div className="space-y-1 text-xs border-t border-[hsl(var(--border))] pt-2">
-              {!isReturnTrip && (preview.pre_discount_fare_minor ?? preview.base_calculated_minor ?? 0) > 0 && (
-                <div className="flex justify-between text-[hsl(var(--muted-foreground))]">
-                  <span>Outbound price</span>
-                  <span>{fmtMoney(preview.pre_discount_fare_minor ?? preview.base_calculated_minor ?? selectedResult.estimated_total_minor, selectedResult.currency)}</span>
-                </div>
-              )}
-
-              {isReturnTrip && (preview.leg1_minor ?? 0) > 0 && (
-                <div className="flex justify-between text-[hsl(var(--muted-foreground))]">
-                  <span>Outbound price</span>
-                  <span>{fmtMoney(preview.leg1_minor!, selectedResult.currency)}</span>
-                </div>
-              )}
-              {isReturnTrip && (preview.leg2_minor ?? 0) > 0 && (
-                <div className="flex justify-between text-[hsl(var(--muted-foreground))]">
-                  <span>Return price</span>
-                  <span>{fmtMoney(preview.leg2_minor!, selectedResult.currency)}</span>
-                </div>
-              )}
-              {isReturnTrip && (preview.combined_before_multiplier ?? 0) > 0 && (
-                <div className="flex justify-between text-[hsl(var(--muted-foreground)/0.9)]">
-                  <span>Combined before return rule</span>
-                  <span>{fmtMoney(preview.combined_before_multiplier!, selectedResult.currency)}</span>
-                </div>
-              )}
-
-              {(preview.time_surcharge_minor ?? 0) > 0 && (
-                <div className="flex justify-between text-amber-400/80">
-                  <span>Time surcharge</span>
-                  <span>+{fmtMoney(preview.time_surcharge_minor ?? 0, selectedResult.currency)}</span>
-                </div>
-              )}
-
-              {(preview.surcharge_items?.length
-                ? preview.surcharge_items
-                : preview.surcharge_minor > 0
-                  ? [{ label: preview.surcharge_labels?.[0] ?? 'Surcharge', amount_minor: preview.surcharge_minor }]
-                  : []
-              ).map((item: { amount_minor: number; label: string }, i: number) => (
-                <div key={i} className="flex justify-between text-amber-400/80">
-                  <span className="flex items-center gap-1">
-                    <svg className="h-3 w-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                    {item.label}
-                  </span>
-                  <span>+{fmtMoney(item.amount_minor, selectedResult.currency)}</span>
-                </div>
-              ))}
-
-              {isReturnTrip ? (
-                <>
-                  {(preview.toll_minor ?? 0) > 0 && (
-                    <div className="flex justify-between text-[hsl(var(--muted-foreground))]">
-                      <span>Tolls (combined)</span>
-                      <span>+{fmtMoney(preview.toll_minor!, selectedResult.currency)}</span>
-                    </div>
-                  )}
-                  {(preview.parking_minor ?? 0) > 0 && (
-                    <div className="flex justify-between text-[hsl(var(--muted-foreground))]">
-                      <span>Parking (combined)</span>
-                      <span>+{fmtMoney(preview.parking_minor!, selectedResult.currency)}</span>
-                    </div>
-                  )}
-                </>
-              ) : (
-                <>
-                  {(preview.toll_minor ?? 0) > 0 && (
-                    <div className="flex justify-between text-[hsl(var(--muted-foreground))]">
-                      <span>Road tolls</span>
-                      <span>+{fmtMoney(preview.toll_minor!, selectedResult.currency)}</span>
-                    </div>
-                  )}
-                  {(preview.parking_minor ?? 0) > 0 && (
-                    <div className="flex justify-between text-[hsl(var(--muted-foreground))]">
-                      <span>Airport parking</span>
-                      <span>+{fmtMoney(preview.parking_minor!, selectedResult.currency)}</span>
-                    </div>
-                  )}
-                </>
-              )}
-
-              {preview.toll_parking_minor > 0 && !(preview.toll_minor ?? 0) && !(preview.parking_minor ?? 0) && (
-                <div className="flex justify-between text-[hsl(var(--muted-foreground))]">
-                  <span>Tolls / parking</span>
-                  <span>+{fmtMoney(preview.toll_parking_minor, selectedResult.currency)}</span>
-                </div>
-              )}
-
-              {(() => {
-                const discMinor = loyaltyDiscount?.discountMinor ?? preview.discount_amount_minor ?? 0;
-                const discLabel = loyaltyDiscount
-                  ? `${loyaltyDiscount.discountName ?? 'Discount'} (${loyaltyDiscount.discountRate}%${loyaltyDiscount.cappedByMax ? ' capped' : ''})`
-                  : preview.discount_type === 'PERCENTAGE'
-                    ? `Discount (${preview.discount_value ?? ''}%)`
-                    : 'Discount';
-                if (discMinor <= 0) return null;
-                return (
-                  <div className="flex justify-between text-emerald-400">
-                    <span>{discLabel}</span>
-                    <span>-{fmtMoney(discMinor, selectedResult.currency)}</span>
+          {(() => {
+            const snap = preview ?? {};
+            const leg1 = typeof snap.leg1_minor === 'number' ? snap.leg1_minor : 0;
+            const leg2 = typeof snap.leg2_minor === 'number' ? snap.leg2_minor : null;
+            const leg1S = typeof snap.leg1_surcharge_minor === 'number' ? snap.leg1_surcharge_minor : 0;
+            const leg2S = typeof snap.leg2_surcharge_minor === 'number' ? snap.leg2_surcharge_minor : 0;
+            const toll = typeof snap.toll_minor === 'number' ? snap.toll_minor : 0;
+            const parking = typeof snap.parking_minor === 'number' ? snap.parking_minor : 0;
+            const discount = typeof snap.discount_amount_minor === 'number' ? snap.discount_amount_minor : 0;
+            const total = typeof snap.final_fare_minor === 'number' ? snap.final_fare_minor : 0;
+            const hasAny = leg1 || (leg2 ?? 0) || leg1S || leg2S || toll || parking || discount || total;
+            if (!hasAny) return null;
+            return (
+              <div className="space-y-1 text-xs border-t border-[hsl(var(--border))] pt-2">
+                {leg1 > 0 && (
+                  <div className="flex justify-between text-[hsl(var(--muted-foreground))]">
+                    <span>Outbound price</span>
+                    <span>{fmtMoney(leg1, selectedResult.currency)}</span>
                   </div>
-                );
-              })()}
+                )}
+                {leg1S > 0 && (
+                  <div className="flex justify-between text-amber-400/80">
+                    <span>Outbound surcharge</span>
+                    <span>+{fmtMoney(leg1S, selectedResult.currency)}</span>
+                  </div>
+                )}
+                {toll > 0 && (
+                  <div className="flex justify-between text-[hsl(var(--muted-foreground))]">
+                    <span>Outbound toll</span>
+                    <span>+{fmtMoney(toll, selectedResult.currency)}</span>
+                  </div>
+                )}
+                {parking > 0 && (
+                  <div className="flex justify-between text-[hsl(var(--muted-foreground))]">
+                    <span>Outbound parking</span>
+                    <span>+{fmtMoney(parking, selectedResult.currency)}</span>
+                  </div>
+                )}
 
-              <div className="flex justify-between font-semibold pt-1 border-t border-[hsl(var(--border))]">
-                <span className="text-[hsl(var(--foreground))]">Total</span>
-                <span className={loyaltyDiscount?.discountMinor || (selectedResult.pricing_snapshot_preview?.discount_amount_minor ?? 0) > 0
-                  ? "text-emerald-400"
-                  : "text-[hsl(var(--foreground))]"
-                }>
-                  {fmtMoney(loyaltyDiscount?.finalFareMinor ?? selectedResult.estimated_total_minor, selectedResult.currency)}
-                </span>
+                {leg2 !== null && (
+                  <>
+                    {leg2 > 0 && (
+                      <div className="flex justify-between text-[hsl(var(--muted-foreground))]">
+                        <span>Return price</span>
+                        <span>{fmtMoney(leg2, selectedResult.currency)}</span>
+                      </div>
+                    )}
+                    {leg2S > 0 && (
+                      <div className="flex justify-between text-amber-400/80">
+                        <span>Return surcharge</span>
+                        <span>+{fmtMoney(leg2S, selectedResult.currency)}</span>
+                      </div>
+                    )}
+                    {toll > 0 && (
+                      <div className="flex justify-between text-[hsl(var(--muted-foreground))]">
+                        <span>Return toll</span>
+                        <span>+{fmtMoney(toll, selectedResult.currency)}</span>
+                      </div>
+                    )}
+                    {parking > 0 && (
+                      <div className="flex justify-between text-[hsl(var(--muted-foreground))]">
+                        <span>Return parking</span>
+                        <span>+{fmtMoney(parking, selectedResult.currency)}</span>
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {discount > 0 && (
+                  <div className="flex justify-between text-emerald-400">
+                    <span>Discount</span>
+                    <span>-{fmtMoney(discount, selectedResult.currency)}</span>
+                  </div>
+                )}
+
+                <div className="flex justify-between font-semibold pt-1 border-t border-[hsl(var(--border))]">
+                  <span className="text-[hsl(var(--foreground))]">Total</span>
+                  <span className={discount > 0 ? "text-emerald-400" : "text-[hsl(var(--foreground))]"}>
+                    {fmtMoney(total, selectedResult.currency)}
+                  </span>
+                </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
         </CardContent>
       </Card>
     );
@@ -927,8 +835,11 @@ export function BookPageClient() {
     const pickup = session?.payload?.request?.pickup_address ?? createdBooking?.pickup_address_text;
     const dropoff = session?.payload?.request?.dropoff_address ?? createdBooking?.dropoff_address_text;
     const total = fmtMoney(
-      loyaltyDiscount?.finalFareMinor ?? selectedResult?.estimated_total_minor ?? createdBooking?.total_price_minor ?? 0,
-      selectedResult?.currency ?? 'AUD',
+      selectedResult?.pricing_snapshot_preview?.final_fare_minor
+        ?? createdBooking?.pricing_snapshot?.final_fare_minor
+        ?? createdBooking?.total_price_minor
+        ?? 0,
+      selectedResult?.currency ?? createdBooking?.currency ?? 'AUD',
     );
     return (
       <div className="min-h-screen bg-[hsl(var(--background))]" style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}>
@@ -1365,7 +1276,7 @@ export function BookPageClient() {
                           billingName={`${passengerDetails.firstName} ${passengerDetails.lastName}`.trim() || undefined}
                           clientSecret={setupClientSecret}
                           submitLabel={`Confirm & Pay ${fmtMoney(
-                            loyaltyDiscount?.finalFareMinor ?? selectedResult?.estimated_total_minor ?? 0,
+                            selectedResult?.pricing_snapshot_preview?.final_fare_minor ?? 0,
                             selectedResult?.currency ?? 'AUD',
                           )}`}
                           submitting={submitting}
@@ -1425,7 +1336,7 @@ export function BookPageClient() {
               onClick={handleSavedCardPay}
               className="w-full bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] rounded-xl py-4 font-semibold text-sm disabled:opacity-60">
               {submitting ? 'Processing…' : savedCardsLoading ? 'Loading card…' : selectedResult
-                ? `Confirm & Pay ${fmtMoney(loyaltyDiscount?.finalFareMinor ?? selectedResult.estimated_total_minor, selectedResult.currency)}`
+                ? `Confirm & Pay ${fmtMoney(selectedResult?.pricing_snapshot_preview?.final_fare_minor ?? 0, selectedResult.currency)}`
                 : 'Confirm & Pay'}
             </button>
           </div>

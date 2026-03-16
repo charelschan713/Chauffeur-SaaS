@@ -122,7 +122,7 @@ function BookingDetailInner() {
   const hasReturnLegs = !!(booking?.trip_mode === 'RETURN' && (pricingSnapshot?.leg1_minor || pricingSnapshot?.leg2_minor));
   const assignLegFareMinor =
     assignLeg === 'A'
-      ? (hasReturnLegs ? (pricingSnapshot?.leg1_minor ?? pricingSnapshot?.base_fare_minor ?? pricingSnapshot?.final_fare_minor ?? booking?.total_price_minor ?? 0) : (pricingSnapshot?.final_fare_minor ?? pricingSnapshot?.base_fare_minor ?? booking?.total_price_minor ?? 0))
+      ? (hasReturnLegs ? (pricingSnapshot?.leg1_minor ?? pricingSnapshot?.final_fare_minor ?? booking?.total_price_minor ?? 0) : (pricingSnapshot?.final_fare_minor ?? booking?.total_price_minor ?? 0))
       : (hasReturnLegs ? (pricingSnapshot?.leg2_minor ?? 0) : (pricingSnapshot?.final_fare_minor ?? booking?.total_price_minor ?? 0));
 
   const latestAssignment = useMemo(() => assignments.at(0), [assignments]);
@@ -685,75 +685,40 @@ function BookingDetailInner() {
                   const fmt = (v: number) => `${cur} ${(v / 100).toFixed(2)}`;
                   const toMoney = (value: unknown) =>
                     fmt(typeof value === 'number' && Number.isFinite(value) ? value : 0);
-                  const returnLabel =
-                    snap.multiplier_mode && snap.multiplier_value
-                      ? snap.multiplier_mode === 'PERCENTAGE'
-                        ? `${snap.multiplier_value}% return rule`
-                        : `${snap.multiplier_value} return surcharge`
-                      : null;
-                  const hasReturnLegs =
-                    (snap.leg1_minor != null && snap.leg2_minor != null) &&
-                    (snap.leg1_minor !== 0 || snap.leg2_minor !== 0);
-                  const baseFare = snap.pre_discount_fare_minor ?? snap.base_calculated_minor ?? 0;
-                  const outboundPriceMinor =
-                    hasReturnLegs
-                      ? (typeof snap.leg1_minor === 'number' ? snap.leg1_minor : baseFare)
-                      : baseFare;
-                  const returnRuleMinor =
-                    typeof snap.multiplier_mode === 'string' &&
-                    snap.multiplier_mode === 'ADD_FIXED' &&
-                    typeof snap.multiplier_value === 'number' && Number.isFinite(snap.multiplier_value)
-                      ? Math.max(0, Math.round(snap.multiplier_value))
-                      : typeof snap.multiplier_mode === 'string' &&
-                        snap.multiplier_mode === 'PERCENTAGE' &&
-                        typeof snap.multiplier_value === 'number' &&
-                        Number.isFinite(snap.multiplier_value)
-                        ? Math.max(0, Math.round((Number(snap.combined_before_multiplier ?? 0) * snap.multiplier_value) / 100))
-                        : 0;
-                  const discountMinor = snap.discount_amount_minor ?? snap.discount_minor ?? 0;
-                  const tollMinor = snap.toll_minor ?? 0;
-                  const parkingMinor = snap.parking_minor ?? 0;
+                  const leg1 = typeof snap.leg1_minor === 'number' ? snap.leg1_minor : 0;
+                  const leg2 = typeof snap.leg2_minor === 'number' ? snap.leg2_minor : null;
+                  const leg1S = typeof snap.leg1_surcharge_minor === 'number' ? snap.leg1_surcharge_minor : 0;
+                  const leg2S = typeof snap.leg2_surcharge_minor === 'number' ? snap.leg2_surcharge_minor : 0;
+                  const toll = typeof snap.toll_minor === 'number' ? snap.toll_minor : 0;
+                  const parking = typeof snap.parking_minor === 'number' ? snap.parking_minor : 0;
+                  const discountMinor = typeof snap.discount_amount_minor === 'number' ? snap.discount_amount_minor : 0;
+                  const total = typeof snap.final_fare_minor === 'number'
+                    ? snap.final_fare_minor
+                    : booking.total_price_minor ?? 0;
+                  const isReturn = booking.trip_mode === 'RETURN';
                   return (
                     <>
-                      {/* 1. Fare legs */}
-                      {outboundPriceMinor > 0 && <div className="flex justify-between"><span className="text-gray-500">Outbound price</span><span>{fmt(outboundPriceMinor)}</span></div>}
+                      {leg1 > 0 && <div className="flex justify-between"><span className="text-gray-500">Outbound price</span><span>{fmt(leg1)}</span></div>}
+                      {leg1S > 0 && <div className="flex justify-between"><span className="text-gray-500">Outbound surcharge</span><span>+{fmt(leg1S)}</span></div>}
+                      {toll > 0 && <div className="flex justify-between"><span className="text-gray-500">Outbound toll</span><span>+{fmt(toll)}</span></div>}
+                      {parking > 0 && <div className="flex justify-between"><span className="text-gray-500">Outbound parking</span><span>+{fmt(parking)}</span></div>}
 
-                      {/* 2. Return leg composition */}
-                      {hasReturnLegs && (
+                      {leg2 !== null && (
                         <>
-                          <div className="mt-2 pt-2 border-t border-gray-200/70"></div>
-                          {snap.leg2_minor != null && snap.leg2_minor > 0 && <div className="flex justify-between"><span className="text-gray-500">Return price</span><span>{toMoney(snap.leg2_minor)}</span></div>}
-                          {(snap.combined_before_multiplier ?? 0) > 0 && (
-                            <div className="flex justify-between"><span className="text-gray-500">Combined before return rule</span><span>{toMoney(snap.combined_before_multiplier)}</span></div>
-                          )}
-                          {returnLabel && returnRuleMinor > 0 && (
-                            <div className="flex justify-between text-gray-500"><span>{returnLabel}</span><span>+{fmt(returnRuleMinor)}</span></div>
-                          )}
+                          {leg2 > 0 && <div className="flex justify-between"><span className="text-gray-500">Return price</span><span>{toMoney(leg2)}</span></div>}
+                          {leg2S > 0 && <div className="flex justify-between"><span className="text-gray-500">Return surcharge</span><span>+{fmt(leg2S)}</span></div>}
+                          {toll > 0 && <div className="flex justify-between"><span className="text-gray-500">Return toll</span><span>+{fmt(toll)}</span></div>}
+                          {parking > 0 && <div className="flex justify-between"><span className="text-gray-500">Return parking</span><span>+{fmt(parking)}</span></div>}
                         </>
                       )}
 
-                      {/* 3. Surcharges */}
-                      {(snap.time_surcharge_minor ?? 0) > 0 && <div className="flex justify-between"><span className="text-gray-500">Time Surcharge</span><span>+{fmt(snap.time_surcharge_minor)}</span></div>}
-                      {snap.surcharge_items?.map((item: { label: string; amount_minor: number }, i: number) => (
-                        <div key={i} className="flex justify-between"><span className="text-gray-500">{item.label}</span><span>+{fmt(item.amount_minor)}</span></div>
-                      ))}
-
-                      {/* 4. Discount (fare only — toll NOT discounted) */}
                       {discountMinor > 0 && (
                         <div className="flex justify-between text-green-600"><span>Discount</span><span>− {fmt(discountMinor)}</span></div>
                       )}
 
-                      {/* 5. Toll / Parking (added AFTER discount, never discounted) */}
-                      {tollMinor > 0 && <div className="flex justify-between"><span className="text-gray-500">{hasReturnLegs ? "Tolls (combined)" : "Road tolls"}</span><span>+{fmt(tollMinor)}</span></div>}
-                      {parkingMinor > 0 && <div className="flex justify-between"><span className="text-gray-500">{hasReturnLegs ? "Parking (combined)" : "Airport parking"}</span><span>+{fmt(parkingMinor)}</span></div>}
-                      {tollMinor === 0 && parkingMinor === 0 && (snap.toll_parking_minor ?? 0) > 0 && (
-                        <div className="flex justify-between"><span className="text-gray-500">Tolls / Parking</span><span>+{fmt(snap.toll_parking_minor)}</span></div>
-                      )}
-
-                      {/* 6. Total (authoritative) */}
                       <div className="flex justify-between font-semibold border-t pt-1 mt-1">
                         <span>Total</span>
-                        <span>{fmt(snap.final_fare_minor ?? snap.grand_total_minor ?? booking.total_price_minor ?? 0)}</span>
+                        <span>{fmt(total)}</span>
                       </div>
                     </>
                   );
@@ -1175,7 +1140,6 @@ function BookingDetailInner() {
         currency={booking?.currency ?? 'AUD'}
         leg1Minor={booking?.pricing_snapshot?.leg1_minor}
         leg2Minor={booking?.pricing_snapshot?.leg2_minor}
-        combinedBeforeMultiplier={booking?.pricing_snapshot?.combined_before_multiplier}
         multiplierMode={booking?.pricing_snapshot?.multiplier_mode}
         multiplierValue={booking?.pricing_snapshot?.multiplier_value}
         bookingSnapshot={booking}

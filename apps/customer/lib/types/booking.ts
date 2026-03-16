@@ -57,7 +57,10 @@ export interface QuotePricingSnapshot {
   toll_minor?:            number;
   parking_minor?:         number;
   leg1_minor?:            number;
+  leg1_surcharge_minor?:  number;
   leg2_minor?:            number;
+  leg2_surcharge_minor?:  number;
+  final_fare_minor?:      number;
   combined_before_multiplier?: number;
   trip_mode?:            'ONE_WAY' | 'RETURN' | string;
 }

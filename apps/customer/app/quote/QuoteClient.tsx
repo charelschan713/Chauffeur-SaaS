@@ -51,10 +51,11 @@ type QuoteResult = {
     extras_minor?: number;
     toll_minor?: number;
     parking_minor?: number;
-    time_surcharge_minor?: number;
     leg1_minor?: number;
+    leg1_surcharge_minor?: number;
     leg2_minor?: number;
-    combined_before_multiplier?: number;
+    leg2_surcharge_minor?: number;
+    final_fare_minor?: number;
     multiplier_mode?: string;
     multiplier_value?: number;
   };
@@ -740,8 +741,9 @@ export function QuoteClient() {
               {quoteResults.map(result => {
                 const carType   = carTypes.find(c => c.id === result.service_class_id);
                 const isSelected = selectedCarTypeId === result.service_class_id;
-                const preview   = result.pricing_snapshot_preview;
-                const hasDiscount = (result.discount?.discount_minor ?? 0) > 0;
+                const preview   = result.pricing_snapshot_preview ?? {};
+                const hasDiscount = (preview.discount_amount_minor ?? 0) > 0;
+                const totalMinor = typeof preview.final_fare_minor === 'number' ? preview.final_fare_minor : 0;
                 return (
                   <div key={result.service_class_id} onClick={()=>setSelectedCarTypeId(result.service_class_id)}
                     className={cn('cursor-pointer rounded-2xl border transition-all duration-200 overflow-hidden',
@@ -755,9 +757,8 @@ export function QuoteClient() {
                         </div>
                         <div className="flex items-start gap-2.5 shrink-0">
                           <div className="text-right">
-                            {hasDiscount && <p className="text-[11px] text-gray-400 line-through leading-none mb-0.5">{fmtMoney((preview.pre_discount_fare_minor??preview.pre_discount_total_minor??result.estimated_total_minor+(result.discount?.discount_minor??0)),currency)}</p>}
-                            <p className={cn('text-xl font-bold leading-none', isSelected?'text-gradient-gold':'text-white')}>{fmtMoney(result.estimated_total_minor,currency)}</p>
-                            {hasDiscount ? <p className="text-[10px] text-emerald-400 font-semibold mt-0.5">-{fmtMoney(result.discount!.discount_minor,currency)} off</p> : <p className="text-[10px] text-gray-400 mt-0.5">{currency} incl. GST</p>}
+                            <p className={cn('text-xl font-bold leading-none', isSelected?'text-gradient-gold':'text-white')}>{fmtMoney(totalMinor, currency)}</p>
+                            {hasDiscount ? <p className="text-[10px] text-emerald-400 font-semibold mt-0.5">-{fmtMoney(preview.discount_amount_minor ?? 0, currency)} off</p> : <p className="text-[10px] text-gray-400 mt-0.5">{currency} incl. GST</p>}
                           </div>
                           <div className={cn('w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 mt-0.5 transition-all',isSelected?'border-[hsl(var(--primary))] bg-[hsl(var(--primary))]':'border-white/10')}>
                             {isSelected && <svg className="w-3 h-3 text-[hsl(var(--primary-foreground))]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/></svg>}
@@ -769,22 +770,35 @@ export function QuoteClient() {
                           {(carType?.max_passengers??0)>0 && <span className="flex items-center gap-1"><svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>Up to {carType!.max_passengers} passengers</span>}
                           {(carType?.luggage_capacity??0)>0 && <span className="flex items-center gap-1"><svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>{carType!.luggage_capacity} bags</span>}
 
-                          {(preview.leg1_minor != null && preview.leg2_minor != null) ? (
-                            <>
-                              <span className="text-gray-500">Outbound: {fmtMoney(preview.leg1_minor, currency)}</span>
-                              <span className="text-gray-500">Return: {fmtMoney(preview.leg2_minor, currency)}</span>
-                              {(preview.combined_before_multiplier ?? 0) > 0 && <span className="text-gray-500">Combined before return rule {fmtMoney(preview.combined_before_multiplier ?? 0, currency)}</span>}
-                            </>
-                          ) : (
-                            <span className="text-gray-500">One-way pricing</span>
-                          )}
-                          {(preview.toll_minor ?? 0) > 0 && <span className="text-gray-500">Tolls: +{fmtMoney(preview.toll_minor!, currency)}</span>}
-                          {(preview.parking_minor ?? 0) > 0 && <span className="text-gray-500">Parking: +{fmtMoney(preview.parking_minor!, currency)}</span>}
-                          {(preview.toll_parking_minor>0 && !(preview.toll_minor ?? 0) && !(preview.parking_minor ?? 0)) && <span>Incl. {fmtMoney(preview.toll_parking_minor,currency)} tolls / parking</span>}
-                          {(preview.waypoints_minor??0)>0 && <span className="text-gray-500">+{fmtMoney(preview.waypoints_minor!,currency)} stops</span>}
-                          {(preview.baby_seats_minor??0)>0 && <span className="text-gray-500">+{fmtMoney(preview.baby_seats_minor!,currency)} seats</span>}
-                          {(preview.surcharge_labels?.length??0)>0 && <span className="flex items-center gap-1 text-amber-400/80"><svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>{preview.surcharge_labels!.join(
-)} surcharge incl.</span>}
+                          {(() => {
+                            const leg1 = typeof preview.leg1_minor === 'number' ? preview.leg1_minor : 0;
+                            const leg2 = typeof preview.leg2_minor === 'number' ? preview.leg2_minor : null;
+                            const leg1S = typeof preview.leg1_surcharge_minor === 'number' ? preview.leg1_surcharge_minor : 0;
+                            const leg2S = typeof preview.leg2_surcharge_minor === 'number' ? preview.leg2_surcharge_minor : 0;
+                            const toll = typeof preview.toll_minor === 'number' ? preview.toll_minor : 0;
+                            const parking = typeof preview.parking_minor === 'number' ? preview.parking_minor : 0;
+                            const discount = typeof preview.discount_amount_minor === 'number' ? preview.discount_amount_minor : 0;
+                            const total = typeof preview.final_fare_minor === 'number' ? preview.final_fare_minor : 0;
+                            const isReturn = leg2 !== null;
+                            return (
+                              <>
+                                {leg1 > 0 && <span className="text-gray-500">Outbound price: {fmtMoney(leg1, currency)}</span>}
+                                {leg1S > 0 && <span className="text-amber-400/80">Outbound surcharge: +{fmtMoney(leg1S, currency)}</span>}
+                                {toll > 0 && <span className="text-gray-500">Outbound toll: +{fmtMoney(toll, currency)}</span>}
+                                {parking > 0 && <span className="text-gray-500">Outbound parking: +{fmtMoney(parking, currency)}</span>}
+                                {isReturn && (
+                                  <>
+                                    {leg2 > 0 && <span className="text-gray-500">Return price: {fmtMoney(leg2, currency)}</span>}
+                                    {leg2S > 0 && <span className="text-amber-400/80">Return surcharge: +{fmtMoney(leg2S, currency)}</span>}
+                                    {toll > 0 && <span className="text-gray-500">Return toll: +{fmtMoney(toll, currency)}</span>}
+                                    {parking > 0 && <span className="text-gray-500">Return parking: +{fmtMoney(parking, currency)}</span>}
+                                  </>
+                                )}
+                                {discount > 0 && <span className="text-emerald-400">Discount: -{fmtMoney(discount, currency)}</span>}
+                                {total > 0 && <span className="text-gray-500">Total: {fmtMoney(total, currency)}</span>}
+                              </>
+                            );
+                          })()}
                         </div>
                       {carType?.description && <p className="mt-2 text-[11px] text-gray-400 line-clamp-1">{carType.description}</p>}
                     </div>
@@ -804,9 +818,10 @@ export function QuoteClient() {
               {selectedCarTypeId ? (()=>{
                 const r=quoteResults.find(q=>q.service_class_id===selectedCarTypeId);
                 if(!r) return 'Book Now';
-                const hasD=(r.discount?.discount_minor??0)>0;
-                const pre=r.pricing_snapshot_preview?.pre_discount_total_minor;
-                return <>Book Now — <span className="flex items-center gap-1.5">{hasD&&pre&&<span className="line-through opacity-60 text-sm font-normal">{fmtMoney(pre,currency)}</span>}<span className={hasD?'text-emerald-300':''}>{fmtMoney(r.estimated_total_minor,currency)}</span></span><ArrowRight className="h-4 w-4 ml-1"/></>;
+                const snap = r.pricing_snapshot_preview ?? {};
+                const hasD = (snap.discount_amount_minor ?? 0) > 0;
+                const total = typeof snap.final_fare_minor === 'number' ? snap.final_fare_minor : 0;
+                return <>Book Now — <span className="flex items-center gap-1.5"><span className={hasD?'text-emerald-300':''}>{fmtMoney(total, currency)}</span></span><ArrowRight className="h-4 w-4 ml-1"/></>;
               })() : 'Select a vehicle to continue'}
             </button>
 

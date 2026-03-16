@@ -284,70 +284,35 @@ export function BookingDetailClient({ id }: { id: string }) {
 
               const isReturnTrip = booking.trip_mode === 'RETURN';
               const leg1 = typeof snap.leg1_minor === 'number' && Number.isFinite(snap.leg1_minor) ? snap.leg1_minor : 0;
-              const leg2 = typeof snap.leg2_minor === 'number' && Number.isFinite(snap.leg2_minor) ? snap.leg2_minor : 0;
-              const base = typeof snap.pre_discount_fare_minor === 'number' && Number.isFinite(snap.pre_discount_fare_minor)
-                ? snap.pre_discount_fare_minor
-                : typeof snap.base_calculated_minor === 'number' && Number.isFinite(snap.base_calculated_minor)
-                  ? snap.base_calculated_minor
-                  : 0;
-              const combined = typeof snap.combined_before_multiplier === 'number' && Number.isFinite(snap.combined_before_multiplier) ? snap.combined_before_multiplier : 0;
+              const leg2 = typeof snap.leg2_minor === 'number' && Number.isFinite(snap.leg2_minor) ? snap.leg2_minor : null;
+              const leg1S = typeof snap.leg1_surcharge_minor === 'number' && Number.isFinite(snap.leg1_surcharge_minor) ? snap.leg1_surcharge_minor : 0;
+              const leg2S = typeof snap.leg2_surcharge_minor === 'number' && Number.isFinite(snap.leg2_surcharge_minor) ? snap.leg2_surcharge_minor : 0;
               const toll = typeof snap.toll_minor === 'number' && Number.isFinite(snap.toll_minor) ? snap.toll_minor : 0;
               const parking = typeof snap.parking_minor === 'number' && Number.isFinite(snap.parking_minor) ? snap.parking_minor : 0;
-              const tollParking = typeof snap.toll_parking_minor === 'number' && Number.isFinite(snap.toll_parking_minor) ? snap.toll_parking_minor : 0;
-              const timeSurcharge = typeof snap.time_surcharge_minor === 'number' && Number.isFinite(snap.time_surcharge_minor) ? snap.time_surcharge_minor : 0;
               const discount = typeof snap.discount_amount_minor === 'number' && Number.isFinite(snap.discount_amount_minor) ? snap.discount_amount_minor : 0;
               const total = typeof snap.final_fare_minor === 'number' && Number.isFinite(snap.final_fare_minor)
                 ? snap.final_fare_minor
                 : booking.total_price_minor ?? 0;
 
-              const hasReturn = isReturnTrip && (leg1 > 0 || leg2 > 0);
-              const returnRule = snap.multiplier_mode && snap.multiplier_value ?
-                (snap.multiplier_mode === 'PERCENTAGE' ? `${snap.multiplier_value}% return rule` : `${snap.multiplier_value} return surcharge`) : null;
-              const returnRuleAmount =
-                typeof snap.multiplier_mode === 'string' &&
-                snap.multiplier_mode === 'ADD_FIXED' &&
-                typeof snap.multiplier_value === 'number' && Number.isFinite(snap.multiplier_value)
-                  ? Math.max(0, Math.round(snap.multiplier_value))
-                  : typeof snap.multiplier_mode === 'string' &&
-                    snap.multiplier_mode === 'PERCENTAGE' &&
-                    typeof snap.multiplier_value === 'number' &&
-                    Number.isFinite(snap.multiplier_value)
-                    ? Math.max(0, Math.round((combined * snap.multiplier_value) / 100))
-                    : 0;
-
               return (
                 <>
-                  {hasReturn ? (
-                    <Row label="Outbound price" value={fmt(leg1)} />
-                  ) : (
-                    <Row label="Outbound price" value={fmt(base)} />
-                  )}
-                  {hasReturn && leg2 > 0 && <Row label="Return price" value={fmt(leg2)} />}
-                  {hasReturn && combined > 0 && <Row label="Combined before return rule" value={fmt(combined)} />}
-                  {hasReturn && returnRule && returnRuleAmount > 0 ? <Row label={returnRule} value={fmt(returnRuleAmount)} /> : null}
-                  {timeSurcharge > 0 && <Row label="Time surcharge" value={fmt(timeSurcharge)} />}
+                  {leg1 > 0 && <Row label="Outbound price" value={fmt(leg1)} />}
+                  {leg1S > 0 && <Row label="Outbound surcharge" value={`+${fmt(leg1S)}`} />}
+                  {toll > 0 && <Row label="Outbound toll" value={`+${fmt(toll)}`} />}
+                  {parking > 0 && <Row label="Outbound parking" value={`+${fmt(parking)}`} />}
 
-                  {(snap.surcharge_items?.length ? snap.surcharge_items : []).map((item: { label: string; amount_minor: number }, i: number) => (
-                    <Row key={i} label={item.label} value={`+${fmt(item.amount_minor)}`} />
-                  ))}
-
-                  {isReturnTrip ? (
+                  {leg2 !== null && (
                     <>
-                      {toll > 0 && <Row label="Tolls (combined)" value={`+${fmt(toll)}`} />}
-                      {parking > 0 && <Row label="Parking (combined)" value={`+${fmt(parking)}`} />}
-                    </>
-                  ) : (
-                    <>
-                      {toll > 0 && <Row label="Road tolls" value={`+${fmt(toll)}`} />}
-                      {parking > 0 && <Row label="Airport parking" value={`+${fmt(parking)}`} />}
+                      {leg2 > 0 && <Row label="Return price" value={fmt(leg2)} />}
+                      {leg2S > 0 && <Row label="Return surcharge" value={`+${fmt(leg2S)}`} />}
+                      {toll > 0 && <Row label="Return toll" value={`+${fmt(toll)}`} />}
+                      {parking > 0 && <Row label="Return parking" value={`+${fmt(parking)}`} />}
                     </>
                   )}
-
-                  {tollParking > 0 && !toll && !parking && <Row label="Tolls / parking" value={`+${fmt(tollParking)}`} />}
 
                   {discount > 0 && (
                     <Row
-                      label={snap.discount_type === 'PERCENTAGE' ? `Discount (${snap.discount_value ?? ''}%)` : 'Discount'}
+                      label="Discount"
                       value={`-${fmt(discount)}`}
                       valueClass="text-emerald-500"
                     />

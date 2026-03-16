@@ -25,14 +25,14 @@ interface QuoteResult {
   duration_minutes: number;
   pricing_snapshot_preview: {
     leg1_minor?: number | null;
+    leg1_surcharge_minor?: number | null;
     leg2_minor?: number | null;
-    combined_before_multiplier?: number | null;
+    leg2_surcharge_minor?: number | null;
     multiplier_mode?: string | null;
     multiplier_value?: number | null;
     pre_discount_total_minor?: number;
     surcharge_minor?: number;
     surcharge_labels?: string[];
-    time_surcharge_minor?: number;
     waypoints_minor?: number;
     baby_seats_minor?: number;
     trip_mode?: 'ONE_WAY' | 'RETURN' | string;
@@ -42,8 +42,9 @@ interface QuoteResult {
     parking_minor?: number;
     toll_parking_minor?: number;
     leg1_minor?: number;
+    leg1_surcharge_minor?: number;
     leg2_minor?: number;
-    combined_before_multiplier?: number;
+    leg2_surcharge_minor?: number;
     multiplier_mode?: string;
     multiplier_value?: number;
     discount_type?: string;
@@ -332,10 +333,10 @@ export function Widget({ slug }: { slug: string }) {
                 <div>
                   <div style={{ fontWeight: 700, fontSize: 15, color: '#111', marginBottom: 2 }}>{r.service_class_name}</div>
                   <div style={{ fontSize: 22, fontWeight: 800, color: primary }}>
-                    {fmt(r.estimated_total_minor, r.currency)}
+                    {fmt(r.pricing_snapshot_preview?.final_fare_minor ?? 0, r.currency)}
                   </div>
                   <div style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>Estimated price</div>
-                  {r.pricing_snapshot_preview?.leg1_minor != null && r.pricing_snapshot_preview?.leg2_minor != null ? (
+                  {r.pricing_snapshot_preview ? (
                     <div
                       style={{
                         marginTop: 8,
@@ -347,37 +348,55 @@ export function Widget({ slug }: { slug: string }) {
                         width: 220,
                       }}
                     >
-                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <span>Outbound price</span>
-                        <span>{toMoney(r.pricing_snapshot_preview.leg1_minor, r.currency)}</span>
-                      </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <span>Return price</span>
-                        <span>{toMoney(r.pricing_snapshot_preview.leg2_minor, r.currency)}</span>
-                      </div>
-                      {(r.pricing_snapshot_preview.combined_before_multiplier ?? 0) > 0 && (
+                      {r.pricing_snapshot_preview.leg1_minor != null && (
                         <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                          <span>Combined before return rule</span>
-                          <span>{toMoney(r.pricing_snapshot_preview.combined_before_multiplier, r.currency)}</span>
+                          <span>Outbound price</span>
+                          <span>{toMoney(r.pricing_snapshot_preview.leg1_minor, r.currency)}</span>
                         </div>
                       )}
-                      {returnRuleLabel(r.pricing_snapshot_preview.multiplier_mode, r.pricing_snapshot_preview.multiplier_value) && (
-                        <div style={{ display: 'flex', justifyContent: 'space-between', color: '#0f766e' }}>
-                          <span>Return trip rule</span>
-                          <span>{returnRuleLabel(r.pricing_snapshot_preview.multiplier_mode, r.pricing_snapshot_preview.multiplier_value)}</span>
+                      {(r.pricing_snapshot_preview.leg1_surcharge_minor ?? 0) > 0 && (
+                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                          <span>Outbound surcharge</span>
+                          <span>+{toMoney(r.pricing_snapshot_preview.leg1_surcharge_minor, r.currency)}</span>
                         </div>
                       )}
                       {(r.pricing_snapshot_preview.toll_minor ?? 0) > 0 && (
                         <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                          <span>Tolls (combined)</span>
+                          <span>Outbound toll</span>
                           <span>+{toMoney(r.pricing_snapshot_preview.toll_minor, r.currency)}</span>
                         </div>
                       )}
                       {(r.pricing_snapshot_preview.parking_minor ?? 0) > 0 && (
                         <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                          <span>Parking (combined)</span>
+                          <span>Outbound parking</span>
                           <span>+{toMoney(r.pricing_snapshot_preview.parking_minor, r.currency)}</span>
                         </div>
+                      )}
+                      {r.pricing_snapshot_preview.leg2_minor != null && (
+                        <>
+                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                            <span>Return price</span>
+                            <span>{toMoney(r.pricing_snapshot_preview.leg2_minor, r.currency)}</span>
+                          </div>
+                          {(r.pricing_snapshot_preview.leg2_surcharge_minor ?? 0) > 0 && (
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                              <span>Return surcharge</span>
+                              <span>+{toMoney(r.pricing_snapshot_preview.leg2_surcharge_minor, r.currency)}</span>
+                            </div>
+                          )}
+                          {(r.pricing_snapshot_preview.toll_minor ?? 0) > 0 && (
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                              <span>Return toll</span>
+                              <span>+{toMoney(r.pricing_snapshot_preview.toll_minor, r.currency)}</span>
+                            </div>
+                          )}
+                          {(r.pricing_snapshot_preview.parking_minor ?? 0) > 0 && (
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                              <span>Return parking</span>
+                              <span>+{toMoney(r.pricing_snapshot_preview.parking_minor, r.currency)}</span>
+                            </div>
+                          )}
+                        </>
                       )}
                       {r.pricing_snapshot_preview.discount_amount_minor > 0 && (
                         <div style={{ display: 'flex', justifyContent: 'space-between', color: '#047857' }}>
@@ -387,7 +406,7 @@ export function Widget({ slug }: { slug: string }) {
                       )}
                       <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 700, marginTop: 2 }}>
                         <span>Total</span>
-                        <span>{toMoney(r.pricing_snapshot_preview.final_fare_minor ?? r.estimated_total_minor, r.currency)}</span>
+                        <span>{toMoney(r.pricing_snapshot_preview.final_fare_minor ?? 0, r.currency)}</span>
                       </div>
                     </div>
                   ) : null}

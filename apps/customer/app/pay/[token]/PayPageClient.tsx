@@ -378,12 +378,6 @@ export function PayPageClient({ token }: { token: string }) {
 
           {/* Pricing breakdown */}
           <div className="border-t border-[#2a2d35] pt-3 space-y-1.5">
-            {data.prepay_base_fare_minor > 0 && (
-              <div className="flex justify-between text-sm">
-                <span className="text-[hsl(var(--muted-foreground))]">Base Fare</span>
-                <span className="text-white">{data.currency} {(data.prepay_base_fare_minor / 100).toFixed(2)}</span>
-              </div>
-            )}
             {(data.prepay_toll_minor > 0 || data.prepay_parking_minor > 0) && (
               <div className="flex justify-between text-sm">
                 <span className="text-[hsl(var(--muted-foreground))]">Toll / Parking</span>
