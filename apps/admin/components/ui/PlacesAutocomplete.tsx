@@ -119,7 +119,7 @@ export function PlacesAutocomplete({
           : '';
         const cityParam = cityName ? `&city=${encodeURIComponent(cityName)}` : '';
         const res = await api.get(
-          `/maps/autocomplete?input=${encodeURIComponent(query.trim())}&sessiontoken=${sessionTokenRef.current}${biasParams}${cityParam}`,
+          `/public/maps/autocomplete?input=${encodeURIComponent(query.trim())}&sessiontoken=${sessionTokenRef.current}${biasParams}${cityParam}`,
         );
         const preds: Prediction[] = res.data?.predictions ?? [];
         setPredictions(preds);
