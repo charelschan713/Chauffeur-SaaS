@@ -472,6 +472,16 @@ export default function CreateBookingPage() {
         quotePayload,
       });
 
+      console.debug('[admin][booking-new] guard snapshot', {
+        canQuote,
+        seatCountValid,
+        pickup_at_utc: values.pickup_at_utc,
+        pickup_address_text: values.pickup_address_text,
+        dropoff_address_text: values.dropoff_address_text,
+        service_type_id: values.service_type_id,
+        city_id: values.city_id,
+      });
+
       const quoteRes = await api.post(publicUrl(`/public/pricing/quote?tenant_slug=${encodeURIComponent(tenantSlug)}`), quotePayload);
 
       let results: any[] = [];
