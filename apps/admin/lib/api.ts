@@ -1,7 +1,11 @@
 import axios from 'axios';
 
+const API_BASE =
+  process.env.NEXT_PUBLIC_API_URL ||
+  'https://chauffeur-saas-production.up.railway.app';
+
 const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL,
+  baseURL: API_BASE,
   withCredentials: true,
 });
 
