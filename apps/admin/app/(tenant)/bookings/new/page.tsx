@@ -480,10 +480,14 @@ export default function CreateBookingPage() {
         estimates,
         breakdowns,
       });
-    } catch {
+    } catch (err: any) {
+      const status = err?.response?.status;
+      const data = err?.response?.data;
+      const detail = typeof data === 'string' ? data : data ? JSON.stringify(data) : '';
+      console.error('[admin][booking-new] quote failed', { status, data, err });
       setQuote({
         status: 'error',
-        message: 'Route calculation unavailable. Please contact your administrator to configure Google Maps integration.',
+        message: `Route calculation unavailable. ${status ? `(${status})` : ''} ${detail}`.trim(),
       });
     }
   }
@@ -765,40 +769,44 @@ export default function CreateBookingPage() {
                       const total = quote.estimates[selectedCarType.id] ?? 0;
                       return total > 0 ? (
                         <div className="mt-1 space-y-0.5 text-xs">
-                          {(bd.base_calculated_minor ?? 0) > 0 && (
+                          {(bd.leg1_minor ?? 0) > 0 && (
                             <div className="flex justify-between text-gray-500">
-                              <span>Base fare</span><span>${toDisplay(bd.base_calculated_minor)}</span>
+                              <span>Outbound price</span><span>${toDisplay(bd.leg1_minor)}</span>
                             </div>
                           )}
-                          {(bd.waypoints_minor ?? 0) > 0 && (
-                            <div className="flex justify-between text-gray-500">
-                              <span>+ {waypoints.filter(Boolean).length} waypoint stop{waypoints.filter(Boolean).length > 1 ? 's' : ''}</span>
-                              <span>+${toDisplay(bd.waypoints_minor)}</span>
+                          {(bd.leg1_surcharge_minor ?? 0) > 0 && (
+                            <div className="flex justify-between text-amber-600">
+                              <span>Outbound surcharge</span><span>+${toDisplay(bd.leg1_surcharge_minor)}</span>
                             </div>
                           )}
-                          {(bd.baby_seats_minor ?? 0) > 0 && (
-                            <div className="flex justify-between text-gray-500">
-                              <span>Baby seats</span><span>+${toDisplay(bd.baby_seats_minor)}</span>
-                            </div>
-                          )}
-                          {(bd.surcharge_items ?? []).map((s: any, i: number) => (
-                            <div key={i} className="flex justify-between text-amber-600">
-                              <span>⏱ {s.label}</span><span>+${toDisplay(s.amount_minor)}</span>
-                            </div>
-                          ))}
                           {(bd.toll_minor ?? 0) > 0 && (
                             <div className="flex justify-between text-amber-600">
-                              <span>🛣️ Road tolls</span><span>+${toDisplay(bd.toll_minor)}</span>
+                              <span>Outbound toll</span><span>+${toDisplay(bd.toll_minor)}</span>
                             </div>
                           )}
                           {(bd.parking_minor ?? 0) > 0 && (
                             <div className="flex justify-between text-amber-600">
-                              <span>🅿️ Airport parking</span><span>+${toDisplay(bd.parking_minor)}</span>
+                              <span>Outbound parking</span><span>+${toDisplay(bd.parking_minor)}</span>
                             </div>
                           )}
-                          {!(bd.toll_minor) && !(bd.parking_minor) && (bd.toll_parking_minor ?? 0) > 0 && (
+                          {(bd.leg2_minor ?? 0) > 0 && (
+                            <div className="flex justify-between text-gray-500">
+                              <span>Return price</span><span>${toDisplay(bd.leg2_minor)}</span>
+                            </div>
+                          )}
+                          {(bd.leg2_surcharge_minor ?? 0) > 0 && (
                             <div className="flex justify-between text-amber-600">
-                              <span>Tolls / Parking</span><span>+${toDisplay(bd.toll_parking_minor)}</span>
+                              <span>Return surcharge</span><span>+${toDisplay(bd.leg2_surcharge_minor)}</span>
+                            </div>
+                          )}
+                          {(bd.toll_minor ?? 0) > 0 && (
+                            <div className="flex justify-between text-amber-600">
+                              <span>Return toll</span><span>+${toDisplay(bd.toll_minor)}</span>
+                            </div>
+                          )}
+                          {(bd.parking_minor ?? 0) > 0 && (
+                            <div className="flex justify-between text-amber-600">
+                              <span>Return parking</span><span>+${toDisplay(bd.parking_minor)}</span>
                             </div>
                           )}
                           {(bd.discount_amount_minor ?? 0) > 0 && (
@@ -1051,26 +1059,32 @@ export default function CreateBookingPage() {
                     <div className="font-medium text-gray-900">{c.name}</div>
                     {quote.status === 'success' && (
                       <div className="mt-1.5 space-y-0.5 text-xs">
-                        {(bd.base_calculated_minor ?? 0) > 0 && (
-                          <div className="text-gray-500">Base: ${toDisplay(bd.base_calculated_minor)}</div>
+                        {(bd.leg1_minor ?? 0) > 0 && (
+                          <div className="text-gray-500">Outbound price: ${toDisplay(bd.leg1_minor)}</div>
                         )}
-                        {(bd.waypoints_minor ?? 0) > 0 && (
-                          <div className="text-gray-500">+ {waypoints.filter(Boolean).length} stop{waypoints.filter(Boolean).length > 1 ? 's' : ''}: ${toDisplay(bd.waypoints_minor)}</div>
+                        {(bd.leg1_surcharge_minor ?? 0) > 0 && (
+                          <div className="text-amber-600">Outbound surcharge: +${toDisplay(bd.leg1_surcharge_minor)}</div>
                         )}
-                        {(bd.baby_seats_minor ?? 0) > 0 && (
-                          <div className="text-gray-500">+ Baby seats: ${toDisplay(bd.baby_seats_minor)}</div>
-                        )}
-                        {(bd.surcharge_items ?? []).map((s: any, i: number) => (
-                          <div key={i} className="text-amber-600">⏱ {s.label}: ${toDisplay(s.amount_minor)}</div>
-                        ))}
                         {(bd.toll_minor ?? 0) > 0 && (
-                          <div className="text-amber-600">🛣️ Tolls: ${toDisplay(bd.toll_minor)}</div>
+                          <div className="text-amber-600">Outbound toll: +${toDisplay(bd.toll_minor)}</div>
                         )}
                         {(bd.parking_minor ?? 0) > 0 && (
-                          <div className="text-amber-600">🅿️ Parking: ${toDisplay(bd.parking_minor)}</div>
+                          <div className="text-amber-600">Outbound parking: +${toDisplay(bd.parking_minor)}</div>
                         )}
-                        {!(bd.toll_minor) && !(bd.parking_minor) && (bd.toll_parking_minor ?? 0) > 0 && (
-                          <div className="text-amber-600">Tolls/Parking: ${toDisplay(bd.toll_parking_minor)}</div>
+                        {(bd.leg2_minor ?? 0) > 0 && (
+                          <div className="text-gray-500">Return price: ${toDisplay(bd.leg2_minor)}</div>
+                        )}
+                        {(bd.leg2_surcharge_minor ?? 0) > 0 && (
+                          <div className="text-amber-600">Return surcharge: +${toDisplay(bd.leg2_surcharge_minor)}</div>
+                        )}
+                        {(bd.toll_minor ?? 0) > 0 && (
+                          <div className="text-amber-600">Return toll: +${toDisplay(bd.toll_minor)}</div>
+                        )}
+                        {(bd.parking_minor ?? 0) > 0 && (
+                          <div className="text-amber-600">Return parking: +${toDisplay(bd.parking_minor)}</div>
+                        )}
+                        {(bd.discount_amount_minor ?? 0) > 0 && (
+                          <div className="text-emerald-600">Discount: -${toDisplay(bd.discount_amount_minor)}</div>
                         )}
                         <div className="text-blue-600 font-semibold pt-0.5 border-t border-gray-100">Total: ${toDisplay(price)}</div>
                       </div>
