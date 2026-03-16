@@ -59,7 +59,9 @@ export interface PricingSnapshot {
   discount_source_customer_id?: string | null;
   base_calculated_minor?: number;
   leg1_minor?: number;
+  leg1_surcharge_minor?: number;
   leg2_minor?: number;
+  leg2_surcharge_minor?: number;
   combined_before_multiplier?: number;
   multiplier_mode?: string;
   multiplier_value?: number | null;

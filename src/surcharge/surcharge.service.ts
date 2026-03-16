@@ -56,7 +56,7 @@ export class SurchargeService {
     for (const h of holidays) {
       const amount = this.calcAmount(baseFareMinor, h.surcharge_type, Number(h.surcharge_value));
       surcharges.push({
-        label: h.name,
+        label: this.mapHolidayLabel(),
         type: h.surcharge_type,
         value: Number(h.surcharge_value),
         amount_minor: amount,
@@ -78,7 +78,7 @@ export class SurchargeService {
       if (this.timeInRange(localTime, ts.start_time, ts.end_time)) {
         const amount = this.calcAmount(baseFareMinor, ts.surcharge_type, Number(ts.surcharge_value));
         surcharges.push({
-          label: ts.name,
+          label: this.mapTimeSurchargeLabel(ts),
           type: ts.surcharge_type,
           value: Number(ts.surcharge_value),
           amount_minor: amount,
@@ -96,6 +96,34 @@ export class SurchargeService {
     }
     // FIXED — value stored as dollars, convert to minor
     return Math.round(value * 100);
+  }
+
+  private mapHolidayLabel(): string {
+    return 'Holiday surcharge';
+  }
+
+  private mapTimeSurchargeLabel(ts: { name?: string; day_type?: string; start_time?: string; end_time?: string }): string {
+    if (ts.day_type === 'WEEKEND') return 'Weekend surcharge';
+    const name = (ts.name ?? '').toLowerCase();
+    if (name.includes('early')) return 'Early morning surcharge';
+    if (name.includes('late') || name.includes('night')) return 'Late night surcharge';
+
+    const start = typeof ts.start_time === 'string' ? ts.start_time : '';
+    const end = typeof ts.end_time === 'string' ? ts.end_time : '';
+    const startMin = start ? this.timeToMinutes(start) : null;
+    const endMin = end ? this.timeToMinutes(end) : null;
+    if (startMin !== null && endMin !== null) {
+      // Early morning heuristic: 00:00–06:00
+      if ((startMin >= 0 && startMin < 360) || (endMin > 0 && endMin <= 360)) {
+        return 'Early morning surcharge';
+      }
+      // Late night heuristic: 21:00–24:00 or overnight range
+      if (startMin >= 1260 || startMin > endMin) {
+        return 'Late night surcharge';
+      }
+    }
+
+    return 'Late night surcharge';
   }
 
   private timeInRange(time: string, start: string, end: string): boolean {
