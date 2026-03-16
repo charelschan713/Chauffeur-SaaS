@@ -418,7 +418,9 @@ export default function CreateBookingPage() {
         },
       });
 
-      if (!outboundRoute.data || !outboundRoute.data.distance_km) {
+      const outboundDistanceKm = Number(outboundRoute.data?.distance_km);
+      const outboundDurationMinutes = Number(outboundRoute.data?.duration_minutes);
+      if (!Number.isFinite(outboundDistanceKm) || !Number.isFinite(outboundDurationMinutes)) {
         setQuote({
           status: 'error',
           message: 'Route calculation unavailable. Please contact your administrator to configure Google Maps integration.',
@@ -453,8 +455,8 @@ export default function CreateBookingPage() {
         timezone: values.timezone || 'Australia/Sydney',
         passenger_count: values.passenger_count,
         luggage_count: values.luggage_count ?? 0,
-        distance_km: outboundRoute.data.distance_km,
-        duration_minutes: outboundRoute.data.duration_minutes,
+        distance_km: outboundDistanceKm,
+        duration_minutes: outboundDurationMinutes,
         waypoints_count: waypoints.filter(Boolean).length,
         return_distance_km: returnRoute?.distance_km,
         return_duration_minutes: returnRoute?.duration_minutes,
@@ -477,8 +479,8 @@ export default function CreateBookingPage() {
 
         setQuote({
           status: 'success',
-          distanceKm: outboundRoute.data.distance_km,
-          durationMinutes: outboundRoute.data.duration_minutes,
+          distanceKm: outboundDistanceKm,
+          durationMinutes: outboundDurationMinutes,
           estimates,
           breakdowns,
         });
