@@ -285,6 +285,7 @@ export function BookingDetailClient({ id }: { id: string }) {
               const isReturnTrip = booking.trip_mode === 'RETURN';
               const leg1 = typeof snap.leg1_minor === 'number' && Number.isFinite(snap.leg1_minor) ? snap.leg1_minor : 0;
               const leg2 = typeof snap.leg2_minor === 'number' && Number.isFinite(snap.leg2_minor) ? snap.leg2_minor : null;
+              const hasReturn = typeof leg2 === 'number' && leg2 > 0;
               const leg1S = typeof snap.leg1_surcharge_minor === 'number' && Number.isFinite(snap.leg1_surcharge_minor) ? snap.leg1_surcharge_minor : 0;
               const leg2S = typeof snap.leg2_surcharge_minor === 'number' && Number.isFinite(snap.leg2_surcharge_minor) ? snap.leg2_surcharge_minor : 0;
               const toll = typeof snap.toll_minor === 'number' && Number.isFinite(snap.toll_minor) ? snap.toll_minor : 0;
@@ -301,7 +302,7 @@ export function BookingDetailClient({ id }: { id: string }) {
                   {toll > 0 && <Row label="Outbound toll" value={`+${fmt(toll)}`} />}
                   {parking > 0 && <Row label="Outbound parking" value={`+${fmt(parking)}`} />}
 
-                  {leg2 !== null && (
+                  {hasReturn && (
                     <>
                       {leg2 > 0 && <Row label="Return price" value={fmt(leg2)} />}
                       {leg2S > 0 && <Row label="Return surcharge" value={`+${fmt(leg2S)}`} />}

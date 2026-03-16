@@ -372,11 +372,11 @@ export function Widget({ slug }: { slug: string }) {
                           <span>+{toMoney(r.pricing_snapshot_preview.parking_minor, r.currency)}</span>
                         </div>
                       )}
-                      {r.pricing_snapshot_preview.leg2_minor != null && (
+                      {typeof r.pricing_snapshot_preview.leg2_minor === 'number' && r.pricing_snapshot_preview.leg2_minor > 0 && (
                         <>
                           <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                             <span>Return price</span>
-                            <span>{toMoney(r.pricing_snapshot_preview.leg2_minor, r.currency)}</span>
+                            <span>{toMoney(r.pricing_snapshot_preview.leg2_minor!, r.currency)}</span>
                           </div>
                           {(r.pricing_snapshot_preview.leg2_surcharge_minor ?? 0) > 0 && (
                             <div style={{ display: 'flex', justifyContent: 'space-between' }}>

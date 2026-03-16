@@ -733,6 +733,7 @@ export function BookPageClient() {
             const snap = preview ?? {};
             const leg1 = typeof snap.leg1_minor === 'number' ? snap.leg1_minor : 0;
             const leg2 = typeof snap.leg2_minor === 'number' ? snap.leg2_minor : null;
+            const hasReturn = typeof leg2 === 'number' && leg2 > 0;
             const leg1S = typeof snap.leg1_surcharge_minor === 'number' ? snap.leg1_surcharge_minor : 0;
             const leg2S = typeof snap.leg2_surcharge_minor === 'number' ? snap.leg2_surcharge_minor : 0;
             const toll = typeof snap.toll_minor === 'number' ? snap.toll_minor : 0;
@@ -768,7 +769,7 @@ export function BookPageClient() {
                   </div>
                 )}
 
-                {leg2 !== null && (
+                {hasReturn && (
                   <>
                     {leg2 > 0 && (
                       <div className="flex justify-between text-[hsl(var(--muted-foreground))]">

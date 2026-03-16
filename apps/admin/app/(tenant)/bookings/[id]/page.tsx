@@ -687,6 +687,7 @@ function BookingDetailInner() {
                     fmt(typeof value === 'number' && Number.isFinite(value) ? value : 0);
                   const leg1 = typeof snap.leg1_minor === 'number' ? snap.leg1_minor : 0;
                   const leg2 = typeof snap.leg2_minor === 'number' ? snap.leg2_minor : null;
+                  const hasReturn = typeof leg2 === 'number' && leg2 > 0;
                   const leg1S = typeof snap.leg1_surcharge_minor === 'number' ? snap.leg1_surcharge_minor : 0;
                   const leg2S = typeof snap.leg2_surcharge_minor === 'number' ? snap.leg2_surcharge_minor : 0;
                   const toll = typeof snap.toll_minor === 'number' ? snap.toll_minor : 0;
@@ -703,7 +704,7 @@ function BookingDetailInner() {
                       {toll > 0 && <div className="flex justify-between"><span className="text-gray-500">Outbound toll</span><span>+{fmt(toll)}</span></div>}
                       {parking > 0 && <div className="flex justify-between"><span className="text-gray-500">Outbound parking</span><span>+{fmt(parking)}</span></div>}
 
-                      {leg2 !== null && (
+                      {hasReturn && (
                         <>
                           {leg2 > 0 && <div className="flex justify-between"><span className="text-gray-500">Return price</span><span>{toMoney(leg2)}</span></div>}
                           {leg2S > 0 && <div className="flex justify-between"><span className="text-gray-500">Return surcharge</span><span>+{fmt(leg2S)}</span></div>}

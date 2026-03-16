@@ -429,13 +429,14 @@ export function FulfilModal({
                   const parking = typeof snap.parking_minor === 'number' ? snap.parking_minor : 0;
                   const discount = typeof snap.discount_amount_minor === 'number' ? snap.discount_amount_minor : 0;
                   const total = typeof snap.final_fare_minor === 'number' ? snap.final_fare_minor : 0;
+                  const hasReturn = typeof leg2Minor === 'number' && leg2Minor > 0;
                   return (
                     <>
                       <div className="flex justify-between"><span>Outbound price</span><span>{fmt(leg1Minor ?? 0, currency)}</span></div>
                       {leg1S > 0 && <div className="flex justify-between"><span>Outbound surcharge</span><span>{fmt(leg1S, currency)}</span></div>}
                       {toll > 0 && <div className="flex justify-between"><span>Outbound toll</span><span>{fmt(toll, currency)}</span></div>}
                       {parking > 0 && <div className="flex justify-between"><span>Outbound parking</span><span>{fmt(parking, currency)}</span></div>}
-                      {leg2Minor != null && (
+                      {hasReturn && (
                         <>
                           <div className="flex justify-between"><span>Return price</span><span>{fmt(leg2Minor ?? 0, currency)}</span></div>
                           {leg2S > 0 && <div className="flex justify-between"><span>Return surcharge</span><span>{fmt(leg2S, currency)}</span></div>}

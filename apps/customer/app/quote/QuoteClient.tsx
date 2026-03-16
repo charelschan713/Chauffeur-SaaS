@@ -773,13 +773,14 @@ export function QuoteClient() {
                           {(() => {
                             const leg1 = typeof preview.leg1_minor === 'number' ? preview.leg1_minor : 0;
                             const leg2 = typeof preview.leg2_minor === 'number' ? preview.leg2_minor : null;
+                            const hasReturn = typeof leg2 === 'number' && leg2 > 0;
                             const leg1S = typeof preview.leg1_surcharge_minor === 'number' ? preview.leg1_surcharge_minor : 0;
                             const leg2S = typeof preview.leg2_surcharge_minor === 'number' ? preview.leg2_surcharge_minor : 0;
                             const toll = typeof preview.toll_minor === 'number' ? preview.toll_minor : 0;
                             const parking = typeof preview.parking_minor === 'number' ? preview.parking_minor : 0;
                             const discount = typeof preview.discount_amount_minor === 'number' ? preview.discount_amount_minor : 0;
                             const total = typeof preview.final_fare_minor === 'number' ? preview.final_fare_minor : 0;
-                            const isReturn = leg2 !== null;
+                            const isReturn = hasReturn;
                             return (
                               <>
                                 {leg1 > 0 && <span className="text-gray-500">Outbound price: {fmtMoney(leg1, currency)}</span>}

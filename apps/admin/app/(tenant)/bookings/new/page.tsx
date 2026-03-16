@@ -880,22 +880,22 @@ export default function CreateBookingPage() {
                               <span>Outbound parking</span><span>+${toDisplay(bd.parking_minor)}</span>
                             </div>
                           )}
-                          {bd.leg2_minor != null && (bd.leg2_minor ?? 0) > 0 && (
+                          {(bd.leg2_minor ?? 0) > 0 && (
                             <div className="flex justify-between text-gray-500">
                               <span>Return price</span><span>${toDisplay(bd.leg2_minor)}</span>
                             </div>
                           )}
-                          {bd.leg2_minor != null && (bd.leg2_surcharge_minor ?? 0) > 0 && (
+                          {(bd.leg2_minor ?? 0) > 0 && (bd.leg2_surcharge_minor ?? 0) > 0 && (
                             <div className="flex justify-between text-amber-600">
                               <span>Return surcharge</span><span>+${toDisplay(bd.leg2_surcharge_minor)}</span>
                             </div>
                           )}
-                          {bd.leg2_minor != null && (bd.toll_minor ?? 0) > 0 && (
+                          {(bd.leg2_minor ?? 0) > 0 && (bd.toll_minor ?? 0) > 0 && (
                             <div className="flex justify-between text-amber-600">
                               <span>Return toll</span><span>+${toDisplay(bd.toll_minor)}</span>
                             </div>
                           )}
-                          {bd.leg2_minor != null && (bd.parking_minor ?? 0) > 0 && (
+                          {(bd.leg2_minor ?? 0) > 0 && (bd.parking_minor ?? 0) > 0 && (
                             <div className="flex justify-between text-amber-600">
                               <span>Return parking</span><span>+${toDisplay(bd.parking_minor)}</span>
                             </div>
