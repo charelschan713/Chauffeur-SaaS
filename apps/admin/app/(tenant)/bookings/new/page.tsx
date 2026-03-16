@@ -444,13 +444,13 @@ export default function CreateBookingPage() {
         }
       }
 
-      const quoteRes = await api.post(publicUrl(`/public/pricing/quote?tenant_slug=${encodeURIComponent(tenantSlug)}`), {
+      const quotePayload = {
         service_type_id: values.service_type_id,
         trip_mode: values.is_return_trip ? 'RETURN' : 'ONE_WAY',
         pickup_address: values.pickup_address_text,
         dropoff_address: values.dropoff_address_text,
-        pickup_at_utc: new Date(values.pickup_at_utc).toISOString(),
-        return_pickup_at_utc: values.return_pickup_at_utc ? new Date(values.return_pickup_at_utc).toISOString() : undefined,
+        pickup_at_utc: values.pickup_at_utc ?? null,
+        return_pickup_at_utc: values.return_pickup_at_utc ?? null,
         return_pickup_address: values.return_pickup_address_text?.trim() || undefined,
         timezone: values.timezone || 'Australia/Sydney',
         passenger_count: values.passenger_count,
@@ -464,7 +464,15 @@ export default function CreateBookingPage() {
         infant_seats: values.infant_seats ?? 0,
         toddler_seats: values.toddler_seats ?? 0,
         booster_seats: values.booster_seats ?? 0,
+      };
+
+      console.debug('[admin][booking-new] pre-quote payload', {
+        values,
+        outboundRoute: outboundRoute?.data,
+        quotePayload,
       });
+
+      const quoteRes = await api.post(publicUrl(`/public/pricing/quote?tenant_slug=${encodeURIComponent(tenantSlug)}`), quotePayload);
 
       let results: any[] = [];
       try {
