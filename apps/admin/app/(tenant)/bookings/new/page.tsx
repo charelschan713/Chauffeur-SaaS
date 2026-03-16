@@ -482,7 +482,9 @@ export default function CreateBookingPage() {
         city_id: values.city_id,
       });
 
+      console.debug('[admin][booking-new] before quote post');
       const quoteRes = await api.post(publicUrl(`/public/pricing/quote?tenant_slug=${encodeURIComponent(tenantSlug)}`), quotePayload);
+      console.debug('[admin][booking-new] after quote post');
 
       let results: any[] = [];
       try {
