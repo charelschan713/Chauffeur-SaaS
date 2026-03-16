@@ -320,6 +320,7 @@ export class PricingResolver {
           ctx.pickupAtUtc,
           baseMinor,
           ctx.timezone ?? 'Australia/Sydney',
+          ctx.cityId ?? null,
         );
         timeSurchargeMinor = sr.total_surcharge_minor;
         leg1SurchargeMinor = sr.total_surcharge_minor;
@@ -418,10 +419,10 @@ export class PricingResolver {
         parkingMinor = outParking + retParking;
 
         const outboundSr = ctx.pickupAtUtc
-          ? await this.surchargeService.resolve(ctx.tenantId, ctx.pickupAtUtc, leg1Minor, ctx.timezone ?? 'Australia/Sydney')
+          ? await this.surchargeService.resolve(ctx.tenantId, ctx.pickupAtUtc, leg1Minor, ctx.timezone ?? 'Australia/Sydney', ctx.cityId ?? null)
           : { total_surcharge_minor: 0, surcharges: [] as any[] };
         const returnSr = returnPickupAt
-          ? await this.surchargeService.resolve(ctx.tenantId, returnPickupAt, leg2Minor, ctx.timezone ?? 'Australia/Sydney')
+          ? await this.surchargeService.resolve(ctx.tenantId, returnPickupAt, leg2Minor, ctx.timezone ?? 'Australia/Sydney', ctx.cityId ?? null)
           : { total_surcharge_minor: 0, surcharges: [] as any[] };
 
         leg1SurchargeMinor = outboundSr.total_surcharge_minor ?? 0;
@@ -448,6 +449,7 @@ export class PricingResolver {
             ctx.pickupAtUtc,
             baseMinor,
             ctx.timezone ?? 'Australia/Sydney',
+            ctx.cityId ?? null,
           );
           timeSurchargeMinor = sr.total_surcharge_minor;
           leg1SurchargeMinor = sr.total_surcharge_minor;

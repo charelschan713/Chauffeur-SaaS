@@ -24,18 +24,21 @@ export class SurchargeService {
     pickupAtUtc: string | Date,
     baseFareMinor: number,
     timezone: string = 'Australia/Sydney',
+    cityId: string | null = null,
   ): Promise<{ surcharges: SurchargeResult[]; total_surcharge_minor: number }> {
     const pickupDate = typeof pickupAtUtc === 'string' ? new Date(pickupAtUtc) : pickupAtUtc;
 
+    const effectiveTimezone = await this.resolveCityTimezone(tenantId, cityId, timezone);
+
     // Convert to local time for the booking's timezone
-    const localStr = pickupDate.toLocaleString('en-AU', { timeZone: timezone, hour12: false });
+    const localStr = pickupDate.toLocaleString('en-AU', { timeZone: effectiveTimezone, hour12: false });
     // localStr format: "6/03/2026, 23:30:00"
     const [datePart, timePart] = localStr.split(', ');
     const [day, month, year] = datePart.split('/').map(Number);
     const [hours, minutes] = timePart.split(':').map(Number);
     const localDate = `${year}-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
     const localTime = `${String(hours).padStart(2,'0')}:${String(minutes).padStart(2,'0')}:00`;
-    const dayOfWeek = pickupDate.toLocaleDateString('en-AU', { timeZone: timezone, weekday: 'long' });
+    const dayOfWeek = pickupDate.toLocaleDateString('en-AU', { timeZone: effectiveTimezone, weekday: 'long' });
     const isWeekend = dayOfWeek === 'Saturday' || dayOfWeek === 'Sunday';
 
     const surcharges: SurchargeResult[] = [];
@@ -124,6 +127,24 @@ export class SurchargeService {
     }
 
     return 'Late night surcharge';
+  }
+
+  private async resolveCityTimezone(
+    tenantId: string,
+    cityId: string | null,
+    fallback: string,
+  ) {
+    if (!cityId) return fallback;
+    try {
+      const rows = await this.db.query(
+        `SELECT timezone FROM public.tenant_service_cities WHERE tenant_id = $1 AND id = $2`,
+        [tenantId, cityId],
+      );
+      return rows?.[0]?.timezone || fallback;
+    } catch (e) {
+      this.logger.warn(`Failed to resolve city timezone: ${String(e)}`);
+      return fallback;
+    }
   }
 
   private timeInRange(time: string, start: string, end: string): boolean {

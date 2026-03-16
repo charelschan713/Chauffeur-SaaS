@@ -17,6 +17,7 @@ export interface PricingContext {
   requestedAtUtc: Date;
   pickupAtUtc?: Date | string | null;  // actual pickup time (for surcharge resolution)
   timezone?: string | null;            // booking city timezone
+  cityId?: string | null;
   currency: string;
   customerId?: string | null;
   serviceTypeId?: string | null;
