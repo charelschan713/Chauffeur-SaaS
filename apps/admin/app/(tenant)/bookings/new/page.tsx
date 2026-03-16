@@ -483,8 +483,9 @@ export default function CreateBookingPage() {
       });
 
       console.debug('[admin][booking-new] before quote post');
+      let quoteRes: any;
       try {
-        const quoteRes = await api.post(
+        quoteRes = await api.post(
           publicUrl(`/public/pricing/quote?tenant_slug=${encodeURIComponent(tenantSlug)}`),
           quotePayload,
         );
@@ -492,7 +493,7 @@ export default function CreateBookingPage() {
 
         let results: any[] = [];
         try {
-          results = quoteRes.data?.results ?? [];
+          results = quoteRes?.data?.results ?? [];
           const estimates: Record<string, number> = {};
           const breakdowns: Record<string, any> = {};
           for (const r of results) {
