@@ -52,6 +52,7 @@ const formSchema = z
     infant_seats: z.coerce.number().int().min(0).max(3).default(0),
     toddler_seats: z.coerce.number().int().min(0).max(3).default(0),
     booster_seats: z.coerce.number().int().min(0).max(3).default(0),
+    duration_hours: z.coerce.number().int().min(1).max(24).optional(),
   })
   .superRefine((values, ctx) => {
     if (!values.passenger_is_customer) {
@@ -206,6 +207,7 @@ export default function CreateBookingPage() {
       infant_seats: 0,
       toddler_seats: 0,
       booster_seats: 0,
+      duration_hours: undefined,
       ...(wizardState.values ?? {}),
     },
     mode: 'onBlur',
@@ -444,8 +446,10 @@ export default function CreateBookingPage() {
         }
       }
 
-      const quotePayload = {
+      const quotePayload: Record<string, any> = {
         service_type_id: values.service_type_id,
+        city_id: values.city_id || undefined,
+        customer_id: selectedCustomerId || undefined,
         trip_mode: values.is_return_trip ? 'RETURN' : 'ONE_WAY',
         pickup_address: values.pickup_address_text,
         dropoff_address: values.dropoff_address_text,
@@ -458,13 +462,19 @@ export default function CreateBookingPage() {
         distance_km: outboundDistanceKm,
         duration_minutes: outboundDurationMinutes,
         waypoints_count: waypoints.filter(Boolean).length,
+        waypoints: waypoints.filter(Boolean),
         return_distance_km: returnRoute?.distance_km,
         return_duration_minutes: returnRoute?.duration_minutes,
-        return_waypoints_count: 0,
+        return_waypoints_count: values.is_return_trip ? waypoints.filter(Boolean).length : 0,
         infant_seats: values.infant_seats ?? 0,
         toddler_seats: values.toddler_seats ?? 0,
         booster_seats: values.booster_seats ?? 0,
       };
+
+      if (values.duration_hours) {
+        quotePayload.duration_hours = Number(values.duration_hours);
+      }
+
 
       console.debug('[admin][booking-new] pre-quote payload', {
         values,
