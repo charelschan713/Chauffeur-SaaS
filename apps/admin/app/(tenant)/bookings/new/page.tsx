@@ -128,6 +128,7 @@ export default function CreateBookingPage() {
   const queryClient = useQueryClient();
   const { state: wizardState, update: updateWizard, reset: resetWizard } = useBookingWizardStore();
   const [quote, setQuote] = useState<QuoteState>({ status: 'idle' });
+  const [lastQuotePayload, setLastQuotePayload] = useState<any | null>(null);
   const [customerSearch, setCustomerSearch] = useState('');
   const [customerResults, setCustomerResults] = useState<any[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
@@ -479,6 +480,11 @@ export default function CreateBookingPage() {
       console.debug('[admin][booking-new] pre-quote payload', {
         values,
         outboundRoute: outboundRoute?.data,
+        quotePayload,
+      });
+      setLastQuotePayload({
+        values,
+        outboundRoute: outboundRoute?.data ?? null,
         quotePayload,
       });
 
@@ -1193,6 +1199,35 @@ export default function CreateBookingPage() {
             </div>
             {errors.service_class_id && <p className="text-xs text-red-600 mt-2">{errors.service_class_id.message}</p>}
           </div>
+
+          {/* Debug Quote Payload */}
+          {lastQuotePayload && (
+            <details className="bg-gray-50 border border-gray-200 rounded-xl p-4 text-xs">
+              <summary className="cursor-pointer font-semibold text-gray-700">Debug · Quote Inputs + Snapshot</summary>
+              <div className="mt-3 grid gap-3">
+                <div>
+                  <div className="font-semibold text-gray-600 mb-1">Quote Payload</div>
+                  <pre className="whitespace-pre-wrap break-all text-gray-700">{JSON.stringify(lastQuotePayload, null, 2)}</pre>
+                </div>
+                {quote.status === 'success' && (
+                  <div>
+                    <div className="font-semibold text-gray-600 mb-1">Snapshot (selected car)</div>
+                    <pre className="whitespace-pre-wrap break-all text-gray-700">
+                      {JSON.stringify(quote.breakdowns[values.service_class_id] ?? null, null, 2)}
+                    </pre>
+                  </div>
+                )}
+                {quote.status === 'success' && (
+                  <div>
+                    <div className="font-semibold text-gray-600 mb-1">Estimates (all cars)</div>
+                    <pre className="whitespace-pre-wrap break-all text-gray-700">
+                      {JSON.stringify(quote.estimates ?? {}, null, 2)}
+                    </pre>
+                  </div>
+                )}
+              </div>
+            </details>
+          )}
 
           {/* Submit */}
           <div className="pb-4">
