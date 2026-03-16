@@ -516,7 +516,10 @@ export default function CreateBookingPage() {
           for (const r of results) {
             const snap = r?.pricing_snapshot_preview ?? {};
             estimates[r.service_class_id] = snap.final_fare_minor ?? r.estimated_total_minor ?? 0;
-            breakdowns[r.service_class_id] = snap;
+            breakdowns[r.service_class_id] = {
+              ...snap,
+              discount_meta: r?.discount ?? null,
+            };
           }
 
           setQuote({
@@ -902,7 +905,10 @@ export default function CreateBookingPage() {
                           )}
                           {(bd.discount_amount_minor ?? 0) > 0 && (
                             <div className="flex justify-between text-emerald-600">
-                              <span>Discount</span><span>- ${toDisplay(bd.discount_amount_minor)}</span>
+                              <span>
+                                Discount{bd.discount_meta?.value ? ` (${bd.discount_meta.value}%)` : ''}
+                              </span>
+                              <span>- ${toDisplay(bd.discount_amount_minor)}</span>
                             </div>
                           )}
                           <div className="flex justify-between text-blue-600 font-semibold pt-1 border-t border-gray-200 mt-1">
