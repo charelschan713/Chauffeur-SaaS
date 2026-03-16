@@ -485,11 +485,18 @@ export default function CreateBookingPage() {
       console.debug('[admin][booking-new] before quote post');
       let quoteRes: any;
       try {
-        quoteRes = await api.post(
-          publicUrl(`/public/pricing/quote?tenant_slug=${encodeURIComponent(tenantSlug)}`),
-          quotePayload,
-        );
-        console.debug('[admin][booking-new] after quote post');
+        const quoteUrl = publicUrl(`/public/pricing/quote?tenant_slug=${encodeURIComponent(tenantSlug)}`);
+        console.time('[admin][booking-new] quote post');
+        const quoteFetch = await fetch(quoteUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(quotePayload),
+          credentials: 'include',
+        });
+        const quoteData = await quoteFetch.json().catch(() => null);
+        quoteRes = { status: quoteFetch.status, data: quoteData };
+        console.timeEnd('[admin][booking-new] quote post');
+        console.debug('[admin][booking-new] after quote post', { status: quoteRes.status });
 
         let results: any[] = [];
         try {
