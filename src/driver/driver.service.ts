@@ -1,6 +1,8 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { randomUUID } from 'crypto';
+import { ConfigService } from '@nestjs/config';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
 interface DriverQueryParams {
   search?: string;
@@ -9,7 +11,21 @@ interface DriverQueryParams {
 
 @Injectable()
 export class DriverService {
-  constructor(private readonly dataSource: DataSource) {}
+  constructor(
+    private readonly dataSource: DataSource,
+    private readonly configService: ConfigService,
+  ) {}
+
+  private getSupabaseAdmin(): SupabaseClient {
+    const url = this.configService.get<string>('SUPABASE_URL');
+    const key = this.configService.get<string>('SUPABASE_SERVICE_ROLE_KEY');
+    if (!url || !key) {
+      throw new BadRequestException('Supabase admin credentials missing');
+    }
+    return createClient(url, key, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+  }
 
   async listDrivers(tenantId: string, params: DriverQueryParams) {
     const qb = this.dataSource
@@ -66,30 +82,36 @@ export class DriverService {
     }
 
     return this.dataSource.transaction(async (manager) => {
-      let userId: string | null = null;
-      const authRows = await manager.query(
-        `select id from auth.users where email = $1`,
-        [email],
-      );
-      if (authRows.length) {
-        userId = authRows[0].id;
+      const supabase = this.getSupabaseAdmin();
+      let userId: string;
+      const { data: listData, error: listError } = await supabase.auth.admin.listUsers({ page: 1, perPage: 1000 });
+      if (listError) {
+        throw new BadRequestException(listError.message);
+      }
+      const existingUser = (listData?.users ?? []).find((u) => (u.email || '').toLowerCase() === email.toLowerCase()) ?? null;
+
+      if (!existingUser) {
+        const { data: created, error: createError } = await supabase.auth.admin.createUser({
+          email,
+          email_confirm: true,
+          user_metadata: { full_name: fullName || null, tenant_id: tenantId, role: 'driver' },
+          app_metadata: { tenant_id: tenantId, role: 'driver' },
+        });
+        if (createError || !created?.user) {
+          throw new BadRequestException(createError?.message ?? 'Failed to create auth user');
+        }
+        userId = created.user.id;
       } else {
-        const instanceRows = await manager.query(`select id from auth.instances limit 1`);
-        const instanceId = instanceRows?.[0]?.id;
-        if (!instanceId) throw new BadRequestException('Auth instance not found');
-
-        userId = randomUUID();
-        await manager.query(
-          `insert into auth.users (id, instance_id, aud, role, email, email_confirmed_at, created_at, updated_at, raw_user_meta_data)
-           values ($1,$2,'authenticated','authenticated',$3,now(),now(),now(),$4)`,
-          [userId, instanceId, email, JSON.stringify({ full_name: fullName || null })],
-        );
-
-        await manager.query(
-          `insert into auth.identities (id, user_id, identity_data, provider, last_sign_in_at, created_at, updated_at)
-           values ($1,$2,$3,'email',now(),now(),now())`,
-          [randomUUID(), userId, JSON.stringify({ sub: userId, email })],
-        );
+        userId = existingUser.id;
+        const appMeta = { ...(existingUser.app_metadata ?? {}), tenant_id: tenantId, role: 'driver' };
+        const userMeta = { ...(existingUser.user_metadata ?? {}), full_name: fullName || null, tenant_id: tenantId, role: 'driver' };
+        const { error: updateError } = await supabase.auth.admin.updateUserById(userId, {
+          app_metadata: appMeta,
+          user_metadata: userMeta,
+        });
+        if (updateError) {
+          throw new BadRequestException(updateError.message);
+        }
       }
 
       // ── Single-tenant binding rule ──────────────────────────────────────
@@ -215,10 +237,9 @@ export class DriverService {
       if (!existing.length) throw new NotFoundException('Driver not found');
 
       if (email) {
-        await manager.query(
-          `update auth.users set email = $1 where id = $2`,
-          [email, driverId],
-        );
+        const supabase = this.getSupabaseAdmin();
+        const { error: updateError } = await supabase.auth.admin.updateUserById(driverId, { email });
+        if (updateError) throw new BadRequestException(updateError.message);
       }
 
       await manager.query(
