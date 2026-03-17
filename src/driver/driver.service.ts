@@ -66,14 +66,31 @@ export class DriverService {
     }
 
     return this.dataSource.transaction(async (manager) => {
+      let userId: string | null = null;
       const authRows = await manager.query(
         `select id from auth.users where email = $1`,
         [email],
       );
-      if (!authRows.length) {
-        throw new BadRequestException('Auth user not found for email');
+      if (authRows.length) {
+        userId = authRows[0].id;
+      } else {
+        const instanceRows = await manager.query(`select id from auth.instances limit 1`);
+        const instanceId = instanceRows?.[0]?.id;
+        if (!instanceId) throw new BadRequestException('Auth instance not found');
+
+        userId = randomUUID();
+        await manager.query(
+          `insert into auth.users (id, instance_id, aud, role, email, email_confirmed_at, created_at, updated_at, raw_user_meta_data)
+           values ($1,$2,'authenticated','authenticated',$3,now(),now(),now(),$4)`,
+          [userId, instanceId, email, JSON.stringify({ full_name: fullName || null })],
+        );
+
+        await manager.query(
+          `insert into auth.identities (id, user_id, identity_data, provider, last_sign_in_at, created_at, updated_at)
+           values ($1,$2,$3,'email',now(),now(),now())`,
+          [randomUUID(), userId, JSON.stringify({ sub: userId, email })],
+        );
       }
-      const userId = authRows[0].id;
 
       // ── Single-tenant binding rule ──────────────────────────────────────
       // A driver can only be actively bound to one tenant at a time.
