@@ -9,6 +9,18 @@ const api = axios.create({
   withCredentials: true,
 });
 
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    const status = error?.response?.status;
+    const data = error?.response?.data;
+    const detail = typeof data === 'string' ? data : data ? JSON.stringify(data) : '';
+    const prefix = status ? `Request failed (${status})` : 'Request failed';
+    error.message = detail ? `${prefix} ${detail}` : prefix;
+    return Promise.reject(error);
+  },
+);
+
 let accessToken: string | null = null;
 
 export function setAccessToken(token: string | null) {
