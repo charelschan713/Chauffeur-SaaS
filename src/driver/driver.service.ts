@@ -27,6 +27,12 @@ export class DriverService {
     });
   }
 
+  private async getUserByEmail(supabase: SupabaseClient, email: string) {
+    const { data, error } = await supabase.auth.admin.listUsers({ page: 1, perPage: 1000 });
+    if (error) throw new BadRequestException(error.message);
+    return (data?.users ?? []).find((u) => (u.email || '').toLowerCase() === email.toLowerCase()) ?? null;
+  }
+
   async listDrivers(tenantId: string, params: DriverQueryParams) {
     const qb = this.dataSource
       .createQueryBuilder()
@@ -84,18 +90,13 @@ export class DriverService {
     return this.dataSource.transaction(async (manager) => {
       const supabase = this.getSupabaseAdmin();
       let userId: string;
-      const { data: listData, error: listError } = await supabase.auth.admin.listUsers({ page: 1, perPage: 1000 });
-      if (listError) {
-        throw new BadRequestException(listError.message);
-      }
-      const existingUser = (listData?.users ?? []).find((u) => (u.email || '').toLowerCase() === email.toLowerCase()) ?? null;
+      const existingUser = await this.getUserByEmail(supabase, email);
 
       if (!existingUser) {
         const { data: created, error: createError } = await supabase.auth.admin.createUser({
           email,
           email_confirm: true,
-          user_metadata: { full_name: fullName || null, tenant_id: tenantId, role: 'driver' },
-          app_metadata: { tenant_id: tenantId, role: 'driver' },
+          app_metadata: { full_name: fullName || null, tenant_id: tenantId, role: 'driver' },
         });
         if (createError || !created?.user) {
           throw new BadRequestException(createError?.message ?? 'Failed to create auth user');
@@ -103,11 +104,9 @@ export class DriverService {
         userId = created.user.id;
       } else {
         userId = existingUser.id;
-        const appMeta = { ...(existingUser.app_metadata ?? {}), tenant_id: tenantId, role: 'driver' };
-        const userMeta = { ...(existingUser.user_metadata ?? {}), full_name: fullName || null, tenant_id: tenantId, role: 'driver' };
+        const appMeta = { ...(existingUser.app_metadata ?? {}), full_name: fullName || null, tenant_id: tenantId, role: 'driver' };
         const { error: updateError } = await supabase.auth.admin.updateUserById(userId, {
           app_metadata: appMeta,
-          user_metadata: userMeta,
         });
         if (updateError) {
           throw new BadRequestException(updateError.message);
