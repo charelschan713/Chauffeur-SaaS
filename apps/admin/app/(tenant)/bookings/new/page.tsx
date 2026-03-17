@@ -876,7 +876,11 @@ export default function CreateBookingPage() {
                           )}
                           {(bd.leg1_surcharge_minor ?? 0) > 0 && (
                             <div className="flex justify-between text-amber-600">
-                              <span>Outbound surcharge</span><span>+${toDisplay(bd.leg1_surcharge_minor)}</span>
+                              <span>
+                                Outbound surcharge
+                                {bd.surcharge_items?.length ? ` (${bd.surcharge_items.map((s: any) => s.label).join(', ')})` : ''}
+                              </span>
+                              <span>+${toDisplay(bd.leg1_surcharge_minor)}</span>
                             </div>
                           )}
                           {(bd.toll_minor ?? 0) > 0 && (
@@ -896,7 +900,11 @@ export default function CreateBookingPage() {
                           )}
                           {(bd.leg2_minor ?? 0) > 0 && (bd.leg2_surcharge_minor ?? 0) > 0 && (
                             <div className="flex justify-between text-amber-600">
-                              <span>Return surcharge</span><span>+${toDisplay(bd.leg2_surcharge_minor)}</span>
+                              <span>
+                                Return surcharge
+                                {bd.surcharge_items?.length ? ` (${bd.surcharge_items.map((s: any) => s.label).join(', ')})` : ''}
+                              </span>
+                              <span>+${toDisplay(bd.leg2_surcharge_minor)}</span>
                             </div>
                           )}
                           {(bd.leg2_minor ?? 0) > 0 && (bd.toll_minor ?? 0) > 0 && (
