@@ -1215,6 +1215,10 @@ export default function CreateBookingPage() {
                     <pre className="whitespace-pre-wrap break-all text-gray-700">
                       {JSON.stringify(quote.breakdowns[values.service_class_id] ?? null, null, 2)}
                     </pre>
+                    <div className="font-semibold text-gray-600 mt-3 mb-1">Surcharge Items (raw)</div>
+                    <pre className="whitespace-pre-wrap break-all text-gray-700">
+                      {JSON.stringify(quote.breakdowns[values.service_class_id]?.surcharge_items ?? [], null, 2)}
+                    </pre>
                   </div>
                 )}
                 {quote.status === 'success' && (
