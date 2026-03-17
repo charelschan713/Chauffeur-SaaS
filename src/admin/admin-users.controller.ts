@@ -95,4 +95,64 @@ export class AdminUsersController {
 
     return { ok: true };
   }
+
+  @Post(':id/update-phone')
+  async updatePhone(
+    @CurrentUser('tenant_id') tenantId: string,
+    @CurrentUser('sub') actorId: string,
+    @Param('id') userId: string,
+    @Body() body: { phone: string },
+  ) {
+    const phone = body?.phone?.trim();
+    if (!phone) throw new BadRequestException('Phone is required');
+
+    const rows = await this.db.query(
+      `SELECT u.id, m.role
+       FROM public.users u
+       JOIN public.memberships m ON m.user_id = u.id
+       WHERE u.id = $1 AND m.tenant_id = $2
+       LIMIT 1`,
+      [userId, tenantId],
+    );
+    const user = rows[0];
+    if (!user) throw new BadRequestException('User not found');
+    if (!['driver', 'customer'].includes(user.role)) {
+      throw new ForbiddenException('Unsupported user type');
+    }
+
+    const supabase = this.getSupabaseAdmin();
+    const { data: authUser, error: getError } = await supabase.auth.admin.getUserById(userId);
+    if (getError || !authUser?.user) {
+      throw new BadRequestException(getError?.message ?? 'Auth user not found');
+    }
+
+    const appMeta = {
+      ...(authUser.user.app_metadata ?? {}),
+      tenant_id: tenantId,
+      role: user.role,
+    };
+    const { error: updateError } = await supabase.auth.admin.updateUserById(userId, {
+      phone,
+      phone_confirm: true,
+      app_metadata: appMeta,
+    });
+    if (updateError) throw new BadRequestException(updateError.message);
+
+    await this.db.query(
+      `INSERT INTO public.admin_password_reset_logs
+         (tenant_id, actor_user_id, target_user_id, target_user_type, action_type, reset_mode, metadata)
+       VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb)`,
+      [
+        tenantId,
+        actorId,
+        userId,
+        user.role,
+        'update_phone',
+        'admin_api',
+        JSON.stringify({ source: 'admin/users/update-phone', phone }),
+      ],
+    );
+
+    return { ok: true };
+  }
 }
