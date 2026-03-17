@@ -28,9 +28,10 @@ export class DriverService {
   }
 
   private async getUserByEmail(supabase: SupabaseClient, email: string) {
-    const { data, error } = await supabase.auth.admin.listUsers({ page: 1, perPage: 1000 });
+    const admin: any = supabase.auth.admin as any;
+    const { data, error } = await admin.getUserByEmail(email);
     if (error) throw new BadRequestException(error.message);
-    return (data?.users ?? []).find((u) => (u.email || '').toLowerCase() === email.toLowerCase()) ?? null;
+    return data?.user ?? null;
   }
 
   async listDrivers(tenantId: string, params: DriverQueryParams) {
