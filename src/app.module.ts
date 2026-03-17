@@ -11,6 +11,7 @@ import { PaymentModule } from './payment/payment.module';
 import { DispatchModule } from './dispatch/dispatch.module';
 import { PlatformModule } from './platform/platform.module';
 import { DriverModule } from './driver/driver.module';
+import { AdminModule } from './admin/admin.module';
 import { NetworkModule } from './network/network.module';
 import { ReviewsModule } from './reviews/reviews.module';
 import { PublicModule } from './public/public.module';
@@ -60,6 +61,7 @@ import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
     DispatchModule,
     PlatformModule,
     DriverModule,
+    AdminModule,
     NetworkModule,
     ReviewsModule,
     PublicModule,
