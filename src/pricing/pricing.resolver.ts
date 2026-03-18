@@ -10,6 +10,7 @@ import { PricingContext, PricingSnapshot } from './pricing.types';
 import { DiscountResolver } from '../customer/discount.resolver';
 import { SurchargeService } from '../surcharge/surcharge.service';
 import { AirportParkingService } from '../surcharge/airport-parking.service';
+import { DebugTraceService } from '../debug/debug-trace.service';
 
 type MultiplierMode = 'PERCENTAGE' | 'FIXED_SURCHARGE';
 
@@ -35,6 +36,7 @@ export class PricingResolver {
     private readonly mapsService: GoogleMapsService,
     private readonly surchargeService: SurchargeService,
     private readonly airportParkingService: AirportParkingService,
+    private readonly trace?: DebugTraceService,
   ) {}
 
   // Estimate toll from route distance (Sydney CityLink rates)
@@ -451,6 +453,17 @@ export class PricingResolver {
           : { total_surcharge_minor: 0, surcharges: [] as any[] };
 
         const merged = this.mergeReturnSurcharges(outboundSr, returnSr, leg1Minor + leg2Minor);
+        if ((outboundSr?.surcharges?.length ?? 0) > 0 && (returnSr?.surcharges?.length ?? 0) > 0) {
+          this.trace?.traceWarn('return_surcharge_deduped', {
+            tenant_id: ctx.tenantId,
+            message: 'Return trip surcharge matched on both legs; applied once on combined base',
+            context: {
+              outbound_labels: outboundSr.surcharges?.map((s: any) => s.label) ?? [],
+              return_labels: returnSr.surcharges?.map((s: any) => s.label) ?? [],
+              combined_base_minor: leg1Minor + leg2Minor,
+            },
+          }, true);
+        }
         leg1SurchargeMinor = merged.total_surcharge_minor;
         leg2SurchargeMinor = 0; // apply once if any leg qualifies
         timeSurchargeMinor = merged.total_surcharge_minor;
