@@ -19,6 +19,8 @@ interface QuoteRequest {
   waypoints_count?: number;
   return_waypoints_count?: number;  // waypoints on return leg (may differ if asymmetric)
   return_pickup_at_utc?: string;
+  return_pickup_address?: string;
+  return_dropoff_address?: string;
   waiting_minutes?: number;
   infant_seats?: number;
   toddler_seats?: number;
@@ -75,6 +77,8 @@ export class PublicPricingService {
           returnDistanceKm: dto.return_distance_km,
           returnDurationMinutes: dto.return_duration_minutes,
           returnPickupAtUtc: dto.return_pickup_at_utc ? new Date(dto.return_pickup_at_utc) : undefined,
+          returnPickupAddress: dto.return_pickup_address ?? dto.dropoff_address,
+          returnDropoffAddress: dto.return_dropoff_address ?? dto.pickup_address,
           // Outbound stops — pricing resolver handles return stops separately
           waypointsCount: waypointChargeEnabled ? (dto.waypoints_count ?? 0) : 0,
           returnWaypointsCount: waypointChargeEnabled ? (dto.return_waypoints_count ?? 0) : 0,

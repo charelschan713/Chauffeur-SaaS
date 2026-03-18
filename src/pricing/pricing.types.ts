@@ -25,6 +25,8 @@ export interface PricingContext {
   returnDistanceKm?: number;
   returnDurationMinutes?: number;
   returnPickupAtUtc?: Date | string | null;
+  returnPickupAddress?: string | null;
+  returnDropoffAddress?: string | null;
   bookedHours?: number;
 }
 

@@ -406,15 +406,18 @@ export class PricingResolver {
         // Leg-specific toll/parking and time-context surcharges
         const returnPickupAt = ctx.returnPickupAtUtc ?? ctx.pickupAtUtc ?? null;
 
+        const returnPickupAddress = ctx.returnPickupAddress ?? ctx.dropoffAddress;
+        const returnDropoffAddress = ctx.returnDropoffAddress ?? ctx.pickupAddress;
+
         const [outToll, retToll] = await Promise.all([
           this.resolveTollForRoute(ctx.tenantId, ctx.pickupAddress, ctx.dropoffAddress, ctx.currency, ctx.pickupAtUtc ?? null, !!ctx.tollEnabled),
-          this.resolveTollForRoute(ctx.tenantId, ctx.dropoffAddress, ctx.pickupAddress, ctx.currency, returnPickupAt, !!ctx.tollEnabled),
+          this.resolveTollForRoute(ctx.tenantId, returnPickupAddress, returnDropoffAddress, ctx.currency, returnPickupAt, !!ctx.tollEnabled),
         ]);
         tollMinor = outToll + retToll;
 
         const [outParking, retParking] = await Promise.all([
           this.resolveParkingForPickup(ctx.tenantId, ctx.pickupAddress),
-          this.resolveParkingForPickup(ctx.tenantId, ctx.dropoffAddress),
+          this.resolveParkingForPickup(ctx.tenantId, returnPickupAddress),
         ]);
         parkingMinor = outParking + retParking;
 
