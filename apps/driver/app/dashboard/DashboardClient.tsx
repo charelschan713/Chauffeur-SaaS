@@ -133,10 +133,9 @@ function LightBookingCard({ assignment }: { assignment: any }) {
 // ── Main ──────────────────────────────────────────────────────────────────────
 export function DashboardClient() {
   const router  = useRouter();
-  const { token, hydrate, driverName } = useAuthStore();
+  const { token, driverName } = useAuthStore();
   const tenant  = useTenant();
 
-  useEffect(() => { hydrate(); }, [hydrate]);
   useEffect(() => {
     if (typeof window === 'undefined') return;
     if (!localStorage.getItem('driver_token')) router.push('/login');
