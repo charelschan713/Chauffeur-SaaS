@@ -703,17 +703,16 @@ function BookingDetailInner() {
                     <>
                       {leg1 > 0 && <div className="flex justify-between"><span className="text-gray-500">Outbound price</span><span>{fmt(leg1)}</span></div>}
                       {leg1S > 0 && <div className="flex justify-between"><span className="text-gray-500">Outbound surcharge</span><span>+{fmt(leg1S)}</span></div>}
-                      {toll > 0 && <div className="flex justify-between"><span className="text-gray-500">Outbound toll</span><span>+{fmt(toll)}</span></div>}
-                      {parking > 0 && <div className="flex justify-between"><span className="text-gray-500">Outbound parking</span><span>+{fmt(parking)}</span></div>}
 
                       {hasReturn && (
                         <>
                           {leg2 > 0 && <div className="flex justify-between"><span className="text-gray-500">Return price</span><span>{toMoney(leg2)}</span></div>}
                           {leg2S > 0 && <div className="flex justify-between"><span className="text-gray-500">Return surcharge</span><span>+{fmt(leg2S)}</span></div>}
-                          {toll > 0 && <div className="flex justify-between"><span className="text-gray-500">Return toll</span><span>+{fmt(toll)}</span></div>}
-                          {parking > 0 && <div className="flex justify-between"><span className="text-gray-500">Return parking</span><span>+{fmt(parking)}</span></div>}
                         </>
                       )}
+
+                      {toll > 0 && <div className="flex justify-between"><span className="text-gray-500">Toll</span><span>+{fmt(toll)}</span></div>}
+                      {parking > 0 && <div className="flex justify-between"><span className="text-gray-500">Parking</span><span>+{fmt(parking)}</span></div>}
 
                       {discountMinor > 0 && (
                         <div className="flex justify-between text-green-600"><span>{discountLabel ?? 'Discount'}</span><span>− {fmt(discountMinor)}</span></div>

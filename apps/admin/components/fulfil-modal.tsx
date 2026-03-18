@@ -434,16 +434,14 @@ export function FulfilModal({
                     <>
                       <div className="flex justify-between"><span>Outbound price</span><span>{fmt(leg1Minor ?? 0, currency)}</span></div>
                       {leg1S > 0 && <div className="flex justify-between"><span>Outbound surcharge</span><span>{fmt(leg1S, currency)}</span></div>}
-                      {toll > 0 && <div className="flex justify-between"><span>Outbound toll</span><span>{fmt(toll, currency)}</span></div>}
-                      {parking > 0 && <div className="flex justify-between"><span>Outbound parking</span><span>{fmt(parking, currency)}</span></div>}
                       {hasReturn && (
                         <>
                           <div className="flex justify-between"><span>Return price</span><span>{fmt(leg2Minor ?? 0, currency)}</span></div>
                           {leg2S > 0 && <div className="flex justify-between"><span>Return surcharge</span><span>{fmt(leg2S, currency)}</span></div>}
-                          {toll > 0 && <div className="flex justify-between"><span>Return toll</span><span>{fmt(toll, currency)}</span></div>}
-                          {parking > 0 && <div className="flex justify-between"><span>Return parking</span><span>{fmt(parking, currency)}</span></div>}
                         </>
                       )}
+                      {toll > 0 && <div className="flex justify-between"><span>Toll</span><span>{fmt(toll, currency)}</span></div>}
+                      {parking > 0 && <div className="flex justify-between"><span>Parking</span><span>{fmt(parking, currency)}</span></div>}
                       {discount > 0 && <div className="flex justify-between"><span>Discount</span><span>-{fmt(discount, currency)}</span></div>}
                       {total > 0 && <div className="flex justify-between"><span>Total</span><span>{fmt(total, currency)}</span></div>}
                     </>

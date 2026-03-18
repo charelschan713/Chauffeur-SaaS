@@ -886,12 +886,12 @@ export default function CreateBookingPage() {
                           )}
                           {(bd.toll_minor ?? 0) > 0 && (
                             <div className="flex justify-between text-amber-600">
-                              <span>Outbound toll</span><span>+${toDisplay(bd.toll_minor)}</span>
+                              <span>Toll</span><span>+${toDisplay(bd.toll_minor)}</span>
                             </div>
                           )}
                           {(bd.parking_minor ?? 0) > 0 && (
                             <div className="flex justify-between text-amber-600">
-                              <span>Outbound parking</span><span>+${toDisplay(bd.parking_minor)}</span>
+                              <span>Parking</span><span>+${toDisplay(bd.parking_minor)}</span>
                             </div>
                           )}
                           {(bd.leg2_minor ?? 0) > 0 && (
@@ -906,16 +906,6 @@ export default function CreateBookingPage() {
                                 {bd.surcharge_items?.length ? ` (${bd.surcharge_items.map((s: any) => s.label).join(', ')})` : ''}
                               </span>
                               <span>+${toDisplay(bd.leg2_surcharge_minor)}</span>
-                            </div>
-                          )}
-                          {(bd.leg2_minor ?? 0) > 0 && (bd.toll_minor ?? 0) > 0 && (
-                            <div className="flex justify-between text-amber-600">
-                              <span>Return toll</span><span>+${toDisplay(bd.toll_minor)}</span>
-                            </div>
-                          )}
-                          {(bd.leg2_minor ?? 0) > 0 && (bd.parking_minor ?? 0) > 0 && (
-                            <div className="flex justify-between text-amber-600">
-                              <span>Return parking</span><span>+${toDisplay(bd.parking_minor)}</span>
                             </div>
                           )}
                           {(bd.discount_amount_minor ?? 0) > 0 && (
@@ -1180,12 +1170,6 @@ export default function CreateBookingPage() {
                         {(bd.leg1_surcharge_minor ?? 0) > 0 && (
                           <div className="text-amber-600">Outbound surcharge: +${toDisplay(bd.leg1_surcharge_minor)}</div>
                         )}
-                        {(bd.toll_minor ?? 0) > 0 && (
-                          <div className="text-amber-600">Outbound toll: +${toDisplay(bd.toll_minor)}</div>
-                        )}
-                        {(bd.parking_minor ?? 0) > 0 && (
-                          <div className="text-amber-600">Outbound parking: +${toDisplay(bd.parking_minor)}</div>
-                        )}
                         {(bd.leg2_minor ?? 0) > 0 && (
                           <div className="text-gray-500">Return price: ${toDisplay(bd.leg2_minor)}</div>
                         )}
@@ -1193,10 +1177,10 @@ export default function CreateBookingPage() {
                           <div className="text-amber-600">Return surcharge: +${toDisplay(bd.leg2_surcharge_minor)}</div>
                         )}
                         {(bd.toll_minor ?? 0) > 0 && (
-                          <div className="text-amber-600">Return toll: +${toDisplay(bd.toll_minor)}</div>
+                          <div className="text-amber-600">Toll: +${toDisplay(bd.toll_minor)}</div>
                         )}
                         {(bd.parking_minor ?? 0) > 0 && (
-                          <div className="text-amber-600">Return parking: +${toDisplay(bd.parking_minor)}</div>
+                          <div className="text-amber-600">Parking: +${toDisplay(bd.parking_minor)}</div>
                         )}
                         {(bd.discount_amount_minor ?? 0) > 0 && (
                           <div className="text-emerald-600">Discount: -${toDisplay(bd.discount_amount_minor)}</div>
