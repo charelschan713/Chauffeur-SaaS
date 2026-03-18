@@ -537,13 +537,21 @@ export class CustomerPortalService implements OnModuleInit {
         throw new BadRequestException('Selected vehicle class not found in quote. Please re-quote.');
       }
 
-      if (result.pricing_snapshot_preview?.loyalty_applied) {
+      const loyaltyAlreadyApplied = !!(
+        result.pricing_snapshot_preview?.loyalty_applied ||
+        result?.discount?.id === 'tier' ||
+        (result.pricing_snapshot_preview?.discount_rate ?? 0) > 0 &&
+          /loyalty/i.test(result.pricing_snapshot_preview?.discount_name ?? '')
+      );
+
+      if (loyaltyAlreadyApplied) {
         // Quote already includes loyalty discount (e.g., customer quoted while logged in)
         totalPriceMinor = result.pricing_snapshot_preview?.final_fare_minor ?? result.estimated_total_minor;
         pricingSnapshot = {
           ...(result.pricing_snapshot_preview ?? {}),
           loyalty_applied: true,
           snapshot_source: 'quote_session',
+          discount_guard: 'loyalty_already_applied',
         };
         vehicleClassId  = result.service_class_id ?? dto.vehicleClassId ?? null;
       } else {
@@ -574,6 +582,7 @@ export class CustomerPortalService implements OnModuleInit {
           parking_minor:        result.pricing_snapshot_preview?.parking_minor ?? 0,
           loyalty_applied:      true,
           snapshot_source:      loyalty.snapshotSource,
+          discount_guard:      'loyalty_applied_on_booking',
         };
         vehicleClassId  = result.service_class_id ?? dto.vehicleClassId ?? null;
       }
