@@ -58,6 +58,9 @@ interface QuoteResult {
     discount_type?: string;
     discount_value?: number;
     discount_amount_minor?: number;
+    discount_rate?: number;
+    discount_name?: string;
+    loyalty_applied?: boolean;
   };
 }
 

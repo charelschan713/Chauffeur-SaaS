@@ -537,35 +537,46 @@ export class CustomerPortalService implements OnModuleInit {
         throw new BadRequestException('Selected vehicle class not found in quote. Please re-quote.');
       }
 
-      // Apply loyalty discount server-side — client totalPriceMinor and discountMinor are ignored.
-      // LoyaltyPricingService uses the same logic as GET /customer-portal/discount-preview,
-      // guaranteeing preview amount == booking amount == charge amount.
-      const loyalty = await this.loyaltyPricing.compute(
-        customerId,
-        tenantId,
-        result,
-        payload.currency ?? currency,
-      );
-      totalPriceMinor = loyalty.finalFareMinor;
-      currency        = loyalty.currency;
+      if (result.pricing_snapshot_preview?.loyalty_applied) {
+        // Quote already includes loyalty discount (e.g., customer quoted while logged in)
+        totalPriceMinor = result.pricing_snapshot_preview?.final_fare_minor ?? result.estimated_total_minor;
+        pricingSnapshot = {
+          ...(result.pricing_snapshot_preview ?? {}),
+          loyalty_applied: true,
+          snapshot_source: 'quote_session',
+        };
+        vehicleClassId  = result.service_class_id ?? dto.vehicleClassId ?? null;
+      } else {
+        // Apply loyalty discount server-side — client totalPriceMinor and discountMinor are ignored.
+        // LoyaltyPricingService uses the same logic as GET /customer-portal/discount-preview,
+        // guaranteeing preview amount == booking amount == charge amount.
+        const loyalty = await this.loyaltyPricing.compute(
+          customerId,
+          tenantId,
+          result,
+          payload.currency ?? currency,
+        );
+        totalPriceMinor = loyalty.finalFareMinor;
+        currency        = loyalty.currency;
 
-      // Merge loyalty breakdown into pricing snapshot for downstream charge (payViaToken)
-      pricingSnapshot = {
-        ...(result.pricing_snapshot_preview ?? {}),
-        // Overwrite with loyalty-adjusted values so payViaToken reads correct amounts
-        final_fare_minor:     loyalty.finalFareMinor,
-        grand_total_minor:    loyalty.finalFareMinor,
-        discount_amount_minor: loyalty.discountMinor,
-        discount_rate:        loyalty.discountRate,
-        discount_name:        loyalty.discountName,
-        toll_minor:           loyalty.tollParkingMinor > 0
-                                ? (result.pricing_snapshot_preview?.toll_minor ?? loyalty.tollParkingMinor)
-                                : 0,
-        parking_minor:        result.pricing_snapshot_preview?.parking_minor ?? 0,
-        loyalty_applied:      true,
-        snapshot_source:      loyalty.snapshotSource,
-      };
-      vehicleClassId  = result.service_class_id ?? dto.vehicleClassId ?? null;
+        // Merge loyalty breakdown into pricing snapshot for downstream charge (payViaToken)
+        pricingSnapshot = {
+          ...(result.pricing_snapshot_preview ?? {}),
+          // Overwrite with loyalty-adjusted values so payViaToken reads correct amounts
+          final_fare_minor:     loyalty.finalFareMinor,
+          grand_total_minor:    loyalty.finalFareMinor,
+          discount_amount_minor: loyalty.discountMinor,
+          discount_rate:        loyalty.discountRate,
+          discount_name:        loyalty.discountName,
+          toll_minor:           loyalty.tollParkingMinor > 0
+                                  ? (result.pricing_snapshot_preview?.toll_minor ?? loyalty.tollParkingMinor)
+                                  : 0,
+          parking_minor:        result.pricing_snapshot_preview?.parking_minor ?? 0,
+          loyalty_applied:      true,
+          snapshot_source:      loyalty.snapshotSource,
+        };
+        vehicleClassId  = result.service_class_id ?? dto.vehicleClassId ?? null;
+      }
     }
 
     const [tenantRow] = await this.db.query(

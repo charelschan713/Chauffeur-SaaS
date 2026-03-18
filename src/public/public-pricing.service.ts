@@ -152,6 +152,9 @@ export class PublicPricingService {
               toll_minor: snapshot.toll_minor ?? 0,
               parking_minor: snapshot.parking_minor ?? 0,
               discount_amount_minor: totalDiscountMinor,
+              discount_rate: combinedRate,
+              discount_name: tierDiscountRate > 0 ? `${combinedRate}% loyalty` : (tenantDiscountResult?.name ?? 'Discount'),
+              loyalty_applied: tierDiscountRate > 0,
               final_fare_minor: finalTotal,
             },
           };
