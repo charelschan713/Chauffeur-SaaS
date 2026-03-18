@@ -299,17 +299,16 @@ export function BookingDetailClient({ id }: { id: string }) {
                 <>
                   {leg1 > 0 && <Row label="Outbound price" value={fmt(leg1)} />}
                   {leg1S > 0 && <Row label="Outbound surcharge" value={`+${fmt(leg1S)}`} />}
-                  {toll > 0 && <Row label="Outbound toll" value={`+${fmt(toll)}`} />}
-                  {parking > 0 && <Row label="Outbound parking" value={`+${fmt(parking)}`} />}
 
                   {hasReturn && (
                     <>
                       {leg2 > 0 && <Row label="Return price" value={fmt(leg2)} />}
                       {leg2S > 0 && <Row label="Return surcharge" value={`+${fmt(leg2S)}`} />}
-                      {toll > 0 && <Row label="Return toll" value={`+${fmt(toll)}`} />}
-                      {parking > 0 && <Row label="Return parking" value={`+${fmt(parking)}`} />}
                     </>
                   )}
+
+                  {toll > 0 && <Row label="Toll" value={`+${fmt(toll)}`} />}
+                  {parking > 0 && <Row label="Parking" value={`+${fmt(parking)}`} />}
 
                   {discount > 0 && (
                     <Row

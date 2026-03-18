@@ -756,19 +756,6 @@ export function BookPageClient() {
                     <span>+{fmtMoney(leg1S, selectedResult.currency)}</span>
                   </div>
                 )}
-                {toll > 0 && (
-                  <div className="flex justify-between text-[hsl(var(--muted-foreground))]">
-                    <span>Outbound toll</span>
-                    <span>+{fmtMoney(toll, selectedResult.currency)}</span>
-                  </div>
-                )}
-                {parking > 0 && (
-                  <div className="flex justify-between text-[hsl(var(--muted-foreground))]">
-                    <span>Outbound parking</span>
-                    <span>+{fmtMoney(parking, selectedResult.currency)}</span>
-                  </div>
-                )}
-
                 {hasReturn && (
                   <>
                     {leg2 > 0 && (
@@ -783,19 +770,19 @@ export function BookPageClient() {
                         <span>+{fmtMoney(leg2S, selectedResult.currency)}</span>
                       </div>
                     )}
-                    {toll > 0 && (
-                      <div className="flex justify-between text-[hsl(var(--muted-foreground))]">
-                        <span>Return toll</span>
-                        <span>+{fmtMoney(toll, selectedResult.currency)}</span>
-                      </div>
-                    )}
-                    {parking > 0 && (
-                      <div className="flex justify-between text-[hsl(var(--muted-foreground))]">
-                        <span>Return parking</span>
-                        <span>+{fmtMoney(parking, selectedResult.currency)}</span>
-                      </div>
-                    )}
                   </>
+                )}
+                {toll > 0 && (
+                  <div className="flex justify-between text-[hsl(var(--muted-foreground))]">
+                    <span>Toll</span>
+                    <span>+{fmtMoney(toll, selectedResult.currency)}</span>
+                  </div>
+                )}
+                {parking > 0 && (
+                  <div className="flex justify-between text-[hsl(var(--muted-foreground))]">
+                    <span>Parking</span>
+                    <span>+{fmtMoney(parking, selectedResult.currency)}</span>
+                  </div>
                 )}
 
                 {discount > 0 && (

@@ -792,16 +792,14 @@ export function QuoteClient() {
                               <>
                                 {leg1 > 0 && <span className="text-gray-500">Outbound price: {fmtMoney(leg1, currency)}</span>}
                                 {leg1S > 0 && <span className="text-amber-400/80">Outbound surcharge: +{fmtMoney(leg1S, currency)}</span>}
-                                {toll > 0 && <span className="text-gray-500">Outbound toll: +{fmtMoney(toll, currency)}</span>}
-                                {parking > 0 && <span className="text-gray-500">Outbound parking: +{fmtMoney(parking, currency)}</span>}
                                 {isReturn && (
                                   <>
                                     {leg2 > 0 && <span className="text-gray-500">Return price: {fmtMoney(leg2, currency)}</span>}
                                     {leg2S > 0 && <span className="text-amber-400/80">Return surcharge: +{fmtMoney(leg2S, currency)}</span>}
-                                    {toll > 0 && <span className="text-gray-500">Return toll: +{fmtMoney(toll, currency)}</span>}
-                                    {parking > 0 && <span className="text-gray-500">Return parking: +{fmtMoney(parking, currency)}</span>}
                                   </>
                                 )}
+                                {toll > 0 && <span className="text-gray-500">Toll: +{fmtMoney(toll, currency)}</span>}
+                                {parking > 0 && <span className="text-gray-500">Parking: +{fmtMoney(parking, currency)}</span>}
                                 {discount > 0 && <span className="text-emerald-400">Discount: -{fmtMoney(discount, currency)}</span>}
                                 {total > 0 && <span className="text-gray-500">Total: {fmtMoney(total, currency)}</span>}
                               </>
