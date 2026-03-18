@@ -25,8 +25,9 @@ function ResetPasswordForm() {
     setError('');
     try {
       const { data } = await api.post('/customer-auth/reset-password', { token, password });
-      if (data?.accessToken) {
-        localStorage.setItem('customer_token', data.accessToken);
+      const accessToken = data?.accessToken ?? data?.access_token;
+      if (accessToken) {
+        localStorage.setItem('driver_token', accessToken);
         setDone(true);
         setTimeout(() => router.push('/dashboard'), 2000);
       } else {

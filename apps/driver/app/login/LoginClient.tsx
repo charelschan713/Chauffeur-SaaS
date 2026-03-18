@@ -52,6 +52,7 @@ export default function LoginClient() {
         password,
         tenantSlug: tenantSlug || undefined,
       });
+      if (typeof window !== 'undefined') localStorage.setItem('driver_email', email);
       const driverId = decodeSub(data.accessToken) ?? 'driver';
       setAuth(data.accessToken, driverId, data?.name);
       router.replace('/dashboard');
@@ -69,6 +70,7 @@ export default function LoginClient() {
     try {
       if (tenantSlug) document.cookie = `tenant_slug=${tenantSlug}; path=/`;
       await api.post('/auth/mobile/otp/send', { email });
+      if (typeof window !== 'undefined') localStorage.setItem('driver_email', email);
       setOtpStep('code');
       setCountdown(60);
       const interval = setInterval(() => {

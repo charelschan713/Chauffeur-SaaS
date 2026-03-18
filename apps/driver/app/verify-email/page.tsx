@@ -2,12 +2,13 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { AuthShell, AuthLogo, AuthCard, GoldButton, ErrorAlert, inputCls, labelCls } from '@/components/AuthLogo';
+import { useAuthStore } from '@/lib/auth-store';
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'https://chauffeur-saas-production.up.railway.app';
 
-function getToken() {
+function getEmail() {
   if (typeof window === 'undefined') return null;
-  return localStorage.getItem('customer_token');
+  return localStorage.getItem('driver_email');
 }
 
 export default function VerifyEmailPage() {
@@ -19,11 +20,12 @@ export default function VerifyEmailPage() {
   const [success, setSuccess] = useState(false);
   const [cooldown, setCooldown] = useState(0);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
+  const setAuth = useAuthStore((s) => s.setAuth);
 
   // Send OTP on mount
   useEffect(() => {
-    const token = getToken();
-    if (!token) { router.replace('/login'); return; }
+    const email = getEmail();
+    if (!email) { router.replace('/login'); return; }
     handleSend();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -36,14 +38,15 @@ export default function VerifyEmailPage() {
   }, [cooldown]);
 
   async function handleSend() {
-    const token = getToken();
-    if (!token) return;
+    const email = getEmail();
+    if (!email) return;
     setSending(true);
     setError('');
     try {
-      await fetch(`${API}/customer-portal/send-email-otp`, {
+      await fetch(`${API}/auth/mobile/otp/send`, {
         method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
       });
       setCooldown(60);
     } catch {
@@ -70,18 +73,22 @@ export default function VerifyEmailPage() {
   async function handleVerify() {
     const code = otp.join('');
     if (code.length < 6) { setError('Please enter the 6-digit code.'); return; }
-    const token = getToken();
-    if (!token) return;
+    const email = getEmail();
+    if (!email) return;
     setLoading(true);
     setError('');
     try {
-      const res = await fetch(`${API}/customer-portal/verify-email-otp`, {
+      const res = await fetch(`${API}/auth/mobile/otp/verify`, {
         method: 'POST',
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ otp: code }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, otp: code }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message ?? 'Verification failed');
+      const token = data.access_token ?? data.accessToken;
+      if (token) {
+        setAuth(token, data?.driver_id ?? 'driver');
+      }
       setSuccess(true);
       setTimeout(() => router.replace('/dashboard'), 1500);
     } catch (e: any) {
