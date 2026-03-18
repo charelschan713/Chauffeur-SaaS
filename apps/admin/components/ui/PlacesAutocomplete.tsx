@@ -22,6 +22,7 @@ interface PlacesAutocompleteProps {
   cityLat?: number | null;
   cityLng?: number | null;
   cityName?: string | null;
+  tenantSlug?: string | null;
 }
 
 function generateToken() {
@@ -56,6 +57,7 @@ export function PlacesAutocomplete({
   cityLat,
   cityLng,
   cityName,
+  tenantSlug,
 }: PlacesAutocompleteProps) {
   const [query, setQuery] = useState(value);
   const [predictions, setPredictions] = useState<Prediction[]>([]);
@@ -110,6 +112,13 @@ export function PlacesAutocomplete({
     }
     // Only fetch when triggered by manual keyboard input
     if (!manualInputRef.current) return;
+    if (!tenantSlug) {
+      setPredictions([]);
+      setHasQueried(true);
+      setOpen(true);
+      setLoading(false);
+      return;
+    }
     manualInputRef.current = false;
     setLoading(true);
     timerRef.current = setTimeout(async () => {
@@ -119,7 +128,7 @@ export function PlacesAutocomplete({
           : '';
         const cityParam = cityName ? `&city=${encodeURIComponent(cityName)}` : '';
         const res = await api.get(
-          `/public/maps/autocomplete?input=${encodeURIComponent(query.trim())}&sessiontoken=${sessionTokenRef.current}${biasParams}${cityParam}`,
+          `/public/maps/autocomplete?tenant_slug=${encodeURIComponent(tenantSlug)}&input=${encodeURIComponent(query.trim())}&sessiontoken=${sessionTokenRef.current}${biasParams}${cityParam}`,
         );
         const preds: Prediction[] = res.data?.predictions ?? [];
         setPredictions(preds);

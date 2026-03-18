@@ -390,6 +390,7 @@ export default function CreateBookingPage() {
     () => cities.find((c: any) => c.id === values.city_id),
     [cities, values.city_id],
   );
+  const tenantSlug = tenantBusiness?.slug ?? null;
 
   async function handleGetQuote() {
     if (!values.service_type_id || !values.city_id || !values.pickup_address_text || !values.dropoff_address_text || !values.pickup_at_utc) {
@@ -1040,7 +1041,8 @@ export default function CreateBookingPage() {
                 <PlacesAutocomplete value={values.pickup_address_text ?? ''}
                   onChange={(val, placeId) => { setValue('pickup_address_text', val, { shouldValidate: true }); setPickupPlaceId(placeId ?? ''); }}
                   placeholder="123 George St, Sydney" error={errors.pickup_address_text?.message}
-                  cityLat={selectedCity?.lat ?? null} cityLng={selectedCity?.lng ?? null} cityName={selectedCity?.name ?? null} />
+                  cityLat={selectedCity?.lat ?? null} cityLng={selectedCity?.lng ?? null} cityName={selectedCity?.name ?? null}
+                  tenantSlug={tenantSlug} />
               </Field>
 
               {waypoints.map((wp, idx) => (
@@ -1049,7 +1051,8 @@ export default function CreateBookingPage() {
                     <PlacesAutocomplete value={wp}
                       onChange={(val) => { const next = [...waypoints]; next[idx] = val; setWaypoints(next); }}
                       placeholder={`Stop ${idx + 1}`}
-                      cityLat={selectedCity?.lat ?? null} cityLng={selectedCity?.lng ?? null} cityName={selectedCity?.name ?? null} />
+                      cityLat={selectedCity?.lat ?? null} cityLng={selectedCity?.lng ?? null} cityName={selectedCity?.name ?? null}
+                      tenantSlug={tenantSlug} />
                   </div>
                   <button type="button" onClick={() => setWaypoints((prev) => prev.filter((_, i) => i !== idx))}
                     className="text-gray-400 hover:text-red-500 text-lg leading-none">×</button>
@@ -1060,7 +1063,8 @@ export default function CreateBookingPage() {
                 <PlacesAutocomplete value={values.dropoff_address_text ?? ''}
                   onChange={(val, placeId) => { setValue('dropoff_address_text', val, { shouldValidate: true }); setDropoffPlaceId(placeId ?? ''); }}
                   placeholder="Airport or destination" error={errors.dropoff_address_text?.message}
-                  cityLat={selectedCity?.lat ?? null} cityLng={selectedCity?.lng ?? null} cityName={selectedCity?.name ?? null} />
+                  cityLat={selectedCity?.lat ?? null} cityLng={selectedCity?.lng ?? null} cityName={selectedCity?.name ?? null}
+                  tenantSlug={tenantSlug} />
               </Field>
 
               {waypoints.length < 5 && (
