@@ -79,7 +79,7 @@ export default function InvoicesPage() {
         )}
       </main>
 
-      <BottomNav />
+      <BottomNav active="invoices" />
     </div>
   );
 }
