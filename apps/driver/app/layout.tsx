@@ -4,7 +4,6 @@ import { Playfair_Display } from 'next/font/google';
 import './globals.css';
 import { QueryProvider } from '@/components/QueryProvider';
 import { GlobalErrorBoundary } from '@/components/GlobalErrorBoundary';
-import { BottomNav } from '@/components/BottomNav';
 import { Sidebar } from '@/components/Sidebar';
 import { ScrollToInput } from '@/components/ScrollToInput';
 
@@ -43,10 +42,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <Sidebar />
             <div className="lg:pl-64">
               {children}
-            </div>
-            {/* BottomNav only on mobile */}
-            <div className="lg:hidden">
-              <BottomNav />
             </div>
           </QueryProvider>
         </GlobalErrorBoundary>
