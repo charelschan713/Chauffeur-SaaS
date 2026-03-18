@@ -107,6 +107,28 @@ export class PricingResolver {
     return baseMinor + surchargeMinor;
   }
 
+  private mergeReturnSurcharges(
+    outbound: { surcharges: any[]; total_surcharge_minor: number },
+    ret: { surcharges: any[]; total_surcharge_minor: number },
+    combinedBaseMinor: number,
+  ) {
+    const key = (s: any) => `${s.label}::${s.type}::${s.value}`;
+    const all = [...(outbound?.surcharges ?? []), ...(ret?.surcharges ?? [])];
+    const uniq = new Map<string, any>();
+    for (const s of all) {
+      if (!s) continue;
+      uniq.set(key(s), s);
+    }
+    const surcharges = Array.from(uniq.values()).map((s: any) => {
+      const amount_minor = s.type === 'PERCENTAGE'
+        ? Math.round(combinedBaseMinor * (Number(s.value) / 100))
+        : Math.round(Number(s.value) * 100);
+      return { ...s, amount_minor };
+    });
+    const total_surcharge_minor = surcharges.reduce((sum, s) => sum + (s.amount_minor ?? 0), 0);
+    return { surcharges, total_surcharge_minor };
+  }
+
   private findTier(tiers: HourlyTier[], actualHours: number): HourlyTier {
     const sorted = [...tiers].sort(
       (a, b) => (a.from_hours ?? 0) - (b.from_hours ?? 0),
@@ -428,13 +450,11 @@ export class PricingResolver {
           ? await this.surchargeService.resolve(ctx.tenantId, returnPickupAt, leg2Minor, ctx.timezone ?? 'Australia/Sydney', ctx.cityId ?? null)
           : { total_surcharge_minor: 0, surcharges: [] as any[] };
 
-        leg1SurchargeMinor = outboundSr.total_surcharge_minor ?? 0;
-        leg2SurchargeMinor = returnSr.total_surcharge_minor ?? 0;
-        timeSurchargeMinor = leg1SurchargeMinor + leg2SurchargeMinor;
-        surchargeItems = [
-          ...((outboundSr.surcharges ?? []).map((s: any) => ({ label: `Outbound: ${s.label}`, amount_minor: s.amount_minor }))),
-          ...((returnSr.surcharges ?? []).map((s: any) => ({ label: `Return: ${s.label}`, amount_minor: s.amount_minor }))),
-        ];
+        const merged = this.mergeReturnSurcharges(outboundSr, returnSr, leg1Minor + leg2Minor);
+        leg1SurchargeMinor = merged.total_surcharge_minor;
+        leg2SurchargeMinor = 0; // apply once if any leg qualifies
+        timeSurchargeMinor = merged.total_surcharge_minor;
+        surchargeItems = merged.surcharges.map((s: any) => ({ label: s.label, amount_minor: s.amount_minor }));
         surchargeLabels = surchargeItems.map((s) => s.label);
       } else {
         multiplierMode = oneWayMode as MultiplierMode;

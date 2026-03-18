@@ -30,14 +30,23 @@ export class SurchargeService {
 
     const effectiveTimezone = await this.resolveCityTimezone(tenantId, cityId, timezone);
 
-    // Convert to local time for the booking's timezone
-    const localStr = pickupDate.toLocaleString('en-AU', { timeZone: effectiveTimezone, hour12: false });
-    // localStr format: "6/03/2026, 23:30:00"
-    const [datePart, timePart] = localStr.split(', ');
-    const [day, month, year] = datePart.split('/').map(Number);
-    const [hours, minutes] = timePart.split(':').map(Number);
-    const localDate = `${year}-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
-    const localTime = `${String(hours).padStart(2,'0')}:${String(minutes).padStart(2,'0')}:00`;
+    // Convert to local time for the booking's timezone (locale-safe)
+    const dtf = new Intl.DateTimeFormat('en-CA', {
+      timeZone: effectiveTimezone,
+      hour12: false,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+    });
+    const parts = dtf.formatToParts(pickupDate).reduce((acc: any, p) => {
+      if (p.type !== 'literal') acc[p.type] = p.value;
+      return acc;
+    }, {} as Record<string, string>);
+    const localDate = `${parts.year}-${parts.month}-${parts.day}`;
+    const localTime = `${parts.hour}:${parts.minute}:${parts.second}`;
     const dayOfWeek = pickupDate.toLocaleDateString('en-AU', { timeZone: effectiveTimezone, weekday: 'long' });
     const isWeekend = dayOfWeek === 'Saturday' || dayOfWeek === 'Sunday';
 
