@@ -693,6 +693,8 @@ function BookingDetailInner() {
                   const toll = typeof snap.toll_minor === 'number' ? snap.toll_minor : 0;
                   const parking = typeof snap.parking_minor === 'number' ? snap.parking_minor : 0;
                   const discountMinor = typeof snap.discount_amount_minor === 'number' ? snap.discount_amount_minor : 0;
+                  const discountLabel = snap.discount_name ?? null;
+                  const discountGuard = snap.discount_guard ?? null;
                   const total = typeof snap.final_fare_minor === 'number'
                     ? snap.final_fare_minor
                     : booking.total_price_minor ?? 0;
@@ -714,7 +716,10 @@ function BookingDetailInner() {
                       )}
 
                       {discountMinor > 0 && (
-                        <div className="flex justify-between text-green-600"><span>Discount</span><span>− {fmt(discountMinor)}</span></div>
+                        <div className="flex justify-between text-green-600"><span>{discountLabel ?? 'Discount'}</span><span>− {fmt(discountMinor)}</span></div>
+                      )}
+                      {discountGuard && (
+                        <div className="flex justify-between text-xs text-gray-400"><span>Discount Guard</span><span>{String(discountGuard)}</span></div>
                       )}
 
                       <div className="flex justify-between font-semibold border-t pt-1 mt-1">
