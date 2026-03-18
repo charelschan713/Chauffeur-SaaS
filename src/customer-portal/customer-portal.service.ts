@@ -666,6 +666,24 @@ export class CustomerPortalService implements OnModuleInit {
       ],
     );
 
+    this.trace.traceInfo('booking_discount_audit', {
+      tenant_id: tenantId,
+      user_id: customerId,
+      booking_id: booking?.id ?? null,
+      message: 'booking discount guard recorded',
+      context: {
+        quote_session_id: quoteSessionId,
+        discount_guard: pricingSnapshot?.discount_guard ?? null,
+        discount_name: pricingSnapshot?.discount_name ?? null,
+        discount_rate: pricingSnapshot?.discount_rate ?? null,
+        discount_amount_minor: pricingSnapshot?.discount_amount_minor ?? null,
+        pre_discount_fare_minor: pricingSnapshot?.pre_discount_fare_minor ?? null,
+        total_price_minor: totalPriceMinor,
+        loyalty_applied: pricingSnapshot?.loyalty_applied ?? null,
+        snapshot_source: pricingSnapshot?.snapshot_source ?? null,
+      },
+    }, true);
+
     // Save payment method from setupIntentId (new card)
     if (dto.setupIntentId) {
       try {
