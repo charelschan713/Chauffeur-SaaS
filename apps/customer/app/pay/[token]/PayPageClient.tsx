@@ -50,7 +50,7 @@ function SavedCardForm({ token, card, amount, currency }: {
     } finally { setLoading(false); }
   };
 
-  if (result === 'success') return <SuccessScreen />;
+  if (result === 'success') return <SuccessScreen token={token} />;
 
   const brandLabel = card.brand.charAt(0).toUpperCase() + card.brand.slice(1);
 
@@ -144,7 +144,7 @@ function NewCardForm({ token, amount, currency }: { token: string; amount: numbe
     } finally { setLoading(false); }
   };
 
-  if (result === 'success') return <SuccessScreen />;
+  if (result === 'success') return <SuccessScreen token={token} />;
 
   return (
     <form onSubmit={pay} className="space-y-4">
@@ -196,17 +196,47 @@ function NewCardForm({ token, amount, currency }: { token: string; amount: numbe
 }
 
 // ── Success screen ────────────────────────────────────────────────────────────
-function SuccessScreen() {
+function SuccessScreen({ token }: { token: string }) {
+  const [state, setState] = useState<'loading' | 'paid' | 'pending' | 'error'>('loading');
+
+  useEffect(() => {
+    let cancelled = false;
+    api.get(`/customer-portal/payments/token/${token}`)
+      .then((r) => {
+        if (cancelled) return;
+        const status = r.data?.payment_status ?? r.data?.status;
+        if (status === 'PAID' || status === 'AUTHORIZED') setState('paid');
+        else setState('pending');
+      })
+      .catch(() => !cancelled && setState('error'));
+    return () => { cancelled = true; };
+  }, [token]);
+
+  const showPending = state === 'pending' || state === 'error';
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-[hsl(var(--background))]">
       <div className="flex flex-col items-center py-8 text-center px-6">
-        <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-500/10">
-          <svg className="h-8 w-8 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-          </svg>
+        <div className={`mb-4 flex h-16 w-16 items-center justify-center rounded-full ${showPending ? 'bg-amber-500/10' : 'bg-emerald-500/10'}`}>
+          {showPending ? (
+            <svg className="h-8 w-8 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <circle cx="12" cy="12" r="10" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4m0 4h.01" />
+            </svg>
+          ) : (
+            <svg className="h-8 w-8 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+            </svg>
+          )}
         </div>
-        <h2 className="text-xl font-bold text-white">Payment Successful</h2>
-        <p className="mt-2 text-sm text-[hsl(var(--muted-foreground))]">Your booking is now confirmed. You'll receive a confirmation email shortly.</p>
+        <h2 className="text-xl font-bold text-white">
+          {showPending ? 'Payment Processing' : 'Payment Successful'}
+        </h2>
+        <p className="mt-2 text-sm text-[hsl(var(--muted-foreground))]">
+          {showPending
+            ? 'Your payment is still processing. Please check your bookings for the latest status.'
+            : "Your booking is now confirmed. You'll receive a confirmation email shortly."}
+        </p>
         <div className="mt-8 flex flex-col gap-3 w-full max-w-xs">
           <a
             href="/dashboard"

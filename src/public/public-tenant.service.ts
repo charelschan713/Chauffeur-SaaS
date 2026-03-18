@@ -70,6 +70,7 @@ export class PublicTenantService {
       slug: tenant.slug,
       currency: tenant.currency ?? 'AUD',
       timezone: tenant.timezone ?? 'Australia/Sydney',
+      custom_domain: tenant.custom_domain ?? null,
       logo_url: branding?.logo_url ?? null,
       primary_color: branding?.primary_color ?? null,
       primary_foreground: branding?.primary_foreground ?? null,

@@ -1,9 +1,8 @@
 'use client';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useRouter } from 'next/navigation';
+import { useQuery } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { cn, fmtMoney } from '@/lib/utils';
-import { ArrowLeft, MapPin, CalendarDays, Car, User, Phone, AlertCircle, CheckCircle2, Clock, XCircle } from 'lucide-react';
+import { CalendarDays, Car, User, Phone, AlertCircle, CheckCircle2, Clock, XCircle } from 'lucide-react';
 import { BackButton } from '@/components/BackButton';
 
 // Operational status — backend real values (UPPERCASE, stored in bookings.operational_status)
@@ -57,17 +56,9 @@ function Row({ label, value, valueClass }: { label: string; value: React.ReactNo
 }
 
 export function BookingDetailClient({ id }: { id: string }) {
-  const router = useRouter();
-  const qc = useQueryClient();
-
-  const { data: booking, isLoading } = useQuery({
-    queryKey: ['booking', id],
-    queryFn: () => api.get(`/customer-portal/bookings/${id}`).then(r => r.data),
-  });
-
-  const cancelMut = useMutation({
-    mutationFn: () => api.post(`/customer-portal/bookings/${id}/cancel`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['booking', id] }),
+  const { data: assignment, isLoading } = useQuery({
+    queryKey: ['assignment', id],
+    queryFn: () => api.get(`/driver-app/assignments/${id}`).then(r => r.data),
   });
 
   if (isLoading) return (
@@ -76,18 +67,16 @@ export function BookingDetailClient({ id }: { id: string }) {
     </div>
   );
 
-  if (!booking) return (
+  if (!assignment) return (
     <div className="min-h-screen flex items-center justify-center text-[hsl(var(--muted-foreground))]">Booking not found</div>
   );
+
+  const booking = assignment.booking ?? {};
 
   const opStatus = OP_STATUS[booking.operational_status ?? booking.status] ?? {
     label: booking.operational_status ?? booking.status, color: 'text-[hsl(var(--muted-foreground))]', icon: null,
   };
-  const driverStatus = DRIVER_STATUS[booking.driver_execution_status] ?? null;
-
-  const canCancel = ['PENDING_CUSTOMER_CONFIRMATION', 'CONFIRMED', 'AWAITING_CONFIRMATION'].includes(
-    booking.operational_status ?? booking.status
-  );
+  const driverStatus = DRIVER_STATUS[assignment.driver_execution_status] ?? null;
 
   return (
     <div className="min-h-screen" style={{ paddingBottom: 'calc(96px + env(safe-area-inset-bottom, 0px))' }}>
@@ -105,7 +94,7 @@ export function BookingDetailClient({ id }: { id: string }) {
         <BackButton fallback="/bookings" />
         <div className="flex-1 min-w-0">
           <h1 className="font-semibold text-white">Booking Detail</h1>
-          <p className="text-xs font-mono text-[hsl(var(--muted-foreground))]">{booking.booking_reference}</p>
+          <p className="text-xs font-mono text-[hsl(var(--muted-foreground))]">{booking.booking_reference ?? booking.booking_number ?? '—'}</p>
         </div>
         <div className={cn('flex items-center gap-1.5 text-sm font-medium', opStatus.color)}>
           {opStatus.icon}
@@ -138,12 +127,12 @@ export function BookingDetailClient({ id }: { id: string }) {
             <div className="flex-1">
               <p className="text-xs text-[hsl(var(--muted-foreground))] font-medium uppercase tracking-wide mb-0.5">Driver Status</p>
               <p className={cn('text-sm font-semibold', driverStatus.color)}>{driverStatus.label}</p>
-              {booking.driver_name && (
-                <p className="text-xs text-[hsl(var(--muted-foreground))] mt-0.5">{booking.driver_name}</p>
+              {assignment.driver_name && (
+                <p className="text-xs text-[hsl(var(--muted-foreground))] mt-0.5">{assignment.driver_name}</p>
               )}
             </div>
-            {booking.driver_phone && (
-              <a href={`tel:${booking.driver_phone}`}
+            {assignment.driver_phone && (
+              <a href={`tel:${assignment.driver_phone}`}
                 className="w-9 h-9 rounded-full bg-emerald-500/15 border border-emerald-500/25 flex items-center justify-center">
                 <Phone className="h-4 w-4 text-emerald-400" />
               </a>
@@ -156,7 +145,7 @@ export function BookingDetailClient({ id }: { id: string }) {
           <div className="space-y-2">
             <div className="flex items-start gap-2.5 text-sm text-[hsl(var(--muted-foreground))]">
               <CalendarDays className="h-4 w-4 mt-0.5 text-[hsl(var(--primary)/0.7)] shrink-0" />
-              <span>{fmtDate(booking.pickup_at_utc, booking.timezone)}</span>
+              <span>{fmtDate(booking.pickup_at_utc ?? booking.pickup_at, booking.timezone)}</span>
             </div>
             <div className="relative pl-6 space-y-3 mt-2">
               <div className="absolute left-[7px] top-2 bottom-2 w-px bg-[hsl(var(--card))]" />
@@ -164,15 +153,15 @@ export function BookingDetailClient({ id }: { id: string }) {
                 <div className="absolute -left-6 mt-1 w-3 h-3 rounded-full bg-emerald-500/80 shrink-0" />
                 <div>
                   <p className="text-[10px] text-[hsl(var(--muted-foreground))] uppercase tracking-widest mb-0.5">Pickup</p>
-                  <p className="text-sm text-[hsl(var(--foreground))]">{booking.pickup_address_text ?? booking.pickup_address ?? '—'}</p>
+                  <p className="text-sm text-[hsl(var(--foreground))]">{booking.pickup_address_text ?? booking.pickup_address ?? booking.pickup_location ?? '—'}</p>
                 </div>
               </div>
-              {(booking.dropoff_address_text ?? booking.dropoff_address) && (
+              {(booking.dropoff_address_text ?? booking.dropoff_address ?? booking.dropoff_location) && (
                 <div className="relative flex items-start gap-2">
                   <div className="absolute -left-6 mt-1 w-3 h-3 rounded-full bg-[hsl(var(--primary)/0.8)] shrink-0" />
                   <div>
                     <p className="text-[10px] text-[hsl(var(--muted-foreground))] uppercase tracking-widest mb-0.5">Drop-off</p>
-                    <p className="text-sm text-[hsl(var(--foreground))]">{booking.dropoff_address_text ?? booking.dropoff_address}</p>
+                    <p className="text-sm text-[hsl(var(--foreground))]">{booking.dropoff_address_text ?? booking.dropoff_address ?? booking.dropoff_location}</p>
                   </div>
                 </div>
               )}
@@ -202,24 +191,11 @@ export function BookingDetailClient({ id }: { id: string }) {
 
         {/* Pricing */}
         <Section title="Pricing">
-          <Row label="Total" value={fmtMoney(booking.total_price_minor, booking.currency ?? 'AUD')} valueClass="text-[hsl(var(--primary))] text-base" />
-          <Row label="Payment" value={booking.payment_status ?? '—'} />
+          {booking.total_price_minor && (
+            <Row label="Total" value={fmtMoney(booking.total_price_minor, booking.currency ?? 'AUD')} valueClass="text-[hsl(var(--primary))] text-base" />
+          )}
+          {booking.payment_status && <Row label="Payment" value={booking.payment_status} />}
         </Section>
-
-        {/* Cancel */}
-        {canCancel && (
-          <div className="pt-2">
-            <button
-              onClick={() => {
-                if (!confirm('Cancel this booking?')) return;
-                cancelMut.mutate();
-              }}
-              disabled={cancelMut.isPending}
-              className="w-full py-3 rounded-xl border border-red-500/30 text-red-400 text-sm font-medium hover:bg-red-500/8 transition-all disabled:opacity-50">
-              {cancelMut.isPending ? 'Cancelling…' : 'Cancel Booking'}
-            </button>
-          </div>
-        )}
       </div>
     </div>
   );

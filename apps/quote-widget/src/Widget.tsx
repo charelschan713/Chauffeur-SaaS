@@ -6,6 +6,7 @@ interface TenantInfo {
   slug: string;
   currency: string;
   timezone: string;
+  custom_domain?: string | null;
   logo_url: string | null;
   primary_color: string;
 }
@@ -23,6 +24,13 @@ interface QuoteResult {
   currency: string;
   distance_km: number;
   duration_minutes: number;
+  discount?: {
+    id: string;
+    name: string;
+    type: string;
+    value: number;
+    discount_minor: number;
+  } | null;
   pricing_snapshot_preview: {
     leg1_minor?: number | null;
     leg1_surcharge_minor?: number | null;
@@ -102,6 +110,7 @@ export function Widget({ slug }: { slug: string }) {
   const [pax, setPax] = useState(2);
   const [bags, setBags] = useState(1);
   const [tripMode, setTripMode] = useState<'ONE_WAY' | 'RETURN'>('ONE_WAY');
+  const [waypoints, setWaypoints] = useState('');
   const allowReturnTrip = tenant?.booking_entry?.allow_return_trip ?? true;
 
   // Quote result
@@ -130,9 +139,20 @@ export function Widget({ slug }: { slug: string }) {
     setLoading(true);
     setError(null);
     try {
-      const route = await fetchRoute(slug, pickup, dropoff);
+      const waypointList = waypoints
+        .split(/\n|\r|\,/)
+        .map((w) => w.trim())
+        .filter(Boolean);
+      const route = await fetchRoute(slug, pickup, dropoff, waypointList);
       setRouteData(route);
       const pickupUtc = localToUtc(datetime, tenant?.timezone ?? 'Australia/Sydney');
+
+      let returnRoute: { distance_km: number; duration_minutes: number } | null = null;
+      if (tripMode === 'RETURN') {
+        const returnWaypoints = [...waypointList].reverse();
+        returnRoute = await fetchRoute(slug, dropoff, pickup, returnWaypoints);
+      }
+
       const quote = await fetchQuote(slug, {
         service_type_id: serviceTypeId,
         trip_mode: tripMode,
@@ -144,8 +164,12 @@ export function Widget({ slug }: { slug: string }) {
         luggage_count: bags,
         distance_km: route.distance_km,
         duration_minutes: route.duration_minutes,
-        return_distance_km: tripMode === 'RETURN' ? route.distance_km : undefined,
-        return_duration_minutes: tripMode === 'RETURN' ? route.duration_minutes : undefined,
+        waypoints_count: waypointList.length,
+        return_waypoints_count: tripMode === 'RETURN' ? waypointList.length : undefined,
+        return_pickup_address: tripMode === 'RETURN' ? dropoff : undefined,
+        return_dropoff_address: tripMode === 'RETURN' ? pickup : undefined,
+        return_distance_km: tripMode === 'RETURN' ? returnRoute?.distance_km : undefined,
+        return_duration_minutes: tripMode === 'RETURN' ? returnRoute?.duration_minutes : undefined,
       });
       setQuoteData(quote);
       setStep(2);
@@ -170,9 +194,10 @@ export function Widget({ slug }: { slug: string }) {
     // 1. VITE_PORTAL_BASE_URL build-time env (e.g. https://aschauffeured.chauffeurssolution.com)
     // 2. Derive from slug using the chauffeurssolution.com pattern
     const envBase = import.meta.env.VITE_PORTAL_BASE_URL as string | undefined;
+    const customDomain = tenant?.custom_domain ? `https://${tenant.custom_domain}` : null;
     const portalBase = envBase
       ? envBase.replace(/\/$/, '')
-      : `https://${slug}.chauffeurssolution.com`;
+      : (customDomain ?? `https://${slug}.chauffeurssolution.com`);
     window.location.href = `${portalBase}/book?${params.toString()}`;
   }
 
@@ -293,6 +318,17 @@ export function Widget({ slug }: { slug: string }) {
             <input type="datetime-local" value={datetime} onChange={(e) => setDatetime(e.target.value)} style={inputStyle} />
           </div>
 
+          {/* Waypoints */}
+          <div>
+            <label style={labelStyle}>🧭 Waypoints (optional, one per line)</label>
+            <textarea
+              value={waypoints}
+              onChange={(e) => setWaypoints(e.target.value)}
+              placeholder="Add stops between pickup and drop-off"
+              style={{ ...inputStyle, minHeight: 72 }}
+            />
+          </div>
+
           {/* Pax + Bags */}
           <div style={{ display: 'flex', gap: 12 }}>
             <div style={{ flex: 1 }}>
@@ -400,7 +436,7 @@ export function Widget({ slug }: { slug: string }) {
                       )}
                       {r.pricing_snapshot_preview.discount_amount_minor > 0 && (
                         <div style={{ display: 'flex', justifyContent: 'space-between', color: '#047857' }}>
-                          <span>Discount</span>
+                          <span>{r.discount?.name ?? 'Discount'}</span>
                           <span>-{toMoney(r.pricing_snapshot_preview.discount_amount_minor, r.currency)}</span>
                         </div>
                       )}

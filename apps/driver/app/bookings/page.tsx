@@ -32,16 +32,15 @@ export default function BookingsPage() {
   const [tab, setTab] = useState<Tab>('Upcoming');
 
   const { data, isLoading } = useQuery({
-    queryKey: ['bookings', tab],
-    queryFn: () => api.get('/customer-portal/bookings', {
+    queryKey: ['assignments', tab],
+    queryFn: () => api.get('/driver-app/assignments', {
       params: {
-        status: tab === 'Upcoming' ? 'upcoming' : tab === 'Past' ? 'past' : undefined,
-        limit: 50,
+        filter: tab === 'Upcoming' ? 'upcoming' : tab === 'Past' ? 'completed' : undefined,
       },
     }).then(r => r.data),
   });
 
-  const bookings: any[] = data?.data ?? [];
+  const assignments: any[] = Array.isArray(data) ? data : (data?.data ?? []);
 
   return (
     <div className="min-h-screen bg-[hsl(var(--background))] text-white" style={{ paddingBottom: 'calc(96px + env(safe-area-inset-bottom, 0px))' }}>
@@ -95,7 +94,7 @@ export default function BookingsPage() {
           </div>
         )}
 
-        {!isLoading && bookings.length === 0 && (
+        {!isLoading && assignments.length === 0 && (
           <div className="text-center py-16 space-y-4">
             <div className="w-16 h-16 rounded-full bg-[hsl(var(--primary)/0.08)] border border-[hsl(var(--primary)/0.18)] flex items-center justify-center mx-auto">
               <Car className="h-7 w-7 text-[hsl(var(--primary)/0.5)]" />
@@ -113,12 +112,14 @@ export default function BookingsPage() {
           </div>
         )}
 
-        {bookings.map((b: any) => {
-          const s = STATUS_CONFIG[b.status] ?? { label: b.status?.replace(/_/g, ' '), color: 'bg-[hsl(var(--muted)/0.2)] text-[hsl(var(--muted-foreground))] border-[hsl(var(--border))]', dot: 'bg-[hsl(var(--muted-foreground))]' };
+        {assignments.map((a: any) => {
+          const b = a.booking ?? {};
+          const statusValue = b.operational_status ?? b.status ?? a.driver_execution_status ?? 'ASSIGNED';
+          const s = STATUS_CONFIG[statusValue] ?? { label: String(statusValue).replace(/_/g, ' '), color: 'bg-[hsl(var(--muted)/0.2)] text-[hsl(var(--muted-foreground))] border-[hsl(var(--border))]', dot: 'bg-[hsl(var(--muted-foreground))]' };
           return (
             <Link
-              key={b.id}
-              href={`/bookings/${b.id}`}
+              key={a.id}
+              href={`/bookings/${a.id}`}
               className="flex items-center gap-3 p-4 rounded-2xl bg-[hsl(var(--card))] border border-[hsl(var(--border))] active:scale-[0.99] active:bg-[hsl(var(--accent))] transition-all"
             >
               {/* Status dot */}
@@ -126,7 +127,7 @@ export default function BookingsPage() {
 
               <div className="flex-1 min-w-0 space-y-1.5">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-[11px] font-mono text-white/35">{b.booking_reference}</span>
+                  <span className="text-[11px] font-mono text-white/35">{b.booking_reference ?? b.booking_number ?? '—'}</span>
                   <span className={cn('px-2 py-0.5 rounded-full text-[10px] font-semibold border', s.color)}>
                     {s.label}
                   </span>
@@ -134,18 +135,18 @@ export default function BookingsPage() {
 
                 <div className="flex items-center gap-1.5 text-xs text-[hsl(var(--muted-foreground))]">
                   <CalendarDays className="h-3 w-3 shrink-0" />
-                  <span>{fmtDate(b.pickup_at_utc, b.timezone)}</span>
+                  <span>{fmtDate(b.pickup_at_utc ?? b.pickup_at ?? '', b.timezone)}</span>
                 </div>
 
-                {b.pickup_address && (
+                {(b.pickup_address ?? b.pickup_location) && (
                   <div className="flex items-start gap-1.5 text-xs text-[hsl(var(--muted-foreground))]">
                     <MapPin className="h-3 w-3 mt-0.5 shrink-0" />
-                    <span className="truncate">{b.pickup_address}</span>
+                    <span className="truncate">{b.pickup_address ?? b.pickup_location}</span>
                   </div>
                 )}
 
                 <p className="text-sm font-semibold text-[hsl(var(--primary))]">
-                  {fmtMoney(b.total_price_minor, b.currency ?? 'AUD')}
+                  {fmtMoney(b.total_price_minor ?? (a.driver_pay_amount ? Math.round(a.driver_pay_amount * 100) : 0), b.currency ?? 'AUD')}
                 </p>
               </div>
 
