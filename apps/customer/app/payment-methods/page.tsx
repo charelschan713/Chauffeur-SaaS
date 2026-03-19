@@ -111,10 +111,10 @@ export default function PaymentMethodsPage() {
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
 
   return (
-    <div className="min-h-screen" style={{ paddingBottom: 'calc(96px + env(safe-area-inset-bottom, 0px))' }}>
+    <div className="min-h-screen bg-[hsl(var(--background))] text-white" style={{ paddingBottom: 'calc(96px + env(safe-area-inset-bottom, 0px))' }}>
       {/* Header */}
       <div
-        className="sticky top-0 z-20 border-b border-gray-100 px-4 flex items-center gap-3"
+        className="sticky top-0 z-20 border-b border-[hsl(var(--border))] px-4 flex items-center gap-3"
         style={{
           background: 'hsl(var(--background))',
           backdropFilter: 'blur(20px)',
@@ -124,7 +124,7 @@ export default function PaymentMethodsPage() {
         }}
       >
         <BackButton fallback="/profile" />
-        <h1 className="font-semibold text-[#1a1a1a] flex-1">Payment Methods</h1>
+        <h1 className="font-semibold text-white flex-1">Payment Methods</h1>
         <button onClick={() => setShowAdd(v => !v)}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[hsl(var(--primary)/0.15)] border border-[hsl(var(--primary)/0.3)] text-[hsl(var(--primary))] text-xs font-semibold">
           <Plus className="h-3.5 w-3.5" /> Add Card
@@ -149,8 +149,8 @@ export default function PaymentMethodsPage() {
           </div>
         ) : methods.length === 0 && !showAdd ? (
           <div className="text-center py-16 space-y-3">
-            <CreditCard className="h-10 w-10 text-gray-300 mx-auto" />
-            <p className="text-gray-400 text-sm">No saved cards</p>
+            <CreditCard className="h-10 w-10 text-[hsl(var(--muted-foreground))] mx-auto" />
+            <p className="text-[hsl(var(--muted-foreground))] text-sm">No saved cards</p>
             <button onClick={() => setShowAdd(true)}
               className="inline-block mt-2 px-5 py-2.5 rounded-full bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] text-sm font-semibold">
               Add a Card
@@ -160,15 +160,15 @@ export default function PaymentMethodsPage() {
           <div className="space-y-3">
             {methods.map((m: any) => (
               <div key={m.id}
-                className="flex items-center gap-4 p-4 rounded-2xl bg-white border border-gray-100">
+                className="flex items-center gap-4 p-4 rounded-2xl bg-[hsl(var(--card))] border border-[hsl(var(--border))]">
                 <div className="w-10 h-10 rounded-xl bg-[hsl(var(--primary)/0.12)] border border-[hsl(var(--primary)/0.2)] flex items-center justify-center">
                   <CreditCard className="h-5 w-5 text-[hsl(var(--primary))]" />
                 </div>
                 <div className="flex-1">
-                  <p className="text-sm font-medium text-[#1a1a1a]">
+                  <p className="text-sm font-medium text-[hsl(var(--foreground))]">
                     {CARD_BRANDS[m.brand?.toLowerCase()] ?? (m.brand ?? 'Card')} •••• {m.last4}
                   </p>
-                  <p className="text-xs text-gray-400">Expires {m.exp_month}/{m.exp_year}</p>
+                  <p className="text-xs text-[hsl(var(--muted-foreground))]">Expires {m.exp_month}/{m.exp_year}</p>
                 </div>
                 {m.is_default && (
                   <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/25 text-emerald-400 font-semibold">Default</span>
