@@ -164,6 +164,15 @@ export function BookPageClient() {
   const [returnFlightNumber, setReturnFlightNumber] = useState('');
   const [specialRequests, setSpecialRequests] = useState('');
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const f = params.get('flight_number');
+    const rf = params.get('return_flight_number');
+    if (f && !flightNumber) setFlightNumber(f);
+    if (rf && !returnFlightNumber) setReturnFlightNumber(rf);
+  }, [flightNumber, returnFlightNumber]);
+
   // Created booking (for card setup)
   const [createdBooking, setCreatedBooking]   = useState<any>(null);
   const [submitError, setSubmitError]         = useState('');

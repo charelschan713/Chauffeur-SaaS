@@ -114,6 +114,8 @@ export function Widget({ slug }: { slug: string }) {
   const [bags, setBags] = useState(1);
   const [tripMode, setTripMode] = useState<'ONE_WAY' | 'RETURN'>('ONE_WAY');
   const [waypoints, setWaypoints] = useState('');
+  const [flightNumber, setFlightNumber] = useState('');
+  const [returnFlightNumber, setReturnFlightNumber] = useState('');
   const allowReturnTrip = tenant?.booking_entry?.allow_return_trip ?? true;
 
   // Quote result
@@ -192,6 +194,8 @@ export function Widget({ slug }: { slug: string }) {
       quote_id: quoteData.quote_id,
       car_type_id: result.service_class_id,
     });
+    if (flightNumber.trim()) params.set('flight_number', flightNumber.trim());
+    if (tripMode === 'RETURN' && returnFlightNumber.trim()) params.set('return_flight_number', returnFlightNumber.trim());
 
     // Portal base URL resolution (priority order):
     // 1. VITE_PORTAL_BASE_URL build-time env (e.g. https://aschauffeured.chauffeurssolution.com)
@@ -320,6 +324,19 @@ export function Widget({ slug }: { slug: string }) {
             <label style={labelStyle}>📅 Date & Time</label>
             <input type="datetime-local" value={datetime} onChange={(e) => setDatetime(e.target.value)} style={inputStyle} />
           </div>
+          {/* Flight (optional) */}
+          <div>
+            <label style={labelStyle}>✈️ Flight (optional)</label>
+            <input value={flightNumber} onChange={(e) => setFlightNumber(e.target.value)} placeholder="e.g. QF401" style={inputStyle} />
+          </div>
+
+          {/* Return flight (optional) */}
+          {tripMode === 'RETURN' && (
+            <div>
+              <label style={labelStyle}>✈️ Return flight (optional)</label>
+              <input value={returnFlightNumber} onChange={(e) => setReturnFlightNumber(e.target.value)} placeholder="e.g. QF402" style={inputStyle} />
+            </div>
+          )}
 
           {/* Waypoints */}
           <div>

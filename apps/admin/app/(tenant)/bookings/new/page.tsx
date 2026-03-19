@@ -142,6 +142,8 @@ export default function CreateBookingPage() {
   const [returnPickupPlaceId, setReturnPickupPlaceId] = useState('');
   const [waypoints, setWaypoints] = useState<string[]>(wizardState.waypoints ?? []);
   const [activeSection, setActiveSection] = useState(wizardState.activeSection ?? 'service');
+  const [outboundFlight, setOutboundFlight] = useState('');
+  const [returnFlight, setReturnFlight] = useState('');
 
   const { data: carTypes = [] } = useQuery({
     queryKey: ['car-types'],
@@ -391,6 +393,27 @@ export default function CreateBookingPage() {
     [cities, values.city_id],
   );
   const tenantSlug = tenantBusiness?.slug ?? null;
+
+  useEffect(() => {
+    if (!values.flight_number) return;
+    if (outboundFlight || returnFlight) return;
+    const raw = String(values.flight_number);
+    const parts = raw.split('/ Return ');
+    if (parts.length > 1) {
+      setOutboundFlight(parts[0].trim());
+      setReturnFlight(parts.slice(1).join('/ Return ').trim());
+    } else {
+      setOutboundFlight(raw);
+    }
+  }, [values.flight_number, outboundFlight, returnFlight]);
+
+  useEffect(() => {
+    const out = outboundFlight.trim();
+    const ret = returnFlight.trim();
+    if (out && ret) setValue('flight_number', `${out} / Return ${ret}`);
+    else if (ret) setValue('flight_number', `Return ${ret}`);
+    else setValue('flight_number', out);
+  }, [outboundFlight, returnFlight, setValue]);
 
   async function handleGetQuote() {
     if (!values.service_type_id || !values.city_id || !values.pickup_address_text || !values.dropoff_address_text || !values.pickup_at_utc) {
@@ -977,6 +1000,11 @@ export default function CreateBookingPage() {
               <DateTimePicker label="Pickup Date & Time" value={values.pickup_at_utc}
                 onChange={(v) => setValue('pickup_at_utc', v, { shouldValidate: true })}
                 error={errors.pickup_at_utc?.message} />
+              {selectedServiceType?.code === 'POINT_TO_POINT' && (
+                <Field label="Flight Number (optional)">
+                  <Input value={outboundFlight} onChange={(e) => setOutboundFlight(e.target.value)} placeholder="e.g. QF401" />
+                </Field>
+              )}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* P2P / Event / Wedding — Trip Type */}
                 {selectedServiceType?.calculation_type !== 'HOURLY_CHARTER' && (
@@ -1003,12 +1031,6 @@ export default function CreateBookingPage() {
                     </Select>
                   </div>
                 )}
-                {/* P2P only — Flight Number */}
-                {selectedServiceType?.code === 'POINT_TO_POINT' && (
-                  <Field label="Flight Number (optional)">
-                    <Input {...register('flight_number')} placeholder="e.g. QF401" />
-                  </Field>
-                )}
               </div>
               {/* Return — time only, pickup = dropoff address */}
               {values.is_return_trip && selectedServiceType?.calculation_type !== 'HOURLY_CHARTER' && (
@@ -1017,6 +1039,11 @@ export default function CreateBookingPage() {
                     onChange={(v) => setValue('return_pickup_at_utc', v, { shouldValidate: true })}
                     error={errors.return_pickup_at_utc?.message}
                     minDate={values.pickup_at_utc || undefined} />
+                  {selectedServiceType?.code === 'POINT_TO_POINT' && (
+                    <Field label="Return Flight (optional)">
+                      <Input value={returnFlight} onChange={(e) => setReturnFlight(e.target.value)} placeholder="e.g. QF402" />
+                    </Field>
+                  )}
                   <p className="text-xs text-gray-400">Return pickup from drop-off location.</p>
                 </div>
               )}
