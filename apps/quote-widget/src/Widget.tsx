@@ -138,7 +138,7 @@ export function Widget({ slug }: { slug: string }) {
 
   async function handleGetQuote() {
     if (!pickup || !dropoff || !datetime || !serviceTypeId) {
-      setError('Please fill in all fields.');
+      setError('Please fill in all required fields (pickup, drop-off, date/time, service).');
       return;
     }
     setLoading(true);
@@ -315,7 +315,7 @@ export function Widget({ slug }: { slug: string }) {
 
           {/* Dropoff */}
           <div>
-            <label style={labelStyle}>🏁 Drop-off Address</label>
+            <label style={labelStyle}>🏁 Drop-off Address *</label>
             <input value={dropoff} onChange={(e) => setDropoff(e.target.value)} placeholder="Enter destination" style={inputStyle} />
           </div>
 
