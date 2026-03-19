@@ -90,6 +90,22 @@ function BookingDetailInner() {
     enabled: Boolean(bookingId),
   });
 
+  const { data: carTypes = [] } = useQuery({
+    queryKey: ['car-types'],
+    queryFn: async () => {
+      const res = await api.get('/pricing/service-classes');
+      return res.data ?? [];
+    },
+  });
+
+  const { data: serviceTypes = [] } = useQuery({
+    queryKey: ['service-types'],
+    queryFn: async () => {
+      const res = await api.get('/service-types');
+      return res.data ?? [];
+    },
+  });
+
   // Invoice state — fetched in parallel; null = not yet available; false = fetch failed
   const { data: invoiceData, refetch: refetchInvoice } = useQuery({
     queryKey: ['booking-invoice', bookingId],
