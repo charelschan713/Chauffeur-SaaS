@@ -1524,10 +1524,19 @@ export class NotificationService {
       luggage_count:        String(b.luggage_count ?? ''),
       special_requests:     b.special_requests ?? '',
       flight_number:        b.flight_number ?? '',
-      base_fare:            NotificationService.formatMinor(snapshot.base_calculated_minor ?? snapshot.base_price_minor ?? 0),
+      base_fare:            NotificationService.formatMinor(
+        snapshot.pre_discount_fare_minor
+          ?? snapshot.base_calculated_minor
+          ?? snapshot.base_price_minor
+          ?? (b.total_price_minor
+              ? Math.max(0, b.total_price_minor - ((snapshot.toll_minor ?? 0) + (snapshot.parking_minor ?? 0)))
+              : 0),
+      ),
       toll_parking_total:   NotificationService.formatMinor((snapshot.toll_minor ?? 0) + (snapshot.parking_minor ?? 0)),
       extras_amount:        NotificationService.formatMinor((snapshot.extras_minor ?? 0) + (snapshot.waypoints_minor ?? 0) + (snapshot.baby_seats_minor ?? 0)),
-      total_price:          b.total_price_minor ? `$${(b.total_price_minor / 100).toFixed(2)}` : (b.total_amount ?? ''),
+      total_price:          (typeof snapshot.final_fare_minor === 'number')
+        ? `$${(snapshot.final_fare_minor / 100).toFixed(2)}`
+        : (b.total_price_minor ? `$${(b.total_price_minor / 100).toFixed(2)}` : (b.total_amount ?? '')),
       city:                 b.city_name ?? '',
     };
   }
