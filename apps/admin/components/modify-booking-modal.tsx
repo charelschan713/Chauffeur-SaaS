@@ -135,15 +135,21 @@ export function ModifyBookingModal({ isOpen, onClose, booking, serviceTypes, car
             <Input value={waypoints} onChange={(e) => setWaypoints(e.target.value)} />
           </div>
 
-          <Select label="Service Type" value={serviceTypeId} onChange={(e) => setServiceTypeId(e.target.value)}>
-            <option value="">Select service type...</option>
-            {serviceTypes.map((s: any) => <option key={s.id} value={s.id}>{s.display_name ?? s.name}</option>)}
-          </Select>
+          <div>
+            <label className="text-sm font-medium text-gray-700 block mb-1">Service Type</label>
+            <Select value={serviceTypeId} onChange={(e) => setServiceTypeId(e.target.value)}>
+              <option value="">Select service type...</option>
+              {serviceTypes.map((s: any) => <option key={s.id} value={s.id}>{s.display_name ?? s.name}</option>)}
+            </Select>
+          </div>
 
-          <Select label="Car Type" value={carTypeId} onChange={(e) => setCarTypeId(e.target.value)}>
-            <option value="">Select car type...</option>
-            {carTypes.map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
-          </Select>
+          <div>
+            <label className="text-sm font-medium text-gray-700 block mb-1">Car Type</label>
+            <Select value={carTypeId} onChange={(e) => setCarTypeId(e.target.value)}>
+              <option value="">Select car type...</option>
+              {carTypes.map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </Select>
+          </div>
 
           <div>
             <label className="text-sm font-medium text-gray-700 block mb-1">Passenger Count</label>
