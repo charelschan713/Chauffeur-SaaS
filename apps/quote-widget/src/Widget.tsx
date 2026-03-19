@@ -307,6 +307,20 @@ export function Widget({ slug }: { slug: string }) {
             ))}
           </div>
 
+          {/* Flight (optional) */}
+          <div>
+            <label style={labelStyle}>✈️ Flight (optional)</label>
+            <input value={flightNumber} onChange={(e) => setFlightNumber(e.target.value)} placeholder="e.g. QF401" style={inputStyle} />
+          </div>
+
+          {/* Return flight (optional) */}
+          {tripMode === 'RETURN' && (
+            <div>
+              <label style={labelStyle}>✈️ Return flight (optional)</label>
+              <input value={returnFlightNumber} onChange={(e) => setReturnFlightNumber(e.target.value)} placeholder="e.g. QF402" style={inputStyle} />
+            </div>
+          )}
+
           {/* Pickup */}
           <div>
             <label style={labelStyle}>📍 Pickup Address</label>
@@ -324,19 +338,6 @@ export function Widget({ slug }: { slug: string }) {
             <label style={labelStyle}>📅 Date & Time</label>
             <input type="datetime-local" value={datetime} onChange={(e) => setDatetime(e.target.value)} style={inputStyle} />
           </div>
-          {/* Flight (optional) */}
-          <div>
-            <label style={labelStyle}>✈️ Flight (optional)</label>
-            <input value={flightNumber} onChange={(e) => setFlightNumber(e.target.value)} placeholder="e.g. QF401" style={inputStyle} />
-          </div>
-
-          {/* Return flight (optional) */}
-          {tripMode === 'RETURN' && (
-            <div>
-              <label style={labelStyle}>✈️ Return flight (optional)</label>
-              <input value={returnFlightNumber} onChange={(e) => setReturnFlightNumber(e.target.value)} placeholder="e.g. QF402" style={inputStyle} />
-            </div>
-          )}
 
           {/* Waypoints */}
           <div>
