@@ -34,8 +34,6 @@ export class VehicleService {
       `INSERT INTO public.tenant_vehicles
         (tenant_id, platform_vehicle_id, active, year, colour, plate, passenger_capacity, luggage_capacity, notes, rego_expiry, insurance_expiry)
        VALUES ($1,$2,true,$3,$4,$5,$6,$7,$8,$9,$10)
-       ON CONFLICT (tenant_id, platform_vehicle_id)
-       DO UPDATE SET active = true, deleted_at = NULL
        RETURNING *`,
       [
         tenantId,
