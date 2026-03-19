@@ -77,6 +77,7 @@ export class PublicTenantService {
       font_family: branding?.font_family ?? null,
       cancel_window_hours: branding?.cancel_window_hours ?? 24,
       website_url: branding?.website_url ?? null,
+      booking_entry: branding?.booking_entry_config ?? null,
       _debug_branding_error: brandingError,
     };
   }

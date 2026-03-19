@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Put, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Patch, Put, Req, UseGuards } from '@nestjs/common';
 import { JwtGuard } from '../common/guards/jwt.guard';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
@@ -8,8 +8,16 @@ import { DataSource } from 'typeorm';
 export class TenantBrandingController {
   constructor(@InjectDataSource() private readonly db: DataSource) {}
 
+  private async ensureBookingEntryColumn() {
+    await this.db.query(
+      `ALTER TABLE public.tenant_branding
+         ADD COLUMN IF NOT EXISTS booking_entry_config jsonb`,
+    ).catch(() => {});
+  }
+
   @Get()
   async get(@Req() req: any) {
+    await this.ensureBookingEntryColumn();
     const rows = await this.db.query(
       `SELECT * FROM public.tenant_branding WHERE tenant_id=$1`,
       [req.user.tenant_id],
@@ -19,6 +27,7 @@ export class TenantBrandingController {
 
   @Put()
   async upsert(@Req() req: any, @Body() body: any) {
+    await this.ensureBookingEntryColumn();
     const [row] = await this.db.query(
       `INSERT INTO public.tenant_branding
          (tenant_id, logo_url, primary_color, primary_foreground, font_family,
@@ -53,5 +62,30 @@ export class TenantBrandingController {
       ],
     );
     return row;
+  }
+
+  @Get('me/booking-entry-config')
+  async getBookingEntry(@Req() req: any) {
+    await this.ensureBookingEntryColumn();
+    const rows = await this.db.query(
+      `SELECT booking_entry_config FROM public.tenant_branding WHERE tenant_id=$1`,
+      [req.user.tenant_id],
+    );
+    return rows[0]?.booking_entry_config ?? null;
+  }
+
+  @Patch('me/booking-entry-config')
+  async updateBookingEntry(@Req() req: any, @Body() body: any) {
+    await this.ensureBookingEntryColumn();
+    const [row] = await this.db.query(
+      `INSERT INTO public.tenant_branding (tenant_id, booking_entry_config, updated_at)
+       VALUES ($1, $2, now())
+       ON CONFLICT (tenant_id) DO UPDATE
+         SET booking_entry_config = $2,
+             updated_at = now()
+       RETURNING booking_entry_config`,
+      [req.user.tenant_id, body ?? {}],
+    );
+    return row?.booking_entry_config ?? null;
   }
 }

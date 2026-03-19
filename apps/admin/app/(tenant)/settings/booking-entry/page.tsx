@@ -18,6 +18,8 @@ const DEFAULTS = {
   allow_return_trip: true,
   allow_waypoints: true,
   allow_special_requests: true,
+  allow_flight_details: true,
+  allow_return_flight_details: true,
   required_fields: [] as string[],
   required_passenger_fields: [] as string[],
 };
@@ -108,6 +110,8 @@ export default function BookingEntrySettingsPage() {
         <Toggle label="Allow return trip" checked={form.allow_return_trip} onChange={(v) => setForm({ ...form, allow_return_trip: v })} />
         <Toggle label="Allow waypoints" checked={form.allow_waypoints} onChange={(v) => setForm({ ...form, allow_waypoints: v })} />
         <Toggle label="Allow special requests / notes" checked={form.allow_special_requests} onChange={(v) => setForm({ ...form, allow_special_requests: v })} />
+        <Toggle label="Allow flight details" checked={form.allow_flight_details} onChange={(v) => setForm({ ...form, allow_flight_details: v })} />
+        <Toggle label="Allow return flight details" checked={form.allow_return_flight_details} onChange={(v) => setForm({ ...form, allow_return_flight_details: v })} />
       </section>
 
       <section className="rounded-lg border p-4 space-y-3">
