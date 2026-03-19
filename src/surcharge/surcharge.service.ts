@@ -26,29 +26,24 @@ export class SurchargeService {
     timezone: string = 'Australia/Sydney',
     cityId: string | null = null,
   ): Promise<{ surcharges: SurchargeResult[]; total_surcharge_minor: number }> {
-    const pickupDate = typeof pickupAtUtc === 'string' ? new Date(pickupAtUtc) : pickupAtUtc;
+    const pickupRaw = typeof pickupAtUtc === 'string'
+      ? pickupAtUtc
+      : pickupAtUtc.toISOString();
 
-    const effectiveTimezone = await this.resolveCityTimezone(tenantId, cityId, timezone);
+    // NOTE: Per business rule, do NOT apply timezone conversion.
+    // Treat the provided pickup datetime as the customer-chosen local time.
+    const isoMatch = pickupRaw.match(/^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})(?::(\d{2}))?/);
+    const localDate = isoMatch ? isoMatch[1] : pickupRaw.slice(0, 10);
+    const localTime = isoMatch ? `${isoMatch[2]}:${isoMatch[3] ?? '00'}` : pickupRaw.slice(11, 19);
 
-    // Convert to local time for the booking's timezone (locale-safe)
-    const dtf = new Intl.DateTimeFormat('en-CA', {
-      timeZone: effectiveTimezone,
-      hour12: false,
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-    });
-    const parts = dtf.formatToParts(pickupDate).reduce((acc: any, p) => {
-      if (p.type !== 'literal') acc[p.type] = p.value;
-      return acc;
-    }, {} as Record<string, string>);
-    const localDate = `${parts.year}-${parts.month}-${parts.day}`;
-    const localTime = `${parts.hour}:${parts.minute}:${parts.second}`;
-    const dayOfWeek = pickupDate.toLocaleDateString('en-AU', { timeZone: effectiveTimezone, weekday: 'long' });
+    // Weekday/weekend based on the provided local date (no timezone conversion)
+    const [y, m, d] = localDate.split('-').map(Number);
+    const localDateObj = new Date(Date.UTC(y, (m || 1) - 1, d || 1));
+    const dayOfWeek = localDateObj.toLocaleDateString('en-AU', { weekday: 'long' });
     const isWeekend = dayOfWeek === 'Saturday' || dayOfWeek === 'Sunday';
+
+    // Kept for compatibility but unused in this logic
+    const _effectiveTimezone = await this.resolveCityTimezone(tenantId, cityId, timezone);
 
     const surcharges: SurchargeResult[] = [];
 
