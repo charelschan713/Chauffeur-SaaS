@@ -326,15 +326,13 @@ export function Widget({ slug }: { slug: string }) {
           </div>
 
           {/* Flight (optional) */}
-          {tenant?.booking_entry?.allow_flight_details !== false && (
-            <div>
-              <label style={labelStyle}>✈️ Flight (optional)</label>
-              <input value={flightNumber} onChange={(e) => setFlightNumber(e.target.value)} placeholder="e.g. QF401" style={inputStyle} />
-            </div>
-          )}
+          <div>
+            <label style={labelStyle}>✈️ Flight (optional)</label>
+            <input value={flightNumber} onChange={(e) => setFlightNumber(e.target.value)} placeholder="e.g. QF401" style={inputStyle} />
+          </div>
 
           {/* Return flight (optional) */}
-          {tripMode === 'RETURN' && tenant?.booking_entry?.allow_return_flight_details !== false && (
+          {tripMode === 'RETURN' && (
             <div>
               <label style={labelStyle}>✈️ Return flight (optional)</label>
               <input value={returnFlightNumber} onChange={(e) => setReturnFlightNumber(e.target.value)} placeholder="e.g. QF402" style={inputStyle} />

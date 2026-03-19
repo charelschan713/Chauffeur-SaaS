@@ -1000,11 +1000,9 @@ export default function CreateBookingPage() {
               <DateTimePicker label="Pickup Date & Time" value={values.pickup_at_utc}
                 onChange={(v) => setValue('pickup_at_utc', v, { shouldValidate: true })}
                 error={errors.pickup_at_utc?.message} />
-              {selectedServiceType?.code === 'POINT_TO_POINT' && (
-                <Field label="Flight Number (optional)">
-                  <Input value={outboundFlight} onChange={(e) => setOutboundFlight(e.target.value)} placeholder="e.g. QF401" />
-                </Field>
-              )}
+              <Field label="Flight Number (optional)">
+                <Input value={outboundFlight} onChange={(e) => setOutboundFlight(e.target.value)} placeholder="e.g. QF401" />
+              </Field>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* P2P / Event / Wedding — Trip Type */}
                 {selectedServiceType?.calculation_type !== 'HOURLY_CHARTER' && (
@@ -1039,11 +1037,9 @@ export default function CreateBookingPage() {
                     onChange={(v) => setValue('return_pickup_at_utc', v, { shouldValidate: true })}
                     error={errors.return_pickup_at_utc?.message}
                     minDate={values.pickup_at_utc || undefined} />
-                  {selectedServiceType?.code === 'POINT_TO_POINT' && (
-                    <Field label="Return Flight (optional)">
-                      <Input value={returnFlight} onChange={(e) => setReturnFlight(e.target.value)} placeholder="e.g. QF402" />
-                    </Field>
-                  )}
+                  <Field label="Return Flight (optional)">
+                    <Input value={returnFlight} onChange={(e) => setReturnFlight(e.target.value)} placeholder="e.g. QF402" />
+                  </Field>
                   <p className="text-xs text-gray-400">Return pickup from drop-off location.</p>
                 </div>
               )}

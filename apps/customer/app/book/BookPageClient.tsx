@@ -632,12 +632,10 @@ export function BookPageClient() {
                 <Clock className="h-3.5 w-3.5 mt-0.5 shrink-0 text-[hsl(var(--primary)/0.7)]" />
                 <span className="font-medium text-[hsl(var(--foreground)/0.9)]">{pickupDate}</span>
               </div>
-              {tenantInfo?.booking_entry?.allow_flight_details !== false && (
-                <div className="pl-6">
-                  <Label className="text-[10px] uppercase tracking-widest text-[hsl(var(--muted-foreground)/0.7)]">Flight (optional)</Label>
-                  <Input value={flightNumber} onChange={e => setFlightNumber(e.target.value)} placeholder="e.g. QF401" />
-                </div>
-              )}
+              <div className="pl-6">
+                <Label className="text-[10px] uppercase tracking-widest text-[hsl(var(--muted-foreground)/0.7)]">Flight (optional)</Label>
+                <Input value={flightNumber} onChange={e => setFlightNumber(e.target.value)} placeholder="e.g. QF401" />
+              </div>
             </div>
 
             {/* Pickup → Dropoff route */}
@@ -700,12 +698,10 @@ export function BookPageClient() {
                     </span>
                     <span className="text-[10px] text-[hsl(var(--muted-foreground)/0.6)] uppercase tracking-wide">Return</span>
                   </div>
-                  {tenantInfo?.booking_entry?.allow_return_flight_details !== false && (
-                    <div className="pl-6">
-                      <Label className="text-[10px] uppercase tracking-widest text-[hsl(var(--muted-foreground)/0.7)]">Return flight (optional)</Label>
-                      <Input value={returnFlightNumber} onChange={e => setReturnFlightNumber(e.target.value)} placeholder="e.g. QF402" />
-                    </div>
-                  )}
+                  <div className="pl-6">
+                    <Label className="text-[10px] uppercase tracking-widest text-[hsl(var(--muted-foreground)/0.7)]">Return flight (optional)</Label>
+                    <Input value={returnFlightNumber} onChange={e => setReturnFlightNumber(e.target.value)} placeholder="e.g. QF402" />
+                  </div>
                 </div>
                 <div className="relative pl-5">
                   <div className="absolute left-[6px] top-2 bottom-2 w-px bg-[hsl(var(--border))]" />
