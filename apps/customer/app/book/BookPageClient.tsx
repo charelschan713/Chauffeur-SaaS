@@ -161,6 +161,7 @@ export function BookPageClient() {
 
   // Extra booking details
   const [flightNumber, setFlightNumber]       = useState('');
+  const [returnFlightNumber, setReturnFlightNumber] = useState('');
   const [specialRequests, setSpecialRequests] = useState('');
 
   // Created booking (for card setup)
@@ -394,7 +395,13 @@ export function BookPageClient() {
         currency: currentResult.currency,
         passengerCount: req.passenger_count,
         luggageCount: req.luggage_count ?? 0,
-        flightNumber: flightNumber || undefined,
+        flightNumber: (() => {
+          const out = flightNumber?.trim();
+          const ret = returnFlightNumber?.trim();
+          if (out && ret) return `${out} / Return ${ret}`;
+          if (ret) return `Return ${ret}`;
+          return out || undefined;
+        })(),
         notes: specialRequests || undefined,
         tripMode: req.trip_mode,
         infantSeats: req.infant_seats ?? 0,
@@ -610,10 +617,16 @@ export function BookPageClient() {
               )}
             </div>
 
-            {/* Pickup datetime */}
-            <div className="flex items-start gap-2 text-[hsl(var(--muted-foreground))]">
-              <Clock className="h-3.5 w-3.5 mt-0.5 shrink-0 text-[hsl(var(--primary)/0.7)]" />
-              <span className="font-medium text-[hsl(var(--foreground)/0.9)]">{pickupDate}</span>
+            {/* Pickup datetime + flight (optional) */}
+            <div className="space-y-1.5">
+              <div className="flex items-start gap-2 text-[hsl(var(--muted-foreground))]">
+                <Clock className="h-3.5 w-3.5 mt-0.5 shrink-0 text-[hsl(var(--primary)/0.7)]" />
+                <span className="font-medium text-[hsl(var(--foreground)/0.9)]">{pickupDate}</span>
+              </div>
+              <div className="pl-6">
+                <Label className="text-[10px] uppercase tracking-widest text-[hsl(var(--muted-foreground)/0.7)]">Flight (optional)</Label>
+                <Input value={flightNumber} onChange={e => setFlightNumber(e.target.value)} placeholder="e.g. QF401" />
+              </div>
             </div>
 
             {/* Pickup → Dropoff route */}
@@ -656,24 +669,30 @@ export function BookPageClient() {
             {/* Return leg */}
             {req.trip_mode === 'RETURN' && (req.return_date || req.return_pickup_at_utc) && (
               <div className="border-t border-[hsl(var(--border)/0.5)] pt-3 space-y-2">
-                <div className="flex items-center gap-2 text-[hsl(var(--muted-foreground))]">
-                  <Clock className="h-3.5 w-3.5 shrink-0 text-[hsl(var(--primary)/0.7)]" />
-                  <span className="font-medium text-[hsl(var(--foreground)/0.9)]">
-                    {req.return_pickup_at_utc
-                      ? new Date(req.return_pickup_at_utc).toLocaleString('en-AU', {
-                          weekday: 'short', day: 'numeric', month: 'short', year: 'numeric',
-                          hour: 'numeric', minute: '2-digit', hour12: true,
-                          timeZone: req.timezone ?? 'Australia/Sydney',
-                        })
-                      : (() => {
-                          const d = req.return_date ? new Date(`${req.return_date}T${req.return_time ?? '00:00'}`) : null;
-                          return d ? d.toLocaleString('en-AU', {
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-2 text-[hsl(var(--muted-foreground))]">
+                    <Clock className="h-3.5 w-3.5 shrink-0 text-[hsl(var(--primary)/0.7)]" />
+                    <span className="font-medium text-[hsl(var(--foreground)/0.9)]">
+                      {req.return_pickup_at_utc
+                        ? new Date(req.return_pickup_at_utc).toLocaleString('en-AU', {
                             weekday: 'short', day: 'numeric', month: 'short', year: 'numeric',
                             hour: 'numeric', minute: '2-digit', hour12: true,
-                          }) : `${req.return_date ?? ''} ${req.return_time ?? ''}`;
-                        })()}
-                  </span>
-                  <span className="text-[10px] text-[hsl(var(--muted-foreground)/0.6)] uppercase tracking-wide">Return</span>
+                            timeZone: req.timezone ?? 'Australia/Sydney',
+                          })
+                        : (() => {
+                            const d = req.return_date ? new Date(`${req.return_date}T${req.return_time ?? '00:00'}`) : null;
+                            return d ? d.toLocaleString('en-AU', {
+                              weekday: 'short', day: 'numeric', month: 'short', year: 'numeric',
+                              hour: 'numeric', minute: '2-digit', hour12: true,
+                            }) : `${req.return_date ?? ''} ${req.return_time ?? ''}`;
+                          })()}
+                    </span>
+                    <span className="text-[10px] text-[hsl(var(--muted-foreground)/0.6)] uppercase tracking-wide">Return</span>
+                  </div>
+                  <div className="pl-6">
+                    <Label className="text-[10px] uppercase tracking-widest text-[hsl(var(--muted-foreground)/0.7)]">Return flight (optional)</Label>
+                    <Input value={returnFlightNumber} onChange={e => setReturnFlightNumber(e.target.value)} placeholder="e.g. QF402" />
+                  </div>
                 </div>
                 <div className="relative pl-5">
                   <div className="absolute left-[6px] top-2 bottom-2 w-px bg-[hsl(var(--border))]" />
@@ -1188,12 +1207,8 @@ export function BookPageClient() {
                   )}
                 </div>
 
-                {/* ── Flight / Special Requests ── */}
+                {/* ── Special Requests ── */}
                 <div className="space-y-3 border-t border-[hsl(var(--border))] pt-5">
-                  <div className="space-y-1.5">
-                    <Label>Flight Number <span className="text-[hsl(var(--muted-foreground))] font-normal normal-case">(optional)</span></Label>
-                    <Input value={flightNumber} onChange={e => setFlightNumber(e.target.value)} placeholder="e.g. QF401" />
-                  </div>
                   <div className="space-y-1.5">
                     <Label>Special Requests <span className="text-[hsl(var(--muted-foreground))] font-normal normal-case">(optional)</span></Label>
                     <textarea
