@@ -501,7 +501,15 @@ export class NotificationService {
       flight_number: booking.flight_number ?? '',
       currency,
       car_type_name: booking.car_type_name ?? booking.vehicle_make ?? '',
-      base_fare: NotificationService.formatMinor(snapshot.subtotalMinor ?? snapshot.base_price_minor ?? snapshot.totalPriceMinor ?? booking.total_price_minor ?? 0),
+      base_fare: NotificationService.formatMinor(
+        snapshot.pre_discount_fare_minor
+          ?? snapshot.base_calculated_minor
+          ?? snapshot.subtotalMinor
+          ?? snapshot.base_price_minor
+          ?? snapshot.totalPriceMinor
+          ?? booking.total_price_minor
+          ?? 0,
+      ),
       toll_parking_total: NotificationService.formatMinor((snapshot.toll_minor ?? 0) + (snapshot.parking_minor ?? 0) + (snapshot.toll_parking_minor ?? 0)),
       extras_amount: NotificationService.formatMinor((snapshot.extras_minor ?? 0) + (snapshot.baby_seats_minor ?? 0) + (snapshot.waypoints_minor ?? 0)),
       total_amount: NotificationService.formatMinor(booking.total_price_minor ?? 0),
