@@ -239,7 +239,19 @@ export function BookingDetailClient({ id }: { id: string }) {
               )}
             </div>
           </div>
-          {booking.flight_number && <Row label="Flight" value={booking.flight_number} />}
+          {(() => {
+            if (!booking.flight_number) return null;
+            const raw = String(booking.flight_number);
+            const parts = raw.split(' / Return ');
+            const outbound = parts.length > 1 ? parts[0].trim() : (/^Return\s+/i.test(raw) ? '' : raw.trim());
+            const ret = parts.length > 1 ? parts.slice(1).join(' / Return ').trim() : (/^Return\s+/i.test(raw) ? raw.replace(/^Return\s+/i, '').trim() : '');
+            return (
+              <>
+                {outbound && <Row label="Flight" value={outbound} />}
+                {ret && <Row label="Return Flight" value={ret} />}
+              </>
+            );
+          })()}
           {booking.passenger_count && <Row label="Passengers" value={`${booking.passenger_count} pax`} />}
           {booking.special_requests && <Row label="Notes" value={booking.special_requests} />}
         </Section>

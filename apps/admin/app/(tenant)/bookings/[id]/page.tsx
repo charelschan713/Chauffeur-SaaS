@@ -144,6 +144,15 @@ function BookingDetailInner() {
       : (hasReturnLegs ? (pricingSnapshot?.leg2_minor ?? 0) : (pricingSnapshot?.final_fare_minor ?? booking?.total_price_minor ?? 0));
 
   const latestAssignment = useMemo(() => assignments.at(0), [assignments]);
+
+  const splitFlight = (value?: string | null) => {
+    if (!value) return { outbound: null, ret: null };
+    const raw = String(value);
+    const parts = raw.split(' / Return ');
+    if (parts.length > 1) return { outbound: parts[0]?.trim() || null, ret: parts.slice(1).join(' / Return ').trim() || null };
+    if (/^Return\s+/i.test(raw)) return { outbound: null, ret: raw.replace(/^Return\s+/i, '').trim() || null };
+    return { outbound: raw.trim() || null, ret: null };
+  };
   const legAAssignment = useMemo(() => assignments.find((a: any) => a.leg === 'A' || !a.leg) ?? assignments.at(0), [assignments]);
   const legBAssignment = useMemo(() => assignments.find((a: any) => a.leg === 'B'), [assignments]);
   // Phase 2: driver extra report from booking detail (no separate API call needed)
@@ -614,9 +623,17 @@ function BookingDetailInner() {
               <InfoRow label="Service Type" value={booking.service_type_name ?? '—'} />
               <InfoRow label="Car Type" value={booking.service_class_name ?? '—'} />
               <InfoRow label="Pickup Time" value={formatPickupTime(booking.pickup_at_utc, booking.timezone, booking.city_name)} />
+              {(() => {
+                const f = splitFlight(booking.flight_number);
+                return f.outbound ? <InfoRow label="Flight" value={f.outbound} /> : null;
+              })()}
               {booking.return_pickup_at_utc && (
                 <InfoRow label="Return Time" value={formatPickupTime(booking.return_pickup_at_utc, booking.timezone, booking.city_name)} />
               )}
+              {(() => {
+                const f = splitFlight(booking.flight_number);
+                return f.ret ? <InfoRow label="Return Flight" value={f.ret} /> : null;
+              })()}
               {(booking.distance_km != null) && (
                 <InfoRow label="Distance" value={`${booking.distance_km} km`} />
               )}
