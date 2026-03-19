@@ -1373,6 +1373,33 @@ export class NotificationService {
       admin_booking_url: `https://chauffeur-saa-s.vercel.app/bookings/${payload.booking_id}`,
     };
     await this.sendBoth(tenantId, 'BookingModified', vars, booking.customer_email, null, booking.id).catch(() => {});
+
+    // Notify assigned drivers
+    const assignments = await this.dataSource.query(
+      `SELECT a.id, a.assignment_type, a.partner_tenant_id, u.email as driver_email
+       FROM public.assignments a
+       LEFT JOIN public.users u ON u.id = a.driver_id
+       WHERE a.booking_id = $1`,
+      [payload.booking_id],
+    ).catch(() => []);
+
+    const driverEmails = Array.from(new Set(assignments.map((a: any) => a.driver_email).filter(Boolean)));
+    for (const email of driverEmails) {
+      await this.sendFromTemplate(tenantId, 'BookingModified', 'email', vars, email, booking.id).catch(() => {});
+    }
+
+    // Notify partner tenant admins (if any)
+    const partnerTenantIds = Array.from(new Set(assignments
+      .filter((a: any) => a.assignment_type === 'PARTNER' && a.partner_tenant_id)
+      .map((a: any) => a.partner_tenant_id)));
+    for (const partnerTenantId of partnerTenantIds) {
+      const admins = await this.getAdminContacts(partnerTenantId).catch(() => []);
+      for (const admin of admins) {
+        if (admin.email) {
+          await this.sendFromTemplate(partnerTenantId, 'BookingModified', 'email', vars, admin.email, booking.id).catch(() => {});
+        }
+      }
+    }
   }
 
   // Customer requests modification → email to admins only

@@ -10,6 +10,7 @@ import { PaymentModal } from '@/components/payment-modal';
 import { FulfilModal } from '@/components/fulfil-modal';
 import { AssignPartnerModal } from '@/components/assign-partner-modal';
 import { EditDriverPayModal } from '@/components/edit-driver-pay-modal';
+import { ModifyBookingModal } from '@/components/modify-booking-modal';
 import { ErrorAlert } from '@/components/ui/ErrorAlert';
 import { PageHeader } from '@/components/admin/PageHeader';
 import { Card } from '@/components/ui/Card';
@@ -72,6 +73,7 @@ function BookingDetailInner() {
   const [partnerActionLoading, setPartnerActionLoading] = useState(false);
   const [editPayOpen, setEditPayOpen] = useState(false);
   const [paymentOpen, setPaymentOpen] = useState(false);
+  const [modifyOpen, setModifyOpen] = useState(false);
   const [fulfilOpen, setFulfilOpen] = useState(false);
   const [driverReport, setDriverReport] = useState<any>(null);
   const [editPayAssignmentId, setEditPayAssignmentId] = useState<string | null>(null);
@@ -204,6 +206,9 @@ function BookingDetailInner() {
             )}
             <Button variant="secondary" onClick={() => setPaymentOpen(true)}>
               💳 Payment
+            </Button>
+            <Button variant="secondary" onClick={() => setModifyOpen(true)}>
+              ✏️ Modify Booking
             </Button>
             {booking.operational_status === 'COMPLETED' && (
               <Button
@@ -1133,6 +1138,23 @@ function BookingDetailInner() {
           setEditPayOpen(false);
           setEditPayAssignmentId(null);
           refetch();
+        }}
+      />
+
+      <ModifyBookingModal
+        isOpen={modifyOpen}
+        onClose={() => setModifyOpen(false)}
+        booking={booking}
+        serviceTypes={serviceTypes}
+        carTypes={carTypes}
+        onModified={({ assignmentId }) => {
+          setModifyOpen(false);
+          refetch();
+          setToast({ message: 'Booking modified', tone: 'success' });
+          if (assignmentId) {
+            setEditPayAssignmentId(assignmentId);
+            setEditPayOpen(true);
+          }
         }}
       />
 

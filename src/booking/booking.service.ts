@@ -1188,6 +1188,70 @@ export class BookingService {
     return { success: true };
   }
 
+  // ── Admin modify booking (manual price) ─────────────────────────────────
+  async modifyBookingAdmin(tenantId: string, bookingId: string, adminId: string, dto: any) {
+    const [booking] = await this.dataSource.query(
+      `SELECT * FROM public.bookings WHERE id = $1 AND tenant_id = $2`,
+      [bookingId, tenantId],
+    );
+    if (!booking) throw new NotFoundException('Booking not found');
+
+    const allowed = new Set([
+      'pickup_address_text', 'dropoff_address_text', 'pickup_at_utc', 'return_pickup_at_utc',
+      'service_type_id', 'service_class_id', 'passenger_count', 'luggage_count',
+      'flight_number', 'special_requests', 'waypoints',
+      'customer_first_name', 'customer_last_name', 'customer_email',
+      'customer_phone_country_code', 'customer_phone_number',
+      'passenger_first_name', 'passenger_last_name', 'passenger_phone_country_code', 'passenger_phone_number',
+    ]);
+
+    const update: Record<string, any> = {};
+    for (const [k, v] of Object.entries(dto ?? {})) {
+      if (allowed.has(k)) update[k] = v;
+    }
+
+    if (Array.isArray(update.waypoints)) {
+      update.waypoints = update.waypoints.filter(Boolean);
+    }
+
+    const totalMinor = typeof dto?.total_price_minor === 'number' ? dto.total_price_minor : null;
+    if (typeof totalMinor === 'number') update.total_price_minor = totalMinor;
+
+    const snapshot = booking.pricing_snapshot ?? {};
+    if (typeof totalMinor === 'number') {
+      snapshot.final_fare_minor = totalMinor;
+      snapshot.grand_total_minor = totalMinor;
+      snapshot.total_price_minor = totalMinor;
+      snapshot.price_override_minor = totalMinor;
+      snapshot.price_override_by = adminId;
+      snapshot.price_override_reason = dto?.price_override_reason ?? 'Admin modify';
+    }
+    update.pricing_snapshot = snapshot;
+
+    if (!Object.keys(update).length) {
+      throw new BadRequestException('No valid fields to update');
+    }
+
+    const setCols = Object.keys(update).map((k, i) => `${k} = $${i + 3}`);
+    await this.dataSource.query(
+      `UPDATE public.bookings SET ${setCols.join(', ')}, updated_at = now() WHERE id = $1 AND tenant_id = $2`,
+      [bookingId, tenantId, ...Object.values(update)],
+    );
+
+    // notify customer + driver + partner (best-effort)
+    this.notificationService.handleEvent('BookingModified', {
+      tenant_id: tenantId,
+      booking_id: bookingId,
+    }).catch(() => {});
+
+    const [assignment] = await this.dataSource.query(
+      `SELECT id FROM public.assignments WHERE booking_id = $1 ORDER BY created_at DESC LIMIT 1`,
+      [bookingId],
+    );
+
+    return { ok: true, assignment_id: assignment?.id ?? null };
+  }
+
   // ── Settle (charge/refund final balance difference) ───────────────────────
   /**
    * Settles the difference between actual_total_minor and prepay_total_minor.

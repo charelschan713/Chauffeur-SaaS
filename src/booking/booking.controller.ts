@@ -150,6 +150,16 @@ export class BookingController {
     return this.service.confirmAndCharge(tenantId, bookingId);
   }
 
+  @Post(':id/modify-admin')
+  modifyAdmin(
+    @Param('id') bookingId: string,
+    @CurrentUser('tenant_id') tenantId: string,
+    @CurrentUser('sub') adminId: string,
+    @Body() body: any,
+  ) {
+    return this.service.modifyBookingAdmin(tenantId, bookingId, adminId, body);
+  }
+
   @Post(':id/reject')
   rejectBooking(
     @Param('id') bookingId: string,

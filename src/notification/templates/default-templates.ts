@@ -191,6 +191,23 @@ ${footer()}
     sms: { body: '{{company_name}}: Booking {{booking_reference}} updated. Please check your email and confirm the new details.' },
   },
 
+  /** Alias used by system events */
+  BookingModified: {
+    email: {
+      subject: 'Booking Updated — {{booking_reference}}',
+      body: `<div style="${S.wrap}">
+<h2 style="${S.h2}">Booking Updated 📝</h2>
+<p style="${S.p}">Hi {{customer_first_name}},</p>
+<p style="${S.p}">Your booking <strong>{{booking_reference}}</strong> has been updated by our team. Please review the new details and confirm.</p>
+<table style="${S.table}">${bookingRows()}</table>
+${cta(btnUrl('Review &amp; Confirm →', '{{admin_booking_url}}'))}
+<p style="${S.p};color:#6b7280;font-size:13px;text-align:center">Contact {{company_name}} if you have any questions about the changes.</p>
+${footer()}
+</div>`,
+    },
+    sms: { body: '{{company_name}}: Booking {{booking_reference}} updated. Please check your email and confirm the new details.' },
+  },
+
   /** Customer requests modification → email to admins */
   BookingModificationRequestAdmin: {
     email: {
