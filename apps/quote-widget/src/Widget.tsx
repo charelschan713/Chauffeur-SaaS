@@ -362,7 +362,7 @@ export function Widget({ slug }: { slug: string }) {
             </div>
           </div>
 
-          <button onClick={handleGetQuote} disabled={loading} style={{ ...btnStyle, opacity: loading ? 0.7 : 1, marginTop: 4 }}>
+          <button onClick={handleGetQuote} disabled={loading} style={{ ...btnStyle, opacity: loading ? 0.7 : 1, marginTop: 14 }}>
             {loading ? 'Calculating...' : '🔍 Get Quote'}
           </button>
         </div>
