@@ -1022,8 +1022,8 @@ export default function CreateBookingPage() {
                   <div>
                     <label className="text-sm font-medium text-gray-700 block mb-1">Duration (hours)</label>
                     <Select
-                      value={String(values.luggage_count ?? 2)}
-                      onChange={(e) => setValue('luggage_count', Number(e.target.value))}
+                      value={String(values.duration_hours ?? 2)}
+                      onChange={(e) => setValue('duration_hours', Number(e.target.value), { shouldValidate: true })}
                     >
                       {[2,3,4,5,6,7,8,9,10,12].map(h => <option key={h} value={h}>{h} hours</option>)}
                     </Select>
