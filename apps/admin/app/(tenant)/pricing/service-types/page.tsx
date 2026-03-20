@@ -237,7 +237,7 @@ export default function ServiceTypesPage() {
             </Field>
           </>)}
 
-          {/* Hourly Charter: min hours + km included + percentage */}
+          {/* Hourly Charter: min hours + km included + tiers */}
           {form.calculation_type === 'HOURLY_CHARTER' && (<>
             <Field label="Minimum Hours">
               <Input
@@ -253,7 +253,113 @@ export default function ServiceTypesPage() {
                 onChange={(e) => setForm((prev) => ({ ...prev, km_per_hour_included: e.target.value }))}
               />
             </Field>
-            <Field label="Hourly Rate Type">
+
+            {/* Hourly tiers (discount / surcharge table) */}
+            <div className="md:col-span-2 border border-gray-200 rounded-xl p-4 bg-white">
+              <div className="flex items-center justify-between mb-3">
+                <div>
+                  <div className="text-sm font-semibold text-gray-900">Hourly Tiers</div>
+                  <div className="text-xs text-gray-500">Optional. Applied by booked hours (e.g. 2–3h, 4–6h).</div>
+                </div>
+                <Button
+                  variant="secondary"
+                  onClick={() => setTiers((prev) => ([...prev, { from_hours: Number(form.minimum_hours) || 2, to_hours: undefined, type: 'PERCENTAGE', value: 100, surcharge_minor: 0 }]))}
+                >
+                  Add Tier
+                </Button>
+              </div>
+
+              {tiers.length === 0 ? (
+                <div className="text-sm text-gray-500">No tiers configured. Pricing will use base hourly calculation only.</div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="min-w-full text-sm">
+                    <thead>
+                      <tr className="text-left text-xs text-gray-500 border-b">
+                        <th className="py-2 pr-3">From (h)</th>
+                        <th className="py-2 pr-3">To (h)</th>
+                        <th className="py-2 pr-3">Type</th>
+                        <th className="py-2 pr-3">Value</th>
+                        <th className="py-2 pr-3">Surcharge (AUD)</th>
+                        <th className="py-2 pr-3"></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {tiers.map((t, idx) => (
+                        <tr key={idx} className="border-b last:border-b-0">
+                          <td className="py-2 pr-3">
+                            <Input
+                              type="number"
+                              value={t.from_hours ?? ''}
+                              onChange={(e) => {
+                                const v = e.target.value;
+                                setTiers((prev) => prev.map((x, i) => i === idx ? { ...x, from_hours: v === '' ? undefined : Number(v) } : x));
+                              }}
+                            />
+                          </td>
+                          <td className="py-2 pr-3">
+                            <Input
+                              type="number"
+                              value={t.to_hours ?? ''}
+                              onChange={(e) => {
+                                const v = e.target.value;
+                                setTiers((prev) => prev.map((x, i) => i === idx ? { ...x, to_hours: v === '' ? undefined : Number(v) } : x));
+                              }}
+                            />
+                          </td>
+                          <td className="py-2 pr-3">
+                            <Select
+                              value={t.type ?? 'PERCENTAGE'}
+                              onChange={(e) => {
+                                const v = e.target.value as any;
+                                setTiers((prev) => prev.map((x, i) => i === idx ? { ...x, type: v } : x));
+                              }}
+                            >
+                              <option value="PERCENTAGE">Percentage</option>
+                              <option value="FIXED_SURCHARGE">Fixed Surcharge</option>
+                            </Select>
+                          </td>
+                          <td className="py-2 pr-3">
+                            <Input
+                              type="number"
+                              value={t.value ?? ''}
+                              onChange={(e) => {
+                                const v = e.target.value;
+                                setTiers((prev) => prev.map((x, i) => i === idx ? { ...x, value: v === '' ? undefined : Number(v) } : x));
+                              }}
+                            />
+                            <div className="text-[11px] text-gray-400 mt-1">
+                              {t.type === 'PERCENTAGE' ? '100 = no change, 90 = 10% off' : 'Ignored for fixed surcharge'}
+                            </div>
+                          </td>
+                          <td className="py-2 pr-3">
+                            <Input
+                              type="number"
+                              value={toMoney(t.surcharge_minor ?? 0)}
+                              onChange={(e) => {
+                                const v = e.target.value;
+                                const minor = Math.round(Number(v || 0) * 100);
+                                setTiers((prev) => prev.map((x, i) => i === idx ? { ...x, surcharge_minor: Number.isFinite(minor) ? minor : 0 } : x));
+                              }}
+                            />
+                          </td>
+                          <td className="py-2 pr-3 text-right">
+                            <button
+                              className="text-red-600 hover:underline"
+                              onClick={() => setTiers((prev) => prev.filter((_, i) => i !== idx))}
+                            >
+                              Remove
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            <Field label="Hourly Rate Type (legacy)">
               <Select
                 value={form.one_way_type}
                 onChange={(e) => setForm((prev) => ({ ...prev, one_way_type: e.target.value as any }))}
@@ -262,7 +368,7 @@ export default function ServiceTypesPage() {
                 <option value="FIXED_SURCHARGE">Fixed Amount</option>
               </Select>
             </Field>
-            <Field label="Hourly Rate Value">
+            <Field label="Hourly Rate Value (legacy)">
               <Input
                 type="number"
                 value={form.one_way_value}
