@@ -16,6 +16,8 @@ interface QuoteRequest {
   luggage_count?: number;
   distance_km: number;
   duration_minutes: number;
+  /** For HOURLY_CHARTER: booked duration in hours (e.g. 4). */
+  duration_hours?: number;
   waypoints_count?: number;
   return_waypoints_count?: number;  // waypoints on return leg (may differ if asymmetric)
   return_pickup_at_utc?: string;
@@ -79,6 +81,8 @@ export class PublicPricingService {
           returnPickupAtUtc: dto.return_pickup_at_utc ? new Date(dto.return_pickup_at_utc) : undefined,
           returnPickupAddress: dto.return_pickup_address ?? dto.dropoff_address,
           returnDropoffAddress: dto.return_dropoff_address ?? dto.pickup_address,
+          // For hourly charter quoting. PricingResolver uses ctx.bookedHours.
+          bookedHours: typeof dto.duration_hours === 'number' ? dto.duration_hours : undefined,
           // Outbound stops — pricing resolver handles return stops separately
           waypointsCount: waypointChargeEnabled ? (dto.waypoints_count ?? 0) : 0,
           returnWaypointsCount: waypointChargeEnabled ? (dto.return_waypoints_count ?? 0) : 0,
