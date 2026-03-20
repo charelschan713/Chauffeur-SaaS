@@ -792,11 +792,17 @@ export function QuoteClient() {
                             return (
                               <>
                                 {leg1 > 0 && <span className="text-gray-500">Outbound price: {fmtMoney(leg1, currency)}</span>}
-                                {leg1S > 0 && <span className="text-amber-400/80">Outbound surcharge: +{fmtMoney(leg1S, currency)}</span>}
+                                {(() => {
+                                  const items = preview.surcharge_items ?? [];
+                                  const labels = preview.surcharge_labels ?? [];
+                                  const total = (preview.surcharge_minor ?? 0) > 0 ? preview.surcharge_minor : (leg1S + leg2S);
+                                  if (total <= 0) return null;
+                                  const label = items[0]?.label || labels[0] || 'Surcharge';
+                                  return <span className="text-amber-400/80">{label}: +{fmtMoney(total, currency)}</span>;
+                                })()}
                                 {isReturn && (
                                   <>
                                     {leg2 > 0 && <span className="text-gray-500">Return price: {fmtMoney(leg2, currency)}</span>}
-                                    {leg2S > 0 && <span className="text-amber-400/80">Return surcharge: +{fmtMoney(leg2S, currency)}</span>}
                                   </>
                                 )}
                                 {toll > 0 && <span className="text-gray-500">Toll: +{fmtMoney(toll, currency)}</span>}
