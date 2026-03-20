@@ -795,10 +795,17 @@ export function QuoteClient() {
                                 {(() => {
                                   const items = preview.surcharge_items ?? [];
                                   const labels = preview.surcharge_labels ?? [];
-                                  const total = (preview.surcharge_minor ?? 0) > 0 ? preview.surcharge_minor : (leg1S + leg2S);
-                                  if (total <= 0) return null;
                                   const label = items[0]?.label || labels[0] || 'Surcharge';
-                                  return <span className="text-amber-400/80">{label}: +{fmtMoney(total, currency)}</span>;
+                                  if (leg1S > 0 || leg2S > 0) {
+                                    return (
+                                      <>
+                                        {leg1S > 0 && <span className="text-amber-400/80">Outbound {label}: +{fmtMoney(leg1S, currency)}</span>}
+                                        {leg2S > 0 && <span className="text-amber-400/80">Return {label}: +{fmtMoney(leg2S, currency)}</span>}
+                                      </>
+                                    );
+                                  }
+                                  const total = preview.surcharge_minor ?? 0;
+                                  return total > 0 ? <span className="text-amber-400/80">{label}: +{fmtMoney(total, currency)}</span> : null;
                                 })()}
                                 {isReturn && (
                                   <>
