@@ -14,9 +14,13 @@ export class TenantController {
   @Get('settings')
   async getSettings(@Req() req: any) {
     const rows = await this.dataSource.query(
-      `SELECT auto_assign_enabled, default_driver_pay_type, default_driver_pay_value
-         FROM public.tenants
-        WHERE id = $1`,
+      `SELECT t.auto_assign_enabled,
+              t.default_driver_pay_type,
+              t.default_driver_pay_value,
+              ts.settings->'widget_settings' AS widget_settings
+         FROM public.tenants t
+         LEFT JOIN public.tenant_settings ts ON ts.tenant_id = t.id
+        WHERE t.id = $1`,
       [req.user.tenant_id],
     );
     return rows[0] ?? null;
@@ -24,6 +28,8 @@ export class TenantController {
 
   @Patch('settings')
   async updateSettings(@Req() req: any, @Body() body: any) {
+    const tenantId = req.user.tenant_id;
+
     const rows = await this.dataSource.query(
       `UPDATE public.tenants
           SET auto_assign_enabled = COALESCE($1, auto_assign_enabled),
@@ -36,10 +42,31 @@ export class TenantController {
         body.auto_assign_enabled ?? null,
         body.default_driver_pay_type ?? null,
         body.default_driver_pay_value ?? null,
-        req.user.tenant_id,
+        tenantId,
       ],
     );
-    return rows[0];
+
+    // Widget settings stored in tenant_settings.settings.widget_settings
+    if (body.widget_settings !== undefined) {
+      await this.dataSource.query(
+        `INSERT INTO public.tenant_settings (tenant_id, settings)
+         VALUES ($1, jsonb_build_object('widget_settings', $2::jsonb))
+         ON CONFLICT (tenant_id) DO UPDATE
+           SET settings = jsonb_set(
+             COALESCE(public.tenant_settings.settings, '{}'::jsonb),
+             '{widget_settings}',
+             $2::jsonb,
+             true
+           ),
+               updated_at = now()`,
+        [tenantId, JSON.stringify(body.widget_settings ?? {})],
+      );
+    }
+
+    return {
+      ...(rows[0] ?? {}),
+      widget_settings: body.widget_settings ?? null,
+    };
   }
 
   // ── Business / Company Profile ────────────────────────────────────────────

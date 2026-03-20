@@ -62,6 +62,7 @@ const NAV_SECTIONS = [
       { href: '/settings/templates', label: 'Templates', icon: Map },
       { href: '/settings/notification-logs', label: 'Notification Logs', icon: FileText },
       { href: '/settings/integrations', label: 'Integrations', icon: Puzzle },
+      { href: '/settings/widget', label: 'Widget', icon: Puzzle },
     ],
   },
 ];

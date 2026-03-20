@@ -64,6 +64,21 @@ export class PublicTenantService {
       brandingError = err?.message ?? 'unknown';
     }
 
+    // Tenant-scoped widget settings (optional)
+    let widget_settings: any = null;
+    try {
+      const [row] = await this.db.query(
+        `SELECT settings->'widget_settings' AS widget_settings
+         FROM public.tenant_settings
+         WHERE tenant_id = $1
+         LIMIT 1`,
+        [tenant.id],
+      );
+      widget_settings = row?.widget_settings ?? null;
+    } catch {
+      widget_settings = null;
+    }
+
     return {
       id: tenant.id,
       company_name: tenant.name,
@@ -78,6 +93,7 @@ export class PublicTenantService {
       cancel_window_hours: branding?.cancel_window_hours ?? 24,
       website_url: branding?.website_url ?? null,
       booking_entry: branding?.booking_entry_config ?? null,
+      widget_settings,
       _debug_branding_error: brandingError,
     };
   }
