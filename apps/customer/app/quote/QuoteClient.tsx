@@ -804,7 +804,7 @@ export function QuoteClient() {
                                       </>
                                     );
                                   }
-                                  const total = (preview.surcharge_minor as any) ?? 0;
+                                  const total = (preview as any)?.surcharge_minor ?? 0;
                                   return total > 0 ? <span className="text-amber-400/80">{label}: +{fmtMoney(total, currency)}</span> : null;
                                 })()}
                                 {isReturn && (
