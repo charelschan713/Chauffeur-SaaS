@@ -1,0 +1,50 @@
+/* Brand-facing widget theme (ASChauffeured)
+   Keep this minimal: provide tokens + sane defaults.
+*/
+
+:root {
+  --background: 240 8% 3%;
+  --foreground: 216 33% 97%;
+  --card: 228 10% 8%;
+  --card-foreground: 216 33% 97%;
+  --popover: 228 10% 8%;
+  --popover-foreground: 216 33% 97%;
+
+  --primary: 39 46% 60%;
+  --primary-foreground: 240 8% 3%;
+
+  --secondary: 223 8% 16%;
+  --secondary-foreground: 216 33% 97%;
+
+  --muted: 220 9% 18%;
+  --muted-foreground: 217 11% 70%;
+
+  --accent: 216 10% 25%;
+  --accent-foreground: 216 33% 97%;
+
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 216 33% 97%;
+
+  --border: 220 9% 18%;
+  --input-border: 218 22% 22%;
+  --input: 228 10% 8%;
+  --ring: 39 46% 60%;
+
+  --radius: 0.75rem;
+  --radius-full: 9999px;
+
+  --shadow-sm: 0 1px 2px rgba(0,0,0,.3);
+  --shadow-md: 0 4px 12px rgba(0,0,0,.4);
+  --shadow-lg: 0 12px 32px rgba(0,0,0,.5);
+}
+
+#chauffeur-quote {
+  color: hsl(var(--foreground));
+  font-family: Inter, system-ui, -apple-system, sans-serif;
+}
+
+#chauffeur-quote h1,
+#chauffeur-quote h2,
+#chauffeur-quote h3 {
+  font-family: "Playfair Display", Georgia, serif;
+}

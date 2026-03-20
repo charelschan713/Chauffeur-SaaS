@@ -1,6 +1,7 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Widget } from './Widget';
+import './styles.css';
 
 function mount() {
   const container = document.getElementById('chauffeur-quote');
