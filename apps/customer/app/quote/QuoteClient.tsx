@@ -203,7 +203,7 @@ function useDebounce<T>(value: T, delay: number): T {
 }
 
 function PlacesAutocomplete({ value='', onChange, placeholder='Enter a location', cityBias, pinColor='muted' }: {
-  value?: string; onChange?: (v: string) => void; placeholder?: string;
+  value?: string; onChange?: (v: string, placeId?: string) => void; placeholder?: string;
   cityBias?: { lat: number; lng: number }; pinColor?: 'green'|'gold'|'muted';
 }) {
   const PIN = { green:'text-emerald-400', gold:'text-amber-400', muted:'text-gray-400' };
@@ -237,7 +237,8 @@ function PlacesAutocomplete({ value='', onChange, placeholder='Enter a location'
 
   const select = useCallback((pred: any) => {
     const val = pred.description || pred.main_text;
-    justSelectedRef.current = true; setInputValue(val); setPredictions([]); setOpen(false); setActiveIdx(-1); onChange?.(val); inputRef.current?.blur();
+    const placeId = pred.place_id;
+    justSelectedRef.current = true; setInputValue(val); setPredictions([]); setOpen(false); setActiveIdx(-1); onChange?.(val, placeId); inputRef.current?.blur();
   }, [onChange]);
 
   return (
