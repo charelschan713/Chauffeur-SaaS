@@ -5,6 +5,7 @@ import {
   Delete,
   Get,
   Inject,
+  InternalServerErrorException,
   NotFoundException,
   Param,
   Post,
@@ -144,8 +145,23 @@ export class CustomerPortalController {
 
   @Post('bookings')
   @UseGuards(CustomerAuthGuard)
-  createBooking(@Req() req: any, @Body() body: any) {
-    return this.svc.createBooking(req.customer.sub, req.customer.tenant_id, body);
+  async createBooking(@Req() req: any, @Body() body: any) {
+    try {
+      return await this.svc.createBooking(req.customer.sub, req.customer.tenant_id, body);
+    } catch (e: any) {
+      const details = {
+        tenant_id: req.customer?.tenant_id,
+        customer_id: req.customer?.sub,
+        message: e?.message,
+        stack: e?.stack,
+        code: e?.code,
+        status: e?.status,
+        type: e?.type,
+      };
+      console.error('[CreateBooking] failed', details);
+      // Surface a clearer error to the client
+      throw new InternalServerErrorException(e?.message ?? 'Booking failed');
+    }
   }
 
   @Post('bookings/:id/cancel')
