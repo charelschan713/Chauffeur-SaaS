@@ -813,8 +813,8 @@ export function QuoteClient() {
                                   </>
                                 )}
                                 {(() => {
-                                  const leg1Toll = preview.leg1_toll_minor ?? 0;
-                                  const leg2Toll = preview.leg2_toll_minor ?? 0;
+                                  const leg1Toll = (preview as any)?.leg1_toll_minor ?? 0;
+                                  const leg2Toll = (preview as any)?.leg2_toll_minor ?? 0;
                                   const hasSplit = leg1Toll > 0 || leg2Toll > 0;
                                   if (!hasSplit) return toll > 0 ? <span className="text-gray-500">Toll: +{fmtMoney(toll, currency)}</span> : null;
                                   return (
