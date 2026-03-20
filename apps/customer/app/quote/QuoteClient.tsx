@@ -805,7 +805,18 @@ export function QuoteClient() {
                                     {leg2 > 0 && <span className="text-gray-500">Return price: {fmtMoney(leg2, currency)}</span>}
                                   </>
                                 )}
-                                {toll > 0 && <span className="text-gray-500">Toll: +{fmtMoney(toll, currency)}</span>}
+                                {(() => {
+                                  const leg1Toll = preview.leg1_toll_minor ?? 0;
+                                  const leg2Toll = preview.leg2_toll_minor ?? 0;
+                                  const hasSplit = leg1Toll > 0 || leg2Toll > 0;
+                                  if (!hasSplit) return toll > 0 ? <span className="text-gray-500">Toll: +{fmtMoney(toll, currency)}</span> : null;
+                                  return (
+                                    <>
+                                      {leg1Toll > 0 && <span className="text-gray-500">Outbound toll: +{fmtMoney(leg1Toll, currency)}</span>}
+                                      {leg2Toll > 0 && <span className="text-gray-500">Return toll: +{fmtMoney(leg2Toll, currency)}</span>}
+                                    </>
+                                  );
+                                })()}
                                 {parking > 0 && <span className="text-gray-500">Parking: +{fmtMoney(parking, currency)}</span>}
                                 {discount > 0 && <span className="text-emerald-400">Discount: -{fmtMoney(discount, currency)}</span>}
                                 {total > 0 && <span className="text-gray-500">Total: {fmtMoney(total, currency)}</span>}

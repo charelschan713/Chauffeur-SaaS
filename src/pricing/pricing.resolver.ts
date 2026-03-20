@@ -313,6 +313,10 @@ export class PricingResolver {
 
     let tollMinor = 0;
     let parkingMinor = 0;
+    let leg1TollMinor = 0;
+    let leg2TollMinor = 0;
+    let leg1ParkingMinor = 0;
+    let leg2ParkingMinor = 0;
     let timeSurchargeMinor = 0;
     let leg1SurchargeMinor = 0;
     let leg2SurchargeMinor = 0;
@@ -437,12 +441,16 @@ export class PricingResolver {
           this.resolveTollForRoute(ctx.tenantId, ctx.pickupAddress, ctx.dropoffAddress, ctx.currency, ctx.pickupAtUtc ?? null, !!ctx.tollEnabled),
           this.resolveTollForRoute(ctx.tenantId, returnPickupAddress, returnDropoffAddress, ctx.currency, returnPickupAt, !!ctx.tollEnabled),
         ]);
+        leg1TollMinor = outToll;
+        leg2TollMinor = retToll;
         tollMinor = outToll + retToll;
 
         const [outParking, retParking] = await Promise.all([
           this.resolveParkingForPickup(ctx.tenantId, ctx.pickupAddress),
           this.resolveParkingForPickup(ctx.tenantId, returnPickupAddress),
         ]);
+        leg1ParkingMinor = outParking;
+        leg2ParkingMinor = retParking;
         parkingMinor = outParking + retParking;
 
         const outboundSr = ctx.pickupAtUtc
@@ -527,6 +535,10 @@ export class PricingResolver {
       toll_parking_minor: tollParkingMinor,
       toll_minor: tollMinor,
       parking_minor: parkingMinor,
+      leg1_toll_minor: leg1TollMinor || null,
+      leg2_toll_minor: leg2TollMinor || null,
+      leg1_parking_minor: leg1ParkingMinor || null,
+      leg2_parking_minor: leg2ParkingMinor || null,
       grand_total_minor: grandTotalMinor,
       discount_source_customer_id: ctx.customerId ?? null,
       extras_minor: babySeatsMinor,
