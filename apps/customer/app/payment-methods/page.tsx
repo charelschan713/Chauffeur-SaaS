@@ -6,6 +6,7 @@ import { useAuthGuard } from '@/hooks/useAuthGuard';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import api from '@/lib/api';
+import { getApiErrorMessage } from '@/lib/errors';
 import { cn } from '@/lib/utils';
 import { CreditCard, Plus, Trash2, CheckCircle2, AlertCircle } from 'lucide-react';
 import { BackButton } from '@/components/BackButton';
@@ -48,7 +49,7 @@ function AddCardForm({ onSuccess, onCancel }: { onSuccess: () => void; onCancel:
       setSuccess(true);
       setTimeout(() => onSuccess(), 800);
     } catch (e: any) {
-      setError(e.message ?? 'Failed to save card.');
+      setError(getApiErrorMessage(e, 'Failed to save card.'));
     } finally {
       setSaving(false);
     }

@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import api from '@/lib/api';
+import { getApiErrorMessage } from '@/lib/errors';
 import { useAuthStore } from '@/lib/auth-store';
 import { cn, fmtMoney } from '@/lib/utils';
 import { Card, CardContent } from '@/components/ui/card';
@@ -472,7 +473,7 @@ export function BookPageClient() {
     } catch (err: any) {
       const errData = err?.response?.data ?? err;
       console.error('[handleCardConfirmed] booking error:', JSON.stringify(errData));
-      const msg = err.response?.data?.message ?? err?.message ?? 'Failed to create booking. Please try again.';
+      const msg = getApiErrorMessage(err, 'Failed to create booking. Please try again.');
       setSubmitError(`Booking failed: ${msg}`);
       setStep('details');
     }
