@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import api from '@/lib/api';
+import { getApiErrorMessage } from '@/lib/errors';
 
 interface PaymentModalProps {
   isOpen: boolean;
@@ -43,7 +44,7 @@ export function PaymentModal({
       setSuccess('Marked as paid');
       onUpdated();
     } catch (e: any) {
-      setError(e?.response?.data?.message ?? 'Failed');
+      setError(getApiErrorMessage(e, 'Failed to mark as paid'));
     } finally { setLoading(false); }
   }
 
@@ -53,7 +54,7 @@ export function PaymentModal({
       await api.post(`/bookings/${bookingId}/send-payment-link`);
       setSuccess(`Payment link sent to ${customerEmail}`);
     } catch (e: any) {
-      setError(e?.response?.data?.message ?? 'Failed to send payment link');
+      setError(getApiErrorMessage(e, 'Failed to send payment link'));
     } finally { setLoading(false); }
   }
 
@@ -64,7 +65,7 @@ export function PaymentModal({
       setSuccess('Payment charged successfully');
       onUpdated();
     } catch (e: any) {
-      setError(e?.response?.data?.message ?? 'Charge failed');
+      setError(getApiErrorMessage(e, 'Charge failed'));
     } finally { setLoading(false); }
   }
 
