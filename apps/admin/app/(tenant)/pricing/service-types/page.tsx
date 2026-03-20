@@ -96,10 +96,51 @@ export default function ServiceTypesPage() {
   const [form, setForm] = useState<FormState>(emptyForm);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [tiers, setTiers] = useState<HourlyTier[]>([]);
+  const [tierError, setTierError] = useState<string | null>(null);
 
   const items = data as ServiceTypeRow[];
 
   const editing = useMemo(() => items.find((row) => row.id === editingId) ?? null, [items, editingId]);
+
+  function normalizeTiers(input: HourlyTier[]) {
+    const clean = (Array.isArray(input) ? input : []).map((t) => ({
+      from_hours: typeof t.from_hours === 'number' ? t.from_hours : undefined,
+      to_hours: typeof t.to_hours === 'number' ? t.to_hours : undefined,
+      type: t.type ?? 'PERCENTAGE',
+      value: typeof t.value === 'number' ? t.value : undefined,
+      surcharge_minor: typeof t.surcharge_minor === 'number' ? t.surcharge_minor : 0,
+    }));
+    clean.sort((a, b) => (a.from_hours ?? 0) - (b.from_hours ?? 0));
+    return clean;
+  }
+
+  function validateTiers(input: HourlyTier[]) {
+    const tiersSorted = normalizeTiers(input);
+    for (let i = 0; i < tiersSorted.length; i++) {
+      const t = tiersSorted[i];
+      if (!Number.isFinite(t.from_hours) || (t.from_hours as number) <= 0) return 'Each tier must have a valid From (hours) > 0.';
+      if (t.to_hours !== undefined && (!Number.isFinite(t.to_hours) || (t.to_hours as number) < (t.from_hours as number))) {
+        return 'Tier To (hours) must be blank or >= From (hours).';
+      }
+      if (t.type === 'PERCENTAGE') {
+        if (!Number.isFinite(t.value)) return 'Percentage tiers must have a Value (e.g. 100, 95, 90).';
+      }
+      if (!Number.isFinite(t.surcharge_minor) || (t.surcharge_minor as number) < 0) return 'Surcharge must be >= 0.';
+    }
+
+    // overlap check
+    for (let i = 0; i < tiersSorted.length - 1; i++) {
+      const a = tiersSorted[i];
+      const b = tiersSorted[i + 1];
+      const aEnd = a.to_hours === undefined ? Infinity : a.to_hours;
+      const bStart = b.from_hours as number;
+      if (aEnd >= bStart) {
+        return 'Hourly tiers overlap. Please ensure each tier range does not overlap the next one.';
+      }
+    }
+
+    return null;
+  }
 
   function loadForm(row: ServiceTypeRow) {
     setForm({
@@ -116,10 +157,17 @@ export default function ServiceTypesPage() {
       toll_enabled: row.toll_enabled ?? false,
       waypoint_charge_enabled: row.waypoint_charge_enabled ?? false,
     });
-    setTiers(row.hourly_tiers ?? []);
+    const next = normalizeTiers(row.hourly_tiers ?? []);
+    setTiers(next);
+    setTierError(validateTiers(next));
   }
 
   async function handleCreate() {
+    const nextTiers = normalizeTiers(tiers);
+    const err = form.calculation_type === 'HOURLY_CHARTER' ? validateTiers(nextTiers) : null;
+    setTierError(err);
+    if (err) return;
+
     await api.post('/service-types', {
       display_name: form.display_name,
       calculation_type: form.calculation_type,
@@ -133,15 +181,22 @@ export default function ServiceTypesPage() {
       km_per_hour_included: Number(form.km_per_hour_included),
       toll_enabled: form.toll_enabled,
       waypoint_charge_enabled: form.waypoint_charge_enabled,
-      hourly_tiers: tiers,
+      hourly_tiers: nextTiers,
     });
     setForm(emptyForm);
     setTiers([]);
+    setTierError(null);
     await refetch();
   }
 
   async function handleUpdate() {
     if (!editingId) return;
+
+    const nextTiers = normalizeTiers(tiers);
+    const err = form.calculation_type === 'HOURLY_CHARTER' ? validateTiers(nextTiers) : null;
+    setTierError(err);
+    if (err) return;
+
     await api.patch(`/service-types/${editingId}`, {
       display_name: form.display_name,
       calculation_type: form.calculation_type,
@@ -155,11 +210,12 @@ export default function ServiceTypesPage() {
       km_per_hour_included: Number(form.km_per_hour_included),
       toll_enabled: form.toll_enabled,
       waypoint_charge_enabled: form.waypoint_charge_enabled,
-      hourly_tiers: tiers,
+      hourly_tiers: nextTiers,
     });
     setEditingId(null);
     setForm(emptyForm);
     setTiers([]);
+    setTierError(null);
     await refetch();
   }
 
@@ -263,11 +319,24 @@ export default function ServiceTypesPage() {
                 </div>
                 <Button
                   variant="secondary"
-                  onClick={() => setTiers((prev) => ([...prev, { from_hours: Number(form.minimum_hours) || 2, to_hours: undefined, type: 'PERCENTAGE', value: 100, surcharge_minor: 0 }]))}
+                  onClick={() => {
+                    setTiers((prev) => {
+                      const next: HourlyTier[] = [...prev, { from_hours: Number(form.minimum_hours) || 2, to_hours: undefined, type: 'PERCENTAGE' as const, value: 100, surcharge_minor: 0 }];
+                      const normalized = normalizeTiers(next);
+                      setTierError(validateTiers(normalized));
+                      return normalized;
+                    });
+                  }}
                 >
                   Add Tier
                 </Button>
               </div>
+
+              {tierError && (
+                <div className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                  {tierError}
+                </div>
+              )}
 
               {tiers.length === 0 ? (
                 <div className="text-sm text-gray-500">No tiers configured. Pricing will use base hourly calculation only.</div>
@@ -293,7 +362,12 @@ export default function ServiceTypesPage() {
                               value={t.from_hours ?? ''}
                               onChange={(e) => {
                                 const v = e.target.value;
-                                setTiers((prev) => prev.map((x, i) => i === idx ? { ...x, from_hours: v === '' ? undefined : Number(v) } : x));
+                                setTiers((prev) => {
+                                  const next = prev.map((x, i) => i === idx ? { ...x, from_hours: v === '' ? undefined : Number(v) } : x);
+                                  const normalized = normalizeTiers(next);
+                                  setTierError(validateTiers(normalized));
+                                  return normalized;
+                                });
                               }}
                             />
                           </td>
@@ -303,7 +377,12 @@ export default function ServiceTypesPage() {
                               value={t.to_hours ?? ''}
                               onChange={(e) => {
                                 const v = e.target.value;
-                                setTiers((prev) => prev.map((x, i) => i === idx ? { ...x, to_hours: v === '' ? undefined : Number(v) } : x));
+                                setTiers((prev) => {
+                                  const next = prev.map((x, i) => i === idx ? { ...x, to_hours: v === '' ? undefined : Number(v) } : x);
+                                  const normalized = normalizeTiers(next);
+                                  setTierError(validateTiers(normalized));
+                                  return normalized;
+                                });
                               }}
                             />
                           </td>
@@ -312,7 +391,12 @@ export default function ServiceTypesPage() {
                               value={t.type ?? 'PERCENTAGE'}
                               onChange={(e) => {
                                 const v = e.target.value as any;
-                                setTiers((prev) => prev.map((x, i) => i === idx ? { ...x, type: v } : x));
+                                setTiers((prev) => {
+                                  const next = prev.map((x, i) => i === idx ? { ...x, type: v } : x);
+                                  const normalized = normalizeTiers(next);
+                                  setTierError(validateTiers(normalized));
+                                  return normalized;
+                                });
                               }}
                             >
                               <option value="PERCENTAGE">Percentage</option>
@@ -325,7 +409,12 @@ export default function ServiceTypesPage() {
                               value={t.value ?? ''}
                               onChange={(e) => {
                                 const v = e.target.value;
-                                setTiers((prev) => prev.map((x, i) => i === idx ? { ...x, value: v === '' ? undefined : Number(v) } : x));
+                                setTiers((prev) => {
+                                  const next = prev.map((x, i) => i === idx ? { ...x, value: v === '' ? undefined : Number(v) } : x);
+                                  const normalized = normalizeTiers(next);
+                                  setTierError(validateTiers(normalized));
+                                  return normalized;
+                                });
                               }}
                             />
                             <div className="text-[11px] text-gray-400 mt-1">
@@ -339,14 +428,26 @@ export default function ServiceTypesPage() {
                               onChange={(e) => {
                                 const v = e.target.value;
                                 const minor = Math.round(Number(v || 0) * 100);
-                                setTiers((prev) => prev.map((x, i) => i === idx ? { ...x, surcharge_minor: Number.isFinite(minor) ? minor : 0 } : x));
+                                setTiers((prev) => {
+                                  const next = prev.map((x, i) => i === idx ? { ...x, surcharge_minor: Number.isFinite(minor) ? minor : 0 } : x);
+                                  const normalized = normalizeTiers(next);
+                                  setTierError(validateTiers(normalized));
+                                  return normalized;
+                                });
                               }}
                             />
                           </td>
                           <td className="py-2 pr-3 text-right">
                             <button
                               className="text-red-600 hover:underline"
-                              onClick={() => setTiers((prev) => prev.filter((_, i) => i !== idx))}
+                              onClick={() => {
+                                setTiers((prev) => {
+                                  const next = prev.filter((_, i) => i !== idx);
+                                  const normalized = normalizeTiers(next);
+                                  setTierError(validateTiers(normalized));
+                                  return normalized;
+                                });
+                              }}
                             >
                               Remove
                             </button>
