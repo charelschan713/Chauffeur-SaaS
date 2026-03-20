@@ -192,22 +192,27 @@ export class CustomerAuthService {
   }
 
   // ── OTP Verify ─────────────────────────────────────────────────────────────
-  async verifyOtp(dto: { tenantSlug: string; phone: string; otp: string }) {
+  async verifyOtp(dto: { tenantSlug: string; phone: string; phoneCode?: string; otp: string }) {
     const tenant = await this.getTenantBySlug(dto.tenantSlug);
 
     // Normalize phone to match sendOtp behavior
+    let phoneCode: string;
     let phoneNumber: string;
     let fullPhone: string;
     if (dto.phone.startsWith('+')) {
       const match = dto.phone.match(/^(\+\d{1,3})(\d+)$/);
-      const code = match ? match[1] : '';
-      const number = match ? match[2] : dto.phone.replace(/^\+\d{1,3}/, '').replace(/^0/, '');
-      phoneNumber = number;
-      fullPhone = `${code}${number}`;
+      if (match) {
+        phoneCode = match[1];
+        phoneNumber = match[2];
+      } else {
+        phoneCode = dto.phoneCode ?? '+61';
+        phoneNumber = dto.phone.replace(/^\+\d{1,3}/, '').replace(/^0/, '');
+      }
     } else {
+      phoneCode = dto.phoneCode ?? '+61';
       phoneNumber = dto.phone.replace(/^0/, '');
-      fullPhone = `+${phoneNumber}`;
     }
+    fullPhone = `${phoneCode}${phoneNumber}`;
 
     const rows = await this.db.query(
       `SELECT ca.customer_id, ca.otp_code, ca.otp_expires_at

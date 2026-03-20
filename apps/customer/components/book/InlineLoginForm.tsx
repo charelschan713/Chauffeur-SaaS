@@ -157,6 +157,7 @@ export function InlineLoginForm({ onSuccess, onBack }: InlineLoginFormProps) {
     try {
       const { data } = await api.post('/customer-auth/otp/verify', {
         tenantSlug,
+        phoneCode,
         phone: smsOtpPhone || toE164(phoneCode, phone),
         otp: smsOtp,
       });

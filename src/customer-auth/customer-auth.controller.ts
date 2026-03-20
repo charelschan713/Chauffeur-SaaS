@@ -31,7 +31,7 @@ export class CustomerAuthController {
   }
 
   @Post('otp/verify')
-  verifyOtp(@Body() body: { tenantSlug: string; phone: string; otp: string }) {
+  verifyOtp(@Body() body: { tenantSlug: string; phone: string; phoneCode?: string; otp: string }) {
     return this.svc.verifyOtp(body);
   }
 

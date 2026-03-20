@@ -108,7 +108,7 @@ export function LoginClient() {
     if (otpCode.length < 6) { setError('Please enter the 6-digit code'); return; }
     setError(''); setLoading(true);
     try {
-      const { data } = await api.post('/customer-auth/otp/verify', { tenantSlug, phone: phoneNum, otp: otpCode });
+      const { data } = await api.post('/customer-auth/otp/verify', { tenantSlug, phoneCode, phone: phoneNum, otp: otpCode });
       setAuth(data.accessToken, data.customerId, tenantSlug);
       // Phone OTP login = identity already verified — skip email verification
       router.push(getPostLoginPath());
