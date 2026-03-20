@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { fetchTenantInfo, fetchServiceTypes, fetchRoute, fetchQuote } from './api';
 
+import { withDefaults, type WidgetSettings } from './widgetConfig';
+
 interface TenantInfo {
   company_name: string;
   slug: string;
@@ -9,6 +11,7 @@ interface TenantInfo {
   custom_domain?: string | null;
   logo_url: string | null;
   primary_color: string;
+  widget_settings?: WidgetSettings | null;
 }
 
 interface ServiceType {
@@ -116,6 +119,10 @@ export function Widget({ slug }: { slug: string }) {
   const [waypoints, setWaypoints] = useState('');
   const [flightNumber, setFlightNumber] = useState('');
   const [returnFlightNumber, setReturnFlightNumber] = useState('');
+  const [promoCode, setPromoCode] = useState('');
+  const [infantSeats, setInfantSeats] = useState('0');
+  const [toddlerSeats, setToddlerSeats] = useState('0');
+  const [boosterSeats, setBoosterSeats] = useState('0');
   const allowReturnTrip = tenant?.booking_entry?.allow_return_trip ?? true;
 
   // Quote result
@@ -144,37 +151,47 @@ export function Widget({ slug }: { slug: string }) {
     setLoading(true);
     setError(null);
     try {
-      const waypointList = waypoints
-        .split(/\n|\r|\,/)
-        .map((w) => w.trim())
-        .filter(Boolean);
+      const waypointList = showWaypoints
+        ? waypoints
+            .split(/\n|\r|\,/)
+            .map((w) => w.trim())
+            .filter(Boolean)
+        : [];
       const route = await fetchRoute(slug, pickup, dropoff, waypointList);
       setRouteData(route);
       const pickupUtc = localToUtc(datetime, tenant?.timezone ?? 'Australia/Sydney');
 
       let returnRoute: { distance_km: number; duration_minutes: number } | null = null;
-      if (tripMode === 'RETURN') {
+      if (showReturn && tripMode === 'RETURN') {
         const returnWaypoints = [...waypointList].reverse();
         returnRoute = await fetchRoute(slug, dropoff, pickup, returnWaypoints);
       }
 
+      const effectiveTripMode = showReturn ? tripMode : 'ONE_WAY';
+
       const quote = await fetchQuote(slug, {
         service_type_id: serviceTypeId,
-        trip_mode: tripMode,
+        trip_mode: effectiveTripMode,
         pickup_address: pickup,
         dropoff_address: dropoff,
         pickup_at_utc: pickupUtc,
         timezone: tenant?.timezone ?? 'Australia/Sydney',
-        passenger_count: pax,
-        luggage_count: bags,
+        passenger_count: showPassengers ? pax : undefined,
+        luggage_count: showLuggage ? bags : undefined,
         distance_km: route.distance_km,
         duration_minutes: route.duration_minutes,
-        waypoints_count: waypointList.length,
-        return_waypoints_count: tripMode === 'RETURN' ? waypointList.length : undefined,
-        return_pickup_address: tripMode === 'RETURN' ? dropoff : undefined,
-        return_dropoff_address: tripMode === 'RETURN' ? pickup : undefined,
-        return_distance_km: tripMode === 'RETURN' ? returnRoute?.distance_km : undefined,
-        return_duration_minutes: tripMode === 'RETURN' ? returnRoute?.duration_minutes : undefined,
+        waypoints_count: showWaypoints ? waypointList.length : 0,
+        promo_code: showPromo ? (promoCode.trim().toUpperCase() || undefined) : undefined,
+        infant_seats: showBabySeats ? Number(infantSeats) : 0,
+        toddler_seats: showBabySeats ? Number(toddlerSeats) : 0,
+        booster_seats: showBabySeats ? Number(boosterSeats) : 0,
+        flight_number: showFlight ? (flightNumber.trim() || undefined) : undefined,
+        return_waypoints_count: (showReturn && effectiveTripMode === 'RETURN') ? waypointList.length : undefined,
+        return_pickup_address: (showReturn && effectiveTripMode === 'RETURN') ? dropoff : undefined,
+        return_dropoff_address: (showReturn && effectiveTripMode === 'RETURN') ? pickup : undefined,
+        return_distance_km: (showReturn && effectiveTripMode === 'RETURN') ? returnRoute?.distance_km : undefined,
+        return_duration_minutes: (showReturn && effectiveTripMode === 'RETURN') ? returnRoute?.duration_minutes : undefined,
+        return_flight_number: (showReturn && effectiveTripMode === 'RETURN' && showFlight) ? (returnFlightNumber.trim() || undefined) : undefined,
       });
       setQuoteData(quote);
       setStep(2);
@@ -194,8 +211,8 @@ export function Widget({ slug }: { slug: string }) {
       quote_id: quoteData.quote_id,
       car_type_id: result.service_class_id,
     });
-    if (flightNumber.trim()) params.set('flight_number', flightNumber.trim());
-    if (tripMode === 'RETURN' && returnFlightNumber.trim()) params.set('return_flight_number', returnFlightNumber.trim());
+    if (showFlight && flightNumber.trim()) params.set('flight_number', flightNumber.trim());
+    if (showReturn && tripMode === 'RETURN' && showFlight && returnFlightNumber.trim()) params.set('return_flight_number', returnFlightNumber.trim());
 
     // Portal base URL resolution (priority order):
     // 1. VITE_PORTAL_BASE_URL build-time env (e.g. https://aschauffeured.chauffeurssolution.com)
@@ -209,6 +226,14 @@ export function Widget({ slug }: { slug: string }) {
   }
 
   const primary = tenant?.primary_color ?? '#2563eb';
+  const ws = withDefaults(tenant?.widget_settings ?? null);
+  const showReturn = ws.returnTrip;
+  const showFlight = ws.flightNumber;
+  const showWaypoints = ws.waypoints;
+  const showPassengers = ws.passengers;
+  const showLuggage = ws.luggage;
+  const showBabySeats = ws.babySeats;
+  const showPromo = ws.promoCode;
   const btnStyle = {
     background: primary,
     color: '#fff',
@@ -284,28 +309,30 @@ export function Widget({ slug }: { slug: string }) {
             </div>
           )}
 
-          {/* Trip mode */}
-          <div style={{ display: 'flex', gap: 8 }}>
-            {(['ONE_WAY', 'RETURN'] as const).map((m) => (
-              <button
-                key={m}
-                onClick={() => setTripMode(m)}
-                style={{
-                  flex: 1,
-                  padding: '8px 0',
-                  borderRadius: 8,
-                  border: `2px solid ${tripMode === m ? primary : '#e5e7eb'}`,
-                  background: tripMode === m ? primary + '15' : '#fff',
-                  color: tripMode === m ? primary : '#374151',
-                  fontWeight: 600,
-                  fontSize: 13,
-                  cursor: 'pointer',
-                }}
-              >
-                {m === 'ONE_WAY' ? 'One Way' : 'Return'}
-              </button>
-            ))}
-          </div>
+          {/* Trip mode (optional) */}
+          {showReturn && (
+            <div style={{ display: 'flex', gap: 8 }}>
+              {(['ONE_WAY', 'RETURN'] as const).map((m) => (
+                <button
+                  key={m}
+                  onClick={() => setTripMode(m)}
+                  style={{
+                    flex: 1,
+                    padding: '8px 0',
+                    borderRadius: 8,
+                    border: `2px solid ${tripMode === m ? primary : '#e5e7eb'}`,
+                    background: tripMode === m ? primary + '15' : '#fff',
+                    color: tripMode === m ? primary : '#374151',
+                    fontWeight: 600,
+                    fontSize: 13,
+                    cursor: 'pointer',
+                  }}
+                >
+                  {m === 'ONE_WAY' ? 'One Way' : 'Return'}
+                </button>
+              ))}
+            </div>
+          )}
 
           {/* Pickup */}
           <div>
@@ -326,13 +353,15 @@ export function Widget({ slug }: { slug: string }) {
           </div>
 
           {/* Flight (optional) */}
-          <div>
-            <label style={labelStyle}>✈️ Flight (optional)</label>
-            <input value={flightNumber} onChange={(e) => setFlightNumber(e.target.value)} placeholder="e.g. QF401" style={inputStyle} />
-          </div>
+          {showFlight && (
+            <div>
+              <label style={labelStyle}>✈️ Flight (optional)</label>
+              <input value={flightNumber} onChange={(e) => setFlightNumber(e.target.value)} placeholder="e.g. QF401" style={inputStyle} />
+            </div>
+          )}
 
           {/* Return flight (optional) */}
-          {tripMode === 'RETURN' && (
+          {showFlight && tripMode === 'RETURN' && (
             <div>
               <label style={labelStyle}>✈️ Return flight (optional)</label>
               <input value={returnFlightNumber} onChange={(e) => setReturnFlightNumber(e.target.value)} placeholder="e.g. QF402" style={inputStyle} />
@@ -340,27 +369,35 @@ export function Widget({ slug }: { slug: string }) {
           )}
 
           {/* Waypoints */}
-          <div>
-            <label style={labelStyle}>🧭 Waypoints (optional, one per line)</label>
-            <textarea
-              value={waypoints}
-              onChange={(e) => setWaypoints(e.target.value)}
-              placeholder="Add stops between pickup and drop-off"
-              style={{ ...inputStyle, minHeight: 72 }}
-            />
-          </div>
+          {showWaypoints && (
+            <div>
+              <label style={labelStyle}>🧭 Waypoints (optional, one per line)</label>
+              <textarea
+                value={waypoints}
+                onChange={(e) => setWaypoints(e.target.value)}
+                placeholder="Add stops between pickup and drop-off"
+                style={{ ...inputStyle, minHeight: 72 }}
+              />
+            </div>
+          )}
 
           {/* Pax + Bags */}
-          <div style={{ display: 'flex', gap: 12 }}>
-            <div style={{ flex: 1 }}>
-              <label style={labelStyle}>👤 Passengers</label>
-              <input type="number" min={1} max={20} value={pax} onChange={(e) => setPax(Number(e.target.value))} style={inputStyle} />
+          {(showPassengers || showLuggage) && (
+            <div style={{ display: 'flex', gap: 12 }}>
+              {showPassengers && (
+                <div style={{ flex: 1 }}>
+                  <label style={labelStyle}>👤 Passengers</label>
+                  <input type="number" min={1} max={20} value={pax} onChange={(e) => setPax(Number(e.target.value))} style={inputStyle} />
+                </div>
+              )}
+              {showLuggage && (
+                <div style={{ flex: 1 }}>
+                  <label style={labelStyle}>🧳 Luggage</label>
+                  <input type="number" min={0} max={20} value={bags} onChange={(e) => setBags(Number(e.target.value))} style={inputStyle} />
+                </div>
+              )}
             </div>
-            <div style={{ flex: 1 }}>
-              <label style={labelStyle}>🧳 Luggage</label>
-              <input type="number" min={0} max={20} value={bags} onChange={(e) => setBags(Number(e.target.value))} style={inputStyle} />
-            </div>
-          </div>
+          )}
 
           <button onClick={handleGetQuote} disabled={loading} style={{ ...btnStyle, opacity: loading ? 0.7 : 1, marginTop: 14 }}>
             {loading ? 'Calculating...' : '🔍 Get Quote'}
