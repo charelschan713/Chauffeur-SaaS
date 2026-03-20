@@ -58,6 +58,10 @@ export interface PricingSnapshot {
   toll_parking_minor?: number;
   toll_minor?: number;
   parking_minor?: number;
+  leg1_toll_minor?: number | null;
+  leg2_toll_minor?: number | null;
+  leg1_parking_minor?: number | null;
+  leg2_parking_minor?: number | null;
   grand_total_minor?: number;
   discount_source_customer_id?: string | null;
   base_calculated_minor?: number;
