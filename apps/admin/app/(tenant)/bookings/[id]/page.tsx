@@ -230,10 +230,10 @@ function BookingDetailInner() {
               </Badge>
             )}
             <Button variant="secondary" onClick={() => setPaymentOpen(true)}>
-              💳 Payment
+              Payment
             </Button>
             <Button variant="secondary" onClick={() => setModifyOpen(true)}>
-              ✏️ Modify Booking
+              Modify Booking
             </Button>
             {booking.operational_status === 'COMPLETED' && (
               <Button
