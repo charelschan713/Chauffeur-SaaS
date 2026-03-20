@@ -1191,13 +1191,13 @@ export default function CreateBookingPage() {
                           <div className="text-gray-500">Outbound price: ${toDisplay(bd.leg1_minor)}</div>
                         )}
                         {(bd.leg1_surcharge_minor ?? 0) > 0 && (
-                          <div className="text-amber-600">Outbound surcharge: +${toDisplay(bd.leg1_surcharge_minor)}</div>
+                          <div className="text-amber-600">Outbound {(bd.surcharge_items?.[0]?.label || bd.surcharge_labels?.[0] || 'surcharge')}: +${toDisplay(bd.leg1_surcharge_minor)}</div>
                         )}
                         {(bd.leg2_minor ?? 0) > 0 && (
                           <div className="text-gray-500">Return price: ${toDisplay(bd.leg2_minor)}</div>
                         )}
                         {(bd.leg2_surcharge_minor ?? 0) > 0 && (
-                          <div className="text-amber-600">Return surcharge: +${toDisplay(bd.leg2_surcharge_minor)}</div>
+                          <div className="text-amber-600">Return {(bd.surcharge_items?.[0]?.label || bd.surcharge_labels?.[0] || 'surcharge')}: +${toDisplay(bd.leg2_surcharge_minor)}</div>
                         )}
                         {(bd.toll_minor ?? 0) > 0 && (
                           <div className="text-amber-600">Toll: +${toDisplay(bd.toll_minor)}</div>

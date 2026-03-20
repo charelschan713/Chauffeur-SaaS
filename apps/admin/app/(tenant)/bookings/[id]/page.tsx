@@ -728,6 +728,7 @@ function BookingDetailInner() {
                   const hasReturn = typeof leg2 === 'number' && leg2 > 0;
                   const leg1S = typeof snap.leg1_surcharge_minor === 'number' ? snap.leg1_surcharge_minor : 0;
                   const leg2S = typeof snap.leg2_surcharge_minor === 'number' ? snap.leg2_surcharge_minor : 0;
+                  const surchargeLabel = snap?.surcharge_items?.[0]?.label || snap?.surcharge_labels?.[0] || 'Surcharge';
                   const toll = typeof snap.toll_minor === 'number' ? snap.toll_minor : 0;
                   const parking = typeof snap.parking_minor === 'number' ? snap.parking_minor : 0;
                   const discountMinor = typeof snap.discount_amount_minor === 'number' ? snap.discount_amount_minor : 0;
@@ -740,12 +741,12 @@ function BookingDetailInner() {
                   return (
                     <>
                       {leg1 > 0 && <div className="flex justify-between"><span className="text-gray-500">Outbound price</span><span>{fmt(leg1)}</span></div>}
-                      {leg1S > 0 && <div className="flex justify-between"><span className="text-gray-500">Outbound surcharge</span><span>+{fmt(leg1S)}</span></div>}
+                      {leg1S > 0 && <div className="flex justify-between"><span className="text-gray-500">Outbound {surchargeLabel}</span><span>+{fmt(leg1S)}</span></div>}
 
                       {hasReturn && (
                         <>
                           {leg2 > 0 && <div className="flex justify-between"><span className="text-gray-500">Return price</span><span>{toMoney(leg2)}</span></div>}
-                          {leg2S > 0 && <div className="flex justify-between"><span className="text-gray-500">Return surcharge</span><span>+{fmt(leg2S)}</span></div>}
+                          {leg2S > 0 && <div className="flex justify-between"><span className="text-gray-500">Return {surchargeLabel}</span><span>+{fmt(leg2S)}</span></div>}
                         </>
                       )}
 
