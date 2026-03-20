@@ -51,6 +51,9 @@ type QuoteResult = {
     extras_minor?: number;
     toll_minor?: number;
     parking_minor?: number;
+    /** Optional split toll by leg (outbound/return). */
+    leg1_toll_minor?: number;
+    leg2_toll_minor?: number;
     leg1_minor?: number;
     leg1_surcharge_minor?: number;
     leg2_minor?: number;
@@ -813,9 +816,10 @@ export function QuoteClient() {
                                   </>
                                 )}
                                 {(() => {
-                                  const leg1Toll = (preview as any)?.leg1_toll_minor ?? 0;
-                                  const leg2Toll = (preview as any)?.leg2_toll_minor ?? 0;
+                                  const leg1Toll = typeof preview.leg1_toll_minor === 'number' ? preview.leg1_toll_minor : 0;
+                                  const leg2Toll = typeof preview.leg2_toll_minor === 'number' ? preview.leg2_toll_minor : 0;
                                   const hasSplit = leg1Toll > 0 || leg2Toll > 0;
+                                  // Backward-compatible fallback: older API payloads only provide total toll_minor.
                                   if (!hasSplit) return toll > 0 ? <span className="text-gray-500">Toll: +{fmtMoney(toll, currency)}</span> : null;
                                   return (
                                     <>
