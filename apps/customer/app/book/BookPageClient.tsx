@@ -626,16 +626,20 @@ export function BookPageClient() {
               )}
             </div>
 
-            {/* Pickup datetime + flight (optional) */}
+            {/* Pickup datetime + flight (from widget only) */}
             <div className="space-y-1.5">
               <div className="flex items-start gap-2 text-[hsl(var(--muted-foreground))]">
                 <Clock className="h-3.5 w-3.5 mt-0.5 shrink-0 text-[hsl(var(--primary)/0.7)]" />
                 <span className="font-medium text-[hsl(var(--foreground)/0.9)]">{pickupDate}</span>
               </div>
-              <div className="pl-6">
-                <Label className="text-[10px] uppercase tracking-widest text-[hsl(var(--muted-foreground)/0.7)]">Flight (optional)</Label>
-                <Input value={flightNumber} onChange={e => setFlightNumber(e.target.value)} placeholder="e.g. QF401" />
-              </div>
+              {flightNumber && (
+                <div className="pl-6">
+                  <Label className="text-[10px] uppercase tracking-widest text-[hsl(var(--muted-foreground)/0.7)]">Flight</Label>
+                  <div className="rounded-[--radius] border border-[hsl(var(--input-border))] bg-[hsl(var(--input))] px-3 py-2.5 text-sm text-[hsl(var(--foreground))]">
+                    {flightNumber}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Pickup → Dropoff route */}
@@ -698,10 +702,14 @@ export function BookPageClient() {
                     </span>
                     <span className="text-[10px] text-[hsl(var(--muted-foreground)/0.6)] uppercase tracking-wide">Return</span>
                   </div>
-                  <div className="pl-6">
-                    <Label className="text-[10px] uppercase tracking-widest text-[hsl(var(--muted-foreground)/0.7)]">Return flight (optional)</Label>
-                    <Input value={returnFlightNumber} onChange={e => setReturnFlightNumber(e.target.value)} placeholder="e.g. QF402" />
-                  </div>
+                  {returnFlightNumber && (
+                    <div className="pl-6">
+                      <Label className="text-[10px] uppercase tracking-widest text-[hsl(var(--muted-foreground)/0.7)]">Return Flight</Label>
+                      <div className="rounded-[--radius] border border-[hsl(var(--input-border))] bg-[hsl(var(--input))] px-3 py-2.5 text-sm text-[hsl(var(--foreground))]">
+                        {returnFlightNumber}
+                      </div>
+                    </div>
+                  )}
                 </div>
                 <div className="relative pl-5">
                   <div className="absolute left-[6px] top-2 bottom-2 w-px bg-[hsl(var(--border))]" />
