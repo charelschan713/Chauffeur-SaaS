@@ -737,7 +737,7 @@ export function QuoteClient() {
 
           {/* Get Quote CTA */}
           <button onClick={handleGetQuote} disabled={quoting||seatError||!pickup||!date||!time}
-            className={cn('w-full h-12 rounded-lg font-semibold text-base tracking-wide transition-all duration-300 flex items-center justify-center gap-2',
+            className={cn('mt-4 w-full h-12 rounded-lg font-semibold text-base tracking-wide transition-all duration-300 flex items-center justify-center gap-2',
               'bg-gradient-to-r from-[hsl(var(--primary))] to-[hsl(var(--primary)/0.8)] text-[hsl(var(--primary-foreground))]',
               'hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed')}>
             {quoting ? <><Loader2 className="h-4 w-4 animate-spin"/> Calculating...</> : <>{quoteResults.length>0?'↻ Recalculate':'Get Instant Quote'} <ChevronRight className="h-4 w-4"/></>}
