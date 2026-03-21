@@ -200,6 +200,35 @@
   cursor: pointer;
 }
 
+#chauffeur-quote .cw-add-stop {
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.12);
+  cursor: pointer;
+  text-align: left;
+  padding: 8px 12px;
+  border-radius: 12px;
+  color: hsl(var(--muted-foreground));
+  font-weight: 600;
+  transition: var(--transition-base, all 0.2s ease);
+}
+#chauffeur-quote .cw-add-stop:hover { border-color: hsl(var(--primary) / 0.55); color: hsl(var(--foreground)); }
+
+#chauffeur-quote .cw-seat-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+#chauffeur-quote .cw-select {
+  width: 100%;
+  height: 44px;
+  border-radius: 0.9rem;
+  border: 1px solid hsl(var(--border) / 0.7);
+  background: hsl(var(--card) / 0.55);
+  color: hsl(var(--foreground));
+  padding: 0 12px;
+  appearance: none;
+}
+
 /* Make clickable fields look clickable */
 #chauffeur-quote select.cw-input,
 #chauffeur-quote input[type="date"].cw-input,

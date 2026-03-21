@@ -124,6 +124,7 @@ export function Widget({ slug }: { slug: string }) {
   const [infantSeats, setInfantSeats] = useState('0');
   const [toddlerSeats, setToddlerSeats] = useState('0');
   const [boosterSeats, setBoosterSeats] = useState('0');
+  const seatOptions = ['0','1','2','3','4','5'];
   const allowReturnTrip = tenant?.booking_entry?.allow_return_trip ?? true;
 
   // Quote result
@@ -466,8 +467,7 @@ export function Widget({ slug }: { slug: string }) {
                           return next;
                         });
                       }}
-                      className="cw-muted"
-                      style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.12)', cursor: 'pointer', textAlign: 'left', padding: '6px 10px', borderRadius: 10 }}
+                      className="cw-add-stop"
                     >
                       + Add stop
                     </button>
@@ -562,34 +562,28 @@ export function Widget({ slug }: { slug: string }) {
             </>
           )}
 
-          {/* Baby seats (v2: 3-column steppers like original) */}
+          {/* Baby seats (match portal: dropdowns) */}
           {showBabySeats && (
             <div className="cw-span-2">
-              <div className="cw-label">Baby seats</div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+              <div className="cw-label">Baby Seats (optional)</div>
+              <div className="cw-seat-grid">
                 <div>
                   <div className="cw-muted" style={{ fontSize: 12, marginBottom: 6 }}>Infant</div>
-                  <div className="cw-stepper">
-                    <button type="button" onClick={() => setInfantSeats((v) => String(Math.max(0, Number(v) - 1)))}>−</button>
-                    <div className="cw-stepper-value">{infantSeats}</div>
-                    <button type="button" onClick={() => setInfantSeats((v) => String(Math.min(9, Number(v) + 1)))}>+</button>
-                  </div>
+                  <select className="cw-select" value={infantSeats} onChange={(e) => setInfantSeats(e.target.value)}>
+                    {seatOptions.map((v) => (<option key={`infant-${v}`} value={v}>{v}</option>))}
+                  </select>
                 </div>
                 <div>
                   <div className="cw-muted" style={{ fontSize: 12, marginBottom: 6 }}>Toddler</div>
-                  <div className="cw-stepper">
-                    <button type="button" onClick={() => setToddlerSeats((v) => String(Math.max(0, Number(v) - 1)))}>−</button>
-                    <div className="cw-stepper-value">{toddlerSeats}</div>
-                    <button type="button" onClick={() => setToddlerSeats((v) => String(Math.min(9, Number(v) + 1)))}>+</button>
-                  </div>
+                  <select className="cw-select" value={toddlerSeats} onChange={(e) => setToddlerSeats(e.target.value)}>
+                    {seatOptions.map((v) => (<option key={`toddler-${v}`} value={v}>{v}</option>))}
+                  </select>
                 </div>
                 <div>
                   <div className="cw-muted" style={{ fontSize: 12, marginBottom: 6 }}>Booster</div>
-                  <div className="cw-stepper">
-                    <button type="button" onClick={() => setBoosterSeats((v) => String(Math.max(0, Number(v) - 1)))}>−</button>
-                    <div className="cw-stepper-value">{boosterSeats}</div>
-                    <button type="button" onClick={() => setBoosterSeats((v) => String(Math.min(9, Number(v) + 1)))}>+</button>
-                  </div>
+                  <select className="cw-select" value={boosterSeats} onChange={(e) => setBoosterSeats(e.target.value)}>
+                    {seatOptions.map((v) => (<option key={`booster-${v}`} value={v}>{v}</option>))}
+                  </select>
                 </div>
               </div>
             </div>
