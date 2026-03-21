@@ -81,18 +81,36 @@
   width: 100%;
   height: 44px;
   border-radius: 0.9rem;
-  border: 1px solid hsl(var(--input-border) / 0.7);
-  background: hsl(var(--card) / 0.55);
-  color: hsl(var(--foreground));
+  border: 1px solid hsl(var(--input-border) / 0.7) !important;
+  background: hsl(var(--card) / 0.55) !important;
+  color: hsl(var(--foreground)) !important;
   padding: 0 0.9rem;
   outline: none;
   box-shadow: var(--shadow-sm);
+  appearance: none;
+  -webkit-appearance: none;
+  color-scheme: dark;
 }
 #chauffeur-quote .cw-input:focus {
-  border-color: hsl(var(--primary) / 0.75);
+  border-color: hsl(var(--primary) / 0.75) !important;
   box-shadow: 0 0 0 3px rgba(200,169,107,0.22);
 }
-#chauffeur-quote .cw-input::placeholder { color: rgba(255,255,255,.38); }
+#chauffeur-quote .cw-input::placeholder { color: rgba(255,255,255,.38) !important; }
+
+/* Make native controls (especially datetime/select) obey dark styling even under host page CSS */
+#chauffeur-quote input.cw-input,
+#chauffeur-quote select.cw-input,
+#chauffeur-quote textarea.cw-input {
+  background-color: hsl(var(--card) / 0.55) !important;
+  color: hsl(var(--foreground)) !important;
+}
+#chauffeur-quote select.cw-input option {
+  background: hsl(var(--card)) !important;
+  color: hsl(var(--foreground)) !important;
+}
+#chauffeur-quote input[type="datetime-local"].cw-input::-webkit-calendar-picker-indicator {
+  filter: invert(1) opacity(.85);
+}
 
 #chauffeur-quote .cw-btn-primary {
   width: 100%;
