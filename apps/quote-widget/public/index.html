@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Quote Widget Preview</title>
+    <style>
+      body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#0b0c10;padding:24px;}
+    </style>
+  </head>
+  <body>
+    <div id="chauffeur-quote" data-tenant=""></div>
+
+    <script>
+      (function(){
+        const params = new URLSearchParams(location.search);
+        const tenant = params.get('tenant') || 'aschauffeured';
+        const v = params.get('v') || '';
+        document.getElementById('chauffeur-quote').dataset.tenant = tenant;
+
+        const theme = document.createElement('link');
+        theme.rel = 'stylesheet';
+        theme.href = '/themes/' + tenant + '.css' + (v ? ('?v=' + encodeURIComponent(v)) : '');
+        document.head.appendChild(theme);
+
+        const s = document.createElement('script');
+        s.src = '/quote.js?tenant=' + encodeURIComponent(tenant) + (v ? ('&v=' + encodeURIComponent(v)) : '');
+        s.async = true;
+        document.body.appendChild(s);
+      })();
+    </script>
+  </body>
+</html>
