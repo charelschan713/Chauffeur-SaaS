@@ -358,46 +358,6 @@ export function Widget({ slug }: { slug: string }) {
             </div>
           )}
 
-          {showReturn && tripMode === 'RETURN' && (
-            <div>
-              <div className="cw-label">Return date & time</div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                <input
-                  type="date"
-                  value={returnDatetime ? returnDatetime.split('T')[0] : ''}
-                  onChange={(e) => {
-                    const d = e.target.value;
-                    const t = returnDatetime?.split('T')[1] ?? '';
-                    setReturnDatetime(d && t ? `${d}T${t}` : (d ? `${d}T` : ''));
-                  }}
-                  className="cw-input"
-                  style={{
-                    backgroundColor: 'hsl(var(--card) / 0.55)',
-                    color: 'hsl(var(--foreground))',
-                    borderColor: 'hsl(var(--input-border) / 0.7)',
-                    WebkitTextFillColor: 'hsl(var(--foreground))',
-                  }}
-                />
-                <input
-                  type="time"
-                  value={returnDatetime && returnDatetime.includes('T') ? (returnDatetime.split('T')[1] ?? '').slice(0,5) : ''}
-                  onChange={(e) => {
-                    const t = e.target.value;
-                    const d = returnDatetime?.split('T')[0] ?? '';
-                    setReturnDatetime(d && t ? `${d}T${t}` : (t ? `T${t}` : ''));
-                  }}
-                  className="cw-input"
-                  style={{
-                    backgroundColor: 'hsl(var(--card) / 0.55)',
-                    color: 'hsl(var(--foreground))',
-                    borderColor: 'hsl(var(--input-border) / 0.7)',
-                    WebkitTextFillColor: 'hsl(var(--foreground))',
-                  }}
-                />
-              </div>
-            </div>
-          )}
-
           {/* Pickup */}
           <div>
             <div className="cw-label">Pickup location</div>
@@ -414,6 +374,55 @@ export function Widget({ slug }: { slug: string }) {
               }}
             />
           </div>
+
+          {/* Stops (between pickup and drop-off) */}
+          {showWaypoints && (
+            <div>
+              <div className="cw-label">Stops (optional)</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {parseWaypoints(waypoints).map((wp, idx) => (
+                  <div key={idx} style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                    <input
+                      value={wp}
+                      onChange={(e) => {
+                        const list = parseWaypoints(waypoints);
+                        list[idx] = e.target.value;
+                        setWaypoints(list.join('\n'));
+                      }}
+                      placeholder={`Stop ${idx + 1}`}
+                      className="cw-input"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const list = parseWaypoints(waypoints).filter((_, i) => i !== idx);
+                        setWaypoints(list.join('\n'));
+                      }}
+                      className="cw-muted"
+                      style={{ background: 'transparent', border: 0, cursor: 'pointer' }}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ))}
+
+                {parseWaypoints(waypoints).length < 5 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const list = parseWaypoints(waypoints);
+                      list.push('');
+                      setWaypoints(list.join('\n'));
+                    }}
+                    className="cw-muted"
+                    style={{ background: 'transparent', border: 0, cursor: 'pointer', textAlign: 'left' }}
+                  >
+                    + Add stop
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Dropoff */}
           <div>
@@ -471,6 +480,46 @@ export function Widget({ slug }: { slug: string }) {
             </div>
           </div>
 
+          {showReturn && tripMode === 'RETURN' && (
+            <div>
+              <div className="cw-label">Return date & time</div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                <input
+                  type="date"
+                  value={returnDatetime ? returnDatetime.split('T')[0] : ''}
+                  onChange={(e) => {
+                    const d = e.target.value;
+                    const t = returnDatetime?.split('T')[1] ?? '';
+                    setReturnDatetime(d && t ? `${d}T${t}` : (d ? `${d}T` : ''));
+                  }}
+                  className="cw-input"
+                  style={{
+                    backgroundColor: 'hsl(var(--card) / 0.55)',
+                    color: 'hsl(var(--foreground))',
+                    borderColor: 'hsl(var(--input-border) / 0.7)',
+                    WebkitTextFillColor: 'hsl(var(--foreground))',
+                  }}
+                />
+                <input
+                  type="time"
+                  value={returnDatetime && returnDatetime.includes('T') ? (returnDatetime.split('T')[1] ?? '').slice(0,5) : ''}
+                  onChange={(e) => {
+                    const t = e.target.value;
+                    const d = returnDatetime?.split('T')[0] ?? '';
+                    setReturnDatetime(d && t ? `${d}T${t}` : (t ? `T${t}` : ''));
+                  }}
+                  className="cw-input"
+                  style={{
+                    backgroundColor: 'hsl(var(--card) / 0.55)',
+                    color: 'hsl(var(--foreground))',
+                    borderColor: 'hsl(var(--input-border) / 0.7)',
+                    WebkitTextFillColor: 'hsl(var(--foreground))',
+                  }}
+                />
+              </div>
+            </div>
+          )}
+
           {/* Flight (optional) */}
           {showFlight && (
             <div>
@@ -509,54 +558,6 @@ export function Widget({ slug }: { slug: string }) {
             </div>
           )}
 
-          {/* Waypoints (v2: dynamic rows) */}
-          {showWaypoints && (
-            <div>
-              <div className="cw-label">Stops (optional)</div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {parseWaypoints(waypoints).map((wp, idx) => (
-                  <div key={idx} style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-                    <input
-                      value={wp}
-                      onChange={(e) => {
-                        const list = parseWaypoints(waypoints);
-                        list[idx] = e.target.value;
-                        setWaypoints(list.join('\n'));
-                      }}
-                      placeholder={`Stop ${idx + 1}`}
-                      className="cw-input"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const list = parseWaypoints(waypoints).filter((_, i) => i !== idx);
-                        setWaypoints(list.join('\n'));
-                      }}
-                      className="cw-muted"
-                      style={{ background: 'transparent', border: 0, cursor: 'pointer' }}
-                    >
-                      Remove
-                    </button>
-                  </div>
-                ))}
-
-                {parseWaypoints(waypoints).length < 5 && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const list = parseWaypoints(waypoints);
-                      list.push('');
-                      setWaypoints(list.join('\n'));
-                    }}
-                    className="cw-muted"
-                    style={{ background: 'transparent', border: 0, cursor: 'pointer', textAlign: 'left' }}
-                  >
-                    + Add stop
-                  </button>
-                )}
-              </div>
-            </div>
-          )}
 
           {/* Passengers / Luggage (v2: steppers) */}
           {(showPassengers || showLuggage) && (
