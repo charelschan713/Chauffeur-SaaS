@@ -41,3 +41,4 @@ Thumbs.db
 
 # TypeScript
 *.tsbuildinfo
+apps/quote-widget/dist
