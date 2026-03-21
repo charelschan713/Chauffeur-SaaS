@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { fetchTenantInfo, fetchServiceTypes, fetchRoute, fetchQuote } from './api';
+import { fetchTenantInfo, fetchServiceTypes, fetchCities, fetchRoute, fetchQuote } from './api';
 
 import { withDefaults, type WidgetSettings } from './widgetConfig';
 import { normalizeWaypointsForRoute } from './waypoints';
@@ -14,6 +14,14 @@ interface TenantInfo {
   logo_url: string | null;
   primary_color: string;
   widget_settings?: WidgetSettings | null;
+}
+
+interface City {
+  id: string;
+  name: string;
+  timezone: string;
+  lat?: number;
+  lng?: number;
 }
 
 interface ServiceType {
@@ -103,19 +111,21 @@ function localToUtc(localDatetime: string, tz: string): string {
 
 export function Widget({ slug }: { slug: string }) {
   const [tenant, setTenant] = useState<TenantInfo | null>(null);
+  const [cities, setCities] = useState<City[]>([]);
   const [serviceTypes, setServiceTypes] = useState<ServiceType[]>([]);
   const [step, setStep] = useState<1 | 2>(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Form state
+  const [cityId, setCityId] = useState('');
   const [serviceTypeId, setServiceTypeId] = useState('');
   const [pickup, setPickup] = useState('');
   const [dropoff, setDropoff] = useState('');
   const [datetime, setDatetime] = useState('');
   const [returnDatetime, setReturnDatetime] = useState('');
-  const [pax, setPax] = useState(2);
-  const [bags, setBags] = useState(1);
+  const [pax, setPax] = useState(1);
+  const [bags, setBags] = useState(0);
   const [tripMode, setTripMode] = useState<'ONE_WAY' | 'RETURN'>('ONE_WAY');
   const [waypoints, setWaypoints] = useState<string[]>([]);
   const [flightNumber, setFlightNumber] = useState('');
@@ -126,10 +136,20 @@ export function Widget({ slug }: { slug: string }) {
   const [boosterSeats, setBoosterSeats] = useState('0');
   const seatOptions = ['0','1','2','3','4','5'];
   const allowReturnTrip = tenant?.booking_entry?.allow_return_trip ?? true;
+  const selectedCity = cities.find((c) => c.id === cityId);
+  const selectedServiceType = serviceTypes.find((s) => s.id === serviceTypeId);
+  const isHourly = selectedServiceType?.calculation_type === 'HOURLY_CHARTER';
+  const effectiveTripMode = isHourly ? 'ONE_WAY' : tripMode;
 
   // Quote result
   const [quoteData, setQuoteData] = useState<QuoteData | null>(null);
   const [routeData, setRouteData] = useState<{ distance_km: number; duration_minutes: number } | null>(null);
+
+  const clearQuote = () => {
+    setQuoteData(null);
+    setRouteData(null);
+    setStep(1);
+  };
 
   useEffect(() => {
     fetchTenantInfo(slug)
@@ -138,6 +158,14 @@ export function Widget({ slug }: { slug: string }) {
         document.documentElement.style.setProperty('--asc-primary', t.primary_color);
       })
       .catch(() => setError('Could not load booking widget.'));
+
+    fetchCities(slug)
+      .then((rows) => {
+        setCities(rows);
+        if (rows.length > 0) setCityId(rows[0].id);
+      })
+      .catch(() => {});
+
     fetchServiceTypes(slug)
       .then((types) => {
         setServiceTypes(types);
@@ -150,7 +178,7 @@ export function Widget({ slug }: { slug: string }) {
       setError('Please fill in all required fields (pickup, drop-off, date/time, service).');
       return;
     }
-    if (showReturn && tripMode === 'RETURN' && !returnDatetime) {
+    if (showReturn && effectiveTripMode === 'RETURN' && !returnDatetime) {
       setError('Please fill in return date & time.');
       return;
     }
@@ -163,20 +191,19 @@ export function Widget({ slug }: { slug: string }) {
       const pickupUtc = localToUtc(datetime, tenant?.timezone ?? 'Australia/Sydney');
 
       let returnRoute: { distance_km: number; duration_minutes: number } | null = null;
-      if (showReturn && tripMode === 'RETURN') {
+      if (showReturn && effectiveTripMode === 'RETURN' && !isHourly) {
         const returnWaypoints = [...waypointList].reverse();
         returnRoute = await fetchRoute(slug, dropoff, pickup, returnWaypoints);
       }
 
-      const returnPickupUtc = (showReturn && tripMode === 'RETURN')
+      const returnPickupUtc = (showReturn && effectiveTripMode === 'RETURN')
         ? localToUtc(returnDatetime, tenant?.timezone ?? 'Australia/Sydney')
         : undefined;
 
-      const effectiveTripMode = showReturn ? tripMode : 'ONE_WAY';
-
       const quote = await fetchQuote(slug, {
+        city_id: cityId || undefined,
         service_type_id: serviceTypeId,
-        trip_mode: effectiveTripMode,
+        trip_mode: showReturn ? effectiveTripMode : 'ONE_WAY',
         pickup_address: pickup,
         dropoff_address: dropoff,
         pickup_at_utc: pickupUtc,
@@ -193,13 +220,13 @@ export function Widget({ slug }: { slug: string }) {
         flight_number: showFlight ? (flightNumber.trim() || undefined) : undefined,
 
         // Return leg
-        return_pickup_at_utc: (showReturn && effectiveTripMode === 'RETURN') ? returnPickupUtc : undefined,
-        return_waypoints_count: (showReturn && effectiveTripMode === 'RETURN') ? waypointList.length : undefined,
-        return_pickup_address: (showReturn && effectiveTripMode === 'RETURN') ? dropoff : undefined,
-        return_dropoff_address: (showReturn && effectiveTripMode === 'RETURN') ? pickup : undefined,
-        return_distance_km: (showReturn && effectiveTripMode === 'RETURN') ? returnRoute?.distance_km : undefined,
-        return_duration_minutes: (showReturn && effectiveTripMode === 'RETURN') ? returnRoute?.duration_minutes : undefined,
-        return_flight_number: (showReturn && effectiveTripMode === 'RETURN' && showFlight) ? (returnFlightNumber.trim() || undefined) : undefined,
+        return_pickup_at_utc: (showReturn && effectiveTripMode === 'RETURN' && !isHourly) ? returnPickupUtc : undefined,
+        return_waypoints_count: (showReturn && effectiveTripMode === 'RETURN' && !isHourly) ? waypointList.length : undefined,
+        return_pickup_address: (showReturn && effectiveTripMode === 'RETURN' && !isHourly) ? dropoff : undefined,
+        return_dropoff_address: (showReturn && effectiveTripMode === 'RETURN' && !isHourly) ? pickup : undefined,
+        return_distance_km: (showReturn && effectiveTripMode === 'RETURN' && !isHourly) ? returnRoute?.distance_km : undefined,
+        return_duration_minutes: (showReturn && effectiveTripMode === 'RETURN' && !isHourly) ? returnRoute?.duration_minutes : undefined,
+        return_flight_number: (showReturn && effectiveTripMode === 'RETURN' && showFlight && !isHourly) ? (returnFlightNumber.trim() || undefined) : undefined,
       });
       setQuoteData(quote);
       setStep(2);
@@ -308,13 +335,35 @@ export function Widget({ slug }: { slug: string }) {
 
       {step === 1 && (
         <div className="cw-form cw-panel">
-          {/* Service Type */}
-          {serviceTypes.length > 1 && (
+          {/* City */}
+          {cities.length > 0 && (
             <div className="cw-span-2">
-              <div className="cw-label">Service type</div>
+              <div className="cw-label">City</div>
+              <select
+                value={cityId}
+                onChange={(e) => { setCityId(e.target.value); clearQuote(); }}
+                className="cw-input"
+                style={{
+                  backgroundColor: 'hsl(var(--card) / 0.55)',
+                  color: 'hsl(var(--foreground))',
+                  borderColor: 'hsl(var(--input-border) / 0.7)',
+                  WebkitTextFillColor: 'hsl(var(--foreground))',
+                }}
+              >
+                {cities.map((c) => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {/* Service Type */}
+          {serviceTypes.length > 0 && (
+            <div className="cw-span-2">
+              <div className="cw-label">Service Type</div>
               <select
                 value={serviceTypeId}
-                onChange={(e) => setServiceTypeId(e.target.value)}
+                onChange={(e) => { setServiceTypeId(e.target.value); clearQuote(); }}
                 className="cw-input"
                 style={{
                   backgroundColor: 'hsl(var(--card) / 0.55)',
@@ -330,22 +379,18 @@ export function Widget({ slug }: { slug: string }) {
             </div>
           )}
 
-          {/* Trip mode (optional) */}
+          {/* Trip type (match portal select) */}
           {showReturn && (
-            <div className="cw-span-2" style={{ display: 'flex', gap: 10 }}>
-              {(['ONE_WAY', 'RETURN'] as const).map((m) => {
-                const active = tripMode === m;
-                return (
-                  <button
-                    key={m}
-                    type="button"
-                    onClick={() => setTripMode(m)}
-                    className={`cw-toggle ${active ? 'cw-toggle-active' : ''}`}
-                  >
-                    {m === 'ONE_WAY' ? 'One Way' : 'Return'}
-                  </button>
-                );
-              })}
+            <div className="cw-span-2">
+              <div className="cw-label">Trip Type</div>
+              <select
+                value={effectiveTripMode}
+                onChange={(e) => { setTripMode(e.target.value as 'ONE_WAY' | 'RETURN'); clearQuote(); }}
+                className="cw-input"
+              >
+                <option value="ONE_WAY">One Way</option>
+                <option value="RETURN" disabled={isHourly}>Return</option>
+              </select>
             </div>
           )}
 
@@ -362,6 +407,7 @@ export function Widget({ slug }: { slug: string }) {
                     const d = e.target.value;
                     const t = datetime?.split('T')[1] ?? '';
                     setDatetime(d && t ? `${d}T${t}` : (d ? `${d}T` : ''));
+                    clearQuote();
                   }}
                 />
               </div>
@@ -374,6 +420,7 @@ export function Widget({ slug }: { slug: string }) {
                     const t = e.target.value;
                     const d = datetime?.split('T')[0] ?? '';
                     setDatetime(d && t ? `${d}T${t}` : (t ? `T${t}` : ''));
+                    clearQuote();
                   }}
                 />
               </div>
@@ -402,9 +449,10 @@ export function Widget({ slug }: { slug: string }) {
                 id="widget-pickup"
                 name="widget-pickup"
                 value={pickup}
-                onChange={(v) => setPickup(v)}
+                onChange={(v) => { setPickup(v); clearQuote(); }}
                 placeholder="Airport, hotel or address..."
                 pinColor="gold"
+                cityBias={selectedCity?.lat && selectedCity?.lng ? { lat: selectedCity.lat, lng: selectedCity.lng } : undefined}
               />
             </div>
 
@@ -424,9 +472,11 @@ export function Widget({ slug }: { slug: string }) {
                           const next = [...waypoints];
                           next[idx] = v;
                           setWaypoints(next);
+                          clearQuote();
                         }}
                         placeholder="Intermediate stop..."
                         pinColor="muted"
+                        cityBias={selectedCity?.lat && selectedCity?.lng ? { lat: selectedCity.lat, lng: selectedCity.lng } : undefined}
                       />
                       <button
                         type="button"
@@ -483,9 +533,10 @@ export function Widget({ slug }: { slug: string }) {
                 id="widget-dropoff"
                 name="widget-dropoff"
                 value={dropoff}
-                onChange={(v) => setDropoff(v)}
+                onChange={(v) => { setDropoff(v); clearQuote(); }}
                 placeholder="Airport, hotel or destination..."
                 pinColor="muted"
+                cityBias={selectedCity?.lat && selectedCity?.lng ? { lat: selectedCity.lat, lng: selectedCity.lng } : undefined}
               />
             </div>
           </div>
@@ -503,6 +554,7 @@ export function Widget({ slug }: { slug: string }) {
                       const d = e.target.value;
                       const t = returnDatetime?.split('T')[1] ?? '';
                       setReturnDatetime(d && t ? `${d}T${t}` : (d ? `${d}T` : ''));
+                      clearQuote();
                     }}
                   />
                 </div>
@@ -515,6 +567,7 @@ export function Widget({ slug }: { slug: string }) {
                       const t = e.target.value;
                       const d = returnDatetime?.split('T')[0] ?? '';
                       setReturnDatetime(d && t ? `${d}T${t}` : (t ? `T${t}` : ''));
+                      clearQuote();
                     }}
                   />
                 </div>

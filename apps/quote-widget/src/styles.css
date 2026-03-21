@@ -100,6 +100,15 @@
   gap: 12px;
 }
 
+@media (max-width: 640px) {
+  #chauffeur-quote .cw-shell { padding: 1rem; border-radius: 1rem; }
+  #chauffeur-quote .cw-panel { padding: .85rem; border-radius: .9rem; }
+  #chauffeur-quote .cw-input { height: 44px; }
+  #chauffeur-quote .cw-date-btn { height: 44px; font-size: 12px; }
+  #chauffeur-quote .cw-btn-primary { height: 46px; font-size: 14px; }
+  #chauffeur-quote .cw-seat-grid { grid-template-columns: 1fr; }
+}
+
 @media (min-width: 700px) {
   #chauffeur-quote .cw-form {
     grid-template-columns: 1fr 1fr;
