@@ -18,13 +18,23 @@
         const v = params.get('v') || '';
         document.getElementById('chauffeur-quote').dataset.tenant = tenant;
 
+        const base = '';
+
+        // Base widget styles
+        const css = document.createElement('link');
+        css.rel = 'stylesheet';
+        css.href = base + '/quote-widget.css' + (v ? ('?v=' + encodeURIComponent(v)) : '');
+        document.head.appendChild(css);
+
+        // Optional fusion-layer theme overrides
         const theme = document.createElement('link');
         theme.rel = 'stylesheet';
-        theme.href = '/themes/' + tenant + '.css' + (v ? ('?v=' + encodeURIComponent(v)) : '');
+        theme.href = base + '/themes/' + tenant + '.css' + (v ? ('?v=' + encodeURIComponent(v)) : '');
         document.head.appendChild(theme);
 
+        // Widget script
         const s = document.createElement('script');
-        s.src = '/quote.js?tenant=' + encodeURIComponent(tenant) + (v ? ('&v=' + encodeURIComponent(v)) : '');
+        s.src = base + '/quote.js?tenant=' + encodeURIComponent(tenant) + (v ? ('&v=' + encodeURIComponent(v)) : '');
         s.async = true;
         document.body.appendChild(s);
       })();
