@@ -361,18 +361,40 @@ export function Widget({ slug }: { slug: string }) {
           {showReturn && tripMode === 'RETURN' && (
             <div>
               <div className="cw-label">Return date & time</div>
-              <input
-                type="datetime-local"
-                value={returnDatetime}
-                onChange={(e) => setReturnDatetime(e.target.value)}
-                className="cw-input"
-                style={{
-                  backgroundColor: 'hsl(var(--card) / 0.55)',
-                  color: 'hsl(var(--foreground))',
-                  borderColor: 'hsl(var(--input-border) / 0.7)',
-                  WebkitTextFillColor: 'hsl(var(--foreground))',
-                }}
-              />
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                <input
+                  type="date"
+                  value={returnDatetime ? returnDatetime.split('T')[0] : ''}
+                  onChange={(e) => {
+                    const d = e.target.value;
+                    const t = returnDatetime?.split('T')[1] ?? '';
+                    setReturnDatetime(d && t ? `${d}T${t}` : (d ? `${d}T` : ''));
+                  }}
+                  className="cw-input"
+                  style={{
+                    backgroundColor: 'hsl(var(--card) / 0.55)',
+                    color: 'hsl(var(--foreground))',
+                    borderColor: 'hsl(var(--input-border) / 0.7)',
+                    WebkitTextFillColor: 'hsl(var(--foreground))',
+                  }}
+                />
+                <input
+                  type="time"
+                  value={returnDatetime && returnDatetime.includes('T') ? (returnDatetime.split('T')[1] ?? '').slice(0,5) : ''}
+                  onChange={(e) => {
+                    const t = e.target.value;
+                    const d = returnDatetime?.split('T')[0] ?? '';
+                    setReturnDatetime(d && t ? `${d}T${t}` : (t ? `T${t}` : ''));
+                  }}
+                  className="cw-input"
+                  style={{
+                    backgroundColor: 'hsl(var(--card) / 0.55)',
+                    color: 'hsl(var(--foreground))',
+                    borderColor: 'hsl(var(--input-border) / 0.7)',
+                    WebkitTextFillColor: 'hsl(var(--foreground))',
+                  }}
+                />
+              </div>
             </div>
           )}
 
@@ -413,18 +435,40 @@ export function Widget({ slug }: { slug: string }) {
           {/* Date & Time */}
           <div>
             <div className="cw-label">Pickup date & time</div>
-            <input
-              type="datetime-local"
-              value={datetime}
-              onChange={(e) => setDatetime(e.target.value)}
-              className="cw-input"
-              style={{
-                backgroundColor: 'hsl(var(--card) / 0.55)',
-                color: 'hsl(var(--foreground))',
-                borderColor: 'hsl(var(--input-border) / 0.7)',
-                WebkitTextFillColor: 'hsl(var(--foreground))',
-              }}
-            />
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+              <input
+                type="date"
+                value={datetime ? datetime.split('T')[0] : ''}
+                onChange={(e) => {
+                  const d = e.target.value;
+                  const t = datetime?.split('T')[1] ?? '';
+                  setDatetime(d && t ? `${d}T${t}` : (d ? `${d}T` : ''));
+                }}
+                className="cw-input"
+                style={{
+                  backgroundColor: 'hsl(var(--card) / 0.55)',
+                  color: 'hsl(var(--foreground))',
+                  borderColor: 'hsl(var(--input-border) / 0.7)',
+                  WebkitTextFillColor: 'hsl(var(--foreground))',
+                }}
+              />
+              <input
+                type="time"
+                value={datetime && datetime.includes('T') ? (datetime.split('T')[1] ?? '').slice(0,5) : ''}
+                onChange={(e) => {
+                  const t = e.target.value;
+                  const d = datetime?.split('T')[0] ?? '';
+                  setDatetime(d && t ? `${d}T${t}` : (t ? `T${t}` : ''));
+                }}
+                className="cw-input"
+                style={{
+                  backgroundColor: 'hsl(var(--card) / 0.55)',
+                  color: 'hsl(var(--foreground))',
+                  borderColor: 'hsl(var(--input-border) / 0.7)',
+                  WebkitTextFillColor: 'hsl(var(--foreground))',
+                }}
+              />
+            </div>
           </div>
 
           {/* Flight (optional) */}
