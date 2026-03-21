@@ -112,6 +112,7 @@ export function Widget({ slug }: { slug: string }) {
   const [pickup, setPickup] = useState('');
   const [dropoff, setDropoff] = useState('');
   const [datetime, setDatetime] = useState('');
+  const [returnDatetime, setReturnDatetime] = useState('');
   const [pax, setPax] = useState(2);
   const [bags, setBags] = useState(1);
   const [tripMode, setTripMode] = useState<'ONE_WAY' | 'RETURN'>('ONE_WAY');
@@ -147,6 +148,10 @@ export function Widget({ slug }: { slug: string }) {
       setError('Please fill in all required fields (pickup, drop-off, date/time, service).');
       return;
     }
+    if (showReturn && tripMode === 'RETURN' && !returnDatetime) {
+      setError('Please fill in return date & time.');
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
@@ -160,6 +165,10 @@ export function Widget({ slug }: { slug: string }) {
         const returnWaypoints = [...waypointList].reverse();
         returnRoute = await fetchRoute(slug, dropoff, pickup, returnWaypoints);
       }
+
+      const returnPickupUtc = (showReturn && tripMode === 'RETURN')
+        ? localToUtc(returnDatetime, tenant?.timezone ?? 'Australia/Sydney')
+        : undefined;
 
       const effectiveTripMode = showReturn ? tripMode : 'ONE_WAY';
 
@@ -180,6 +189,9 @@ export function Widget({ slug }: { slug: string }) {
         toddler_seats: showBabySeats ? Number(toddlerSeats) : 0,
         booster_seats: showBabySeats ? Number(boosterSeats) : 0,
         flight_number: showFlight ? (flightNumber.trim() || undefined) : undefined,
+
+        // Return leg
+        return_pickup_at_utc: (showReturn && effectiveTripMode === 'RETURN') ? returnPickupUtc : undefined,
         return_waypoints_count: (showReturn && effectiveTripMode === 'RETURN') ? waypointList.length : undefined,
         return_pickup_address: (showReturn && effectiveTripMode === 'RETURN') ? dropoff : undefined,
         return_dropoff_address: (showReturn && effectiveTripMode === 'RETURN') ? pickup : undefined,
@@ -316,6 +328,7 @@ export function Widget({ slug }: { slug: string }) {
                 return (
                   <button
                     key={m}
+                    type="button"
                     onClick={() => setTripMode(m)}
                     className="cw-input"
                     style={{
@@ -332,6 +345,13 @@ export function Widget({ slug }: { slug: string }) {
                   </button>
                 );
               })}
+            </div>
+          )}
+
+          {showReturn && tripMode === 'RETURN' && (
+            <div>
+              <div className="cw-label">Return date & time</div>
+              <input type="datetime-local" value={returnDatetime} onChange={(e) => setReturnDatetime(e.target.value)} className="cw-input" />
             </div>
           )}
 
