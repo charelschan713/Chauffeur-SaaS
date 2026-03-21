@@ -359,86 +359,8 @@ export function Widget({ slug }: { slug: string }) {
             </div>
           )}
 
-          {/* Pickup */}
-          <div>
-            <div className="cw-label">Pickup location</div>
-            <PlacesAutocomplete
-              tenantSlug={tenant?.slug ?? slug}
-              id="widget-pickup"
-              name="widget-pickup"
-              value={pickup}
-              onChange={(v) => setPickup(v)}
-              placeholder="Airport, hotel or address..."
-              pinColor="gold"
-              className=""
-            />
-          </div>
-
-          {/* Stops (between pickup and drop-off) */}
-          {showWaypoints && (
-            <div>
-              <div className="cw-label">Stops (optional)</div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {waypoints.map((wp, idx) => (
-                  <div key={idx} style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-                    <PlacesAutocomplete
-                      tenantSlug={tenant?.slug ?? slug}
-                      id={`waypoint-${idx}`}
-                      name={`waypoint-${idx}`}
-                      value={wp}
-                      onChange={(v) => {
-                        const next = [...waypoints];
-                        next[idx] = v;
-                        setWaypoints(next);
-                      }}
-                      placeholder="Intermediate stop..."
-                      pinColor="muted"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const next = waypoints.filter((_, i) => i !== idx);
-                        setWaypoints(next);
-                      }}
-                      className="cw-muted"
-                      style={{ background: 'transparent', border: 0, cursor: 'pointer' }}
-                    >
-                      Remove
-                    </button>
-                  </div>
-                ))}
-
-                {waypoints.length < 5 && (
-                  <button
-                    type="button"
-                    onClick={() => setWaypoints((prev) => [...prev, ''])}
-                    className="cw-muted"
-                    style={{ background: 'transparent', border: 0, cursor: 'pointer', textAlign: 'left' }}
-                  >
-                    + Add stop
-                  </button>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Dropoff */}
-          <div>
-            <div className="cw-label">Drop-off location</div>
-            <PlacesAutocomplete
-              tenantSlug={tenant?.slug ?? slug}
-              id="widget-dropoff"
-              name="widget-dropoff"
-              value={dropoff}
-              onChange={(v) => setDropoff(v)}
-              placeholder="Airport, hotel or destination..."
-              pinColor="muted"
-              className=""
-            />
-          </div>
-
-          {/* Date & Time */}
-          <div>
+          {/* Date & Time (full width like legacy widget) */}
+          <div className="cw-span-2">
             <div className="cw-label">Pickup date & time</div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
               <input
@@ -450,12 +372,7 @@ export function Widget({ slug }: { slug: string }) {
                   setDatetime(d && t ? `${d}T${t}` : (d ? `${d}T` : ''));
                 }}
                 className="cw-input"
-                style={{
-                  backgroundColor: 'hsl(var(--card) / 0.55)',
-                  color: 'hsl(var(--foreground))',
-                  borderColor: 'hsl(var(--input-border) / 0.7)',
-                  WebkitTextFillColor: 'hsl(var(--foreground))',
-                }}
+                style={{ backgroundColor: 'hsl(var(--card) / 0.55)', color: 'hsl(var(--foreground))', borderColor: 'hsl(var(--input-border) / 0.7)', WebkitTextFillColor: 'hsl(var(--foreground))' }}
               />
               <input
                 type="time"
@@ -466,20 +383,105 @@ export function Widget({ slug }: { slug: string }) {
                   setDatetime(d && t ? `${d}T${t}` : (t ? `T${t}` : ''));
                 }}
                 className="cw-input"
-                style={{
-                  backgroundColor: 'hsl(var(--card) / 0.55)',
-                  color: 'hsl(var(--foreground))',
-                  borderColor: 'hsl(var(--input-border) / 0.7)',
-                  WebkitTextFillColor: 'hsl(var(--foreground))',
-                }}
+                style={{ backgroundColor: 'hsl(var(--card) / 0.55)', color: 'hsl(var(--foreground))', borderColor: 'hsl(var(--input-border) / 0.7)', WebkitTextFillColor: 'hsl(var(--foreground))' }}
+              />
+            </div>
+
+            {showFlight && (
+              <div style={{ marginTop: 10 }}>
+                <div className="cw-label">Flight number (optional)</div>
+                <input
+                  value={flightNumber}
+                  onChange={(e) => setFlightNumber(e.target.value)}
+                  placeholder="e.g. QF401"
+                  className="cw-input"
+                  style={{ backgroundColor: 'hsl(var(--card) / 0.55)', color: 'hsl(var(--foreground))', borderColor: 'hsl(var(--input-border) / 0.7)', WebkitTextFillColor: 'hsl(var(--foreground))' }}
+                />
+              </div>
+            )}
+          </div>
+
+          {/* Addresses (like legacy widget) */}
+          <div className="cw-span-2" style={{ display: 'grid', gap: 12 }}>
+            <div>
+              <div className="cw-label">Pickup location</div>
+              <PlacesAutocomplete
+                tenantSlug={tenant?.slug ?? slug}
+                id="widget-pickup"
+                name="widget-pickup"
+                value={pickup}
+                onChange={(v) => setPickup(v)}
+                placeholder="Airport, hotel or address..."
+                pinColor="gold"
+              />
+            </div>
+
+            {/* Stops (between pickup and drop-off) */}
+            {showWaypoints && (
+              <div>
+                <div className="cw-label">Stops (optional)</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {waypoints.map((wp, idx) => (
+                    <div key={idx} style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                      <PlacesAutocomplete
+                        tenantSlug={tenant?.slug ?? slug}
+                        id={`waypoint-${idx}`}
+                        name={`waypoint-${idx}`}
+                        value={wp}
+                        onChange={(v) => {
+                          const next = [...waypoints];
+                          next[idx] = v;
+                          setWaypoints(next);
+                        }}
+                        placeholder="Intermediate stop..."
+                        pinColor="muted"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const next = waypoints.filter((_, i) => i !== idx);
+                          setWaypoints(next);
+                        }}
+                        className="cw-muted"
+                        style={{ background: 'transparent', border: 0, cursor: 'pointer' }}
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ))}
+
+                  {waypoints.length < 5 && (
+                    <button
+                      type="button"
+                      onClick={() => setWaypoints((prev) => [...prev, ''])}
+                      className="cw-muted"
+                      style={{ background: 'transparent', border: 0, cursor: 'pointer', textAlign: 'left' }}
+                    >
+                      + Add stop
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+
+            <div>
+              <div className="cw-label">Drop-off location</div>
+              <PlacesAutocomplete
+                tenantSlug={tenant?.slug ?? slug}
+                id="widget-dropoff"
+                name="widget-dropoff"
+                value={dropoff}
+                onChange={(v) => setDropoff(v)}
+                placeholder="Airport, hotel or destination..."
+                pinColor="muted"
               />
             </div>
           </div>
 
           {showReturn && tripMode === 'RETURN' && (
-            <div>
-              <div className="cw-label">Return date & time</div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <div className="cw-span-2" style={{ paddingTop: 10, borderTop: '1px solid rgba(255,255,255,0.12)' }}>
+              <div className="cw-label" style={{ color: 'hsl(var(--primary))' }}>Return trip</div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 6 }}>
                 <input
                   type="date"
                   value={returnDatetime ? returnDatetime.split('T')[0] : ''}
@@ -489,12 +491,7 @@ export function Widget({ slug }: { slug: string }) {
                     setReturnDatetime(d && t ? `${d}T${t}` : (d ? `${d}T` : ''));
                   }}
                   className="cw-input"
-                  style={{
-                    backgroundColor: 'hsl(var(--card) / 0.55)',
-                    color: 'hsl(var(--foreground))',
-                    borderColor: 'hsl(var(--input-border) / 0.7)',
-                    WebkitTextFillColor: 'hsl(var(--foreground))',
-                  }}
+                  style={{ backgroundColor: 'hsl(var(--card) / 0.55)', color: 'hsl(var(--foreground))', borderColor: 'hsl(var(--input-border) / 0.7)', WebkitTextFillColor: 'hsl(var(--foreground))' }}
                 />
                 <input
                   type="time"
@@ -505,52 +502,22 @@ export function Widget({ slug }: { slug: string }) {
                     setReturnDatetime(d && t ? `${d}T${t}` : (t ? `T${t}` : ''));
                   }}
                   className="cw-input"
-                  style={{
-                    backgroundColor: 'hsl(var(--card) / 0.55)',
-                    color: 'hsl(var(--foreground))',
-                    borderColor: 'hsl(var(--input-border) / 0.7)',
-                    WebkitTextFillColor: 'hsl(var(--foreground))',
-                  }}
+                  style={{ backgroundColor: 'hsl(var(--card) / 0.55)', color: 'hsl(var(--foreground))', borderColor: 'hsl(var(--input-border) / 0.7)', WebkitTextFillColor: 'hsl(var(--foreground))' }}
                 />
               </div>
-            </div>
-          )}
 
-          {/* Flight (optional) */}
-          {showFlight && (
-            <div>
-              <div className="cw-label">Flight number (optional)</div>
-              <input
-                value={flightNumber}
-                onChange={(e) => setFlightNumber(e.target.value)}
-                placeholder="e.g. QF401"
-                className="cw-input"
-                style={{
-                  backgroundColor: 'hsl(var(--card) / 0.55)',
-                  color: 'hsl(var(--foreground))',
-                  borderColor: 'hsl(var(--input-border) / 0.7)',
-                  WebkitTextFillColor: 'hsl(var(--foreground))',
-                }}
-              />
-            </div>
-          )}
-
-          {/* Return flight (optional) */}
-          {showFlight && tripMode === 'RETURN' && (
-            <div>
-              <div className="cw-label">Return flight number (optional)</div>
-              <input
-                value={returnFlightNumber}
-                onChange={(e) => setReturnFlightNumber(e.target.value)}
-                placeholder="e.g. QF402"
-                className="cw-input"
-                style={{
-                  backgroundColor: 'hsl(var(--card) / 0.55)',
-                  color: 'hsl(var(--foreground))',
-                  borderColor: 'hsl(var(--input-border) / 0.7)',
-                  WebkitTextFillColor: 'hsl(var(--foreground))',
-                }}
-              />
+              {showFlight && (
+                <div style={{ marginTop: 10 }}>
+                  <div className="cw-label">Return flight (optional)</div>
+                  <input
+                    value={returnFlightNumber}
+                    onChange={(e) => setReturnFlightNumber(e.target.value)}
+                    placeholder="e.g. QF402"
+                    className="cw-input"
+                    style={{ backgroundColor: 'hsl(var(--card) / 0.55)', color: 'hsl(var(--foreground))', borderColor: 'hsl(var(--input-border) / 0.7)', WebkitTextFillColor: 'hsl(var(--foreground))' }}
+                  />
+                </div>
+              )}
             </div>
           )}
 
