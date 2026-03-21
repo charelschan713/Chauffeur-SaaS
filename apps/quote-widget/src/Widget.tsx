@@ -287,18 +287,15 @@ export function Widget({ slug }: { slug: string }) {
   return (
     <div className="cw-shell">
       {/* Header */}
-      <div style={{ marginBottom: 16, textAlign: 'center' }}>
+      <div className="cw-header">
         {tenant?.logo_url && (
           // eslint-disable-next-line @typescript-eslint/ban-ts-comment
           // @ts-ignore
-          <img src={tenant.logo_url} alt={tenant.company_name} style={{ height: 38, marginBottom: 8 }} />
+          <img src={tenant.logo_url} alt={tenant.company_name} className="cw-logo" />
         )}
-        <div className="cw-title" style={{ fontSize: 18 }}>
-          {tenant?.company_name ?? 'Instant Quote'}
-        </div>
-        <div className="cw-muted" style={{ fontSize: 12, marginTop: 4 }}>
-          Instant Fare Estimate
-        </div>
+        <div className="cw-title">{tenant?.company_name ?? 'Instant Quote'}</div>
+        <div className="cw-subtitle">Get Your Quote in Seconds</div>
+        <div className="cw-muted">Instant Fare Estimate</div>
       </div>
 
       {error && (
@@ -308,7 +305,7 @@ export function Widget({ slug }: { slug: string }) {
       )}
 
       {step === 1 && (
-        <div className="cw-form">
+        <div className="cw-form cw-panel">
           {/* Service Type */}
           {serviceTypes.length > 1 && (
             <div className="cw-span-2">
@@ -609,107 +606,64 @@ export function Widget({ slug }: { slug: string }) {
       )}
 
       {step === 2 && quoteData && (
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-            <button
-              onClick={() => setStep(1)}
-              style={{ background: 'none', border: 'none', color: primary, cursor: 'pointer', fontWeight: 600, fontSize: 13, padding: 0 }}
-            >
+        <div className="cw-panel">
+          <div className="cw-results-header">
+            <button onClick={() => setStep(1)} className="cw-back">
               ← Back
             </button>
-            <span style={{ color: '#6b7280', fontSize: 13 }}>
+            <span className="cw-muted">
               {routeData?.distance_km?.toFixed(1)} km · {routeData?.duration_minutes} min
             </span>
           </div>
 
           {quoteData.results.length === 0 ? (
-            <div style={{ textAlign: 'center', color: '#6b7280', padding: 24 }}>No vehicles available for this route.</div>
+            <div className="cw-empty">No vehicles available for this route.</div>
           ) : (
-            quoteData.results.map((r) => (
-              <div key={r.service_class_id} style={cardStyle}>
-                <div>
-                  <div style={{ fontWeight: 700, fontSize: 15, color: '#111', marginBottom: 2 }}>{r.service_class_name}</div>
-                  <div style={{ fontSize: 22, fontWeight: 800, color: primary }}>
-                    {fmt(r.pricing_snapshot_preview?.final_fare_minor ?? 0, r.currency)}
-                  </div>
-                  <div style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>Estimated price</div>
-                  {r.pricing_snapshot_preview ? (
-                    <div
-                      style={{
-                        marginTop: 8,
-                        fontSize: 12,
-                        color: '#374151',
-                        lineHeight: 1.35,
-                        display: 'grid',
-                        gap: 2,
-                        width: 220,
-                      }}
-                    >
-                      {r.pricing_snapshot_preview.leg1_minor != null && (
-                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                          <span>Outbound price</span>
-                          <span>{toMoney(r.pricing_snapshot_preview.leg1_minor, r.currency)}</span>
-                        </div>
-                      )}
-                      {(r.pricing_snapshot_preview.leg1_surcharge_minor ?? 0) > 0 && (
-                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                          <span>Outbound surcharge</span>
-                          <span>+{toMoney(r.pricing_snapshot_preview.leg1_surcharge_minor, r.currency)}</span>
-                        </div>
-                      )}
-                      {typeof r.pricing_snapshot_preview.leg2_minor === 'number' && r.pricing_snapshot_preview.leg2_minor > 0 && (
-                        <>
-                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                            <span>Return price</span>
-                            <span>{toMoney(r.pricing_snapshot_preview.leg2_minor!, r.currency)}</span>
-                          </div>
-                          {(r.pricing_snapshot_preview.leg2_surcharge_minor ?? 0) > 0 && (
-                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                              <span>Return surcharge</span>
-                              <span>+{toMoney(r.pricing_snapshot_preview.leg2_surcharge_minor, r.currency)}</span>
-                            </div>
-                          )}
-                        </>
-                      )}
-                      {(r.pricing_snapshot_preview.toll_minor ?? 0) > 0 && (
-                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                          <span>Toll</span>
-                          <span>+{toMoney(r.pricing_snapshot_preview.toll_minor, r.currency)}</span>
-                        </div>
-                      )}
-                      {(r.pricing_snapshot_preview.parking_minor ?? 0) > 0 && (
-                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                          <span>Parking</span>
-                          <span>+{toMoney(r.pricing_snapshot_preview.parking_minor, r.currency)}</span>
-                        </div>
-                      )}
-                      {r.pricing_snapshot_preview.discount_amount_minor > 0 && (
-                        <div style={{ display: 'flex', justifyContent: 'space-between', color: '#047857' }}>
-                          <span>{r.discount?.name ?? 'Discount'}</span>
-                          <span>-{toMoney(r.pricing_snapshot_preview.discount_amount_minor, r.currency)}</span>
-                        </div>
-                      )}
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 700, marginTop: 2 }}>
-                        <span>Total</span>
-                        <span>{toMoney(r.pricing_snapshot_preview.final_fare_minor ?? 0, r.currency)}</span>
-                      </div>
+            <div className="cw-results">
+              {quoteData.results.map((r) => (
+                <div key={r.service_class_id} className="cw-card">
+                  <div className="cw-card-main">
+                    <div className="cw-card-title">{r.service_class_name}</div>
+                    <div className="cw-card-price">
+                      {fmt(r.pricing_snapshot_preview?.final_fare_minor ?? 0, r.currency)}
                     </div>
-                  ) : null}
+                    <div className="cw-card-sub">Estimated price</div>
+                    {r.pricing_snapshot_preview ? (
+                      <div className="cw-breakdown">
+                        {r.pricing_snapshot_preview.leg1_minor != null && (
+                          <div className="cw-breakdown-row"><span>Outbound price</span><span>{toMoney(r.pricing_snapshot_preview.leg1_minor, r.currency)}</span></div>
+                        )}
+                        {(r.pricing_snapshot_preview.leg1_surcharge_minor ?? 0) > 0 && (
+                          <div className="cw-breakdown-row"><span>Outbound surcharge</span><span>+{toMoney(r.pricing_snapshot_preview.leg1_surcharge_minor, r.currency)}</span></div>
+                        )}
+                        {typeof r.pricing_snapshot_preview.leg2_minor === 'number' && r.pricing_snapshot_preview.leg2_minor > 0 && (
+                          <>
+                            <div className="cw-breakdown-row"><span>Return price</span><span>{toMoney(r.pricing_snapshot_preview.leg2_minor!, r.currency)}</span></div>
+                            {(r.pricing_snapshot_preview.leg2_surcharge_minor ?? 0) > 0 && (
+                              <div className="cw-breakdown-row"><span>Return surcharge</span><span>+{toMoney(r.pricing_snapshot_preview.leg2_surcharge_minor, r.currency)}</span></div>
+                            )}
+                          </>
+                        )}
+                        {(r.pricing_snapshot_preview.toll_minor ?? 0) > 0 && (
+                          <div className="cw-breakdown-row"><span>Toll</span><span>+{toMoney(r.pricing_snapshot_preview.toll_minor, r.currency)}</span></div>
+                        )}
+                        {(r.pricing_snapshot_preview.parking_minor ?? 0) > 0 && (
+                          <div className="cw-breakdown-row"><span>Parking</span><span>+{toMoney(r.pricing_snapshot_preview.parking_minor, r.currency)}</span></div>
+                        )}
+                        {r.pricing_snapshot_preview.discount_amount_minor > 0 && (
+                          <div className="cw-breakdown-row cw-breakdown-discount"><span>{r.discount?.name ?? 'Discount'}</span><span>-{toMoney(r.pricing_snapshot_preview.discount_amount_minor, r.currency)}</span></div>
+                        )}
+                        <div className="cw-breakdown-row cw-breakdown-total"><span>Total</span><span>{toMoney(r.pricing_snapshot_preview.final_fare_minor ?? 0, r.currency)}</span></div>
+                      </div>
+                    ) : null}
+                  </div>
+                  <button onClick={() => handleBookNow(r)} className="cw-btn-primary cw-card-cta">Book now</button>
                 </div>
-                <button
-                  onClick={() => handleBookNow(r)}
-                  className="cw-btn-primary"
-                  style={{ width: 'auto', padding: '0 14px', height: 42, marginLeft: 12 }}
-                >
-                  Book now
-                </button>
-              </div>
-            ))
+              ))}
+            </div>
           )}
 
-          <div style={{ fontSize: 11, color: '#9ca3af', textAlign: 'center', marginTop: 8 }}>
-            Prices are estimates. Final price confirmed at booking.
-          </div>
+          <div className="cw-footnote">Prices are estimates. Final price confirmed at booking.</div>
         </div>
       )}
     </div>
