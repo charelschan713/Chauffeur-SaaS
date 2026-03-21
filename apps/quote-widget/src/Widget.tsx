@@ -3,6 +3,7 @@ import { fetchTenantInfo, fetchServiceTypes, fetchRoute, fetchQuote } from './ap
 
 import { withDefaults, type WidgetSettings } from './widgetConfig';
 import { normalizeWaypointsForRoute } from './waypoints';
+import PlacesAutocomplete from './components/PlacesAutocomplete';
 
 interface TenantInfo {
   company_name: string;
@@ -361,17 +362,15 @@ export function Widget({ slug }: { slug: string }) {
           {/* Pickup */}
           <div>
             <div className="cw-label">Pickup location</div>
-            <input
+            <PlacesAutocomplete
+              tenantSlug={tenant?.slug ?? slug}
+              id="widget-pickup"
+              name="widget-pickup"
               value={pickup}
-              onChange={(e) => setPickup(e.target.value)}
+              onChange={(v) => setPickup(v)}
               placeholder="Airport, hotel or address..."
-              className="cw-input"
-              style={{
-                backgroundColor: 'hsl(var(--card) / 0.55)',
-                color: 'hsl(var(--foreground))',
-                borderColor: 'hsl(var(--input-border) / 0.7)',
-                WebkitTextFillColor: 'hsl(var(--foreground))',
-              }}
+              pinColor="gold"
+              className=""
             />
           </div>
 
@@ -382,15 +381,18 @@ export function Widget({ slug }: { slug: string }) {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {waypoints.map((wp, idx) => (
                   <div key={idx} style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-                    <input
+                    <PlacesAutocomplete
+                      tenantSlug={tenant?.slug ?? slug}
+                      id={`waypoint-${idx}`}
+                      name={`waypoint-${idx}`}
                       value={wp}
-                      onChange={(e) => {
+                      onChange={(v) => {
                         const next = [...waypoints];
-                        next[idx] = e.target.value;
+                        next[idx] = v;
                         setWaypoints(next);
                       }}
-                      placeholder={`Stop ${idx + 1}`}
-                      className="cw-input"
+                      placeholder="Intermediate stop..."
+                      pinColor="muted"
                     />
                     <button
                       type="button"
@@ -423,17 +425,15 @@ export function Widget({ slug }: { slug: string }) {
           {/* Dropoff */}
           <div>
             <div className="cw-label">Drop-off location</div>
-            <input
+            <PlacesAutocomplete
+              tenantSlug={tenant?.slug ?? slug}
+              id="widget-dropoff"
+              name="widget-dropoff"
               value={dropoff}
-              onChange={(e) => setDropoff(e.target.value)}
+              onChange={(v) => setDropoff(v)}
               placeholder="Airport, hotel or destination..."
-              className="cw-input"
-              style={{
-                backgroundColor: 'hsl(var(--card) / 0.55)',
-                color: 'hsl(var(--foreground))',
-                borderColor: 'hsl(var(--input-border) / 0.7)',
-                WebkitTextFillColor: 'hsl(var(--foreground))',
-              }}
+              pinColor="muted"
+              className=""
             />
           </div>
 
