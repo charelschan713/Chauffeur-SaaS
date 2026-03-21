@@ -178,6 +178,12 @@
   font-size: 13px;
 }
 
+/* Prevent CTA from crowding baby seats on small screens */
+@media (max-width: 520px) {
+  #chauffeur-quote .cw-btn-primary { margin-top: 18px; }
+  #chauffeur-quote .cw-form { gap: 14px; }
+}
+
 #chauffeur-quote .cw-muted {
   color: hsl(var(--muted-foreground));
 }

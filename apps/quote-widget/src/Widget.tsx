@@ -443,9 +443,20 @@ export function Widget({ slug }: { slug: string }) {
                           setWaypoints(next);
                         }}
                         className="cw-muted"
-                        style={{ background: 'transparent', border: 0, cursor: 'pointer' }}
+                        style={{
+                          background: 'transparent',
+                          border: 0,
+                          cursor: 'pointer',
+                          width: 36,
+                          height: 36,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          borderRadius: 12,
+                        }}
+                        aria-label="Remove stop"
                       >
-                        Remove
+                        ×
                       </button>
                     </div>
                   ))}
@@ -453,9 +464,19 @@ export function Widget({ slug }: { slug: string }) {
                   {waypoints.length < 5 && (
                     <button
                       type="button"
-                      onClick={() => setWaypoints((prev) => [...prev, ''])}
+                      onClick={() => {
+                        setWaypoints((prev) => {
+                          const next = [...prev, ''];
+                          // focus new row on next tick
+                          setTimeout(() => {
+                            const el = document.querySelector(`#waypoint-${next.length - 1} input`) as HTMLInputElement | null;
+                            el?.focus();
+                          }, 0);
+                          return next;
+                        });
+                      }}
                       className="cw-muted"
-                      style={{ background: 'transparent', border: 0, cursor: 'pointer', textAlign: 'left' }}
+                      style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.12)', cursor: 'pointer', textAlign: 'left', padding: '6px 10px', borderRadius: 10 }}
                     >
                       + Add stop
                     </button>
