@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { fetchTenantInfo, fetchServiceTypes, fetchRoute, fetchQuote } from './api';
 
 import { withDefaults, type WidgetSettings } from './widgetConfig';
+import { parseWaypoints } from './waypoints';
 
 interface TenantInfo {
   company_name: string;
@@ -91,14 +92,12 @@ function returnRuleLabel(mode?: string | null, value?: number | null) {
 }
 
 function localToUtc(localDatetime: string, tz: string): string {
-  // Parse local datetime string, return UTC ISO
-  try {
-    // Append tz info via Intl — simple approach for V1
-    const d = new Date(localDatetime);
-    return d.toISOString();
-  } catch {
-    return new Date(localDatetime).toISOString();
-  }
+  // Backend surcharge logic treats the provided datetime string as *local time* (no timezone conversion).
+  // So we deliberately send a naive local datetime string here.
+  // Example: "2026-03-21T23:30" → "2026-03-21T23:30:00"
+  if (!localDatetime) return '';
+  const hasSeconds = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/.test(localDatetime);
+  return hasSeconds ? localDatetime : `${localDatetime}:00`;
 }
 
 export function Widget({ slug }: { slug: string }) {
@@ -151,12 +150,7 @@ export function Widget({ slug }: { slug: string }) {
     setLoading(true);
     setError(null);
     try {
-      const waypointList = showWaypoints
-        ? waypoints
-            .split(/\n|\r|\,/)
-            .map((w) => w.trim())
-            .filter(Boolean)
-        : [];
+      const waypointList = showWaypoints ? parseWaypoints(waypoints) : [];
       const route = await fetchRoute(slug, pickup, dropoff, waypointList);
       setRouteData(route);
       const pickupUtc = localToUtc(datetime, tenant?.timezone ?? 'Australia/Sydney');
@@ -226,6 +220,36 @@ export function Widget({ slug }: { slug: string }) {
   }
 
   const primary = tenant?.primary_color ?? '#2563eb';
+  // Bridge old primary_color into HSL token if provided as hex
+  useEffect(() => {
+    if (!tenant?.primary_color) return;
+    const hex = tenant.primary_color.trim();
+    const m = hex.match(/^#?([0-9a-f]{6})$/i);
+    if (!m) return;
+    const n = parseInt(m[1], 16);
+    const r = (n >> 16) & 255;
+    const g = (n >> 8) & 255;
+    const b = n & 255;
+    // Convert to HSL and set --primary as H S% L%
+    const rf = r / 255, gf = g / 255, bf = b / 255;
+    const max = Math.max(rf, gf, bf), min = Math.min(rf, gf, bf);
+    let h = 0, s = 0;
+    const l = (max + min) / 2;
+    const d = max - min;
+    if (d !== 0) {
+      s = d / (1 - Math.abs(2 * l - 1));
+      switch (max) {
+        case rf: h = ((gf - bf) / d) % 6; break;
+        case gf: h = (bf - rf) / d + 2; break;
+        case bf: h = (rf - gf) / d + 4; break;
+      }
+      h = Math.round(h * 60);
+      if (h < 0) h += 360;
+    }
+    const hs = `${h} ${Math.round(s * 100)}% ${Math.round(l * 100)}%`;
+    document.documentElement.style.setProperty('--primary', hs);
+    document.documentElement.style.setProperty('--ring', hs);
+  }, [tenant?.primary_color]);
   const ws = withDefaults(tenant?.widget_settings ?? null);
   const showReturn = ws.returnTrip;
   const showFlight = ws.flightNumber;
@@ -234,17 +258,6 @@ export function Widget({ slug }: { slug: string }) {
   const showLuggage = ws.luggage;
   const showBabySeats = ws.babySeats;
   const showPromo = ws.promoCode;
-  const btnStyle = {
-    background: primary,
-    color: '#fff',
-    border: 'none',
-    borderRadius: 8,
-    padding: '10px 20px',
-    cursor: 'pointer',
-    fontWeight: 600,
-    fontSize: 14,
-    width: '100%',
-  };
 
   const cardStyle = {
     border: '1px solid #e5e7eb',
@@ -257,51 +270,37 @@ export function Widget({ slug }: { slug: string }) {
     alignItems: 'center',
   };
 
-  const inputStyle = {
-    width: '100%',
-    padding: '8px 12px',
-    border: '1px solid #e5e7eb',
-    borderRadius: 8,
-    fontSize: 14,
-    boxSizing: 'border-box' as const,
-    marginTop: 4,
-  };
-
-  const labelStyle = { fontSize: 13, fontWeight: 500, color: '#374151', display: 'block', marginBottom: 2 };
 
   return (
-    <div style={{
-      fontFamily: 'system-ui, -apple-system, sans-serif',
-      maxWidth: 480,
-      margin: '0 auto',
-      background: '#f9fafb',
-      borderRadius: 16,
-      padding: 24,
-      boxShadow: '0 4px 24px rgba(0,0,0,0.10)',
-    }}>
+    <div className="cw-shell">
       {/* Header */}
-      <div style={{ marginBottom: 20, textAlign: 'center' }}>
+      <div style={{ marginBottom: 16, textAlign: 'center' }}>
         {tenant?.logo_url && (
-          <img src={tenant.logo_url} alt={tenant.company_name} style={{ height: 40, marginBottom: 8 }} />
+          // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+          // @ts-ignore
+          <img src={tenant.logo_url} alt={tenant.company_name} style={{ height: 38, marginBottom: 8 }} />
         )}
-        <div style={{ fontWeight: 700, fontSize: 18, color: '#111' }}>
+        <div className="cw-title" style={{ fontSize: 18 }}>
           {tenant?.company_name ?? 'Instant Quote'}
+        </div>
+        <div className="cw-muted" style={{ fontSize: 12, marginTop: 4 }}>
+          Instant Fare Estimate
         </div>
       </div>
 
       {error && (
-        <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, padding: '10px 14px', color: '#b91c1c', fontSize: 13, marginBottom: 16 }}>
+        <div className="cw-error" style={{ marginBottom: 14 }}>
           {error}
         </div>
       )}
 
       {step === 1 && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           {/* Service Type */}
           {serviceTypes.length > 1 && (
             <div>
-              <label style={labelStyle}>Service Type</label>
-              <select value={serviceTypeId} onChange={(e) => setServiceTypeId(e.target.value)} style={inputStyle}>
+              <div className="cw-label">Service type</div>
+              <select value={serviceTypeId} onChange={(e) => setServiceTypeId(e.target.value)} className="cw-input">
                 {serviceTypes.map((st) => (
                   <option key={st.id} value={st.id}>{st.name}</option>
                 ))}
@@ -311,96 +310,142 @@ export function Widget({ slug }: { slug: string }) {
 
           {/* Trip mode (optional) */}
           {showReturn && (
-            <div style={{ display: 'flex', gap: 8 }}>
-              {(['ONE_WAY', 'RETURN'] as const).map((m) => (
-                <button
-                  key={m}
-                  onClick={() => setTripMode(m)}
-                  style={{
-                    flex: 1,
-                    padding: '8px 0',
-                    borderRadius: 8,
-                    border: `2px solid ${tripMode === m ? primary : '#e5e7eb'}`,
-                    background: tripMode === m ? primary + '15' : '#fff',
-                    color: tripMode === m ? primary : '#374151',
-                    fontWeight: 600,
-                    fontSize: 13,
-                    cursor: 'pointer',
-                  }}
-                >
-                  {m === 'ONE_WAY' ? 'One Way' : 'Return'}
-                </button>
-              ))}
+            <div style={{ display: 'flex', gap: 10 }}>
+              {(['ONE_WAY', 'RETURN'] as const).map((m) => {
+                const active = tripMode === m;
+                return (
+                  <button
+                    key={m}
+                    onClick={() => setTripMode(m)}
+                    className="cw-input"
+                    style={{
+                      width: '50%',
+                      cursor: 'pointer',
+                      fontWeight: 800,
+                      letterSpacing: '.02em',
+                      background: active ? 'hsl(var(--primary) / 0.18)' : 'hsl(var(--card) / 0.55)',
+                      borderColor: active ? 'hsl(var(--primary) / 0.65)' : 'hsl(var(--border) / 0.55)',
+                      color: active ? 'hsl(var(--foreground))' : 'hsl(var(--muted-foreground))',
+                    }}
+                  >
+                    {m === 'ONE_WAY' ? 'One Way' : 'Return'}
+                  </button>
+                );
+              })}
             </div>
           )}
 
           {/* Pickup */}
           <div>
-            <label style={labelStyle}>📍 Pickup Address</label>
-            <input value={pickup} onChange={(e) => setPickup(e.target.value)} placeholder="Enter pickup address" style={inputStyle} />
+            <div className="cw-label">Pickup location</div>
+            <input value={pickup} onChange={(e) => setPickup(e.target.value)} placeholder="Airport, hotel or address..." className="cw-input" />
           </div>
 
           {/* Dropoff */}
           <div>
-            <label style={labelStyle}>🏁 Drop-off Address *</label>
-            <input value={dropoff} onChange={(e) => setDropoff(e.target.value)} placeholder="Enter destination" style={inputStyle} />
+            <div className="cw-label">Drop-off location</div>
+            <input value={dropoff} onChange={(e) => setDropoff(e.target.value)} placeholder="Airport, hotel or destination..." className="cw-input" />
           </div>
 
           {/* Date & Time */}
           <div>
-            <label style={labelStyle}>📅 Date & Time</label>
-            <input type="datetime-local" value={datetime} onChange={(e) => setDatetime(e.target.value)} style={inputStyle} />
+            <div className="cw-label">Pickup date & time</div>
+            <input type="datetime-local" value={datetime} onChange={(e) => setDatetime(e.target.value)} className="cw-input" />
           </div>
 
           {/* Flight (optional) */}
           {showFlight && (
             <div>
-              <label style={labelStyle}>✈️ Flight (optional)</label>
-              <input value={flightNumber} onChange={(e) => setFlightNumber(e.target.value)} placeholder="e.g. QF401" style={inputStyle} />
+              <div className="cw-label">Flight number (optional)</div>
+              <input value={flightNumber} onChange={(e) => setFlightNumber(e.target.value)} placeholder="e.g. QF401" className="cw-input" />
             </div>
           )}
 
           {/* Return flight (optional) */}
           {showFlight && tripMode === 'RETURN' && (
             <div>
-              <label style={labelStyle}>✈️ Return flight (optional)</label>
-              <input value={returnFlightNumber} onChange={(e) => setReturnFlightNumber(e.target.value)} placeholder="e.g. QF402" style={inputStyle} />
+              <div className="cw-label">Return flight number (optional)</div>
+              <input value={returnFlightNumber} onChange={(e) => setReturnFlightNumber(e.target.value)} placeholder="e.g. QF402" className="cw-input" />
             </div>
           )}
 
-          {/* Waypoints */}
+          {/* Waypoints (v2: dynamic rows) */}
           {showWaypoints && (
             <div>
-              <label style={labelStyle}>🧭 Waypoints (optional, one per line)</label>
-              <textarea
-                value={waypoints}
-                onChange={(e) => setWaypoints(e.target.value)}
-                placeholder="Add stops between pickup and drop-off"
-                style={{ ...inputStyle, minHeight: 72 }}
-              />
+              <div className="cw-label">Stops (optional)</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {parseWaypoints(waypoints).map((wp, idx) => (
+                  <div key={idx} style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                    <input
+                      value={wp}
+                      onChange={(e) => {
+                        const list = parseWaypoints(waypoints);
+                        list[idx] = e.target.value;
+                        setWaypoints(list.join('\n'));
+                      }}
+                      placeholder={`Stop ${idx + 1}`}
+                      className="cw-input"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const list = parseWaypoints(waypoints).filter((_, i) => i !== idx);
+                        setWaypoints(list.join('\n'));
+                      }}
+                      className="cw-muted"
+                      style={{ background: 'transparent', border: 0, cursor: 'pointer' }}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ))}
+
+                {parseWaypoints(waypoints).length < 5 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const list = parseWaypoints(waypoints);
+                      list.push('');
+                      setWaypoints(list.join('\n'));
+                    }}
+                    className="cw-muted"
+                    style={{ background: 'transparent', border: 0, cursor: 'pointer', textAlign: 'left' }}
+                  >
+                    + Add stop
+                  </button>
+                )}
+              </div>
             </div>
           )}
 
-          {/* Pax + Bags */}
+          {/* Passengers / Luggage (v2: steppers) */}
           {(showPassengers || showLuggage) && (
-            <div style={{ display: 'flex', gap: 12 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               {showPassengers && (
-                <div style={{ flex: 1 }}>
-                  <label style={labelStyle}>👤 Passengers</label>
-                  <input type="number" min={1} max={20} value={pax} onChange={(e) => setPax(Number(e.target.value))} style={inputStyle} />
+                <div>
+                  <div className="cw-label">Passengers</div>
+                  <div className="cw-stepper">
+                    <button type="button" onClick={() => setPax((p) => Math.max(1, p - 1))}>−</button>
+                    <div className="cw-stepper-value">{pax} pax</div>
+                    <button type="button" onClick={() => setPax((p) => Math.min(50, p + 1))}>+</button>
+                  </div>
                 </div>
               )}
               {showLuggage && (
-                <div style={{ flex: 1 }}>
-                  <label style={labelStyle}>🧳 Luggage</label>
-                  <input type="number" min={0} max={20} value={bags} onChange={(e) => setBags(Number(e.target.value))} style={inputStyle} />
+                <div>
+                  <div className="cw-label">Luggage</div>
+                  <div className="cw-stepper">
+                    <button type="button" onClick={() => setBags((b) => Math.max(0, b - 1))}>−</button>
+                    <div className="cw-stepper-value">{bags} bags</div>
+                    <button type="button" onClick={() => setBags((b) => Math.min(50, b + 1))}>+</button>
+                  </div>
                 </div>
               )}
             </div>
           )}
 
-          <button onClick={handleGetQuote} disabled={loading} style={{ ...btnStyle, opacity: loading ? 0.7 : 1, marginTop: 14 }}>
-            {loading ? 'Calculating...' : '🔍 Get Quote'}
+          <button onClick={handleGetQuote} disabled={loading} className="cw-btn-primary" style={{ marginTop: 14 }}>
+            {loading ? 'Calculating…' : 'Get Instant Quote'}
           </button>
         </div>
       )}
@@ -495,9 +540,10 @@ export function Widget({ slug }: { slug: string }) {
                 </div>
                 <button
                   onClick={() => handleBookNow(r)}
-                  style={{ ...btnStyle, width: 'auto', padding: '10px 16px', marginLeft: 12 }}
+                  className="cw-btn-primary"
+                  style={{ width: 'auto', padding: '0 14px', height: 42, marginLeft: 12 }}
                 >
-                  Book Now →
+                  Book now
                 </button>
               </div>
             ))

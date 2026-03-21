@@ -48,3 +48,105 @@
 #chauffeur-quote h3 {
   font-family: "Playfair Display", Georgia, serif;
 }
+
+/* ── UI primitives (tokens-first) ───────────────────────────────────────── */
+#chauffeur-quote .cw-shell {
+  max-width: 520px;
+  margin: 0 auto;
+  background: hsl(var(--card) / 0.65);
+  border: 1px solid hsl(var(--border) / 0.55);
+  border-radius: 1.25rem;
+  padding: 1.25rem;
+  box-shadow: var(--shadow-lg);
+  backdrop-filter: blur(14px);
+}
+
+#chauffeur-quote .cw-title {
+  font-family: "Playfair Display", Georgia, serif;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: hsl(var(--foreground));
+}
+
+#chauffeur-quote .cw-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+  color: hsl(var(--muted-foreground));
+  margin: 0 0 .4rem;
+}
+
+#chauffeur-quote .cw-input {
+  width: 100%;
+  height: 44px;
+  border-radius: 0.9rem;
+  border: 1px solid hsl(var(--input-border) / 0.7);
+  background: hsl(var(--card) / 0.55);
+  color: hsl(var(--foreground));
+  padding: 0 0.9rem;
+  outline: none;
+  box-shadow: var(--shadow-sm);
+}
+#chauffeur-quote .cw-input:focus {
+  border-color: hsl(var(--primary) / 0.75);
+  box-shadow: 0 0 0 3px rgba(200,169,107,0.22);
+}
+#chauffeur-quote .cw-input::placeholder { color: rgba(255,255,255,.38); }
+
+#chauffeur-quote .cw-btn-primary {
+  width: 100%;
+  height: 48px;
+  border-radius: 0.95rem;
+  border: 0;
+  cursor: pointer;
+  font-weight: 700;
+  letter-spacing: .02em;
+  color: hsl(var(--primary-foreground));
+  background: linear-gradient(90deg, hsl(var(--primary)), hsl(var(--primary) / 0.82));
+  transition: opacity .15s ease, box-shadow .15s ease, transform .05s ease;
+}
+#chauffeur-quote .cw-btn-primary:hover { opacity: .93; box-shadow: 0 0 0 2px rgba(200,169,107,.28), 0 10px 30px rgba(200,169,107,.14); }
+#chauffeur-quote .cw-btn-primary:active { transform: translateY(1px); }
+#chauffeur-quote .cw-btn-primary:disabled { opacity: .55; cursor: not-allowed; box-shadow: none; }
+
+#chauffeur-quote .cw-stepper {
+  display: flex;
+  align-items: center;
+  height: 44px;
+  border-radius: 0.9rem;
+  border: 1px solid hsl(var(--border) / 0.55);
+  background: hsl(var(--card) / 0.55);
+  overflow: hidden;
+}
+#chauffeur-quote .cw-stepper button {
+  width: 44px;
+  height: 44px;
+  border: 0;
+  background: transparent;
+  color: rgba(255,255,255,.55);
+  cursor: pointer;
+  font-size: 18px;
+}
+#chauffeur-quote .cw-stepper button:hover { background: rgba(255,255,255,.06); color: rgba(255,255,255,.92); }
+#chauffeur-quote .cw-stepper .cw-stepper-value {
+  flex: 1;
+  text-align: center;
+  color: hsl(var(--foreground));
+  font-weight: 700;
+  font-size: 13px;
+}
+
+#chauffeur-quote .cw-muted {
+  color: hsl(var(--muted-foreground));
+}
+
+#chauffeur-quote .cw-error {
+  background: rgba(239, 68, 68, .10);
+  border: 1px solid rgba(239, 68, 68, .25);
+  color: rgba(252, 165, 165, .95);
+  border-radius: 0.9rem;
+  padding: .7rem .9rem;
+  font-size: 13px;
+}
+
