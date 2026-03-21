@@ -312,7 +312,17 @@ export function Widget({ slug }: { slug: string }) {
           {serviceTypes.length > 1 && (
             <div>
               <div className="cw-label">Service type</div>
-              <select value={serviceTypeId} onChange={(e) => setServiceTypeId(e.target.value)} className="cw-input">
+              <select
+                value={serviceTypeId}
+                onChange={(e) => setServiceTypeId(e.target.value)}
+                className="cw-input"
+                style={{
+                  backgroundColor: 'hsl(var(--card) / 0.55)',
+                  color: 'hsl(var(--foreground))',
+                  borderColor: 'hsl(var(--input-border) / 0.7)',
+                  WebkitTextFillColor: 'hsl(var(--foreground))',
+                }}
+              >
                 {serviceTypes.map((st) => (
                   <option key={st.id} value={st.id}>{st.name}</option>
                 ))}
@@ -351,33 +361,88 @@ export function Widget({ slug }: { slug: string }) {
           {showReturn && tripMode === 'RETURN' && (
             <div>
               <div className="cw-label">Return date & time</div>
-              <input type="datetime-local" value={returnDatetime} onChange={(e) => setReturnDatetime(e.target.value)} className="cw-input" />
+              <input
+                type="datetime-local"
+                value={returnDatetime}
+                onChange={(e) => setReturnDatetime(e.target.value)}
+                className="cw-input"
+                style={{
+                  backgroundColor: 'hsl(var(--card) / 0.55)',
+                  color: 'hsl(var(--foreground))',
+                  borderColor: 'hsl(var(--input-border) / 0.7)',
+                  WebkitTextFillColor: 'hsl(var(--foreground))',
+                }}
+              />
             </div>
           )}
 
           {/* Pickup */}
           <div>
             <div className="cw-label">Pickup location</div>
-            <input value={pickup} onChange={(e) => setPickup(e.target.value)} placeholder="Airport, hotel or address..." className="cw-input" />
+            <input
+              value={pickup}
+              onChange={(e) => setPickup(e.target.value)}
+              placeholder="Airport, hotel or address..."
+              className="cw-input"
+              style={{
+                backgroundColor: 'hsl(var(--card) / 0.55)',
+                color: 'hsl(var(--foreground))',
+                borderColor: 'hsl(var(--input-border) / 0.7)',
+                WebkitTextFillColor: 'hsl(var(--foreground))',
+              }}
+            />
           </div>
 
           {/* Dropoff */}
           <div>
             <div className="cw-label">Drop-off location</div>
-            <input value={dropoff} onChange={(e) => setDropoff(e.target.value)} placeholder="Airport, hotel or destination..." className="cw-input" />
+            <input
+              value={dropoff}
+              onChange={(e) => setDropoff(e.target.value)}
+              placeholder="Airport, hotel or destination..."
+              className="cw-input"
+              style={{
+                backgroundColor: 'hsl(var(--card) / 0.55)',
+                color: 'hsl(var(--foreground))',
+                borderColor: 'hsl(var(--input-border) / 0.7)',
+                WebkitTextFillColor: 'hsl(var(--foreground))',
+              }}
+            />
           </div>
 
           {/* Date & Time */}
           <div>
             <div className="cw-label">Pickup date & time</div>
-            <input type="datetime-local" value={datetime} onChange={(e) => setDatetime(e.target.value)} className="cw-input" />
+            <input
+              type="datetime-local"
+              value={datetime}
+              onChange={(e) => setDatetime(e.target.value)}
+              className="cw-input"
+              style={{
+                backgroundColor: 'hsl(var(--card) / 0.55)',
+                color: 'hsl(var(--foreground))',
+                borderColor: 'hsl(var(--input-border) / 0.7)',
+                WebkitTextFillColor: 'hsl(var(--foreground))',
+              }}
+            />
           </div>
 
           {/* Flight (optional) */}
           {showFlight && (
             <div>
               <div className="cw-label">Flight number (optional)</div>
-              <input value={flightNumber} onChange={(e) => setFlightNumber(e.target.value)} placeholder="e.g. QF401" className="cw-input" />
+              <input
+                value={flightNumber}
+                onChange={(e) => setFlightNumber(e.target.value)}
+                placeholder="e.g. QF401"
+                className="cw-input"
+                style={{
+                  backgroundColor: 'hsl(var(--card) / 0.55)',
+                  color: 'hsl(var(--foreground))',
+                  borderColor: 'hsl(var(--input-border) / 0.7)',
+                  WebkitTextFillColor: 'hsl(var(--foreground))',
+                }}
+              />
             </div>
           )}
 
@@ -385,7 +450,18 @@ export function Widget({ slug }: { slug: string }) {
           {showFlight && tripMode === 'RETURN' && (
             <div>
               <div className="cw-label">Return flight number (optional)</div>
-              <input value={returnFlightNumber} onChange={(e) => setReturnFlightNumber(e.target.value)} placeholder="e.g. QF402" className="cw-input" />
+              <input
+                value={returnFlightNumber}
+                onChange={(e) => setReturnFlightNumber(e.target.value)}
+                placeholder="e.g. QF402"
+                className="cw-input"
+                style={{
+                  backgroundColor: 'hsl(var(--card) / 0.55)',
+                  color: 'hsl(var(--foreground))',
+                  borderColor: 'hsl(var(--input-border) / 0.7)',
+                  WebkitTextFillColor: 'hsl(var(--foreground))',
+                }}
+              />
             </div>
           )}
 
