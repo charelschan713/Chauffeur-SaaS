@@ -219,23 +219,29 @@ export default function PlacesAutocomplete({
             if (predictions.length > 0) setOpen(true);
           }}
           placeholder={placeholder}
-          className={[
-            'w-full h-12 pl-9 pr-9 rounded-xl text-sm transition-all',
-            'bg-white/5 border border-white/10',
-            'text-white placeholder:text-white/30',
-            'focus:outline-none focus:border-amber-400/50 focus:bg-white/8 focus:ring-2 focus:ring-amber-400/10',
-          ].join(' ')}
+          className="cw-input"
+          style={{ paddingLeft: 36, paddingRight: 44 }}
         />
 
         <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center">
           {loading ? (
-            <span className="h-4 w-4 text-white/30 animate-spin" aria-hidden="true">⟳</span>
+            <span className="cw-muted" style={{ fontSize: 14 }} aria-hidden="true">⟳</span>
           ) : inputValue ? (
             <button
               type="button"
               onClick={handleClear}
-              className="text-white/30 hover:text-white/70 transition-colors p-2.5 rounded min-h-[44px] min-w-[44px] flex items-center justify-center"
+              className="cw-muted"
               aria-label="Clear"
+              style={{
+                background: 'transparent',
+                border: 0,
+                cursor: 'pointer',
+                width: 44,
+                height: 44,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
             >
               <span aria-hidden="true">×</span>
             </button>
@@ -246,12 +252,7 @@ export default function PlacesAutocomplete({
       {open && predictions.length > 0 && (
         <ul
           role="listbox"
-          className={[
-            'absolute z-[9000] mt-1.5 w-full',
-            'bg-[#0f1117] border border-white/10 rounded-xl shadow-2xl',
-            'overflow-y-auto py-1',
-            'max-h-52',
-          ].join(' ')}
+          className="cw-ac-list"
         >
           {predictions.map((pred, idx) => (
             <li
@@ -263,10 +264,9 @@ export default function PlacesAutocomplete({
                 selectPrediction(pred);
               }}
               onMouseEnter={() => setActiveIdx(idx)}
-              className={[
-                'flex items-start gap-3 px-3 py-2.5 cursor-pointer transition-colors',
-                idx === activeIdx ? 'bg-amber-400/10' : 'hover:bg-white/5',
-              ].join(' ')}
+              className={
+                `cw-ac-item ${idx === activeIdx ? 'cw-ac-item-active' : ''}`
+              }
             >
               <span
                 aria-hidden="true"
@@ -276,7 +276,9 @@ export default function PlacesAutocomplete({
                 ⌖
               </span>
               <div className="min-w-0">
-                <p className="text-sm text-white leading-tight">{pred.description || pred.main_text}</p>
+                <p style={{ fontSize: 13, color: 'rgba(255,255,255,.92)', lineHeight: '18px' }}>
+                  {pred.description || pred.main_text}
+                </p>
               </div>
             </li>
           ))}
