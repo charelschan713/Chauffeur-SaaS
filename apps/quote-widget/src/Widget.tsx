@@ -293,6 +293,7 @@ export function Widget({ slug }: { slug: string }) {
           // @ts-ignore
           <img src={tenant.logo_url} alt={tenant.company_name} className="cw-logo" />
         )}
+        <div className="cw-section-label">Instant Quote</div>
         <div className="cw-title">{tenant?.company_name ?? 'Instant Quote'}</div>
         <div className="cw-subtitle">Get Your Quote in Seconds</div>
         <div className="cw-muted">Instant Fare Estimate</div>
@@ -338,16 +339,7 @@ export function Widget({ slug }: { slug: string }) {
                     key={m}
                     type="button"
                     onClick={() => setTripMode(m)}
-                    className="cw-input"
-                    style={{
-                      width: '50%',
-                      cursor: 'pointer',
-                      fontWeight: 800,
-                      letterSpacing: '.02em',
-                      background: active ? 'hsl(var(--primary) / 0.18)' : 'hsl(var(--card) / 0.55)',
-                      borderColor: active ? 'hsl(var(--primary) / 0.65)' : 'hsl(var(--border) / 0.55)',
-                      color: active ? 'hsl(var(--foreground))' : 'hsl(var(--muted-foreground))',
-                    }}
+                    className={`cw-toggle ${active ? 'cw-toggle-active' : ''}`}
                   >
                     {m === 'ONE_WAY' ? 'One Way' : 'Return'}
                   </button>
