@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { fetchTenantInfo, fetchServiceTypes, fetchRoute, fetchQuote } from './api';
 
 import { withDefaults, type WidgetSettings } from './widgetConfig';
-import { parseWaypoints } from './waypoints';
+import { normalizeWaypointsForRoute } from './waypoints';
 
 interface TenantInfo {
   company_name: string;
@@ -116,7 +116,7 @@ export function Widget({ slug }: { slug: string }) {
   const [pax, setPax] = useState(2);
   const [bags, setBags] = useState(1);
   const [tripMode, setTripMode] = useState<'ONE_WAY' | 'RETURN'>('ONE_WAY');
-  const [waypoints, setWaypoints] = useState('');
+  const [waypoints, setWaypoints] = useState<string[]>([]);
   const [flightNumber, setFlightNumber] = useState('');
   const [returnFlightNumber, setReturnFlightNumber] = useState('');
   const [promoCode, setPromoCode] = useState('');
@@ -155,7 +155,7 @@ export function Widget({ slug }: { slug: string }) {
     setLoading(true);
     setError(null);
     try {
-      const waypointList = showWaypoints ? parseWaypoints(waypoints) : [];
+      const waypointList = showWaypoints ? normalizeWaypointsForRoute(waypoints) : [];
       const route = await fetchRoute(slug, pickup, dropoff, waypointList);
       setRouteData(route);
       const pickupUtc = localToUtc(datetime, tenant?.timezone ?? 'Australia/Sydney');
@@ -380,14 +380,14 @@ export function Widget({ slug }: { slug: string }) {
             <div>
               <div className="cw-label">Stops (optional)</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {parseWaypoints(waypoints).map((wp, idx) => (
+                {waypoints.map((wp, idx) => (
                   <div key={idx} style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
                     <input
                       value={wp}
                       onChange={(e) => {
-                        const list = parseWaypoints(waypoints);
-                        list[idx] = e.target.value;
-                        setWaypoints(list.join('\n'));
+                        const next = [...waypoints];
+                        next[idx] = e.target.value;
+                        setWaypoints(next);
                       }}
                       placeholder={`Stop ${idx + 1}`}
                       className="cw-input"
@@ -395,8 +395,8 @@ export function Widget({ slug }: { slug: string }) {
                     <button
                       type="button"
                       onClick={() => {
-                        const list = parseWaypoints(waypoints).filter((_, i) => i !== idx);
-                        setWaypoints(list.join('\n'));
+                        const next = waypoints.filter((_, i) => i !== idx);
+                        setWaypoints(next);
                       }}
                       className="cw-muted"
                       style={{ background: 'transparent', border: 0, cursor: 'pointer' }}
@@ -406,14 +406,10 @@ export function Widget({ slug }: { slug: string }) {
                   </div>
                 ))}
 
-                {parseWaypoints(waypoints).length < 5 && (
+                {waypoints.length < 5 && (
                   <button
                     type="button"
-                    onClick={() => {
-                      const list = parseWaypoints(waypoints);
-                      list.push('');
-                      setWaypoints(list.join('\n'));
-                    }}
+                    onClick={() => setWaypoints((prev) => [...prev, ''])}
                     className="cw-muted"
                     style={{ background: 'transparent', border: 0, cursor: 'pointer', textAlign: 'left' }}
                   >

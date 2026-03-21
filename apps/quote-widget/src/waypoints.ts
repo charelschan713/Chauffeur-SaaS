@@ -1,7 +1,6 @@
-export function parseWaypoints(raw: string): string[] {
-  return raw
-    .split(/\n|\r|\,/)
-    .map((w) => w.trim())
+export function normalizeWaypointsForRoute(raw: string[]): string[] {
+  return (Array.isArray(raw) ? raw : [])
+    .map((w) => (w ?? '').toString().trim())
     .filter(Boolean)
     .slice(0, 5);
 }
