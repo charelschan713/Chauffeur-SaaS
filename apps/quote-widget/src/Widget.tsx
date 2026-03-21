@@ -307,10 +307,10 @@ export function Widget({ slug }: { slug: string }) {
       )}
 
       {step === 1 && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div className="cw-form">
           {/* Service Type */}
           {serviceTypes.length > 1 && (
-            <div>
+            <div className="cw-span-2">
               <div className="cw-label">Service type</div>
               <select
                 value={serviceTypeId}
@@ -332,7 +332,7 @@ export function Widget({ slug }: { slug: string }) {
 
           {/* Trip mode (optional) */}
           {showReturn && (
-            <div style={{ display: 'flex', gap: 10 }}>
+            <div className="cw-span-2" style={{ display: 'flex', gap: 10 }}>
               {(['ONE_WAY', 'RETURN'] as const).map((m) => {
                 const active = tripMode === m;
                 return (
@@ -561,7 +561,7 @@ export function Widget({ slug }: { slug: string }) {
 
           {/* Passengers / Luggage (v2: steppers) */}
           {(showPassengers || showLuggage) && (
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <>
               {showPassengers && (
                 <div>
                   <div className="cw-label">Passengers</div>
@@ -582,10 +582,43 @@ export function Widget({ slug }: { slug: string }) {
                   </div>
                 </div>
               )}
+            </>
+          )}
+
+          {/* Baby seats (v2: 3-column steppers like original) */}
+          {showBabySeats && (
+            <div className="cw-span-2">
+              <div className="cw-label">Baby seats</div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+                <div>
+                  <div className="cw-muted" style={{ fontSize: 12, marginBottom: 6 }}>Infant</div>
+                  <div className="cw-stepper">
+                    <button type="button" onClick={() => setInfantSeats((v) => String(Math.max(0, Number(v) - 1)))}>−</button>
+                    <div className="cw-stepper-value">{infantSeats}</div>
+                    <button type="button" onClick={() => setInfantSeats((v) => String(Math.min(9, Number(v) + 1)))}>+</button>
+                  </div>
+                </div>
+                <div>
+                  <div className="cw-muted" style={{ fontSize: 12, marginBottom: 6 }}>Toddler</div>
+                  <div className="cw-stepper">
+                    <button type="button" onClick={() => setToddlerSeats((v) => String(Math.max(0, Number(v) - 1)))}>−</button>
+                    <div className="cw-stepper-value">{toddlerSeats}</div>
+                    <button type="button" onClick={() => setToddlerSeats((v) => String(Math.min(9, Number(v) + 1)))}>+</button>
+                  </div>
+                </div>
+                <div>
+                  <div className="cw-muted" style={{ fontSize: 12, marginBottom: 6 }}>Booster</div>
+                  <div className="cw-stepper">
+                    <button type="button" onClick={() => setBoosterSeats((v) => String(Math.max(0, Number(v) - 1)))}>−</button>
+                    <div className="cw-stepper-value">{boosterSeats}</div>
+                    <button type="button" onClick={() => setBoosterSeats((v) => String(Math.min(9, Number(v) + 1)))}>+</button>
+                  </div>
+                </div>
+              </div>
             </div>
           )}
 
-          <button onClick={handleGetQuote} disabled={loading} className="cw-btn-primary" style={{ marginTop: 14 }}>
+          <button onClick={handleGetQuote} disabled={loading} className="cw-btn-primary cw-span-2" style={{ marginTop: 14 }}>
             {loading ? 'Calculating…' : 'Get Instant Quote'}
           </button>
         </div>
