@@ -351,29 +351,31 @@ export function Widget({ slug }: { slug: string }) {
           {/* Date & Time (full width like legacy widget) */}
           <div className="cw-span-2">
             <div className="cw-label">Pickup date & time</div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-              <input
-                type="date"
-                value={datetime ? datetime.split('T')[0] : ''}
-                onChange={(e) => {
-                  const d = e.target.value;
-                  const t = datetime?.split('T')[1] ?? '';
-                  setDatetime(d && t ? `${d}T${t}` : (d ? `${d}T` : ''));
-                }}
-                className="cw-input"
-                style={{ backgroundColor: 'hsl(var(--card) / 0.55)', color: 'hsl(var(--foreground))', borderColor: 'hsl(var(--input-border) / 0.7)', WebkitTextFillColor: 'hsl(var(--foreground))' }}
-              />
-              <input
-                type="time"
-                value={datetime && datetime.includes('T') ? (datetime.split('T')[1] ?? '').slice(0,5) : ''}
-                onChange={(e) => {
-                  const t = e.target.value;
-                  const d = datetime?.split('T')[0] ?? '';
-                  setDatetime(d && t ? `${d}T${t}` : (t ? `T${t}` : ''));
-                }}
-                className="cw-input"
-                style={{ backgroundColor: 'hsl(var(--card) / 0.55)', color: 'hsl(var(--foreground))', borderColor: 'hsl(var(--input-border) / 0.7)', WebkitTextFillColor: 'hsl(var(--foreground))' }}
-              />
+            <div className="cw-date-row">
+              <div className="cw-date-btn">
+                <span>Select date</span>
+                <input
+                  type="date"
+                  value={datetime ? datetime.split('T')[0] : ''}
+                  onChange={(e) => {
+                    const d = e.target.value;
+                    const t = datetime?.split('T')[1] ?? '';
+                    setDatetime(d && t ? `${d}T${t}` : (d ? `${d}T` : ''));
+                  }}
+                />
+              </div>
+              <div className="cw-date-btn">
+                <span>Select time</span>
+                <input
+                  type="time"
+                  value={datetime && datetime.includes('T') ? (datetime.split('T')[1] ?? '').slice(0,5) : ''}
+                  onChange={(e) => {
+                    const t = e.target.value;
+                    const d = datetime?.split('T')[0] ?? '';
+                    setDatetime(d && t ? `${d}T${t}` : (t ? `T${t}` : ''));
+                  }}
+                />
+              </div>
             </div>
 
             {showFlight && (
@@ -491,29 +493,31 @@ export function Widget({ slug }: { slug: string }) {
           {showReturn && tripMode === 'RETURN' && (
             <div className="cw-span-2" style={{ paddingTop: 10, borderTop: '1px solid rgba(255,255,255,0.12)' }}>
               <div className="cw-label" style={{ color: 'hsl(var(--primary))' }}>Return trip</div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 6 }}>
-                <input
-                  type="date"
-                  value={returnDatetime ? returnDatetime.split('T')[0] : ''}
-                  onChange={(e) => {
-                    const d = e.target.value;
-                    const t = returnDatetime?.split('T')[1] ?? '';
-                    setReturnDatetime(d && t ? `${d}T${t}` : (d ? `${d}T` : ''));
-                  }}
-                  className="cw-input"
-                  style={{ backgroundColor: 'hsl(var(--card) / 0.55)', color: 'hsl(var(--foreground))', borderColor: 'hsl(var(--input-border) / 0.7)', WebkitTextFillColor: 'hsl(var(--foreground))' }}
-                />
-                <input
-                  type="time"
-                  value={returnDatetime && returnDatetime.includes('T') ? (returnDatetime.split('T')[1] ?? '').slice(0,5) : ''}
-                  onChange={(e) => {
-                    const t = e.target.value;
-                    const d = returnDatetime?.split('T')[0] ?? '';
-                    setReturnDatetime(d && t ? `${d}T${t}` : (t ? `T${t}` : ''));
-                  }}
-                  className="cw-input"
-                  style={{ backgroundColor: 'hsl(var(--card) / 0.55)', color: 'hsl(var(--foreground))', borderColor: 'hsl(var(--input-border) / 0.7)', WebkitTextFillColor: 'hsl(var(--foreground))' }}
-                />
+              <div className="cw-date-row" style={{ marginTop: 6 }}>
+                <div className="cw-date-btn">
+                  <span>Select date</span>
+                  <input
+                    type="date"
+                    value={returnDatetime ? returnDatetime.split('T')[0] : ''}
+                    onChange={(e) => {
+                      const d = e.target.value;
+                      const t = returnDatetime?.split('T')[1] ?? '';
+                      setReturnDatetime(d && t ? `${d}T${t}` : (d ? `${d}T` : ''));
+                    }}
+                  />
+                </div>
+                <div className="cw-date-btn">
+                  <span>Select time</span>
+                  <input
+                    type="time"
+                    value={returnDatetime && returnDatetime.includes('T') ? (returnDatetime.split('T')[1] ?? '').slice(0,5) : ''}
+                    onChange={(e) => {
+                      const t = e.target.value;
+                      const d = returnDatetime?.split('T')[0] ?? '';
+                      setReturnDatetime(d && t ? `${d}T${t}` : (t ? `T${t}` : ''));
+                    }}
+                  />
+                </div>
               </div>
 
               {showFlight && (
@@ -592,7 +596,7 @@ export function Widget({ slug }: { slug: string }) {
           )}
 
           <button onClick={handleGetQuote} disabled={loading} className="cw-btn-primary cw-span-2" style={{ marginTop: 14 }}>
-            {loading ? 'Calculating…' : 'Get Instant Quote'}
+            {loading ? 'Calculating…' : <><span>Get Instant Quote</span><span style={{ marginLeft: 8 }}>→</span></>}
           </button>
         </div>
       )}
