@@ -1,0 +1,38 @@
+/* ASChauffeured embed overrides (fusion layer)
+   Keep it small, only tweak what must match the website's feel.
+*/
+
+#chauffeur-quote .cw-shell {
+  /* slightly lighter glass like the original website widget */
+  background: hsl(var(--card) / 0.55);
+  border-color: hsl(var(--border) / 0.40);
+  padding: 1.35rem;
+}
+
+#chauffeur-quote .cw-title {
+  font-size: 19px;
+}
+
+#chauffeur-quote .cw-label {
+  letter-spacing: .22em;
+}
+
+#chauffeur-quote .cw-input {
+  height: 48px;
+  border-radius: 1.0rem;
+}
+
+#chauffeur-quote .cw-btn-primary {
+  height: 56px;
+  border-radius: 1.1rem;
+  font-size: 16px;
+}
+
+#chauffeur-quote .cw-stepper {
+  height: 48px;
+  border-radius: 1.0rem;
+}
+#chauffeur-quote .cw-stepper button {
+  width: 48px;
+  height: 48px;
+}
