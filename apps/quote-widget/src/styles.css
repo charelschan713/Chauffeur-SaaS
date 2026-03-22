@@ -147,25 +147,26 @@
 #chauffeur-quote .cw-input {
   width: 100%;
   height: 48px;
-  border-radius: 1.0rem;
-  border: 1px solid hsl(var(--border) / 0.70) !important;
-  background: rgba(18, 20, 26, 0.72) !important; /* higher contrast glass */
+  border-radius: var(--radius-input, 14px);
+  border: 1px solid rgba(255,255,255,0.12) !important;
+  background: rgba(15, 23, 42, 0.55) !important;
   color: hsl(var(--foreground)) !important;
-  padding: 0 0.95rem;
+  padding: 0 0.9rem;
   outline: none;
   box-shadow: 0 1px 2px rgba(0,0,0,.25);
   appearance: none;
   -webkit-appearance: none;
   color-scheme: dark;
+  transition: var(--transition-base, all 0.2s ease);
 }
 #chauffeur-quote .cw-input:hover {
-  border-color: hsl(var(--border) / 0.95) !important;
+  border-color: rgba(255,255,255,0.35) !important;
 }
 #chauffeur-quote .cw-input:focus {
-  border-color: hsl(var(--primary) / 0.85) !important;
-  box-shadow: 0 0 0 3px rgba(200,169,107,0.24);
+  border-color: rgba(200,169,107,0.85) !important;
+  box-shadow: 0 0 0 3px rgba(200,169,107,0.22);
 }
-#chauffeur-quote .cw-input::placeholder { color: rgba(255,255,255,.55) !important; }
+#chauffeur-quote .cw-input::placeholder { color: rgba(255,255,255,.45) !important; }
 
 #chauffeur-quote .cw-toggle {
   width: 100%;
@@ -195,14 +196,14 @@
 #chauffeur-quote .cw-date-btn {
   position: relative;
   height: 48px;
-  border-radius: 0.95rem;
-  border: 1px solid hsl(var(--border) / 0.7);
-  background: hsl(var(--card) / 0.55);
+  border-radius: var(--radius-input, 14px);
+  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(15, 23, 42, 0.55);
   color: hsl(var(--muted-foreground));
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 14px;
+  padding: 0 12px;
   font-weight: 600;
   cursor: pointer;
 }
