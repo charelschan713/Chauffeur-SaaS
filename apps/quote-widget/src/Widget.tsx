@@ -140,6 +140,15 @@ export function Widget({ slug }: { slug: string }) {
   const [boosterSeats, setBoosterSeats] = useState('0');
   const seatOptions = ['0','1','2','3','4','5'];
   const allowReturnTrip = tenant?.booking_entry?.allow_return_trip ?? true;
+  const ws = withDefaults(tenant?.widget_settings ?? null);
+  const showReturn = ws.returnTrip;
+  const showFlight = ws.flightNumber;
+  const showWaypoints = ws.waypoints;
+  const showPassengers = ws.passengers;
+  const showLuggage = ws.luggage;
+  const showBabySeats = ws.babySeats;
+  const showPromo = ws.promoCode;
+
   const selectedCity = cities.find((c) => c.id === cityId);
   const selectedServiceType = serviceTypes.find((s) => s.id === serviceTypeId);
   const isHourly = selectedServiceType?.calculation_type === 'HOURLY_CHARTER';
@@ -302,12 +311,6 @@ export function Widget({ slug }: { slug: string }) {
     document.documentElement.style.setProperty('--primary', hs);
     document.documentElement.style.setProperty('--ring', hs);
   }, [tenant?.primary_color]);
-  const ws = withDefaults(tenant?.widget_settings ?? null);
-  const showReturn = ws.returnTrip;
-  const showFlight = ws.flightNumber;
-  const showWaypoints = ws.waypoints;
-  const showPassengers = ws.passengers;
-  const showLuggage = ws.luggage;
   const showBabySeats = ws.babySeats;
   const showPromo = ws.promoCode;
 
