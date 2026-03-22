@@ -61,6 +61,31 @@ export class TenantBrandingController {
         body.websiteUrl         ?? null,
       ],
     );
+
+    // Sync to tenant_settings.settings->branding for public tenant-info consumers
+    try {
+      const branding = {
+        logo_url: row?.logo_url ?? null,
+        primary_color: row?.primary_color ?? null,
+        primary_foreground: row?.primary_foreground ?? null,
+        font_family: row?.font_family ?? null,
+        company_name: row?.company_name ?? null,
+        contact_email: row?.contact_email ?? null,
+        contact_phone: row?.contact_phone ?? null,
+        custom_domain: row?.custom_domain ?? null,
+        cancel_window_hours: row?.cancel_window_hours ?? null,
+        website_url: row?.website_url ?? null,
+      };
+      await this.db.query(
+        `INSERT INTO public.tenant_settings (tenant_id, settings, updated_at)
+         VALUES ($1, jsonb_build_object('branding', $2::jsonb), now())
+         ON CONFLICT (tenant_id) DO UPDATE
+           SET settings = COALESCE(public.tenant_settings.settings, '{}'::jsonb) || jsonb_build_object('branding', $2::jsonb),
+               updated_at = now()`,
+        [req.user.tenant_id, JSON.stringify(branding)],
+      );
+    } catch {}
+
     return row;
   }
 
