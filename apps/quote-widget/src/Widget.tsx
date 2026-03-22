@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { fetchTenantInfo, fetchServiceTypes, fetchCities, fetchRoute, fetchQuote } from './api';
+import { LuxDateTimePicker } from './components/LuxDateTimePicker';
 
 import { withDefaults, type WidgetSettings } from './widgetConfig';
 import { normalizeWaypointsForRoute } from './waypoints';
@@ -403,34 +404,13 @@ export function Widget({ slug }: { slug: string }) {
           {/* Date & Time (full width like legacy widget) */}
           <div className="cw-span-2">
             <div className="cw-label">Pickup date & time</div>
-            <div className="cw-date-row">
-              <div className="cw-date-btn">
-                <span>Select date</span>
-                <input
-                  type="date"
-                  value={datetime ? datetime.split('T')[0] : ''}
-                  onChange={(e) => {
-                    const d = e.target.value;
-                    const t = datetime?.split('T')[1] ?? '';
-                    setDatetime(d && t ? `${d}T${t}` : (d ? `${d}T` : ''));
-                    clearQuote();
-                  }}
-                />
-              </div>
-              <div className="cw-date-btn">
-                <span>Select time</span>
-                <input
-                  type="time"
-                  value={datetime && datetime.includes('T') ? (datetime.split('T')[1] ?? '').slice(0,5) : ''}
-                  onChange={(e) => {
-                    const t = e.target.value;
-                    const d = datetime?.split('T')[0] ?? '';
-                    setDatetime(d && t ? `${d}T${t}` : (t ? `T${t}` : ''));
-                    clearQuote();
-                  }}
-                />
-              </div>
-            </div>
+            <LuxDateTimePicker
+              dateValue={datetime ? datetime.split('T')[0] : ''}
+              timeValue={datetime && datetime.includes('T') ? (datetime.split('T')[1] ?? '').slice(0,5) : ''}
+              onDateChange={(v)=>{ const t = datetime?.split('T')[1] ?? ''; setDatetime(v && t ? `${v}T${t}` : (v ? `${v}T` : '')); clearQuote(); }}
+              onTimeChange={(v)=>{ const d = datetime?.split('T')[0] ?? ''; setDatetime(d && v ? `${d}T${v}` : (v ? `T${v}` : '')); clearQuote(); }}
+              minDate={new Date().toISOString().slice(0,10)}
+            />
 
             {showFlight && (
               <div style={{ marginTop: 10 }}>
@@ -550,33 +530,14 @@ export function Widget({ slug }: { slug: string }) {
           {showReturn && tripMode === 'RETURN' && !isHourly && (
             <div className="cw-span-2" style={{ paddingTop: 10, borderTop: '1px solid rgba(255,255,255,0.12)' }}>
               <div className="cw-section-label" style={{ marginBottom: 6 }}>Return Trip</div>
-              <div className="cw-date-row" style={{ marginTop: 6 }}>
-                <div className="cw-date-btn">
-                  <span>Select date</span>
-                  <input
-                    type="date"
-                    value={returnDatetime ? returnDatetime.split('T')[0] : ''}
-                    onChange={(e) => {
-                      const d = e.target.value;
-                      const t = returnDatetime?.split('T')[1] ?? '';
-                      setReturnDatetime(d && t ? `${d}T${t}` : (d ? `${d}T` : ''));
-                      clearQuote();
-                    }}
-                  />
-                </div>
-                <div className="cw-date-btn">
-                  <span>Select time</span>
-                  <input
-                    type="time"
-                    value={returnDatetime && returnDatetime.includes('T') ? (returnDatetime.split('T')[1] ?? '').slice(0,5) : ''}
-                    onChange={(e) => {
-                      const t = e.target.value;
-                      const d = returnDatetime?.split('T')[0] ?? '';
-                      setReturnDatetime(d && t ? `${d}T${t}` : (t ? `T${t}` : ''));
-                      clearQuote();
-                    }}
-                  />
-                </div>
+              <div style={{ marginTop: 6 }}>
+                <LuxDateTimePicker
+                  dateValue={returnDatetime ? returnDatetime.split('T')[0] : ''}
+                  timeValue={returnDatetime && returnDatetime.includes('T') ? (returnDatetime.split('T')[1] ?? '').slice(0,5) : ''}
+                  onDateChange={(v)=>{ const t = returnDatetime?.split('T')[1] ?? ''; setReturnDatetime(v && t ? `${v}T${t}` : (v ? `${v}T` : '')); clearQuote(); }}
+                  onTimeChange={(v)=>{ const d = returnDatetime?.split('T')[0] ?? ''; setReturnDatetime(d && v ? `${d}T${v}` : (v ? `T${v}` : '')); clearQuote(); }}
+                  minDate={(datetime ? datetime.split('T')[0] : '') || new Date().toISOString().slice(0,10)}
+                />
               </div>
               <div className="cw-muted" style={{ fontSize: 12, marginTop: 6 }}>Return pickup from drop-off location.</div>
 
