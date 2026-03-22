@@ -18,6 +18,20 @@ export interface TenantTheme {
   font_family?: string | null;          // e.g. "Playfair Display"
   cancel_window_hours?: number;
   website_url?: string | null;
+  branding?: {
+    logo_url?: string | null;
+    primary_color?: string | null;
+    secondary_color?: string | null;
+    background_color?: string | null;
+    card_color?: string | null;
+    text_color?: string | null;
+    muted_text_color?: string | null;
+    border_color?: string | null;
+    font_family?: string | null;
+    button_radius?: number | null;
+    card_radius?: number | null;
+    input_radius?: number | null;
+  };
 }
 
 const TenantContext = createContext<TenantTheme | null>(null);
@@ -38,20 +52,36 @@ function getTenantSlugFromCookie(): string | null {
 
 function applyTenantTheme(tenant: TenantTheme) {
   const root = document.documentElement;
+  const branding = tenant.branding ?? (tenant as any).theme_json?.branding ?? null;
 
-  // ── Primary brand color (Step B: tenant overrides platform default) ──
-  if (tenant.primary_color) {
-    root.style.setProperty('--primary', tenant.primary_color);
-    root.style.setProperty('--ring', tenant.primary_color);
-    root.style.setProperty('--gold', tenant.primary_color);
+  // ── Primary brand color ──
+  const primary = branding?.primary_color ?? tenant.primary_color;
+  if (primary) {
+    root.style.setProperty('--primary', primary);
+    root.style.setProperty('--ring', primary);
+    root.style.setProperty('--gold', primary);
   }
-  if (tenant.primary_foreground) {
-    root.style.setProperty('--primary-foreground', tenant.primary_foreground);
+  const primaryFg = branding?.text_color ?? tenant.primary_foreground;
+  if (primaryFg) {
+    root.style.setProperty('--primary-foreground', primaryFg);
   }
 
-  // ── Display font (Step B) ──
-  if (tenant.font_family) {
-    root.style.setProperty('--font-display', `'${tenant.font_family}', Georgia, serif`);
+  // ── Base theme colors ──
+  if (branding?.background_color) root.style.setProperty('--background', branding.background_color);
+  if (branding?.card_color) root.style.setProperty('--card', branding.card_color);
+  if (branding?.text_color) root.style.setProperty('--foreground', branding.text_color);
+  if (branding?.muted_text_color) root.style.setProperty('--muted-foreground', branding.muted_text_color);
+  if (branding?.border_color) root.style.setProperty('--border', branding.border_color);
+
+  // ── Radius tokens ──
+  if (branding?.button_radius != null) root.style.setProperty('--radius-button', `${branding.button_radius}px`);
+  if (branding?.card_radius != null) root.style.setProperty('--radius-card', `${branding.card_radius}px`);
+  if (branding?.input_radius != null) root.style.setProperty('--radius-input', `${branding.input_radius}px`);
+
+  // ── Display font ──
+  const font = branding?.font_family ?? tenant.font_family;
+  if (font) {
+    root.style.setProperty('--font-display', `'${font}', Georgia, serif`);
   }
 }
 

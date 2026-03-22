@@ -170,11 +170,32 @@ export function Widget({ slug }: { slug: string }) {
     setStep(1);
   };
 
+  const applyTenantTheme = (t: Tenant) => {
+    const branding = (t as any).branding ?? (t as any).theme_json?.branding ?? null;
+    const root = document.documentElement;
+    const primary = branding?.primary_color ?? t.primary_color;
+    if (primary) {
+      root.style.setProperty('--asc-primary', primary);
+      root.style.setProperty('--primary', primary);
+      root.style.setProperty('--ring', primary);
+      root.style.setProperty('--gold', primary);
+    }
+    if (branding?.background_color) root.style.setProperty('--background', branding.background_color);
+    if (branding?.card_color) root.style.setProperty('--card', branding.card_color);
+    if (branding?.text_color) root.style.setProperty('--foreground', branding.text_color);
+    if (branding?.muted_text_color) root.style.setProperty('--muted-foreground', branding.muted_text_color);
+    if (branding?.border_color) root.style.setProperty('--border', branding.border_color);
+    if (branding?.font_family) root.style.setProperty('--font-display', `'${branding.font_family}', Georgia, serif`);
+    if (branding?.button_radius != null) root.style.setProperty('--radius-button', `${branding.button_radius}px`);
+    if (branding?.card_radius != null) root.style.setProperty('--radius-card', `${branding.card_radius}px`);
+    if (branding?.input_radius != null) root.style.setProperty('--radius-input', `${branding.input_radius}px`);
+  };
+
   useEffect(() => {
     fetchTenantInfo(slug)
       .then((t) => {
         setTenant(t);
-        document.documentElement.style.setProperty('--asc-primary', t.primary_color);
+        applyTenantTheme(t);
       })
       .catch(() => setError('Could not load booking widget.'));
 
