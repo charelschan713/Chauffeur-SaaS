@@ -61,6 +61,7 @@
   padding: 1.25rem;
   box-shadow: var(--shadow-lg);
   backdrop-filter: blur(14px);
+  padding-bottom: max(1.25rem, env(safe-area-inset-bottom));
 }
 
 #chauffeur-quote .cw-header {
@@ -101,12 +102,21 @@
 }
 
 @media (max-width: 640px) {
-  #chauffeur-quote .cw-shell { padding: 1rem; border-radius: 1rem; }
-  #chauffeur-quote .cw-panel { padding: .85rem; border-radius: .9rem; }
-  #chauffeur-quote .cw-input { height: 44px; }
-  #chauffeur-quote .cw-date-btn { height: 44px; font-size: 12px; }
-  #chauffeur-quote .cw-btn-primary { height: 46px; font-size: 14px; }
+  #chauffeur-quote .cw-shell { padding: 0.75rem; border-radius: 0.9rem; }
+  #chauffeur-quote .cw-panel { padding: 0.75rem; border-radius: 0.85rem; }
+  #chauffeur-quote .cw-form { gap: 10px; }
+  #chauffeur-quote .cw-input { height: 40px; font-size: 13px; }
+  #chauffeur-quote .cw-label { font-size: 11px; letter-spacing: .18em; }
+  #chauffeur-quote .cw-date-row { grid-template-columns: 1fr 1fr; gap: 8px; }
+  #chauffeur-quote .cw-date-btn { height: 40px; font-size: 12px; padding: 0 12px; }
+  #chauffeur-quote .cw-btn-primary { height: 44px; font-size: 14px; }
   #chauffeur-quote .cw-seat-grid { grid-template-columns: 1fr; }
+  #chauffeur-quote .cw-grid-2 { grid-template-columns: 1fr; gap: 10px; }
+  #chauffeur-quote .cw-card { padding: 12px; }
+  #chauffeur-quote .cw-footnote { margin-bottom: 10px; }
+  #chauffeur-quote .cw-stepper-portal { height: 40px; }
+  #chauffeur-quote .cw-stepper-portal button { width: 40px; font-size: 16px; }
+  #chauffeur-quote .cw-stepper-value-portal input { width: 28px; font-size: 13px; }
 }
 
 @media (min-width: 700px) {
