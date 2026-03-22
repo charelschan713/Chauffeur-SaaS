@@ -301,52 +301,6 @@ export function Widget({ slug }: { slug: string }) {
     window.location.href = `${portalBase}/book?${params.toString()}`;
   }
 
-  const primary = tenant?.primary_color ?? '#2563eb';
-  // Bridge old primary_color into HSL token if provided as hex
-  useEffect(() => {
-    if (!tenant?.primary_color) return;
-    const hex = tenant.primary_color.trim();
-    const m = hex.match(/^#?([0-9a-f]{6})$/i);
-    if (!m) return;
-    const n = parseInt(m[1], 16);
-    const r = (n >> 16) & 255;
-    const g = (n >> 8) & 255;
-    const b = n & 255;
-    // Convert to HSL and set --primary as H S% L%
-    const rf = r / 255, gf = g / 255, bf = b / 255;
-    const max = Math.max(rf, gf, bf), min = Math.min(rf, gf, bf);
-    let h = 0, s = 0;
-    const l = (max + min) / 2;
-    const d = max - min;
-    if (d !== 0) {
-      s = d / (1 - Math.abs(2 * l - 1));
-      switch (max) {
-        case rf: h = ((gf - bf) / d) % 6; break;
-        case gf: h = (bf - rf) / d + 2; break;
-        case bf: h = (rf - gf) / d + 4; break;
-      }
-      h = Math.round(h * 60);
-      if (h < 0) h += 360;
-    }
-    const hs = `${h} ${Math.round(s * 100)}% ${Math.round(l * 100)}%`;
-    document.documentElement.style.setProperty('--primary', hs);
-    document.documentElement.style.setProperty('--ring', hs);
-  }, [tenant?.primary_color]);
-  const showBabySeats = ws.babySeats;
-  const showPromo = ws.promoCode;
-
-  const cardStyle = {
-    border: '1px solid #e5e7eb',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    background: '#fff',
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  };
-
-
   return (
     <div className="cw-shell">
       {/* Header */}
