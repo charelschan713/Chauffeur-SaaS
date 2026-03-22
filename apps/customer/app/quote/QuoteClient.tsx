@@ -157,18 +157,21 @@ function DropdownPortal({ anchor, onClose, children }: { anchor: React.RefObject
   const updatePos = useCallback(()=>{
     const el=anchor.current; if(!el) return;
     const r=el.getBoundingClientRect();
-    const vw=window.innerWidth;
+    const vw=window.innerWidth; const vh=window.innerHeight; const margin=8;
     const panelW=Math.max(r.width, 264);
-    // clamp left so panel doesn't overflow viewport on mobile
+    // clamp so panel doesn't overflow viewport
     const rawLeft=r.left;
-    const clampedLeft=Math.min(rawLeft, vw-panelW-8);
-    setPos({top:r.bottom+6, left:Math.max(8, clampedLeft), width:panelW});
+    const clampedLeft=Math.min(rawLeft, vw-panelW-margin);
+    const top=r.bottom+6;
+    const panelH = panelRef.current?.getBoundingClientRect().height ?? 0;
+    const clampedTop = Math.max(margin, Math.min(top, vh - panelH - margin));
+    setPos({top:clampedTop, left:Math.max(margin, clampedLeft), width:panelW});
   },[anchor]);
   useEffect(()=>{ updatePos(); window.addEventListener('scroll',updatePos,true); window.addEventListener('resize',updatePos); return()=>{ window.removeEventListener('scroll',updatePos,true); window.removeEventListener('resize',updatePos); }; },[updatePos]);
   useEffect(()=>{ const h=(e:MouseEvent)=>{ if(!anchor.current?.contains(e.target as Node)&&!panelRef.current?.contains(e.target as Node)) onClose(); }; document.addEventListener('mousedown',h,true); return()=>document.removeEventListener('mousedown',h,true); },[anchor,onClose]);
   if (typeof document === 'undefined') return null;
   return createPortal(
-    <div ref={panelRef} style={{position:'fixed',top:pos.top,left:pos.left,width:pos.width,zIndex:9999}} className="rounded-xl border border-white/10 bg-[hsl(228,10%,8%)] shadow-2xl overflow-hidden" onMouseDown={e=>{e.stopPropagation();e.nativeEvent.stopImmediatePropagation();}}>
+    <div ref={panelRef} style={{position:'fixed',top:pos.top,left:pos.left,width:pos.width,zIndex:9999}} className="cw-datetime-portal rounded-xl border border-white/10 bg-[hsl(228,10%,8%)] shadow-2xl overflow-hidden" onMouseDown={e=>{e.stopPropagation();e.nativeEvent.stopImmediatePropagation();}}>
       {children}
     </div>, document.body
   );
