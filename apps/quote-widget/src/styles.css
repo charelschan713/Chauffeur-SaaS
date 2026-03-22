@@ -227,6 +227,10 @@
   grid-template-columns: repeat(3, 1fr);
   gap: 12px;
 }
+#chauffeur-quote .cw-seat-col { display:flex; flex-direction:column; }
+#chauffeur-quote .cw-seat-label { font-size: 11px; font-weight: 600; color: #9ca3af; }
+#chauffeur-quote .cw-seat-sub { font-size: 10px; color: #6b7280; margin-bottom: 6px; }
+#chauffeur-quote .cw-seat-error { color:#f87171; font-size: 12px; margin-top:8px; }
 #chauffeur-quote .cw-select {
   width: 100%;
   height: 44px;
@@ -237,6 +241,22 @@
   padding: 0 12px;
   appearance: none;
 }
+#chauffeur-quote .cw-optional { color:#9ca3af; font-weight:400; margin-left:4px; }
+#chauffeur-quote .cw-alert {
+  display:flex; gap:8px; align-items:flex-start;
+  padding: 10px 12px; border-radius: 12px;
+  background: rgba(251,191,36,0.08); border: 1px solid rgba(251,191,36,0.2);
+  color: rgba(251,191,36,0.8); font-size: 12px;
+}
+#chauffeur-quote .cw-grid-2 { display:grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+#chauffeur-quote .cw-stepper-portal {
+  display:flex; align-items:center; height:48px; border-radius: 12px;
+  border:1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.05); overflow:hidden;
+}
+#chauffeur-quote .cw-stepper-portal button { width:44px; height:100%; display:flex; align-items:center; justify-content:center; color:#9ca3af; background:transparent; border:0; font-size:18px; }
+#chauffeur-quote .cw-stepper-value-portal { flex:1; display:flex; align-items:center; justify-content:center; gap:6px; }
+#chauffeur-quote .cw-stepper-value-portal input { width:32px; text-align:center; background:transparent; color:white; border:0; }
+#chauffeur-quote .cw-stepper-value-portal span { color:#9ca3af; font-size:12px; }
 
 /* Make clickable fields look clickable */
 #chauffeur-quote select.cw-input,

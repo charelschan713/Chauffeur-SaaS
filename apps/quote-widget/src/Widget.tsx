@@ -28,6 +28,9 @@ interface ServiceType {
   id: string;
   name: string;
   calculation_type: string;
+  code?: string;
+  minimum_hours?: number | null;
+  surge_multiplier?: number | null;
 }
 
 interface QuoteResult {
@@ -127,6 +130,7 @@ export function Widget({ slug }: { slug: string }) {
   const [pax, setPax] = useState(1);
   const [bags, setBags] = useState(0);
   const [tripMode, setTripMode] = useState<'ONE_WAY' | 'RETURN'>('ONE_WAY');
+  const [durationHours, setDurationHours] = useState('2');
   const [waypoints, setWaypoints] = useState<string[]>([]);
   const [flightNumber, setFlightNumber] = useState('');
   const [returnFlightNumber, setReturnFlightNumber] = useState('');
@@ -139,7 +143,13 @@ export function Widget({ slug }: { slug: string }) {
   const selectedCity = cities.find((c) => c.id === cityId);
   const selectedServiceType = serviceTypes.find((s) => s.id === serviceTypeId);
   const isHourly = selectedServiceType?.calculation_type === 'HOURLY_CHARTER';
+  const isWedding = selectedServiceType?.code === 'WEDDING_HIRE';
+  const minHours = selectedServiceType?.minimum_hours ?? (isHourly ? 2 : null);
+  const hasSurge = (selectedServiceType?.surge_multiplier ?? 1) > 1;
+  const surgePercent = hasSurge ? Math.round(((selectedServiceType!.surge_multiplier! - 1) * 100)) : 0;
   const effectiveTripMode = isHourly ? 'ONE_WAY' : tripMode;
+  const totalSeats = Number(infantSeats) + Number(toddlerSeats) + Number(boosterSeats);
+  const seatError = showBabySeats && totalSeats > pax;
 
   // Quote result
   const [quoteData, setQuoteData] = useState<QuoteData | null>(null);
@@ -210,6 +220,7 @@ export function Widget({ slug }: { slug: string }) {
         timezone: tenant?.timezone ?? 'Australia/Sydney',
         passenger_count: showPassengers ? pax : undefined,
         luggage_count: showLuggage ? bags : undefined,
+        ...(isHourly ? { duration_hours: Number(durationHours) } : {}),
         distance_km: route.distance_km,
         duration_minutes: route.duration_minutes,
         waypoints_count: showWaypoints ? waypointList.length : 0,
@@ -363,7 +374,7 @@ export function Widget({ slug }: { slug: string }) {
               <div className="cw-label">Service Type</div>
               <select
                 value={serviceTypeId}
-                onChange={(e) => { setServiceTypeId(e.target.value); clearQuote(); }}
+                onChange={(e) => { setServiceTypeId(e.target.value); setTripMode('ONE_WAY'); clearQuote(); }}
                 className="cw-input"
                 style={{
                   backgroundColor: 'hsl(var(--card) / 0.55)',
@@ -379,8 +390,25 @@ export function Widget({ slug }: { slug: string }) {
             </div>
           )}
 
-          {/* Trip type (match portal select) */}
-          {showReturn && (
+          {/* Service notice */}
+          {(isWedding || (isHourly && minHours)) && (
+            <div className="cw-alert">
+              <span>•</span>
+              <span>{isWedding ? `Wedding Hire requires a minimum of ${minHours ?? 4} hours${hasSurge ? ` and includes a ${surgePercent}% special occasion surcharge` : ''}.` : `Hourly Charter minimum is ${minHours} hours.`}</span>
+            </div>
+          )}
+
+          {/* Trip Type / Duration */}
+          {isHourly ? (
+            <div className="cw-span-2">
+              <div className="cw-label">Duration (hours)</div>
+              <select className="cw-input" value={durationHours} onChange={(e)=>{setDurationHours(e.target.value); clearQuote();}}>
+                {[2,3,4,5,6,7,8,9,10,12].filter(h=>h>=(minHours??2)).map(h=> (
+                  <option key={h} value={String(h)}>{h} hours{h===minHours?' (minimum)':''}</option>
+                ))}
+              </select>
+            </div>
+          ) : (
             <div className="cw-span-2">
               <div className="cw-label">Trip Type</div>
               <select
@@ -389,7 +417,7 @@ export function Widget({ slug }: { slug: string }) {
                 className="cw-input"
               >
                 <option value="ONE_WAY">One Way</option>
-                <option value="RETURN" disabled={isHourly}>Return</option>
+                <option value="RETURN">Return</option>
               </select>
             </div>
           )}
@@ -443,7 +471,7 @@ export function Widget({ slug }: { slug: string }) {
           {/* Addresses (like legacy widget) */}
           <div className="cw-span-2" style={{ display: 'grid', gap: 12 }}>
             <div>
-              <div className="cw-label">Pickup location</div>
+              <div className="cw-label">Pickup Location</div>
               <PlacesAutocomplete
                 tenantSlug={tenant?.slug ?? slug}
                 id="widget-pickup"
@@ -527,7 +555,7 @@ export function Widget({ slug }: { slug: string }) {
             )}
 
             <div>
-              <div className="cw-label">Drop-off location</div>
+              <div className="cw-label">Drop-off Location <span className="cw-optional">(optional)</span></div>
               <PlacesAutocomplete
                 tenantSlug={tenant?.slug ?? slug}
                 id="widget-dropoff"
@@ -541,9 +569,9 @@ export function Widget({ slug }: { slug: string }) {
             </div>
           </div>
 
-          {showReturn && tripMode === 'RETURN' && (
+          {showReturn && tripMode === 'RETURN' && !isHourly && (
             <div className="cw-span-2" style={{ paddingTop: 10, borderTop: '1px solid rgba(255,255,255,0.12)' }}>
-              <div className="cw-label" style={{ color: 'hsl(var(--primary))' }}>Return trip</div>
+              <div className="cw-section-label" style={{ marginBottom: 6 }}>Return Trip</div>
               <div className="cw-date-row" style={{ marginTop: 6 }}>
                 <div className="cw-date-btn">
                   <span>Select date</span>
@@ -572,6 +600,7 @@ export function Widget({ slug }: { slug: string }) {
                   />
                 </div>
               </div>
+              <div className="cw-muted" style={{ fontSize: 12, marginTop: 6 }}>Return pickup from drop-off location.</div>
 
               {showFlight && (
                 <div style={{ marginTop: 10 }}>
@@ -591,59 +620,71 @@ export function Widget({ slug }: { slug: string }) {
 
           {/* Passengers / Luggage (v2: steppers) */}
           {(showPassengers || showLuggage) && (
-            <>
+            <div className="cw-grid-2">
               {showPassengers && (
                 <div>
                   <div className="cw-label">Passengers</div>
-                  <div className="cw-stepper">
-                    <button type="button" onClick={() => setPax((p) => Math.max(1, p - 1))}>−</button>
-                    <div className="cw-stepper-value">{pax} pax</div>
-                    <button type="button" onClick={() => setPax((p) => Math.min(50, p + 1))}>+</button>
+                  <div className="cw-stepper-portal">
+                    <button type="button" onClick={() => { setPax((p) => Math.max(1, p - 1)); clearQuote(); }}>−</button>
+                    <div className="cw-stepper-value-portal">
+                      <input type="number" min={1} max={50} value={pax} onChange={(e)=>{const n=Math.max(1,Math.min(50,parseInt(e.target.value)||1)); setPax(n); clearQuote();}} />
+                      <span>passengers</span>
+                    </div>
+                    <button type="button" onClick={() => { setPax((p) => Math.min(50, p + 1)); clearQuote(); }}>+</button>
                   </div>
                 </div>
               )}
               {showLuggage && (
                 <div>
                   <div className="cw-label">Luggage</div>
-                  <div className="cw-stepper">
-                    <button type="button" onClick={() => setBags((b) => Math.max(0, b - 1))}>−</button>
-                    <div className="cw-stepper-value">{bags} bags</div>
-                    <button type="button" onClick={() => setBags((b) => Math.min(50, b + 1))}>+</button>
+                  <div className="cw-stepper-portal">
+                    <button type="button" onClick={() => { setBags((b) => Math.max(0, b - 1)); clearQuote(); }}>−</button>
+                    <div className="cw-stepper-value-portal">
+                      <input type="number" min={0} max={50} value={bags} onChange={(e)=>{const n=Math.max(0,Math.min(50,parseInt(e.target.value)||0)); setBags(n); clearQuote();}} />
+                      <span>bags</span>
+                    </div>
+                    <button type="button" onClick={() => { setBags((b) => Math.min(50, b + 1)); clearQuote(); }}>+</button>
                   </div>
                 </div>
               )}
-            </>
+            </div>
           )}
 
           {/* Baby seats (match portal: dropdowns) */}
           {showBabySeats && (
             <div className="cw-span-2">
-              <div className="cw-label">Baby Seats (optional)</div>
+              <div className="cw-section-label" style={{ color: '#9ca3af' }}>Baby Seats <span className="cw-optional">(optional)</span></div>
               <div className="cw-seat-grid">
-                <div>
-                  <div className="cw-muted" style={{ fontSize: 12, marginBottom: 6 }}>Infant</div>
-                  <select className="cw-select" value={infantSeats} onChange={(e) => setInfantSeats(e.target.value)}>
-                    {seatOptions.map((v) => (<option key={`infant-${v}`} value={v}>{v}</option>))}
+                <div className="cw-seat-col">
+                  <div className="cw-seat-label">Infant</div>
+                  <div className="cw-seat-sub">Rear-facing · 0–6 months</div>
+                  <select className="cw-select" value={infantSeats} onChange={(e) => { setInfantSeats(e.target.value); clearQuote(); }}>
+                    {[0,1,2,3].map((v) => (<option key={`infant-${v}`} value={v}>{v}</option>))}
                   </select>
                 </div>
-                <div>
-                  <div className="cw-muted" style={{ fontSize: 12, marginBottom: 6 }}>Toddler</div>
-                  <select className="cw-select" value={toddlerSeats} onChange={(e) => setToddlerSeats(e.target.value)}>
-                    {seatOptions.map((v) => (<option key={`toddler-${v}`} value={v}>{v}</option>))}
+                <div className="cw-seat-col">
+                  <div className="cw-seat-label">Toddler</div>
+                  <div className="cw-seat-sub">Forward-facing · 0–4 yrs</div>
+                  <select className="cw-select" value={toddlerSeats} onChange={(e) => { setToddlerSeats(e.target.value); clearQuote(); }}>
+                    {[0,1,2,3].map((v) => (<option key={`toddler-${v}`} value={v}>{v}</option>))}
                   </select>
                 </div>
-                <div>
-                  <div className="cw-muted" style={{ fontSize: 12, marginBottom: 6 }}>Booster</div>
-                  <select className="cw-select" value={boosterSeats} onChange={(e) => setBoosterSeats(e.target.value)}>
-                    {seatOptions.map((v) => (<option key={`booster-${v}`} value={v}>{v}</option>))}
+                <div className="cw-seat-col">
+                  <div className="cw-seat-label">Booster</div>
+                  <div className="cw-seat-sub">4–8 years old</div>
+                  <select className="cw-select" value={boosterSeats} onChange={(e) => { setBoosterSeats(e.target.value); clearQuote(); }}>
+                    {[0,1,2,3].map((v) => (<option key={`booster-${v}`} value={v}>{v}</option>))}
                   </select>
                 </div>
               </div>
+              {seatError && (
+                <div className="cw-seat-error">Baby seats ({totalSeats}) must be less than total passengers ({pax}) — at least 1 adult required.</div>
+              )}
             </div>
           )}
 
-          <button onClick={handleGetQuote} disabled={loading} className="cw-btn-primary cw-span-2" style={{ marginTop: 14 }}>
-            {loading ? 'Calculating…' : <><span>Get Instant Quote</span><span style={{ marginLeft: 8 }}>→</span></>}
+          <button onClick={handleGetQuote} disabled={loading || seatError || !pickup || !datetime || !serviceTypeId} className="cw-btn-primary cw-span-2" style={{ marginTop: 14 }}>
+            {loading ? 'Calculating…' : <><span>{quoteData ? '↻ Recalculate' : 'Get Instant Quote'}</span><span style={{ marginLeft: 8 }}>→</span></>}
           </button>
         </div>
       )}
