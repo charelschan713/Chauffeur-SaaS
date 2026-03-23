@@ -197,7 +197,7 @@ export class NotificationService {
     const driver = await this.getDriver(payload.driver_id);
     if (!driver) return;
 
-    const vars = this.buildTemplateVariables(booking, driver);
+    const vars = this.buildTemplateVariables(booking, driver) as Record<string, string>;
 
     // Notify admins (email)
     const admins = await this.getAdminContacts(tenantId);
@@ -213,7 +213,7 @@ export class NotificationService {
     const driver = await this.getDriver(payload.driver_id);
     if (!driver) return;
 
-    const templateVars = this.buildTemplateVariables(booking, driver);
+    const templateVars = this.buildTemplateVariables(booking, driver) as Record<string, string>;
 
     // Email (if configured)
     const emailIntegration =
@@ -252,7 +252,7 @@ export class NotificationService {
     const driver = await this.getDriver(payload.driver_id);
     if (!driver) return;
 
-    const vars = this.buildTemplateVariables(booking, driver);
+    const vars = this.buildTemplateVariables(booking, driver) as Record<string, string>;
     const admins = await this.getAdminContacts(tenantId);
     for (const admin of admins) {
       if (admin.email) {
@@ -280,7 +280,7 @@ export class NotificationService {
       (await this.integrationResolver.resolve(tenantId, 'sendgrid')) ??
       (await this.integrationResolver.resolve(tenantId, 'mailgun'));
     if (emailIntegration && driver.email) {
-      await this.sendFromTemplate(tenantId, 'DriverInvitationSent', 'email', templateVars, driver.email, null).catch(() => {});
+      await this.sendFromTemplate(tenantId, 'DriverInvitationSent', 'email', templateVars, driver.email, undefined).catch(() => {});
     }
 
     const smsIntegration = await this.integrationResolver.resolve(tenantId, 'twilio');
@@ -290,7 +290,7 @@ export class NotificationService {
     const body = renderTemplate(smsTemplate.body || 'You are invited to join {{company_name}}. Open: {{driver_app_url}}', templateVars);
 
     const driverPhone = toE164(driver.phone_country_code, driver.phone_number);
-    if (driverPhone) await this.sendSmsWithLog(tenantId, eventType, smsIntegration, driverPhone, body, null).catch(() => {});
+    if (driverPhone) await this.sendSmsWithLog(tenantId, eventType, smsIntegration, driverPhone, body, undefined).catch(() => {});
   }
 
   private async onJobCompleted(tenantId: string, payload: any) {

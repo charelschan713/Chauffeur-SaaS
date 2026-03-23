@@ -875,14 +875,6 @@ ${footer()}
     sms: { body: '{{company_name}}: {{passenger_name}}, your trip {{booking_reference}} has started. Enjoy your ride!' },
   },
 
-  DriverJobAssigned: {
-    email: {
-      subject: 'New Job — {{booking_reference}}',
-      body: `<div style="${S.wrap}"><h2 style="${S.h2}">New Job Assignment 🚗</h2><p style="${S.p}">Hi {{driver_name}}, job <strong>{{booking_reference}}</strong> on {{pickup_time}}. Pickup: {{pickup_address}}.</p>${cta(btnUrl('Open Job →', '{{driver_app_url}}'))}${footer()}</div>`,
-    },
-    sms: { body: '{{company_name}}: New job {{booking_reference}} on {{pickup_time}}. Pickup: {{pickup_address}}. Open: {{driver_app_url}}' },
-  },
-
   DriverInvitationSent: {
     email: {
       subject: 'You are invited to join {{company_name}}',
