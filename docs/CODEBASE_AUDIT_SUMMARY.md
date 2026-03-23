@@ -273,3 +273,47 @@
   - Autocomplete via SaaS proxy (`/public/maps/autocomplete`).
 - `apps/quote-widget/src/widgetConfig.ts`
   - Widget settings defaults + merge.
+
+---
+
+## 10) Function‑Level Notes (Phase 1 — Pricing/Public)
+
+### `src/pricing/pricing.resolver.ts`
+- `resolveTollForRoute(tenantId, pickupAddress, dropoffAddress, currency, pickupAtUtc, enabled)`
+  - Uses Google Maps route (with toll estimate) to compute `tollAmountMinor`.
+  - Returns 0 if disabled or missing addresses.
+- `resolveToll(ctx)`
+  - Adapter to `resolveTollForRoute` using `PricingContext`.
+- `resolveParkingForPickup(tenantId, pickupAddress)`
+  - Uses `AirportParkingService.resolveParking` to return parking fee (minor).
+- `applyMultiplier(baseMinor, type, value, surchargeMinor)`
+  - If PERCENTAGE: `base * value% + surcharge`; else flat `base + surcharge`.
+- `mergeReturnSurcharges(outbound, ret, combinedBaseMinor)`
+  - Dedupes surcharges by (label/type/value) and re‑applies on combined base.
+- `findTier(tiers, actualHours)`
+  - Selects hourly tier by hours range; default is 100% if none.
+- `calculateReturnableLegMinor(...)`
+  - Computes leg fare = base + (km * perKm) + (min * perMin), applies multiplier + minimum + waypoint fees.
+- `resolve(ctx)`
+  - Main dispatcher: if `serviceTypeId` → `resolveV41`; else legacy zone/itemized flow.
+  - Legacy flow: build snapshot → toll → discount → grand_total.
+  - Sets `toll_minor`, `parking_minor`, `grand_total_minor`.
+
+### `src/pricing/snapshot.builder.ts`
+- `buildSnapshot(params)`
+  - Sums item subtotals → applies surge multiplier → returns `PricingSnapshot`.
+
+### `src/public/public-pricing.service.ts`
+- `buildQuoteResults(tenant, dto)`
+  - Loads active car types.
+  - Reads `toll_enabled` + `waypoint_charge_enabled` from service type.
+  - For each car type, builds `PricingContext` and calls `PricingResolver.resolve`.
+  - Applies **tenant discount** via `DiscountService.resolveDiscount`.
+  - Returns `pricing_snapshot_preview` with leg breakdown + discount + final fare.
+- `quote(slug, dto)`
+  - Resolve tenant by slug, calls `buildQuoteResults`.
+  - Creates `quote_sessions` row with 30‑minute expiry.
+- `getQuoteSession(quoteId)`
+  - Fetches active (non‑expired) quote session.
+- `markConverted(quoteId)`
+  - Sets `quote_sessions.converted = true`.
