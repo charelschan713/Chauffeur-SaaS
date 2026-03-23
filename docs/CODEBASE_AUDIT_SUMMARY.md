@@ -317,3 +317,71 @@
   - Fetches active (non‑expired) quote session.
 - `markConverted(quoteId)`
   - Sets `quote_sessions.converted = true`.
+
+---
+
+## 11) Function‑Level Notes (Phase 2 — Booking/Customer Portal)
+
+### `src/booking/booking.service.ts`
+- `listBookings(tenantId, query)`
+  - Filters by status/date/search, returns paginated list with assignment join.
+- `getBookingDetail(tenantId, bookingId)`
+  - Loads booking + status history + assignments + payments + saved card.
+  - Includes latest driver extra report + `has_extras` flag for admin review.
+- `getDriverExtraReportForAdmin(tenantId, bookingId)`
+  - Dedicated admin fetch for execution report + status metadata.
+- `createBooking(tenantId, dto)`
+  - Builds `PricingContext` and resolves pricing.
+  - Inserts booking, status history, and triggers notification.
+  - Default status: `PENDING_CUSTOMER_CONFIRMATION` (sends payment link).
+- `transition(bookingId, newStatus, userId, reason)`
+  - Enforces transition rules (`BOOKING_TRANSITION_RULES`) unless bypassed.
+  - Writes status history and fires notifications (Confirmed/Cancelled/Completed).
+- `cancelBooking(tenantId, bookingId, actor)`
+  - Marks booking CANCELLED, inserts history, cancels open assignments, fires notification.
+- `fulfilBooking(tenantId, bookingId, adminId, body)`
+  - Marks FULFILLED, sets adjustment fields, logs history.
+  - Reviews driver report, attempts off‑session extra charge (ADJUSTMENT) if needed.
+  - Freezes trip evidence (audit).
+- `markPaid(tenantId, bookingId)`
+  - Sets `payment_status = PAID`.
+- `checkInvoiceGating(booking)`
+  - Blocks final invoice if adjustment unresolved or tenant invoice profile incomplete.
+- `resendInvoice(tenantId, bookingId)`
+  - Re‑fires `InvoiceSent` for latest SENT/PAID invoice after gating check.
+- `getInvoicePdfForAdmin(tenantId, bookingId)`
+  - Generates PDF for latest SENT/PAID invoice.
+- `sendPaymentLink(tenantId, bookingId)`
+  - Generates payment token (expires at min(24h, pickup time)), sends payment link notification.
+- `chargeNow(tenantId, bookingId)`
+  - Captures Stripe payment for AUTHORIZED bookings via `PaymentService`.
+- `confirmAndCharge(tenantId, bookingId)`
+  - Off‑session Stripe charge for saved card; success → CONFIRMED/PAID; failure → PAYMENT_FAILED.
+- `rejectBooking(tenantId, bookingId, actorId, reason)`
+  - Cancels booking from PENDING_CUSTOMER_CONFIRMATION / AWAITING_CONFIRMATION.
+- `finalizeBooking(tenantId, bookingId, adminId, body)`
+  - Stores actuals from driver report; updates actual totals.
+- `modifyBookingAdmin(tenantId, bookingId, adminId, dto)`
+  - Admin edits allowed fields, can override total + snapshot; notifies stakeholders.
+- `settleBooking(tenantId, bookingId, adminId, body)`
+  - Reconciles actual vs prepay: charge extra / refund / mark settled.
+
+### `src/booking/booking.controller.ts`
+- CRUD + action endpoints for admin booking operations:
+  - `/bookings` list/create
+  - `/bookings/:id` detail
+  - `/transition`, `/cancel`, `/fulfil`, `/charge`, `/confirm-and-charge`, `/modify-admin`, `/reject`, `/finalize`, `/settle`
+  - `/send-payment-link`, `/mark-paid`, `/resend-invoice`, `/invoice-pdf`, `/driver-report`
+
+### `src/customer-portal/customer-portal.service.ts`
+- `onModuleInit()`
+  - Applies DB migrations for customer verification + booking columns + quote_sessions customer_id.
+  - Normalizes phone numbers; ensures enum values.
+- `getStripe(tenantId)` / `getStripePublishableKey*()`
+  - Resolves Stripe keys from tenant_settings → env fallback.
+- `getTenantInfo(slug)`
+  - Public tenant info + branding.
+- `listPendingQuotes(customerId, tenantId)`
+  - Returns active quote sessions for customer (max 10), computes cheapest option.
+- `getInvoicePdf(customerId, tenantId, bookingId)`
+  - Validates ownership and returns final invoice PDF if SENT/PAID.
