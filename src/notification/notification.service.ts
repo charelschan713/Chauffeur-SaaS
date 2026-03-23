@@ -192,13 +192,20 @@ export class NotificationService {
     const driver = await this.getDriver(payload.driver_id);
     if (!driver) return;
 
-    const smsIntegration = await this.integrationResolver.resolve(
-      tenantId,
-      'twilio',
-    );
-    if (!smsIntegration) return;
-
     const templateVars = this.buildTemplateVariables(booking, driver);
+
+    // Email (if configured)
+    const emailIntegration =
+      (await this.integrationResolver.resolve(tenantId, 'resend')) ??
+      (await this.integrationResolver.resolve(tenantId, 'sendgrid')) ??
+      (await this.integrationResolver.resolve(tenantId, 'mailgun'));
+    if (emailIntegration && driver.email) {
+      await this.sendFromTemplate(tenantId, 'DriverInvitationSent', 'email', templateVars, driver.email, booking.id).catch(() => {});
+    }
+
+    // SMS
+    const smsIntegration = await this.integrationResolver.resolve(tenantId, 'twilio');
+    if (!smsIntegration) return;
 
     const platformBody = driverInvitationSms({
       bookingReference: booking.booking_reference,
@@ -1558,6 +1565,7 @@ export class NotificationService {
         ? `$${(snapshot.final_fare_minor / 100).toFixed(2)}`
         : (b.total_price_minor ? `$${(b.total_price_minor / 100).toFixed(2)}` : (b.total_amount ?? '')),
       city:                 b.city_name ?? '',
+      driver_app_url:       process.env.DRIVER_APP_URL ?? 'https://chauffeur-driver-portal.vercel.app',
     };
   }
 }
