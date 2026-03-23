@@ -149,7 +149,7 @@ export class NotificationService {
       case 'AdditionalCharge':              await this.onAdditionalCharge(tenantId, payload); break;
       case 'AdjustmentFailed':              await this.onAdjustmentFailed(tenantId, payload); break;
       case 'AdjustmentFailedAdmin':         await this.onAdjustmentFailed(tenantId, payload); break;
-      case 'JobFulfilled':                  await this.onJobFulfilledWithExtras(tenantId, payload); break;
+      case 'JobFulfilled':                  await this.onJobFulfilledNoExtras(tenantId, payload); break;
       case 'PaymentFailedCustomer':         await this.onPaymentFailed(tenantId, payload); break;
       case 'PaymentFailedAdmin':            await this.onAdminPaymentFailed(tenantId, payload); break;
       case 'InvoicePaidAdmin':              await this.onAdminInvoicePaid(tenantId, payload); break;
