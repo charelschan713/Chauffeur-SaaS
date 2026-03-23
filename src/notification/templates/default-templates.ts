@@ -852,7 +852,22 @@ ${footer()}
     sms: { body: 'You are invited to join {{company_name}}. Open: {{driver_app_url}}' },
   },
 
-  DriverAcceptedAssignment: {},
+  DriverAcceptedAssignment: {
+    email: {
+      subject: 'Driver Accepted — {{booking_reference}}',
+      body: `<div style="${S.wrap}">
+<h2 style="${S.h2}">Driver Accepted ✅</h2>
+<p style="${S.p}">Driver <strong>{{driver_name}}</strong> has accepted booking <strong>{{booking_reference}}</strong>.</p>
+<table style="${S.table}">
+  <tr><td style="${S.tdL}">Pickup</td><td style="${S.tdR}">{{pickup_address}}</td></tr>
+  <tr><td style="${S.tdLAlt}">Dropoff</td><td style="${S.tdRAlt}">{{dropoff_address}}</td></tr>
+  <tr><td style="${S.tdL}">Pickup Time</td><td style="${S.tdR}">{{pickup_time}}</td></tr>
+</table>
+${cta(btnUrl('Open Booking →', '{{admin_booking_url}}'))}
+${footer()}
+</div>`,
+    },
+  },
 
   DriverRejectedAssignment: {
     email: {

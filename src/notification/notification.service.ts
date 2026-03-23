@@ -183,9 +183,18 @@ export class NotificationService {
   }
 
   private async onDriverAccepted(tenantId: string, payload: any) {
-    // DriverAcceptedAssignment — internal only, no customer/passenger notification needed
-    // Admin can see driver status in booking detail page
-    console.log(`[DriverAcceptedAssignment] driver accepted booking ${payload.booking_id} — no notification sent (internal)`);
+    const booking = await this.getBooking(payload.booking_id);
+    if (!booking) return;
+    const driver = await this.getDriver(payload.driver_id);
+    if (!driver) return;
+
+    const vars = this.buildTemplateVariables(booking, driver);
+
+    // Notify admins (email)
+    const admins = await this.getAdminContacts(tenantId);
+    for (const admin of admins) {
+      if (admin.email) await this.sendFromTemplate(tenantId, 'DriverAcceptedAssignment', 'email', vars, admin.email, booking.id).catch(() => {});
+    }
   }
 
   private async onDriverJobAssigned(tenantId: string, payload: any) {
