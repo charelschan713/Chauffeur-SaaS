@@ -432,3 +432,39 @@
   - Resolves portal base URL from env/custom domain/fallback slug.
 - `step` state
   - Step 1 = form, Step 2 = results cards with pricing breakdown.
+
+---
+
+## 14) Architecture Logic Blueprint (End‑to‑End)
+
+### A) Quote → Book (Public / Customer)
+1. **Widget/Customer UI** collects pickup/dropoff/date/time + options.
+2. **Route** calculated via `/public/maps/route` (distance + duration + toll estimate inputs).
+3. **Quote** request to `/public/pricing/quote` (service type + route + options).
+4. **PricingResolver** (resolveV41) computes legs, surcharges, toll/parking, discounts.
+5. **Quote session** stored in `quote_sessions` (expires in 30 min).
+6. **Book Now** passes `quote_id` + `car_type_id` → `/book` in customer portal.
+7. **Customer Portal** loads quote session + initializes Stripe (setup intent / payment intent).
+8. **Booking created** with `PENDING_CUSTOMER_CONFIRMATION` or `AWAITING_CONFIRMATION` depending on flow.
+
+### B) Admin Confirmation & Payment
+1. Admin reviews booking in `apps/admin`.
+2. If booking is pending, admin can **Confirm & Charge** (off‑session Stripe).
+3. Success → `CONFIRMED` + `PAID`; failure → `PAYMENT_FAILED` (retryable).
+
+### C) Dispatch / Driver Execution
+1. Admin assigns driver (internal or partner) via dispatch board.
+2. Driver app updates execution status (`assigned → accepted → on_the_way → arrived → passenger_on_board → job_done`).
+3. Driver can submit **execution report** (extras, waiting, toll/parking).
+
+### D) Fulfilment / Settlement / Invoice
+1. Admin reviews execution report + actuals in **Fulfil modal**.
+2. Booking marked `FULFILLED` and **extra charge** attempted if needed.
+3. Adjustment status resolves (`CAPTURED`, `FAILED`, `NO_PAYMENT_METHOD`, `SETTLED`).
+4. If adjustment resolved, **final invoice** can be issued or re‑sent.
+5. Trip evidence frozen at fulfilment for audit.
+
+### E) Multi‑Tenant Branding
+- `/public/tenant-info` provides branding + widget settings.
+- `TenantProvider` and widget apply CSS variables for theme.
+- Admin updates branding + widget toggles in settings.
