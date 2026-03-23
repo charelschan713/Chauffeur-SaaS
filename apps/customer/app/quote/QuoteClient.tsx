@@ -323,6 +323,9 @@ export function QuoteClient() {
   const [infantSeats, setInfantSeats]   = useState('0');
   const [toddlerSeats, setToddlerSeats] = useState('0');
   const [boosterSeats, setBoosterSeats] = useState('0');
+  const [flightNumber, setFlightNumber] = useState('');
+  const [returnFlightNumber, setReturnFlightNumber] = useState('');
+  const [showFlight, setShowFlight]     = useState(true);
 
   const [autoDiscount, setAutoDiscount] = useState<{ name: string; rate: number } | null>(null);
   const [showUrgentModal, setShowUrgentModal] = useState(false);
@@ -381,13 +384,16 @@ export function QuoteClient() {
       fetch(`${API_URL}/public/cities?tenant_slug=${slug}`).then(r => r.json()),
       fetch(`${API_URL}/public/service-types?tenant_slug=${slug}`).then(r => r.json()),
       fetch(`${API_URL}/public/car-types?tenant_slug=${slug}`).then(r => r.json()),
-    ]).then(([c, s, ct]) => {
+      fetch(`${API_URL}/public/tenant-info?tenant_slug=${slug}`).then(r => r.ok ? r.json() : null),
+    ]).then(([c, s, ct, ti]) => {
       const vc = Array.isArray(c) ? c : [];
       const vs = (Array.isArray(s) ? s : []).filter((x: any) => x.name);
       const vct = (Array.isArray(ct) ? ct : []).filter((x: any) => x.name);
       setCities(vc); setServiceTypes(vs); setCarTypes(vct);
       if (vc.length) setCityId(vc[0].id);
       if (vs.length) setServiceTypeId(vs[0].id);
+      const flightEnabled = !!ti?.widget_settings?.flightNumber || !!ti?.booking_entry?.show_flight_number;
+      setShowFlight(flightEnabled || flightEnabled === undefined ? true : false);
     }).catch(() => setConfigError(true))
       .finally(() => setLoadingConfig(false));
     // Auto-discount (non-blocking, with retry)
@@ -460,6 +466,7 @@ export function QuoteClient() {
         infant_seats: Number(infantSeats),
         toddler_seats: Number(toddlerSeats),
         booster_seats: Number(boosterSeats),
+        flight_number: showFlight && flightNumber.trim() ? flightNumber.trim() : undefined,
       };
       setLastQuoteDebug({
         payload: body,
@@ -474,6 +481,7 @@ export function QuoteClient() {
         body.return_time = returnTime;
         // Return waypoints count for pricing (stops on return leg)
         body.return_waypoints_count = activeWaypoints.length;
+        body.return_flight_number = showFlight && returnFlightNumber.trim() ? returnFlightNumber.trim() : undefined;
       }
 
       const quote = await fetch(`${API_URL}/public/pricing/quote?tenant_slug=${slug}`, {
@@ -644,6 +652,17 @@ export function QuoteClient() {
           <div>
             <FL>Pickup Date & Time</FL>
             <LuxDateTimePicker dateValue={date} timeValue={time} onDateChange={v=>{setDate(v);clearQuote();}} onTimeChange={v=>{setTime(v);clearQuote();}} minDate={todayISO()}/>
+            {showFlight && (
+              <div className="mt-2">
+                <FL>Flight (optional)</FL>
+                <input
+                  value={flightNumber}
+                  onChange={e=>{setFlightNumber(e.target.value);clearQuote();}}
+                  placeholder="e.g. QF401"
+                  className="w-full h-12 rounded-xl border border-white/10 bg-white/5 px-3 text-sm text-white"
+                />
+              </div>
+            )}
           </div>
 
           {/* Addresses */}
@@ -680,6 +699,17 @@ export function QuoteClient() {
             <div className="space-y-3 pt-2 border-t border-white/10">
               <p className="text-xs font-semibold uppercase tracking-widest text-[hsl(var(--primary))]">Return Trip</p>
               <LuxDateTimePicker dateValue={returnDate} timeValue={returnTime} onDateChange={v=>{setReturnDate(v);clearQuote();}} onTimeChange={v=>{setReturnTime(v);clearQuote();}} minDate={date||todayISO()}/>
+              {showFlight && (
+                <div>
+                  <FL>Return Flight (optional)</FL>
+                  <input
+                    value={returnFlightNumber}
+                    onChange={e=>{setReturnFlightNumber(e.target.value);clearQuote();}}
+                    placeholder="e.g. QF402"
+                    className="w-full h-12 rounded-xl border border-white/10 bg-white/5 px-3 text-sm text-white"
+                  />
+                </div>
+              )}
               <p className="text-xs text-gray-400">Return pickup from drop-off location.</p>
             </div>
           )}
