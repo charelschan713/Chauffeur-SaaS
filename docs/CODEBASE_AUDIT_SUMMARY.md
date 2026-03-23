@@ -166,3 +166,110 @@
 - `apps/quote-widget/src/components/LuxDateTimePicker.tsx`
 - `apps/quote-widget/src/components/PlacesAutocomplete.tsx`
 - `apps/quote-widget/src/widgetConfig.ts`
+
+---
+
+## 9) Detailed Annotations (Per File)
+
+### Backend — Pricing / Public
+- `src/pricing/pricing.resolver.ts`
+  - Entry point for pricing.
+  - Switches to legacy logic when no `serviceTypeId`.
+  - `resolveV41` handles service type pricing, return leg, surcharges, toll/parking, return rules.
+- `src/pricing/snapshot.builder.ts`
+  - Builds pricing snapshot used by frontends for breakdown display.
+- `src/public/public-pricing.service.ts`
+  - Handles `/public/pricing/quote`.
+  - Adds promo/tenant discounts (potentially touching toll/parking).
+
+### Backend — Booking / Customer Portal
+- `src/booking/booking.service.ts`
+  - Core booking creation/updates, status transitions, fulfilment hooks.
+- `src/booking/booking.controller.ts`
+  - Admin booking endpoints (cancel, charge, fulfil, etc.).
+- `src/customer-portal/customer-portal.service.ts`
+  - Customer booking lifecycle (quote session, create booking, dashboard).
+- `src/customer-portal/customer-portal.controller.ts`
+  - HTTP layer for customer portal.
+
+### Backend — Payments / Stripe
+- `src/payment/payment.service.ts`
+  - Charge capture, payment intents, status updates.
+- `src/payment/stripe-webhook.controller.ts`
+  - Stripe webhook receiver (rawBody).
+
+### Backend — Dispatch / Driver / Tenant
+- `src/dispatch/dispatch.service.ts`
+  - Offer workflow for dispatching bookings to drivers.
+- `src/driver/driver-app.service.ts`
+  - Driver app assignment list, detail payloads.
+- `src/tenant/tenant.controller.ts`
+  - Branding + settings updates per tenant.
+- `src/public/public-tenant.service.ts`
+  - Public tenant info for widget/portals.
+
+---
+
+### Admin Frontend
+- `apps/admin/app/(tenant)/bookings/[id]/page.tsx`
+  - Full booking detail UI.
+  - Handles confirm/reject, confirm+charge, retry charge, payment modal, fulfilment, invoice resend/download.
+  - Handles driver report banners (pending review vs reviewed).
+- `apps/admin/components/payment-modal.tsx`
+  - Actions: send pay link, charge saved card, mark paid.
+- `apps/admin/components/fulfil-modal.tsx`
+  - Fulfil preview + actuals (distance/duration/waiting/toll/parking) + extra charge application.
+- `apps/admin/components/assign-driver-modal.tsx`
+  - Assign driver + vehicle + driver pay; toll/parking passthrough; shows driver schedule.
+- `apps/admin/app/(tenant)/dispatch/page.tsx`
+  - Dispatch board with booking/driver/vehicle selection; `/dispatch/offer`.
+- `apps/admin/app/(tenant)/settings/branding/page.tsx`
+  - Branding form (logo, colors, font, domain) + HSL conversions.
+- `apps/admin/app/(tenant)/settings/widget/page.tsx`
+  - Widget settings toggles (return/flight/waypoints/etc.).
+
+---
+
+### Customer Frontend
+- `apps/customer/app/quote/QuoteClient.tsx`
+  - Full quote workflow (cities/service types/car types → route → quote).
+  - 12‑hour minimum booking rule (urgent modal).
+  - Return leg route computed separately; reverse waypoints.
+  - Auto‑discount via `/public/discounts/auto`.
+  - Pending quotes list for logged‑in users.
+- `apps/customer/app/book/BookPageClient.tsx`
+  - Loads quote session and handles Stripe setup intent.
+  - Supports guest + logged‑in flows.
+- `apps/customer/app/dashboard/DashboardClient.tsx`
+  - Upcoming/past trips list; tenant theme injected.
+- `apps/customer/app/bookings/page.tsx`
+  - Bookings list (upcoming/past/all).
+- `apps/customer/app/bookings/[id]/BookingDetailClient.tsx`
+  - Booking details, status banners, driver status, invoice download.
+- `apps/customer/components/TenantProvider.tsx`
+  - Injects tenant branding to CSS variables.
+
+---
+
+### Driver Frontend
+- `apps/driver/app/dashboard/DashboardClient.tsx`
+  - Upcoming/past assignments; dark/light card variants.
+- `apps/driver/app/bookings/[id]/BookingDetailClient.tsx`
+  - Booking detail + driver execution status.
+- `apps/driver/components/TenantProvider.tsx`
+  - Same branding injection as customer.
+
+---
+
+### Quote Widget
+- `apps/quote-widget/src/Widget.tsx`
+  - Widget core flow (tenant → config → route → quote → results).
+  - `widget_settings` controls field visibility.
+- `apps/quote-widget/src/api.ts`
+  - Fetch helpers: tenant info, cities, service types, route, quote.
+- `apps/quote-widget/src/components/LuxDateTimePicker.tsx`
+  - Custom date/time picker (portal positioning, fixed, viewport‑clamped).
+- `apps/quote-widget/src/components/PlacesAutocomplete.tsx`
+  - Autocomplete via SaaS proxy (`/public/maps/autocomplete`).
+- `apps/quote-widget/src/widgetConfig.ts`
+  - Widget settings defaults + merge.
