@@ -205,11 +205,52 @@ export function Widget({ slug }: { slug: string }) {
     if (branding?.input_radius != null) root.style.setProperty('--radius-input', `${branding.input_radius}px`);
   };
 
+  const applyCustomCss = (t: Tenant) => {
+    const ws = (t as any).widget_settings ?? null;
+    const customCss = ws?.customCss ?? ws?.custom_css ?? null;
+    const customCssUrl = ws?.customCssUrl ?? ws?.custom_css_url ?? null;
+
+    const styleId = 'cw-custom-css';
+    const linkId = 'cw-custom-css-link';
+
+    // Inline CSS
+    const existingStyle = document.getElementById(styleId) as HTMLStyleElement | null;
+    if (customCss && typeof customCss === 'string') {
+      if (existingStyle) {
+        existingStyle.textContent = customCss;
+      } else {
+        const style = document.createElement('style');
+        style.id = styleId;
+        style.textContent = customCss;
+        document.head.appendChild(style);
+      }
+    } else if (existingStyle) {
+      existingStyle.remove();
+    }
+
+    // CSS URL
+    const existingLink = document.getElementById(linkId) as HTMLLinkElement | null;
+    if (customCssUrl && typeof customCssUrl === 'string') {
+      if (existingLink) {
+        existingLink.href = customCssUrl;
+      } else {
+        const link = document.createElement('link');
+        link.id = linkId;
+        link.rel = 'stylesheet';
+        link.href = customCssUrl;
+        document.head.appendChild(link);
+      }
+    } else if (existingLink) {
+      existingLink.remove();
+    }
+  };
+
   useEffect(() => {
     fetchTenantInfo(slug)
       .then((t) => {
         setTenant(t);
         applyTenantTheme(t);
+        applyCustomCss(t);
       })
       .catch(() => setError('Could not load booking widget.'));
 

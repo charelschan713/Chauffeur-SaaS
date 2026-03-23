@@ -6,6 +6,8 @@ export type WidgetSettings = {
   luggage?: boolean;
   babySeats?: boolean;
   promoCode?: boolean;
+  customCss?: string;
+  customCssUrl?: string;
 };
 
 export const DEFAULT_WIDGET_SETTINGS: Required<WidgetSettings> = {
