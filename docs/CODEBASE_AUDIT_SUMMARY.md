@@ -95,11 +95,20 @@
 - `apps/admin/components/assign-driver-modal.tsx`
 - Driver pay: % or fixed; toll/parking editable
 - Shows driver’s daily schedule
-- **Dispatch notification** now uses event **DriverJobAssigned** (Email + SMS). **DriverInvitationSent** reserved for onboarding.
+- **Dispatch notification** uses event **DriverJobAssigned** (Email + SMS). **DriverInvitationSent** reserved for onboarding.
 
 **Driver App**
 - `/driver-app/assignments` for upcoming/past
 - Driver execution status: `assigned → accepted → on_the_way → arrived → passenger_on_board → job_done`
+- **Notifications**:
+  - `DriverJobAssigned` → driver email/SMS
+  - `DriverAcceptedAssignment` → admin email
+  - `DriverEnRoute` / `DriverArrived` → passenger SMS
+  - `DriverJobCompleted` → admin email
+
+**Fulfilment Notifications**
+- `JobFulfilledNoExtras` → customer email/SMS
+- `JobFulfilledWithExtras` → customer email/SMS (extra charges)
 
 ---
 
