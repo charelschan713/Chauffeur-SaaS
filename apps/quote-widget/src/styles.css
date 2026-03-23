@@ -367,12 +367,11 @@
 #chauffeur-quote .cw-grid-2 { display:grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 #chauffeur-quote .cw-stepper-portal {
   display:flex; align-items:center; height:48px; border-radius: 12px;
-  border:1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.05); overflow:hidden;
+  border:1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.04); overflow:hidden;
 }
 #chauffeur-quote .cw-stepper-portal button { width:44px; height:100%; display:flex; align-items:center; justify-content:center; color:#9ca3af; background:transparent; border:0; font-size:18px; }
-#chauffeur-quote .cw-stepper-value-portal { flex:1; display:flex; align-items:center; justify-content:center; gap:6px; }
+#chauffeur-quote .cw-stepper-value-portal { flex:1; display:flex; align-items:center; justify-content:center; }
 #chauffeur-quote .cw-stepper-value-portal input { width:32px; text-align:center; background:transparent; color:white; border:0; }
-#chauffeur-quote .cw-stepper-value-portal span { color:#9ca3af; font-size:12px; }
 
 /* Make clickable fields look clickable */
 #chauffeur-quote select.cw-input,
@@ -446,14 +445,22 @@
 }
 
 #chauffeur-quote .cw-muted {
-  color: hsl(var(--muted-foreground));
+  color: rgba(255,255,255,0.5);
 }
 
 #chauffeur-quote .cw-results-header {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-bottom: 14px;
+  margin-bottom: 10px;
+}
+#chauffeur-quote .cw-results-title {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.6);
+  margin-bottom: 12px;
 }
 #chauffeur-quote .cw-back {
   background: none;
@@ -464,36 +471,46 @@
   font-size: 13px;
   padding: 0;
 }
-#chauffeur-quote .cw-results { display: grid; gap: 12px; }
+#chauffeur-quote .cw-results { display: grid; gap: 16px; }
 #chauffeur-quote .cw-card {
-  border: 1px solid hsl(var(--border) / 0.6);
-  background: hsl(var(--card) / 0.7);
-  border-radius: 16px;
-  padding: 14px;
+  border: 1px solid rgba(255,255,255,0.10);
+  background: rgba(255,255,255,0.03);
+  border-radius: 14px;
+  padding: 16px;
   display: grid;
-  gap: 12px;
+  gap: 10px;
+  box-shadow: 0 12px 24px rgba(0,0,0,0.35);
 }
 #chauffeur-quote .cw-card-title {
-  font-weight: 700;
+  font-weight: 600;
   font-size: 15px;
-  color: hsl(var(--foreground));
+  color: #fff;
 }
 #chauffeur-quote .cw-card-price {
-  font-size: 22px;
-  font-weight: 800;
-  color: hsl(var(--primary));
+  font-size: 24px;
+  font-weight: 700;
+  color: #fff;
 }
 #chauffeur-quote .cw-card-sub {
   font-size: 12px;
-  color: hsl(var(--muted-foreground));
+  color: rgba(255,255,255,0.6);
   margin-top: 2px;
+}
+#chauffeur-quote .cw-breakdown-toggle {
+  background: transparent;
+  border: 0;
+  color: rgba(255,255,255,0.65);
+  font-size: 12px;
+  text-align: left;
+  padding: 0;
+  cursor: pointer;
 }
 #chauffeur-quote .cw-breakdown {
   margin-top: 8px;
   font-size: 12px;
   color: rgba(255,255,255,.78);
   display: grid;
-  gap: 2px;
+  gap: 4px;
 }
 #chauffeur-quote .cw-breakdown-row {
   display: flex;
@@ -503,11 +520,11 @@
 #chauffeur-quote .cw-breakdown-total { font-weight: 700; margin-top: 6px; font-size: 13px; }
 #chauffeur-quote .cw-card-cta {
   width: 100%;
-  height: 42px;
+  height: 48px;
 }
 #chauffeur-quote .cw-footnote {
   font-size: 11px;
-  color: hsl(var(--muted-foreground));
+  color: rgba(255,255,255,0.5);
   text-align: center;
   margin-top: 10px;
 }
@@ -519,7 +536,7 @@
 
 #chauffeur-quote .cw-error {
   background: rgba(239, 68, 68, .10);
-  border: 1px solid rgba(239, 68, 68, .25);
+  border: 1px solid rgba(239, 68, 68, .35);
   color: rgba(252, 165, 165, .95);
   border-radius: 0.9rem;
   padding: .7rem .9rem;

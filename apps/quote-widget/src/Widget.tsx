@@ -172,6 +172,8 @@ export function Widget({ slug }: { slug: string }) {
     setStep(1);
   };
 
+  const [openBreakdowns, setOpenBreakdowns] = useState<Record<string, boolean>>({});
+
   const applyTenantTheme = (t: Tenant) => {
     const branding = (t as any).branding ?? (t as any).theme_json?.branding ?? null;
     const root = document.documentElement;
@@ -216,12 +218,11 @@ export function Widget({ slug }: { slug: string }) {
   }, [slug]);
 
   async function handleGetQuote() {
-    if (!pickup || !dropoff || !datetime || !serviceTypeId) {
-      setError('Please fill in all required fields (pickup, drop-off, date/time, service).');
-      return;
-    }
+    if (!pickup) { setError('Please select a pickup location.'); return; }
+    if (!dropoff) { setError('Please select a drop-off location.'); return; }
+    if (!datetime || !serviceTypeId) { setError('Please select date, time, and service.'); return; }
     if (showReturn && effectiveTripMode === 'RETURN' && !returnDatetime) {
-      setError('Please fill in return date & time.');
+      setError('Please select return pickup date & time.');
       return;
     }
     setLoading(true);
@@ -272,9 +273,10 @@ export function Widget({ slug }: { slug: string }) {
         return_flight_number: (showReturn && effectiveTripMode === 'RETURN' && showFlight && !isHourly) ? (returnFlightNumber.trim() || undefined) : undefined,
       });
       setQuoteData(quote);
+      setOpenBreakdowns({});
       setStep(2);
-    } catch (e: unknown) {
-      setError((e as Error).message ?? 'Failed to get quote. Please try again.');
+    } catch {
+      setError('Quote unavailable. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -631,58 +633,72 @@ export function Widget({ slug }: { slug: string }) {
             </span>
           </div>
 
+          <div className="cw-results-title">Available Vehicles</div>
+
           {quoteData.results.length === 0 ? (
             <div className="cw-empty">No vehicles available for this route.</div>
           ) : (
             <div className="cw-results">
-              {quoteData.results.map((r) => (
-                <div key={r.service_class_id} className="cw-card">
-                  <div className="cw-card-main">
-                    <div className="cw-card-title">{r.service_class_name}</div>
-                    <div className="cw-card-price">
-                      {fmt(r.pricing_snapshot_preview?.final_fare_minor ?? 0, r.currency)}
-                    </div>
-                    <div className="cw-card-sub">Total</div>
-                    {r.pricing_snapshot_preview ? (
-                      <div className="cw-breakdown">
-                        {(() => {
-                          const snap = r.pricing_snapshot_preview;
-                          const leg1 = snap.leg1_minor ?? 0;
-                          const leg2 = snap.leg2_minor ?? 0;
-                          const leg1S = snap.leg1_surcharge_minor ?? 0;
-                          const leg2S = snap.leg2_surcharge_minor ?? 0;
-                          const leg1Toll = (snap as any).leg1_toll_minor ?? 0;
-                          const leg2Toll = (snap as any).leg2_toll_minor ?? 0;
-                          const tollTotal = snap.toll_minor ?? 0;
-                          const parking = snap.parking_minor ?? 0;
-                          const hasSplitToll = leg1Toll > 0 || leg2Toll > 0;
-                          const discount = snap.discount_amount_minor ?? 0;
-                          return (
-                            <>
-                              {leg1 > 0 && <div className="cw-breakdown-row"><span>Outbound price</span><span>{toMoney(leg1, r.currency)}</span></div>}
-                              {leg1S > 0 && <div className="cw-breakdown-row"><span>Outbound surcharge</span><span>+{toMoney(leg1S, r.currency)}</span></div>}
-                              {hasSplitToll ? (leg1Toll > 0 && <div className="cw-breakdown-row"><span>Outbound toll</span><span>+{toMoney(leg1Toll, r.currency)}</span></div>) : (tollTotal > 0 && <div className="cw-breakdown-row"><span>Toll</span><span>+{toMoney(tollTotal, r.currency)}</span></div>)}
-
-                              {leg2 > 0 && (
-                                <>
-                                  <div className="cw-breakdown-row"><span>Return price</span><span>{toMoney(leg2, r.currency)}</span></div>
-                                  {leg2S > 0 && <div className="cw-breakdown-row"><span>Return surcharge</span><span>+{toMoney(leg2S, r.currency)}</span></div>}
-                                  {hasSplitToll && leg2Toll > 0 && <div className="cw-breakdown-row"><span>Return toll</span><span>+{toMoney(leg2Toll, r.currency)}</span></div>}
-                                </>
-                              )}
-
-                              {parking > 0 && <div className="cw-breakdown-row"><span>Parking</span><span>+{toMoney(parking, r.currency)}</span></div>}
-                              {discount > 0 && <div className="cw-breakdown-row cw-breakdown-discount"><span>{r.discount?.name ?? 'Discount'}</span><span>-{toMoney(discount, r.currency)}</span></div>}
-                              <div className="cw-breakdown-row cw-breakdown-total"><span>Total</span><span>{toMoney(snap.final_fare_minor ?? 0, r.currency)}</span></div>
-                            </>
-                          );
-                        })()}
+              {quoteData.results.map((r) => {
+                const open = !!openBreakdowns[r.service_class_id];
+                return (
+                  <div key={r.service_class_id} className="cw-card">
+                    <div className="cw-card-main">
+                      <div className="cw-card-title">{r.service_class_name}</div>
+                      <div className="cw-card-price">
+                        {fmt(r.pricing_snapshot_preview?.final_fare_minor ?? 0, r.currency)}
                       </div>
-                    ) : null}
+                      <div className="cw-card-sub">Total</div>
+
+                      <button
+                        type="button"
+                        className="cw-breakdown-toggle"
+                        onClick={() => setOpenBreakdowns((s) => ({ ...s, [r.service_class_id]: !open }))}
+                      >
+                        {open ? 'Hide price details' : 'Show price details'}
+                      </button>
+
+                      {open && r.pricing_snapshot_preview ? (
+                        <div className="cw-breakdown">
+                          {(() => {
+                            const snap = r.pricing_snapshot_preview;
+                            const leg1 = snap.leg1_minor ?? 0;
+                            const leg2 = snap.leg2_minor ?? 0;
+                            const leg1S = snap.leg1_surcharge_minor ?? 0;
+                            const leg2S = snap.leg2_surcharge_minor ?? 0;
+                            const leg1Toll = (snap as any).leg1_toll_minor ?? 0;
+                            const leg2Toll = (snap as any).leg2_toll_minor ?? 0;
+                            const tollTotal = snap.toll_minor ?? 0;
+                            const parking = snap.parking_minor ?? 0;
+                            const hasSplitToll = leg1Toll > 0 || leg2Toll > 0;
+                            const discount = snap.discount_amount_minor ?? 0;
+                            return (
+                              <>
+                                {leg1 > 0 && <div className="cw-breakdown-row"><span>Outbound price</span><span>{toMoney(leg1, r.currency)}</span></div>}
+                                {leg1S > 0 && <div className="cw-breakdown-row"><span>Outbound surcharge</span><span>+{toMoney(leg1S, r.currency)}</span></div>}
+                                {hasSplitToll ? (leg1Toll > 0 && <div className="cw-breakdown-row"><span>Outbound toll</span><span>+{toMoney(leg1Toll, r.currency)}</span></div>) : (tollTotal > 0 && <div className="cw-breakdown-row"><span>Outbound toll</span><span>+{toMoney(tollTotal, r.currency)}</span></div>)}
+
+                                {leg2 > 0 && (
+                                  <>
+                                    <div className="cw-breakdown-row"><span>Return price</span><span>{toMoney(leg2, r.currency)}</span></div>
+                                    {leg2S > 0 && <div className="cw-breakdown-row"><span>Return surcharge</span><span>+{toMoney(leg2S, r.currency)}</span></div>}
+                                    {hasSplitToll && leg2Toll > 0 && <div className="cw-breakdown-row"><span>Return toll</span><span>+{toMoney(leg2Toll, r.currency)}</span></div>}
+                                  </>
+                                )}
+
+                                {parking > 0 && <div className="cw-breakdown-row"><span>Parking</span><span>+{toMoney(parking, r.currency)}</span></div>}
+                                {discount > 0 && <div className="cw-breakdown-row cw-breakdown-discount"><span>{r.discount?.name ?? 'Discount'}</span><span>-{toMoney(discount, r.currency)}</span></div>}
+                                <div className="cw-breakdown-row cw-breakdown-total"><span>Total</span><span>{toMoney(snap.final_fare_minor ?? 0, r.currency)}</span></div>
+                              </>
+                            );
+                          })()}
+                        </div>
+                      ) : null}
+                    </div>
+                    <button onClick={() => handleBookNow(r)} className="cw-btn-primary cw-card-cta">Book Now</button>
                   </div>
-                  <button onClick={() => handleBookNow(r)} className="cw-btn-primary cw-card-cta">Book Now</button>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
 
