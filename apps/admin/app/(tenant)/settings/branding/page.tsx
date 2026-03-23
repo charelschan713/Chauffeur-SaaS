@@ -63,6 +63,8 @@ export default function BrandingPage() {
     customDomain: '',
     cancelWindowHours: 24,
     websiteUrl: '',
+    customCss: '',
+    customCssUrl: '',
   });
   const [toast, setToast] = useState<{ message: string; tone: 'success' | 'error' } | null>(null);
 
@@ -84,6 +86,8 @@ export default function BrandingPage() {
         customDomain:        branding.custom_domain        ?? '',
         cancelWindowHours:   branding.cancel_window_hours  ?? 24,
         websiteUrl:          branding.website_url          ?? '',
+        customCss:           branding.custom_css           ?? '',
+        customCssUrl:        branding.custom_css_url       ?? '',
       });
     }
   }, [branding]);
@@ -228,6 +232,33 @@ export default function BrandingPage() {
               Customers can cancel free of charge up to this many hours before pickup.
             </p>
           </div>
+        </div>
+      </Card>
+
+      {/* ── Custom CSS (Portal) ── */}
+      <Card title="Custom Portal CSS">
+        <div className="space-y-4 max-w-2xl">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Custom CSS</label>
+            <p className="text-xs text-gray-400 mb-2">Overrides for customer portal pages (including login/account).</p>
+            <textarea
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono"
+              rows={7}
+              placeholder="/* Custom CSS overrides */\n:root { --primary: 39 46% 60%; }"
+              value={form.customCss}
+              onChange={(e) => setForm({ ...form, customCss: e.target.value })}
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Custom CSS URL</label>
+            <input
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+              placeholder="https://example.com/portal-overrides.css"
+              value={form.customCssUrl}
+              onChange={(e) => setForm({ ...form, customCssUrl: e.target.value })}
+            />
+          </div>
+          <p className="text-xs text-gray-400">If both are set, URL loads after inline CSS.</p>
         </div>
       </Card>
 

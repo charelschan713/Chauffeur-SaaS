@@ -15,9 +15,18 @@ export class TenantBrandingController {
     ).catch(() => {});
   }
 
+  private async ensureCustomCssColumns() {
+    await this.db.query(
+      `ALTER TABLE public.tenant_branding
+         ADD COLUMN IF NOT EXISTS custom_css text,
+         ADD COLUMN IF NOT EXISTS custom_css_url text`,
+    ).catch(() => {});
+  }
+
   @Get()
   async get(@Req() req: any) {
     await this.ensureBookingEntryColumn();
+    await this.ensureCustomCssColumns();
     const rows = await this.db.query(
       `SELECT * FROM public.tenant_branding WHERE tenant_id=$1`,
       [req.user.tenant_id],
@@ -28,12 +37,13 @@ export class TenantBrandingController {
   @Put()
   async upsert(@Req() req: any, @Body() body: any) {
     await this.ensureBookingEntryColumn();
+    await this.ensureCustomCssColumns();
     const [row] = await this.db.query(
       `INSERT INTO public.tenant_branding
          (tenant_id, logo_url, primary_color, primary_foreground, font_family,
           company_name, contact_email, contact_phone, custom_domain,
-          cancel_window_hours, website_url, updated_at)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,now())
+          cancel_window_hours, website_url, custom_css, custom_css_url, updated_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,now())
        ON CONFLICT (tenant_id) DO UPDATE
          SET logo_url              = EXCLUDED.logo_url,
              primary_color         = EXCLUDED.primary_color,
@@ -45,6 +55,8 @@ export class TenantBrandingController {
              custom_domain         = EXCLUDED.custom_domain,
              cancel_window_hours   = EXCLUDED.cancel_window_hours,
              website_url           = EXCLUDED.website_url,
+             custom_css            = EXCLUDED.custom_css,
+             custom_css_url        = EXCLUDED.custom_css_url,
              updated_at            = now()
        RETURNING *`,
       [
@@ -59,6 +71,8 @@ export class TenantBrandingController {
         body.customDomain       ?? null,
         body.cancelWindowHours  ?? null,
         body.websiteUrl         ?? null,
+        body.customCss          ?? null,
+        body.customCssUrl       ?? null,
       ],
     );
 
@@ -75,6 +89,8 @@ export class TenantBrandingController {
         custom_domain: row?.custom_domain ?? null,
         cancel_window_hours: row?.cancel_window_hours ?? null,
         website_url: row?.website_url ?? null,
+        custom_css: row?.custom_css ?? null,
+        custom_css_url: row?.custom_css_url ?? null,
       };
       await this.db.query(
         `INSERT INTO public.tenant_settings (tenant_id, settings, updated_at)

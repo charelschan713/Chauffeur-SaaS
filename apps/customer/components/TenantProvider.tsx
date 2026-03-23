@@ -32,6 +32,8 @@ export interface TenantTheme {
     button_radius?: number | null;
     card_radius?: number | null;
     input_radius?: number | null;
+    custom_css?: string | null;
+    custom_css_url?: string | null;
   };
 }
 
@@ -86,6 +88,44 @@ function applyTenantTheme(tenant: TenantTheme) {
   }
 }
 
+function applyCustomCss(tenant: TenantTheme) {
+  const branding = tenant.branding ?? (tenant as any).theme_json?.branding ?? null;
+  const customCss = branding?.custom_css ?? (branding as any)?.customCss ?? null;
+  const customCssUrl = branding?.custom_css_url ?? (branding as any)?.customCssUrl ?? null;
+
+  const styleId = 'portal-custom-css';
+  const linkId = 'portal-custom-css-link';
+
+  const existingStyle = document.getElementById(styleId) as HTMLStyleElement | null;
+  if (customCss && typeof customCss === 'string') {
+    if (existingStyle) {
+      existingStyle.textContent = customCss;
+    } else {
+      const style = document.createElement('style');
+      style.id = styleId;
+      style.textContent = customCss;
+      document.head.appendChild(style);
+    }
+  } else if (existingStyle) {
+    existingStyle.remove();
+  }
+
+  const existingLink = document.getElementById(linkId) as HTMLLinkElement | null;
+  if (customCssUrl && typeof customCssUrl === 'string') {
+    if (existingLink) {
+      existingLink.href = customCssUrl;
+    } else {
+      const link = document.createElement('link');
+      link.id = linkId;
+      link.rel = 'stylesheet';
+      link.href = customCssUrl;
+      document.head.appendChild(link);
+    }
+  } else if (existingLink) {
+    existingLink.remove();
+  }
+}
+
 export function TenantProvider({ children }: { children: React.ReactNode }) {
   const [tenant, setTenant] = useState<TenantTheme | null>(null);
 
@@ -104,6 +144,7 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
           };
           setTenant(data);
           applyTenantTheme(data);
+          applyCustomCss(data);
         }
       })
       .catch(() => {});

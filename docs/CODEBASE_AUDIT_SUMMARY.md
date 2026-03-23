@@ -468,6 +468,9 @@
 - `/public/tenant-info` provides branding + widget settings.
 - `TenantProvider` and widget apply CSS variables for theme.
 - Admin updates branding + widget toggles in settings.
+- **Custom CSS overrides** supported:
+  - Customer portal: `branding.custom_css` / `branding.custom_css_url`
+  - Quote widget: `widget_settings.customCss` / `customCssUrl` (also snake_case supported)
 
 ---
 
