@@ -33,28 +33,28 @@ function CalendarPicker({ value, onChange, minDate }: { value: string; onChange:
   const cells: (number|null)[] = [...Array(firstDow).fill(null), ...Array.from({length:daysInMonth},(_,i)=>i+1)];
   while (cells.length%7!==0) cells.push(null);
   return (
-    <div className="select-none w-full" style={{minWidth:264}}>
-      <div className="flex items-center justify-between px-3 py-2">
-        <button type="button" onClick={()=>setView(v=>new Date(v.getFullYear(),v.getMonth()-1,1))} className="p-1 rounded hover:bg-white/10 text-gray-400 hover:text-white transition-colors">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M15 18l-6-6 6-6"/></svg>
+    <div className="cw-calendar" style={{minWidth:264}}>
+      <div className="cw-calendar-header">
+        <button type="button" onClick={()=>setView(v=>new Date(v.getFullYear(),v.getMonth()-1,1))} className="cw-calendar-nav">
+          <svg className="cw-dt-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M15 18l-6-6 6-6"/></svg>
         </button>
-        <span className="text-sm font-semibold text-white">{MONTHS[month]} {year}</span>
-        <button type="button" onClick={()=>setView(v=>new Date(v.getFullYear(),v.getMonth()+1,1))} className="p-1 rounded hover:bg-white/10 text-gray-400 hover:text-white transition-colors">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 18l6-6-6-6"/></svg>
+        <span className="cw-calendar-title">{MONTHS[month]} {year}</span>
+        <button type="button" onClick={()=>setView(v=>new Date(v.getFullYear(),v.getMonth()+1,1))} className="cw-calendar-nav">
+          <svg className="cw-dt-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 18l6-6-6-6"/></svg>
         </button>
       </div>
-      <div className="grid grid-cols-7 mb-1">{DAYS.map(d=><div key={d} className="text-center text-[11px] font-medium text-gray-400 py-1">{d}</div>)}</div>
-      <div className="grid grid-cols-7 gap-y-0.5 px-2 pb-3">
+      <div className="cw-calendar-dow">{DAYS.map(d=><div key={d} className="cw-calendar-dow-cell">{d}</div>)}</div>
+      <div className="cw-calendar-grid">
         {cells.map((day,i)=>{
           if(!day) return <div key={i}/>;
           const cellDate=new Date(year,month,day); const iso=dateToIso(cellDate);
           const isDisabled=minD?cellDate<minD:false; const isSelected=value===iso; const isToday=dateToIso(today)===iso;
           return <button type="button" key={i} disabled={isDisabled} onMouseDown={e=>e.preventDefault()} onClick={()=>!isDisabled&&onChange(iso)}
-            className={cn('mx-auto flex h-8 w-8 items-center justify-center rounded-full text-sm transition-colors',
-              isDisabled&&'text-white/20 cursor-not-allowed',
-              !isDisabled&&!isSelected&&'hover:bg-white/10 text-white cursor-pointer',
-              isSelected&&'bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] font-semibold',
-              isToday&&!isSelected&&'ring-1 ring-[hsl(var(--primary)/0.6)] text-[hsl(var(--primary))]')}>{day}</button>;
+            className={cn('cw-calendar-day',
+              isDisabled&&'is-disabled',
+              !isDisabled&&!isSelected&&'is-available',
+              isSelected&&'is-selected',
+              isToday&&!isSelected&&'is-today')}>{day}</button>;
         })}
       </div>
     </div>
@@ -68,18 +68,18 @@ function TimePicker({ value, onChange, onConfirm }: { value: string; onChange: (
   const [hour,setHour]=useState(initH12); const [minute,setMinute]=useState(initM); const [period,setPeriod]=useState<'AM'|'PM'>(initP);
   const hours=[...Array(12)].map((_,i)=>i+1); const minutes=[...Array(12)].map((_,i)=>i*5);
   const commit=(h:number,m:number,p:'AM'|'PM')=>{let h24=p==='AM'?(h===12?0:h):(h===12?12:h+12);onChange(`${String(h24).padStart(2,'0')}:${String(m).padStart(2,'0')}`);};
-  const colCls='overflow-y-auto h-40 scroll-smooth'; const itemCls=(sel:boolean)=>cn('px-3 py-2 text-center text-sm cursor-pointer rounded transition-colors',sel?'bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] font-semibold':'text-white/70 hover:text-white hover:bg-white/10');
+  const itemCls=(sel:boolean)=>cn('cw-timepicker-item',sel?'is-selected':'');
   return (
-    <div style={{minWidth:200}}>
-      <div className="flex border-b border-white/10 pb-1 mb-1">
-        {['Hour','Min','Period'].map(l=><div key={l} className="flex-1 text-center text-xs text-gray-400 font-medium py-1">{l}</div>)}
+    <div className="cw-timepicker" style={{minWidth:200}}>
+      <div className="cw-timepicker-header">
+        {['Hour','Min','Period'].map(l=><div key={l} className="cw-timepicker-header-cell">{l}</div>)}
       </div>
-      <div className="flex">
-        <div className={cn(colCls,'flex-1')}>{hours.map(h=><div key={h} data-selected={h===hour} className={itemCls(h===hour)} onMouseDown={e=>e.preventDefault()} onClick={()=>{setHour(h);commit(h,minute,period);}}>{String(h).padStart(2,'0')}</div>)}</div>
-        <div className={cn(colCls,'flex-1')}>{minutes.map(m=><div key={m} data-selected={m===minute} className={itemCls(m===minute)} onMouseDown={e=>e.preventDefault()} onClick={()=>{setMinute(m);commit(hour,m,period);}}>{String(m).padStart(2,'0')}</div>)}</div>
-        <div className={cn(colCls,'flex-1')}>{(['AM','PM'] as const).map(p=><div key={p} data-selected={p===period} className={itemCls(p===period)} onMouseDown={e=>e.preventDefault()} onClick={()=>{setPeriod(p);commit(hour,minute,p);}}>{p}</div>)}</div>
+      <div className="cw-timepicker-cols">
+        <div className="cw-timepicker-col">{hours.map(h=><div key={h} data-selected={h===hour} className={itemCls(h===hour)} onMouseDown={e=>e.preventDefault()} onClick={()=>{setHour(h);commit(h,minute,period);}}>{String(h).padStart(2,'0')}</div>)}</div>
+        <div className="cw-timepicker-col">{minutes.map(m=><div key={m} data-selected={m===minute} className={itemCls(m===minute)} onMouseDown={e=>e.preventDefault()} onClick={()=>{setMinute(m);commit(hour,m,period);}}>{String(m).padStart(2,'0')}</div>)}</div>
+        <div className="cw-timepicker-col">{(['AM','PM'] as const).map(p=><div key={p} data-selected={p===period} className={itemCls(p===period)} onMouseDown={e=>e.preventDefault()} onClick={()=>{setPeriod(p);commit(hour,minute,p);}}>{p}</div>)}</div>
       </div>
-      <div className="px-3 pt-3 pb-2"><button type="button" onClick={()=>{commit(hour,minute,period);onConfirm();}} className="w-full py-2 rounded-lg bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] text-sm font-semibold">Confirm</button></div>
+      <div className="cw-timepicker-footer"><button type="button" onClick={()=>{commit(hour,minute,period);onConfirm();}} className="cw-timepicker-confirm">Confirm</button></div>
     </div>
   );
 }
@@ -128,20 +128,19 @@ function ClockIcon({ className='' }: { className?: string }) {
 export function LuxDateTimePicker({ dateValue, timeValue, onDateChange, onTimeChange, minDate }: { dateValue:string; timeValue:string; onDateChange:(v:string)=>void; onTimeChange:(v:string)=>void; minDate?:string }) {
   const [openDate, setOpenDate] = useState(false); const [openTime, setOpenTime] = useState(false);
   const dateRef = useRef<HTMLButtonElement>(null); const timeRef = useRef<HTMLButtonElement>(null);
-  const triggerCls = 'flex items-center gap-2 w-full px-3 py-2.5 rounded-lg border text-sm transition-colors text-left bg-[hsl(228,10%,8%)] border-white/10 hover:border-white/30';
   return (
-    <div className="grid grid-cols-2 gap-3">
+    <div className="cw-date-row">
       <div>
-        <button ref={dateRef} type="button" className={triggerCls} onClick={()=>{setOpenDate(v=>!v);setOpenTime(false);}}>
-          <CalendarIcon className="h-4 w-4 text-gray-400 shrink-0"/>
-          <span className={dateValue?'text-white':'text-gray-400'}>{dateValue?fmtDisplayDate(dateValue):'Select date'}</span>
+        <button ref={dateRef} type="button" className="cw-date-btn" onClick={()=>{setOpenDate(v=>!v);setOpenTime(false);}}>
+          <CalendarIcon className="cw-dt-icon"/>
+          <span className={cn('cw-date-text', dateValue ? 'is-value' : 'is-placeholder')}>{dateValue?fmtDisplayDate(dateValue):'Select date'}</span>
         </button>
         {openDate && <DropdownPortal anchor={dateRef} onClose={()=>setOpenDate(false)}><CalendarPicker value={dateValue} onChange={v=>{onDateChange(v);setOpenDate(false);}} minDate={minDate}/></DropdownPortal>}
       </div>
       <div>
-        <button ref={timeRef} type="button" className={triggerCls} onClick={()=>{setOpenTime(v=>!v);setOpenDate(false);}}>
-          <ClockIcon className="h-4 w-4 text-gray-400 shrink-0"/>
-          <span className={timeValue?'text-white':'text-gray-400'}>{timeValue?fmtDisplayTime(timeValue):'Select time'}</span>
+        <button ref={timeRef} type="button" className="cw-date-btn" onClick={()=>{setOpenTime(v=>!v);setOpenDate(false);}}>
+          <ClockIcon className="cw-dt-icon"/>
+          <span className={cn('cw-date-text', timeValue ? 'is-value' : 'is-placeholder')}>{timeValue?fmtDisplayTime(timeValue):'Select time'}</span>
         </button>
         {openTime && <DropdownPortal anchor={timeRef} onClose={()=>setOpenTime(false)}><TimePicker value={timeValue} onChange={onTimeChange} onConfirm={()=>setOpenTime(false)}/></DropdownPortal>}
       </div>

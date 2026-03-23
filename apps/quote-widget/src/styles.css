@@ -188,7 +188,37 @@
   box-shadow: 0 0 0 2px rgba(200,169,107,.2);
 }
 
-/* LuxDateTimePicker uses its own portal styling */
+/* LuxDateTimePicker styles (match customer portal) */
+#chauffeur-quote .cw-date-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+#chauffeur-quote .cw-date-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  height: 44px;
+  padding: 0 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.12);
+  background: hsl(228, 10%, 8%);
+  color: #fff;
+  font-size: 13px;
+  text-align: left;
+  transition: border-color 0.2s ease, background-color 0.2s ease;
+}
+#chauffeur-quote .cw-date-btn:hover { border-color: rgba(255,255,255,0.28); }
+#chauffeur-quote .cw-dt-icon {
+  width: 16px;
+  height: 16px;
+  color: rgba(255,255,255,0.55);
+  flex-shrink: 0;
+}
+#chauffeur-quote .cw-date-text.is-placeholder { color: rgba(255,255,255,0.5); }
+#chauffeur-quote .cw-date-text.is-value { color: #fff; }
+
 .cw-datetime-portal,
 .cw-datetime-portal * {
   box-sizing: border-box;
@@ -207,6 +237,74 @@
 }
 .cw-datetime-portal button:focus {
   outline: none;
+}
+
+.cw-calendar {
+  user-select: none;
+  width: 100%;
+}
+.cw-calendar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+}
+.cw-calendar-nav {
+  padding: 4px;
+  border-radius: 8px;
+  color: rgba(255,255,255,0.6);
+}
+.cw-calendar-nav:hover { background: rgba(255,255,255,0.08); color: #fff; }
+.cw-calendar-title { font-size: 14px; font-weight: 600; color: #fff; }
+.cw-calendar-dow { display: grid; grid-template-columns: repeat(7,1fr); margin-bottom: 4px; }
+.cw-calendar-dow-cell { text-align: center; font-size: 11px; font-weight: 600; color: rgba(255,255,255,0.45); padding: 4px 0; }
+.cw-calendar-grid { display: grid; grid-template-columns: repeat(7,1fr); gap: 2px; padding: 0 8px 10px; }
+.cw-calendar-day {
+  margin: 0 auto;
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  font-size: 13px;
+  transition: background-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.cw-calendar-day.is-disabled { color: rgba(255,255,255,0.2); cursor: not-allowed; }
+.cw-calendar-day.is-available { color: #fff; cursor: pointer; }
+.cw-calendar-day.is-available:hover { background: rgba(255,255,255,0.08); }
+.cw-calendar-day.is-selected { background: hsl(var(--primary)); color: hsl(var(--primary-foreground)); font-weight: 600; }
+.cw-calendar-day.is-today { box-shadow: 0 0 0 1px hsl(var(--primary) / 0.6); color: hsl(var(--primary)); }
+
+.cw-timepicker { width: 100%; }
+.cw-timepicker-header {
+  display: flex;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  padding: 4px 0;
+  margin-bottom: 4px;
+}
+.cw-timepicker-header-cell { flex:1; text-align:center; font-size: 11px; font-weight: 600; color: rgba(255,255,255,0.45); padding: 4px 0; }
+.cw-timepicker-cols { display: flex; }
+.cw-timepicker-col { flex:1; max-height: 160px; overflow-y: auto; scroll-behavior: smooth; }
+.cw-timepicker-item {
+  padding: 6px 8px;
+  text-align: center;
+  font-size: 13px;
+  border-radius: 8px;
+  cursor: pointer;
+  color: rgba(255,255,255,0.7);
+}
+.cw-timepicker-item:hover { color: #fff; background: rgba(255,255,255,0.08); }
+.cw-timepicker-item.is-selected { background: hsl(var(--primary)); color: hsl(var(--primary-foreground)); font-weight: 600; }
+.cw-timepicker-footer { padding: 10px 12px 8px; }
+.cw-timepicker-confirm {
+  width: 100%;
+  padding: 8px 0;
+  border-radius: 10px;
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+  font-size: 13px;
+  font-weight: 600;
 }
 
 #chauffeur-quote .cw-add-stop {
