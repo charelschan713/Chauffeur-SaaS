@@ -129,6 +129,8 @@ export function Widget({ slug }: { slug: string }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<{ pickup?: string; dropoff?: string; datetime?: string; returnDatetime?: string }>({});
+  const [autoDiscount, setAutoDiscount] = useState<{ name: string; rate: number } | null>(null);
+  const [showUrgentModal, setShowUrgentModal] = useState(false);
 
   // Form state
   const [cityId, setCityId] = useState('');
@@ -152,9 +154,11 @@ export function Widget({ slug }: { slug: string }) {
   const seatOptions = ['0','1','2','3','4','5'];
   const allowReturnTrip = tenant?.booking_entry?.allow_return_trip ?? true;
   const ws = withDefaults(tenant?.widget_settings ?? null);
-  const showReturn = ws.returnTrip;
+  const allowReturn = selectedServiceType?.calculation_type === 'POINT_TO_POINT';
+  const allowWaypoints = ['POINT_TO_POINT', 'SPECIAL_EVENT_TRANSPORT'].includes(selectedServiceType?.code ?? '');
+  const showReturn = ws.returnTrip && allowReturn && allowReturnTrip;
   const showFlight = ws.flightNumber;
-  const showWaypoints = ws.waypoints;
+  const showWaypoints = ws.waypoints && allowWaypoints;
   const showPassengers = ws.passengers;
   const showLuggage = ws.luggage;
   const showBabySeats = ws.babySeats;
@@ -272,6 +276,15 @@ export function Widget({ slug }: { slug: string }) {
         setCarTypes(Array.isArray(rows) ? rows : []);
       })
       .catch(() => {});
+
+    fetch(`https://chauffeur-saas-production.up.railway.app/public/discounts/auto?tenant_slug=${encodeURIComponent(slug)}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        if (d?.name && d?.discount_value) {
+          setAutoDiscount({ name: d.name, rate: Number(d.discount_value) });
+        }
+      })
+      .catch(() => {});
   }, [slug]);
 
   async function handleGetQuote() {
@@ -282,6 +295,15 @@ export function Widget({ slug }: { slug: string }) {
     if (showReturn && effectiveTripMode === 'RETURN' && !returnDatetime) errors.returnDatetime = 'Please select return pickup date & time.';
     setFieldErrors(errors);
     if (Object.keys(errors).length > 0) return;
+
+    // 12-hour advance booking check
+    if (datetime) {
+      const pickupMs = new Date(datetime.length === 16 ? `${datetime}:00` : datetime).getTime();
+      if (pickupMs - Date.now() < 12 * 60 * 60 * 1000) {
+        setShowUrgentModal(true);
+        return;
+      }
+    }
 
     setLoading(true);
     setError(null);
@@ -385,6 +407,16 @@ export function Widget({ slug }: { slug: string }) {
 
       {step === 1 && (
         <div className="cw-form cw-panel">
+          {autoDiscount && (
+            <div className="cw-discount">
+              <div className="cw-discount-icon">✓</div>
+              <div>
+                <div className="cw-discount-title">{autoDiscount.rate}% {autoDiscount.name}</div>
+                <div className="cw-discount-sub">Applied automatically — no code needed</div>
+              </div>
+            </div>
+          )}
+
           {/* City + Service */}
           {cities.length > 0 && (
             <div className="cw-span-2">
@@ -783,6 +815,20 @@ export function Widget({ slug }: { slug: string }) {
           )}
 
           <div className="cw-footnote">Prices are estimates. Final price confirmed at booking.</div>
+        </div>
+      )}
+
+      {showUrgentModal && (
+        <div className="cw-modal" onClick={() => setShowUrgentModal(false)}>
+          <div className="cw-modal-card" onClick={(e) => e.stopPropagation()}>
+            <div className="cw-modal-icon">☎</div>
+            <div className="cw-modal-title">Short Notice Booking</div>
+            <div className="cw-modal-text">
+              Online bookings require at least <strong>12 hours</strong> notice. For urgent requests, please call us directly.
+            </div>
+            <a className="cw-btn-primary" href="tel:+61280091008">Call Now: +61 2 8009 1008</a>
+            <button className="cw-modal-secondary" type="button" onClick={() => setShowUrgentModal(false)}>Change Date &amp; Time</button>
+          </div>
         </div>
       )}
     </div>
