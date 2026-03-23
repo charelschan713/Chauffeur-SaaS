@@ -152,6 +152,9 @@ export function Widget({ slug }: { slug: string }) {
   const [boosterSeats, setBoosterSeats] = useState('0');
   const [showExtras, setShowExtras] = useState(false);
   const seatOptions = ['0','1','2','3','4','5'];
+  const selectedCity = cities.find((c) => c.id === cityId);
+  const selectedServiceType = serviceTypes.find((s) => s.id === serviceTypeId);
+
   const allowReturnTrip = tenant?.booking_entry?.allow_return_trip ?? true;
   const ws = withDefaults(tenant?.widget_settings ?? null);
   const allowReturn = selectedServiceType?.calculation_type === 'POINT_TO_POINT';
@@ -163,9 +166,6 @@ export function Widget({ slug }: { slug: string }) {
   const showLuggage = ws.luggage;
   const showBabySeats = ws.babySeats;
   const showPromo = ws.promoCode;
-
-  const selectedCity = cities.find((c) => c.id === cityId);
-  const selectedServiceType = serviceTypes.find((s) => s.id === serviceTypeId);
   const isHourly = selectedServiceType?.calculation_type === 'HOURLY_CHARTER';
   const isWedding = selectedServiceType?.code === 'WEDDING_HIRE';
   const minHours = selectedServiceType?.minimum_hours ?? (isHourly ? 2 : null);
