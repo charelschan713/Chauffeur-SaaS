@@ -4,8 +4,6 @@ import { useRouter, useParams } from 'next/navigation';
 import { useAuthStore } from '@/lib/auth-store';
 import api from '@/lib/api';
 
-const GOLD = '#C8A870', CARD = '#222236', MUTED = '#9CA3AF', BG = '#1A1A2E';
-
 const STATUS_FLOW: Record<string, { label: string; next: string; nextLabel: string } | null> = {
   assigned:             { label: 'Assigned',            next: 'accepted',            nextLabel: 'Accept Job' },
   accepted:             { label: 'Accepted',            next: 'on_the_way',          nextLabel: 'On My Way' },
@@ -46,8 +44,16 @@ export default function JobDetailPage() {
     } finally { setUpdating(false); }
   };
 
-  if (loading) return <div style={{ minHeight: '100vh', background: BG, display: 'flex', alignItems: 'center', justifyContent: 'center', color: GOLD }}>Loading...</div>;
-  if (!assignment) return <div style={{ minHeight: '100vh', background: BG, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#EF4444' }}>Job not found</div>;
+  if (loading) return (
+    <div className="min-h-screen bg-[hsl(var(--background))] flex items-center justify-center text-[hsl(var(--primary))]">
+      Loading...
+    </div>
+  );
+  if (!assignment) return (
+    <div className="min-h-screen bg-[hsl(var(--background))] flex items-center justify-center text-red-500">
+      Job not found
+    </div>
+  );
 
   const b = assignment.booking ?? {};
   const status = assignment.driver_execution_status ?? 'assigned';
@@ -55,28 +61,32 @@ export default function JobDetailPage() {
   const waypoints: string[] = b.waypoint_addresses ?? [];
 
   return (
-    <div style={{ minHeight: '100vh', background: BG, paddingBottom: 120 }}>
+    <div className="min-h-screen bg-[hsl(var(--background))] pb-[120px]">
       {/* Header */}
-      <div style={{ padding: '48px 16px 16px', background: '#16162A', display: 'flex', alignItems: 'center', gap: 12 }}>
-        <button onClick={() => router.back()} style={{ background: '#333355', border: 'none', borderRadius: 999, width: 36, height: 36, color: '#fff', cursor: 'pointer', fontSize: 18 }}>←</button>
+      <div className="bg-[hsl(var(--popover))] px-4 pt-12 pb-4 flex items-center gap-3">
+        <button
+          onClick={() => router.back()}
+          className="h-9 w-9 rounded-full bg-[hsl(var(--secondary))] text-white text-lg"
+        >
+          ←
+        </button>
         <div>
-          <p style={{ color: MUTED, fontSize: 11, fontFamily: 'monospace', margin: 0 }}>{b.booking_number}</p>
-          <h1 style={{ color: '#fff', fontSize: 18, fontWeight: 700, margin: 0 }}>Job Detail</h1>
+          <p className="m-0 font-mono text-[11px] text-white/50">{b.booking_number}</p>
+          <h1 className="m-0 text-[18px] font-bold text-white">Job Detail</h1>
         </div>
       </div>
 
-      <div style={{ padding: '16px 16px 0' }}>
-
+      <div className="px-4 pt-4">
         {/* Status */}
-        <div style={{ background: CARD, borderRadius: 12, padding: 16, marginBottom: 12, border: '0.5px solid #333355' }}>
-          <p style={{ color: MUTED, fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1, margin: '0 0 6px' }}>Status</p>
-          <span style={{ background: GOLD + '22', color: GOLD, fontSize: 12, fontWeight: 600, padding: '4px 12px', borderRadius: 999 }}>
+        <div className="mb-3 rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-4">
+          <p className="mb-2 text-[11px] font-semibold uppercase tracking-widest text-[hsl(var(--muted-foreground))]">Status</p>
+          <span className="inline-flex rounded-full bg-[hsl(var(--primary))]/15 px-3 py-1 text-[12px] font-semibold text-[hsl(var(--primary))]">
             {status.replace(/_/g, ' ').toUpperCase()}
           </span>
         </div>
 
         {/* Trip details */}
-        <div style={{ background: CARD, borderRadius: 12, padding: 16, marginBottom: 12, border: '0.5px solid #333355' }}>
+        <div className="mb-3 rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-4">
           <Row label="Date" value={fmtDate(b.pickup_at)} />
           <Row label="Service" value={b.service_type ?? '—'} />
           {b.vehicle_name && <Row label="Vehicle" value={`${b.vehicle_name}${b.vehicle_plate ? ` · ${b.vehicle_plate}` : ''}`} />}
@@ -85,36 +95,38 @@ export default function JobDetailPage() {
         </div>
 
         {/* Route */}
-        <div style={{ background: CARD, borderRadius: 12, padding: 16, marginBottom: 12, border: '0.5px solid #333355' }}>
-          <p style={{ color: MUTED, fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1, margin: '0 0 12px' }}>Route</p>
-          <div style={{ display: 'flex', gap: 10 }}>
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: 3 }}>
-              <div style={{ width: 10, height: 10, borderRadius: '50%', background: GOLD }} />
-              <div style={{ flex: 1, width: 1, background: '#333355', margin: '4px 0' }} />
-              <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#22C55E' }} />
+        <div className="mb-3 rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-4">
+          <p className="mb-3 text-[11px] font-semibold uppercase tracking-widest text-[hsl(var(--muted-foreground))]">Route</p>
+          <div className="flex gap-3">
+            <div className="flex flex-col items-center pt-1">
+              <div className="h-2.5 w-2.5 rounded-full bg-[hsl(var(--primary))]" />
+              <div className="my-1 h-full w-px bg-[hsl(var(--border))]" />
+              <div className="h-2.5 w-2.5 rounded-full bg-emerald-400" />
             </div>
-            <div style={{ flex: 1 }}>
-              <p style={{ color: '#fff', fontSize: 13, margin: '0 0 8px' }}>{b.pickup_location ?? '—'}</p>
+            <div className="flex-1">
+              <p className="mb-2 text-[13px] text-white">{b.pickup_location ?? '—'}</p>
               {waypoints.map((w: string, i: number) => (
-                <p key={i} style={{ color: MUTED, fontSize: 13, margin: '0 0 8px' }}>via {w}</p>
+                <p key={i} className="mb-2 text-[13px] text-[hsl(var(--muted-foreground))]">via {w}</p>
               ))}
-              <p style={{ color: '#fff', fontSize: 13, margin: 0 }}>{b.dropoff_location ?? '—'}</p>
+              <p className="text-[13px] text-white">{b.dropoff_location ?? '—'}</p>
             </div>
           </div>
         </div>
 
         {/* Passenger */}
         {b.passenger_name && (
-          <div style={{ background: CARD, borderRadius: 12, padding: 16, marginBottom: 12, border: '0.5px solid #333355' }}>
-            <p style={{ color: MUTED, fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1, margin: '0 0 10px' }}>Passenger</p>
+          <div className="mb-3 rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-4">
+            <p className="mb-3 text-[11px] font-semibold uppercase tracking-widest text-[hsl(var(--muted-foreground))]">Passenger</p>
             <Row label="Name" value={b.passenger_name} />
-            {b.passenger_phone && <Row label="Phone" value={<a href={`tel:${b.passenger_phone}`} style={{ color: GOLD }}>{b.passenger_phone}</a>} />}
+            {b.passenger_phone && (
+              <Row label="Phone" value={<a href={`tel:${b.passenger_phone}`} className="text-[hsl(var(--primary))]">{b.passenger_phone}</a>} />
+            )}
           </div>
         )}
 
         {/* Notes */}
         {(b.notes || assignment.dispatch_notes) && (
-          <div style={{ background: CARD, borderRadius: 12, padding: 16, marginBottom: 12, border: '0.5px solid #333355' }}>
+          <div className="mb-3 rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-4">
             {assignment.dispatch_notes && <Row label="Dispatch Note" value={assignment.dispatch_notes} />}
             {b.notes && <Row label="Special Requests" value={b.notes} />}
           </div>
@@ -122,27 +134,29 @@ export default function JobDetailPage() {
 
         {/* Driver pay */}
         {assignment.driver_pay_amount && (
-          <div style={{ background: CARD, borderRadius: 12, padding: 16, marginBottom: 12, border: '0.5px solid #333355' }}>
-            <Row label="Your Pay" value={<span style={{ color: GOLD, fontWeight: 700 }}>${assignment.driver_pay_amount.toFixed(2)}</span>} />
+          <div className="mb-3 rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-4">
+            <Row label="Your Pay" value={<span className="font-bold text-[hsl(var(--primary))]">${assignment.driver_pay_amount.toFixed(2)}</span>} />
           </div>
         )}
 
-        {error && <p style={{ color: '#EF4444', fontSize: 13, margin: '0 0 12px' }}>{error}</p>}
+        {error && <p className="mb-3 text-[13px] text-red-500">{error}</p>}
       </div>
 
       {/* Sticky CTA */}
       {flow && (
-        <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, padding: '12px 16px 28px', background: BG, borderTop: '1px solid #333355' }}>
-          <button onClick={() => updateStatus(flow.next)} disabled={updating}
-            style={{ width: '100%', padding: '16px 0', background: updating ? GOLD + '80' : GOLD,
-              color: '#000', border: 'none', borderRadius: 14, fontWeight: 700, fontSize: 15, cursor: updating ? 'not-allowed' : 'pointer' }}>
+        <div className="fixed bottom-0 left-0 right-0 border-t border-[hsl(var(--border))] bg-[hsl(var(--background))] px-4 pt-3 pb-7">
+          <button
+            onClick={() => updateStatus(flow.next)}
+            disabled={updating}
+            className="w-full rounded-xl bg-[hsl(var(--primary))] py-4 text-[15px] font-bold text-black disabled:opacity-60"
+          >
             {updating ? 'Updating...' : flow.nextLabel}
           </button>
         </div>
       )}
       {!flow && status === 'job_done' && (
-        <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, padding: '12px 16px 28px', background: BG, borderTop: '1px solid #333355' }}>
-          <div style={{ textAlign: 'center', color: '#22C55E', fontWeight: 600, fontSize: 15 }}>✓ Job Completed</div>
+        <div className="fixed bottom-0 left-0 right-0 border-t border-[hsl(var(--border))] bg-[hsl(var(--background))] px-4 pt-3 pb-7">
+          <div className="text-center text-[15px] font-semibold text-emerald-400">✓ Job Completed</div>
         </div>
       )}
     </div>
@@ -151,9 +165,9 @@ export default function JobDetailPage() {
 
 function Row({ label, value }: { label: string; value: any }) {
   return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10, gap: 16 }}>
-      <span style={{ color: MUTED, fontSize: 12, flexShrink: 0 }}>{label}</span>
-      <span style={{ color: '#fff', fontSize: 13, textAlign: 'right' }}>{value}</span>
+    <div className="mb-2.5 flex items-start justify-between gap-4">
+      <span className="text-[12px] text-[hsl(var(--muted-foreground))]">{label}</span>
+      <span className="text-right text-[13px] text-white">{value}</span>
     </div>
   );
 }
