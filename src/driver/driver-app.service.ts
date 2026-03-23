@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, ForbiddenException, BadRequestException, ConflictException, OnModuleInit, Logger, Optional } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { TripEvidenceService } from '../trip-evidence/trip-evidence.service';
+import { NotificationService } from '../notification/notification.service';
 
 /**
  * DriverAppService — driver-facing API (iOS/Android driver app)
@@ -12,6 +13,7 @@ export class DriverAppService implements OnModuleInit {
   constructor(
     private readonly dataSource: DataSource,
     @Optional() private readonly tripEvidence?: TripEvidenceService,
+    @Optional() private readonly notificationService?: NotificationService,
   ) {}
 
   async onModuleInit() {
@@ -424,6 +426,15 @@ export class DriverAppService implements OnModuleInit {
            $1, 'IN_PROGRESS', 'COMPLETED', 'DRIVER', 'Driver job_done', NOW())`,
         [rows[0].booking_id],
       ).catch(() => {});
+
+      // Notify admin: driver finished job
+      if (this.notificationService) {
+        this.notificationService.handleEvent('DriverJobCompleted', {
+          tenant_id: me.tenant_id,
+          booking_id: rows[0].booking_id,
+          driver_id: userId,
+        }).catch(() => {});
+      }
     }
 
     // NOTE: 'fulfilled' block removed — driver cannot trigger FULFILLED.

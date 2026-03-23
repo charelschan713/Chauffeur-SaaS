@@ -685,6 +685,24 @@ ${footer()}
     sms: { body: '{{company_name}}: {{document_type}} rejected — {{rejection_reason}}. Please re-upload the correct document.' },
   },
 
+  /** Job completed → email to admin */
+  DriverJobCompleted: {
+    email: {
+      subject: 'Job Completed — {{booking_reference}}',
+      body: `<div style="${S.wrap}">
+<h2 style="${S.h2}">Job Completed ✅</h2>
+<p style="${S.p}">Driver {{driver_name}} marked booking <strong>{{booking_reference}}</strong> as completed.</p>
+<table style="${S.table}">
+  <tr><td style="${S.tdL}">Pickup</td><td style="${S.tdR}">{{pickup_address}}</td></tr>
+  <tr><td style="${S.tdLAlt}">Dropoff</td><td style="${S.tdRAlt}">{{dropoff_address}}</td></tr>
+  <tr><td style="${S.tdL}">Pickup Time</td><td style="${S.tdR}">{{pickup_time}}</td></tr>
+</table>
+${cta(btnUrl('Review Booking →', '{{admin_booking_url}}'))}
+${footer()}
+</div>`,
+    },
+  },
+
   // ══════════════════════════════════════════════════════════════════════
   // 10. PLATFORM / SUPER ADMIN
   // ══════════════════════════════════════════════════════════════════════

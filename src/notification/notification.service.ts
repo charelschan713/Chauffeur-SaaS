@@ -60,6 +60,9 @@ export class NotificationService {
       case 'DriverAcceptedAssignment':
         await this.onDriverAccepted(tenantId, payload);
         break;
+      case 'DriverJobCompleted':
+        await this.onDriverJobCompleted(tenantId, payload);
+        break;
       case 'DriverJobAssigned':
         await this.onDriverJobAssigned(tenantId, payload);
         break;
@@ -235,6 +238,21 @@ export class NotificationService {
 
     const driverPhone = toE164(driver.phone_country_code, driver.phone_number);
     if (driverPhone) await this.sendSmsWithLog(tenantId, eventType, smsIntegration, driverPhone, body, booking.id).catch(() => {});
+  }
+
+  private async onDriverJobCompleted(tenantId: string, payload: any) {
+    const booking = await this.getBooking(payload.booking_id);
+    if (!booking) return;
+    const driver = await this.getDriver(payload.driver_id);
+    if (!driver) return;
+
+    const vars = this.buildTemplateVariables(booking, driver);
+    const admins = await this.getAdminContacts(tenantId);
+    for (const admin of admins) {
+      if (admin.email) {
+        await this.sendFromTemplate(tenantId, 'DriverJobCompleted', 'email', vars, admin.email, booking.id).catch(() => {});
+      }
+    }
   }
 
   private async onDriverInvitation(tenantId: string, payload: any) {
