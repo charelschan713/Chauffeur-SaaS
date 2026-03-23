@@ -393,7 +393,7 @@ export function QuoteClient() {
       if (vc.length) setCityId(vc[0].id);
       if (vs.length) setServiceTypeId(vs[0].id);
       const flightEnabled = !!ti?.widget_settings?.flightNumber || !!ti?.booking_entry?.show_flight_number;
-      setShowFlight(flightEnabled || flightEnabled === undefined ? true : false);
+      setShowFlight(flightEnabled);
     }).catch(() => setConfigError(true))
       .finally(() => setLoadingConfig(false));
     // Auto-discount (non-blocking, with retry)
