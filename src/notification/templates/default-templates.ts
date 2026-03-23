@@ -270,8 +270,8 @@ ${footer()}
   // 4. JOB FULFILLED
   // ══════════════════════════════════════════════════════════════════════
 
-  /** Trip completed → full report email to customer */
-  JobFulfilled: {
+  /** Trip completed — no extras → customer notification */
+  JobFulfilledNoExtras: {
     email: {
       subject: 'Trip Complete — {{booking_reference}}',
       body: `<div style="${S.wrap}">
@@ -313,6 +313,27 @@ ${footer()}
 </div>`,
     },
     sms: { body: '{{company_name}}: Trip {{booking_reference}} complete. Total paid {{currency}} {{total_paid}}. Thank you!' },
+  },
+
+  /** Trip completed — with extras → customer notification */
+  JobFulfilledWithExtras: {
+    email: {
+      subject: 'Final Invoice — Additional Charges | {{booking_reference}}',
+      body: `<div style="${S.wrap}">
+<h2 style="${S.h2}">Trip Complete — Additional Charges</h2>
+<p style="${S.p}">Hi {{customer_first_name}}, your trip is complete. Additional charges were applied based on actuals.</p>
+<table style="${S.table}">
+  <tr><td style="${S.tdL}">Pickup</td><td style="${S.tdR}">{{pickup_address}}</td></tr>
+  <tr><td style="${S.tdLAlt}">Dropoff</td><td style="${S.tdRAlt}">{{dropoff_address}}</td></tr>
+  <tr><td style="${S.tdL}">Pickup Time</td><td style="${S.tdR}">{{pickup_time}}</td></tr>
+  <tr><td style="${S.tdLAlt}">Actual Total</td><td style="${S.tdRAlt}">{{actual_total}}</td></tr>
+  <tr><td style="${S.tdL}">Extra Charges</td><td style="${S.tdR}">{{adjustment_amount}}</td></tr>
+</table>
+<p style="${S.p}">If you have any questions, please reply to this email.</p>
+${footer()}
+</div>`,
+    },
+    sms: { body: '{{company_name}}: Trip {{booking_reference}} completed. Additional charges of {{adjustment_amount}} were applied.' },
   },
 
   // ══════════════════════════════════════════════════════════════════════

@@ -81,6 +81,12 @@ export class NotificationService {
       case 'JobFulfilledWithExtras':
         await this.onJobFulfilledWithExtras(tenantId, payload);
         break;
+      case 'JobFulfilledNoExtras':
+        await this.onJobFulfilledNoExtras(tenantId, payload);
+        break;
+      case 'JobFulfilledNoExtras':
+        await this.onJobFulfilledNoExtras(tenantId, payload);
+        break;
       case 'BookingCancelled':
         await this.onBookingCancelled(tenantId, payload);
         break;
@@ -388,21 +394,37 @@ export class NotificationService {
 
     const templateVars = { ...this.buildTemplateVariables(booking), ...extrasVars } as Record<string, string>;
 
+    // Use templated email/SMS
     if (emailIntegration && booking.customer_email) {
-      const subject = `Final Invoice — Additional Charges | ${booking.booking_reference}`;
-      await this.sendEmailWithLog(
-        tenantId, eventType, emailIntegration,
-        { to: booking.customer_email, subject, html: '', fromAddress: emailIntegration.config.from_address, fromName: emailIntegration.config.from_name },
-        booking.id, templateVars,
-      ).catch(() => {});
+      await this.sendFromTemplate(tenantId, eventType, 'email', templateVars, booking.customer_email, booking.id).catch(() => {});
     }
 
     if (smsIntegration) {
-      const cur = booking.currency || 'AUD';
-      const balanceDue = extrasVars.balance_due || extrasVars.actual_total;
-      const body = `ASChauffeured: Trip ${booking.booking_reference} completed. Additional charges of ${cur} ${extrasVars.actual_total || balanceDue} have been charged to your saved card.`;
       const customerPhone = toE164(booking.customer_phone_country_code, booking.customer_phone_number);
-      if (customerPhone) await this.sendSmsWithLog(tenantId, eventType, smsIntegration, customerPhone, body, booking.id).catch(() => {});
+      if (customerPhone) await this.sendFromTemplate(tenantId, eventType, 'sms', templateVars, customerPhone, booking.id).catch(() => {});
+    }
+  }
+
+  private async onJobFulfilledNoExtras(tenantId: string, payload: any) {
+    const eventType = 'JobFulfilledNoExtras';
+    const booking = await this.getBooking(payload.booking_id);
+    if (!booking) return;
+
+    const emailIntegration =
+      (await this.integrationResolver.resolve(tenantId, 'resend')) ??
+      (await this.integrationResolver.resolve(tenantId, 'sendgrid')) ??
+      (await this.integrationResolver.resolve(tenantId, 'mailgun'));
+    const smsIntegration = await this.integrationResolver.resolve(tenantId, 'twilio');
+
+    const vars = { ...this.buildTemplateVariables(booking) } as Record<string, string>;
+
+    if (emailIntegration && booking.customer_email) {
+      await this.sendFromTemplate(tenantId, eventType, 'email', vars, booking.customer_email, booking.id).catch(() => {});
+    }
+
+    if (smsIntegration) {
+      const customerPhone = toE164(booking.customer_phone_country_code, booking.customer_phone_number);
+      if (customerPhone) await this.sendFromTemplate(tenantId, eventType, 'sms', vars, customerPhone, booking.id).catch(() => {});
     }
   }
 

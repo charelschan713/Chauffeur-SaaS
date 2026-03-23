@@ -741,14 +741,15 @@ export class BookingService {
     }
 
     // Fulfillment notification (non-blocking)
-    this.notificationService.handleEvent('JobFulfilledWithExtras', {
+    const notifEvent = extraMinor > 0 ? 'JobFulfilledWithExtras' : 'JobFulfilledNoExtras';
+    this.notificationService.handleEvent(notifEvent, {
       tenant_id:           tenantId,
       booking_id:          bookingId,
       extra_minor:         extraMinor,
       actual_total_minor:  actualTotal,
       adjustment_status:   adjustmentStatus,
     }).catch((e: any) =>
-      console.error('[Notification] JobFulfilledWithExtras FAILED:', e?.message ?? e),
+      console.error(`[Notification] ${notifEvent} FAILED:`, e?.message ?? e),
     );
 
     // ── Phase 3: freeze trip evidence when booking is FULFILLED ──────────────
