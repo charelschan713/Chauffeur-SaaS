@@ -83,8 +83,7 @@ export function Sidebar() {
 
   return (
     <aside
-      className="hidden lg:flex flex-col fixed top-0 left-0 h-full w-64 border-r border-white/5 z-40"
-      style={{ background: '#0d0f14' }}
+      className="hidden lg:flex flex-col fixed top-0 left-0 h-full w-64 border-r border-[hsl(var(--sidebar-border))] z-40 bg-[hsl(var(--sidebar-background))]"
     >
       {/* Logo */}
       <div className="px-6 py-6 border-b border-white/5">
@@ -93,7 +92,7 @@ export function Sidebar() {
           <img src={tenant.logo_url} alt={tenant.name} className="h-8 object-contain" />
         ) : (
           <span
-            className="text-xl font-semibold text-[#c8a96b]"
+            className="text-xl font-semibold text-[hsl(var(--sidebar-primary))]"
             style={{ fontFamily: 'var(--font-playfair), Georgia, serif' }}
           >
             {tenant?.name ?? 'Portal'}
@@ -113,12 +112,12 @@ export function Sidebar() {
                 'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all duration-150',
                 'font-medium',
                 active
-                  ? 'bg-[#c8a96b]/10 text-[#c8a96b]'
-                  : 'text-white/50 hover:text-white/80 hover:bg-white/5',
+                  ? 'bg-[hsl(var(--sidebar-primary))]/10 text-[hsl(var(--sidebar-primary))]'
+                  : 'text-[hsl(var(--sidebar-foreground))]/60 hover:text-[hsl(var(--sidebar-foreground))]/90 hover:bg-white/5',
               )}
               style={{ fontFamily: 'var(--font-geist-sans), sans-serif' }}
             >
-              <span className={cn(active ? 'text-[#c8a96b]' : 'text-white/40')}>{item.icon}</span>
+              <span className={cn(active ? 'text-[hsl(var(--sidebar-primary))]' : 'text-[hsl(var(--sidebar-foreground))]/40')}>{item.icon}</span>
               {item.label}
             </Link>
           );
@@ -129,7 +128,7 @@ export function Sidebar() {
       <div className="px-3 pb-6 border-t border-white/5 pt-3">
         <button
           onClick={handleSignOut}
-          className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-white/40 hover:text-white/70 hover:bg-white/5 transition-all duration-150 w-full"
+          className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-[hsl(var(--sidebar-foreground))]/40 hover:text-[hsl(var(--sidebar-foreground))]/70 hover:bg-white/5 transition-all duration-150 w-full"
           style={{ fontFamily: 'var(--font-geist-sans), sans-serif' }}
         >
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
