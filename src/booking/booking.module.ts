@@ -12,8 +12,8 @@ import { TripEvidenceModule } from '../trip-evidence/trip-evidence.module';
 
 @Module({
   imports: [PricingModule, NotificationModule, PaymentModule, InvoiceModule, TenantModule, TripEvidenceModule],
-  providers: [BookingService, OutboxWorkerService],
+  providers: [BookingService, BookingChangeService, OutboxWorkerService],
   controllers: [BookingController],
-  exports: [BookingService],
+  exports: [BookingService, BookingChangeService],
 })
 export class BookingModule {}
