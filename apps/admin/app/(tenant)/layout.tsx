@@ -25,21 +25,38 @@ import {
 
 const NAV_SECTIONS = [
   {
-    title: 'Operations',
+    title: 'Bookings',
     items: [
       { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-      { href: '/bookings', label: 'Bookings', icon: CalendarCheck },
-      { href: '/dispatch', label: 'Dispatch', icon: MapPin },
-      { href: '/customers', label: 'Customers', icon: Users },
+      { href: '/bookings', label: 'All Bookings', icon: CalendarCheck },
+      { href: '/bookings/new', label: 'Create Booking', icon: CalendarCheck },
+    ],
+  },
+  {
+    title: 'Dispatch',
+    items: [
+      { href: '/dispatch', label: 'Dispatch Board', icon: MapPin },
+    ],
+  },
+  {
+    title: 'Drivers',
+    items: [
+      { href: '/drivers', label: 'Drivers', icon: Car },
+      { href: '/vehicles', label: 'Vehicles', icon: Truck },
+      { href: '/driver-invoices', label: 'Driver Payouts', icon: FileText },
+    ],
+  },
+  {
+    title: 'Payments',
+    items: [
       { href: '/invoices', label: 'Invoices', icon: FileText },
       { href: '/discounts', label: 'Discounts', icon: BadgePercent },
     ],
   },
   {
-    title: 'Fleet',
+    title: 'Customers',
     items: [
-      { href: '/drivers', label: 'Drivers', icon: Car },
-      { href: '/vehicles', label: 'Vehicles', icon: Truck },
+      { href: '/customers', label: 'Customers', icon: Users },
     ],
   },
   {
@@ -56,7 +73,6 @@ const NAV_SECTIONS = [
     items: [
       { href: '/settings/general', label: 'General', icon: Settings },
       { href: '/projects', label: 'Projects', icon: FileText },
-      { href: '/driver-invoices', label: 'Driver Invoices', icon: FileText },
       { href: '/settings/invoice', label: 'Invoice Setup', icon: FileText },
       { href: '/settings/cities', label: 'Cities', icon: Building2 },
       { href: '/settings/templates', label: 'Templates', icon: Map },
