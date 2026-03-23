@@ -754,7 +754,7 @@ export class CustomerPortalService implements OnModuleInit {
     );
     if (!rows.length) throw new NotFoundException('Booking not found');
     const b = rows[0];
-    const cancelable = ['PENDING_CUSTOMER_CONFIRMATION', 'PENDING', 'CONFIRMED', 'AWAITING_CONFIRMATION'];
+    const cancelable = ['PENDING_CUSTOMER_CONFIRMATION', 'PENDING', 'CONFIRMED', 'AWAITING_ADMIN_REVIEW'];
     if (!cancelable.includes(b.operational_status)) {
       throw new BadRequestException('Booking cannot be cancelled in its current state');
     }
@@ -959,11 +959,11 @@ export class CustomerPortalService implements OnModuleInit {
       ).catch(() => {});
     }
 
-    // If booking attached, update operational_status to AWAITING_CONFIRMATION
+    // If booking attached, update operational_status to AWAITING_ADMIN_REVIEW
     if (dto.bookingId) {
       await this.db.query(
         `UPDATE public.bookings
-         SET operational_status = 'AWAITING_CONFIRMATION',
+         SET operational_status = 'AWAITING_ADMIN_REVIEW',
              updated_at = now()
          WHERE id=$1 AND customer_id=$2 AND tenant_id=$3`,
         [dto.bookingId, customerId, tenantId],
@@ -1505,7 +1505,7 @@ export class CustomerPortalService implements OnModuleInit {
             $14, $15,
             $16, $17, $18, $27,
             $19,
-            'AWAITING_CONFIRMATION', 'UNPAID',
+            'AWAITING_ADMIN_REVIEW', 'UNPAID',
             $20, $21,
             $22, $23,
             $24, $25, $26,
@@ -1540,7 +1540,7 @@ export class CustomerPortalService implements OnModuleInit {
     await this.db.query(
       `INSERT INTO public.booking_status_history
          (id, tenant_id, booking_id, previous_status, new_status, triggered_by, reason, created_at)
-       VALUES (gen_random_uuid(),$1,$2,NULL,'AWAITING_CONFIRMATION',NULL,NULL,now())`,
+       VALUES (gen_random_uuid(),$1,$2,NULL,'AWAITING_ADMIN_REVIEW',NULL,NULL,now())`,
       [tenantId, booking.id],
     ).catch(() => {});
 
@@ -1583,8 +1583,8 @@ export class CustomerPortalService implements OnModuleInit {
     );
     if (!rows.length) throw new NotFoundException('Booking not found');
     const b = rows[0];
-    if (b.status !== 'AWAITING_CONFIRMATION') {
-      throw new BadRequestException('Booking is not in AWAITING_CONFIRMATION state');
+    if (b.status !== 'AWAITING_ADMIN_REVIEW') {
+      throw new BadRequestException('Booking is not in AWAITING_ADMIN_REVIEW state');
     }
     if (!b.stripe_customer_id) {
       throw new BadRequestException('No Stripe customer on file');
@@ -1636,8 +1636,8 @@ export class CustomerPortalService implements OnModuleInit {
       [bookingId, tenantId],
     );
     if (!rows.length) throw new NotFoundException('Booking not found');
-    if (rows[0].status !== 'AWAITING_CONFIRMATION') {
-      throw new BadRequestException('Booking is not in AWAITING_CONFIRMATION state');
+    if (rows[0].status !== 'AWAITING_ADMIN_REVIEW') {
+      throw new BadRequestException('Booking is not in AWAITING_ADMIN_REVIEW state');
     }
 
     await this.db.query(

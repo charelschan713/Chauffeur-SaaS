@@ -20,7 +20,8 @@ const BOOKING_TRANSITION_RULES: Record<string, Set<string>> = {
   DRAFT:                         new Set(['PENDING', 'CONFIRMED', 'CANCELLED']),
   PENDING:                       new Set(['CONFIRMED', 'CANCELLED', 'PENDING_CUSTOMER_CONFIRMATION', 'ASSIGNED']),
   PENDING_CUSTOMER_CONFIRMATION: new Set(['CONFIRMED', 'CANCELLED', 'PAYMENT_FAILED']),
-  PAYMENT_FAILED:                new Set(['CONFIRMED', 'CANCELLED', 'PENDING_CUSTOMER_CONFIRMATION']),
+  AWAITING_ADMIN_REVIEW:         new Set(['CONFIRMED', 'CANCELLED', 'PAYMENT_FAILED']),
+  PAYMENT_FAILED:                new Set(['CONFIRMED', 'CANCELLED', 'PENDING_CUSTOMER_CONFIRMATION', 'AWAITING_ADMIN_REVIEW']),
   CONFIRMED:                     new Set(['ASSIGNED', 'CANCELLED', 'IN_PROGRESS', 'COMPLETED', 'FULFILLED']),
   ASSIGNED:                      new Set(['IN_PROGRESS', 'CANCELLED', 'CONFIRMED', 'COMPLETED']),
   IN_PROGRESS:                   new Set(['COMPLETED', 'CANCELLED', 'NO_SHOW']),
@@ -996,7 +997,7 @@ export class BookingService {
     );
   }
 
-  // ── Confirm and charge off-session (AWAITING_CONFIRMATION → CONFIRMED/PAYMENT_FAILED) ──
+  // ── Confirm and charge off-session (AWAITING_ADMIN_REVIEW → CONFIRMED/PAYMENT_FAILED) ──
   async confirmAndCharge(tenantId: string, bookingId: string) {
     const rows = await this.dataSource.query(
       `SELECT b.*, c.stripe_customer_id
@@ -1109,14 +1110,14 @@ export class BookingService {
     return { success: true, paymentIntentId: pi.id };
   }
 
-  // ── Reject booking (AWAITING_CONFIRMATION → CANCELLED) ────────────────────
+  // ── Reject booking (AWAITING_ADMIN_REVIEW → CANCELLED) ────────────────────
   async rejectBooking(tenantId: string, bookingId: string, actorId: string, reason?: string) {
     const rows = await this.dataSource.query(
       `SELECT operational_status FROM public.bookings WHERE id=$1 AND tenant_id=$2`,
       [bookingId, tenantId],
     );
     if (!rows.length) throw new NotFoundException('Booking not found');
-    if (!['PENDING_CUSTOMER_CONFIRMATION', 'AWAITING_CONFIRMATION'].includes(rows[0].operational_status)) {
+    if (!['PENDING_CUSTOMER_CONFIRMATION', 'AWAITING_ADMIN_REVIEW'].includes(rows[0].operational_status)) {
       throw new BadRequestException('Booking is not in PENDING_CUSTOMER_CONFIRMATION state');
     }
     await this.dataSource.query(
