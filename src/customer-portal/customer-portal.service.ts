@@ -1405,6 +1405,15 @@ export class CustomerPortalService implements OnModuleInit {
       } catch (_e) { /* non-fatal — booking still created */ }
     }
 
+    // ── Ensure payment method exists BEFORE booking ───────────────────────
+    const pmCheck = await this.db.query(
+      `SELECT 1 FROM public.saved_payment_methods WHERE customer_id=$1 AND tenant_id=$2 LIMIT 1`,
+      [customerId, tenantId],
+    );
+    if (!pmCheck.length) {
+      throw new BadRequestException('No saved payment method. Please add a payment method to continue.');
+    }
+
     // ── Create booking ────────────────────────────────────────────────────
     const ref = `${refPrefix}-${Math.random().toString(36).slice(2,10).toUpperCase()}`;
     const now = new Date().toISOString();
@@ -1446,7 +1455,7 @@ export class CustomerPortalService implements OnModuleInit {
             $14, $15,
             $16, $17, $18, $27,
             $19,
-            'PENDING_CUSTOMER_CONFIRMATION', 'UNPAID',
+            'AWAITING_CONFIRMATION', 'UNPAID',
             $20, $21,
             $22, $23,
             $24, $25, $26,
@@ -1481,7 +1490,7 @@ export class CustomerPortalService implements OnModuleInit {
     await this.db.query(
       `INSERT INTO public.booking_status_history
          (id, tenant_id, booking_id, previous_status, new_status, triggered_by, reason, created_at)
-       VALUES (gen_random_uuid(),$1,$2,NULL,'PENDING_CUSTOMER_CONFIRMATION',NULL,NULL,now())`,
+       VALUES (gen_random_uuid(),$1,$2,NULL,'AWAITING_CONFIRMATION',NULL,NULL,now())`,
       [tenantId, booking.id],
     ).catch(() => {});
 

@@ -1007,12 +1007,12 @@ export class BookingService {
     );
     if (!rows.length) throw new NotFoundException('Booking not found');
     const b = rows[0];
-    // Guard: only PENDING_CUSTOMER_CONFIRMATION or PAYMENT_FAILED (retry) are valid sources
+    // Guard: only AWAITING_CONFIRMATION or PAYMENT_FAILED (retry) are valid sources
     // PAYMENT_FAILED = confirmed product state for retryable charge failure
-    if (!['PENDING_CUSTOMER_CONFIRMATION', 'PAYMENT_FAILED'].includes(b.operational_status)) {
+    if (!['AWAITING_CONFIRMATION', 'PAYMENT_FAILED'].includes(b.operational_status)) {
       throw new BadRequestException(
         `Cannot confirm-and-charge: booking is in ${b.operational_status} state. ` +
-        `Expected PENDING_CUSTOMER_CONFIRMATION or PAYMENT_FAILED.`,
+        `Expected AWAITING_CONFIRMATION or PAYMENT_FAILED.`,
       );
     }
     if (!b.stripe_customer_id) {
