@@ -236,6 +236,7 @@
   - 12‑hour minimum booking rule (urgent modal).
   - Return leg route computed separately; reverse waypoints.
   - Auto‑discount via `/public/discounts/auto`.
+  - **Flight details** fields (pickup + return) shown only if tenant config enables; default **false**.
   - Pending quotes list for logged‑in users.
 - `apps/customer/app/book/BookPageClient.tsx`
   - Loads quote session and handles Stripe setup intent.
