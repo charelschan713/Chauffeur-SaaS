@@ -213,7 +213,7 @@ export class BookingChangeService {
       [params.tenantId, params.bookingId, booking.operational_status, params.adminId],
     ).catch(() => {});
 
-    const approvalUrl = `${process.env.PUBLIC_APP_URL ?? 'https://chauffeur-saa-s.vercel.app'}/customer-portal/booking-changes/approve?token=${approvalToken}`;
+    const approvalUrl = `${process.env.CUSTOMER_PORTAL_URL ?? 'https://aschauffeured.chauffeurssolution.com'}/booking-changes/approve?token=${approvalToken}`;
 
     // Notify customer (best-effort)
     this.notificationService
