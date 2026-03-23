@@ -33,6 +33,7 @@ export class CustomerPortalController {
     private readonly jwt: JwtService,
     @InjectDataSource() private readonly db: DataSource,
     @Inject(ProjectService) private readonly projectSvc: ProjectService,
+    private readonly bookingChangeService: BookingChangeService,
   ) {}
 
   // ── PUBLIC ─────────────────────────────────────────────────────────────────
@@ -75,6 +76,13 @@ export class CustomerPortalController {
   @Post('guest/checkout')
   guestCheckout(@Body() body: any) {
     return this.svc.guestCheckout(body.tenantSlug, body);
+  }
+
+  /** Public approval link for admin-proposed booking changes (no auth) */
+  @Get('booking-changes/approve')
+  async approveBookingChange(@Query('token') token: string) {
+    if (!token) throw new BadRequestException('token is required');
+    return this.bookingChangeService.approveChangeByToken({ token });
   }
 
   // ── PROTECTED ──────────────────────────────────────────────────────────────

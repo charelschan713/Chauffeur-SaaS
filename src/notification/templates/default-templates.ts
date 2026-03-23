@@ -229,6 +229,29 @@ ${footer()}
     sms: { body: '{{company_name}}: Modification request for {{booking_reference}} from {{customer_name}}. Login to review.' },
   },
 
+  BookingChangeProposed: {
+    email: {
+      subject: 'Booking Change Approval — {{booking_reference}}',
+      body: `<div style="${S.wrap}">
+<h2 style="${S.h2}">Please Approve Changes</h2>
+<p style="${S.p}">Hi {{customer_first_name}},</p>
+<p style="${S.p}">We have proposed changes to your booking. Please review and approve the changes.</p>
+<table style="${S.table}">
+  <tr><td style="${S.tdL}">Booking</td><td style="${S.tdR}">{{booking_reference}}</td></tr>
+  <tr><td style="${S.tdLAlt}">Pickup</td><td style="${S.tdRAlt}">{{pickup_address}}</td></tr>
+  <tr><td style="${S.tdL}">Dropoff</td><td style="${S.tdR}">{{dropoff_address}}</td></tr>
+  <tr><td style="${S.tdLAlt}">Date &amp; Time</td><td style="${S.tdRAlt}">{{pickup_time}}</td></tr>
+  {{#if modification_details}}<tr><td style="${S.tdL}">Changes</td><td style="${S.tdR}">{{modification_details}}</td></tr>{{/if}}
+  {{#if price_delta_minor}}<tr><td style="${S.tdLAlt}">Price Difference</td><td style="${S.tdRAlt}">{{currency}} {{price_delta_minor}}</td></tr>{{/if}}
+</table>
+${cta(btnUrl('Approve Changes →', '{{approval_url}}', '#16a34a'))}
+<p style="${S.p}">If you do not approve, no changes will be applied.</p>
+${footer()}
+</div>`,
+    },
+    sms: { body: '{{company_name}}: Booking change proposed for {{booking_reference}}. Approve here: {{approval_url}}' },
+  },
+
   // ══════════════════════════════════════════════════════════════════════
   // 3. DRIVER STATUS
   // ══════════════════════════════════════════════════════════════════════

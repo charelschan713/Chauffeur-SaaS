@@ -1,4 +1,5 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import crypto from 'crypto';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 import { NotificationService } from '../notification/notification.service';
@@ -47,6 +48,14 @@ export class BookingChangeService {
     @InjectDataSource() private readonly db: DataSource,
     private readonly notificationService: NotificationService,
   ) {}
+
+  private async ensureChangeRequestColumns() {
+    await this.db.query(
+      `ALTER TABLE public.booking_change_requests
+         ADD COLUMN IF NOT EXISTS approval_token text,
+         ADD COLUMN IF NOT EXISTS approval_token_expires_at timestamptz`,
+    ).catch(() => {});
+  }
 
   private async loadBookingColumns(): Promise<Set<string>> {
     if (this.bookingColumns) return this.bookingColumns;
@@ -172,6 +181,9 @@ export class BookingChangeService {
     const newSnapshot = this.mergeSnapshots(booking, filteredPayload);
     const priceDelta = this.computePriceDelta(oldSnapshot, newSnapshot);
 
+    const approvalToken = crypto.randomUUID();
+    const approvalTokenExpiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24).toISOString();
+
     const change = await this.createChangeRequest({
       tenantId: params.tenantId,
       bookingId: params.bookingId,
@@ -182,7 +194,26 @@ export class BookingChangeService {
       newSnapshot,
       priceDelta,
       status: CHANGE_STATUSES.PENDING_CUSTOMER_APPROVAL,
+      approvalToken,
+      approvalTokenExpiresAt,
     });
+
+    // Mark booking awaiting customer approval
+    await this.db.query(
+      `UPDATE public.bookings
+       SET operational_status = 'AWAITING_CUSTOMER_APPROVAL', updated_at = now()
+       WHERE id = $1 AND tenant_id = $2`,
+      [params.bookingId, params.tenantId],
+    ).catch(() => {});
+
+    await this.db.query(
+      `INSERT INTO public.booking_status_history
+         (id, tenant_id, booking_id, previous_status, new_status, triggered_by, reason, created_at)
+       VALUES (gen_random_uuid(),$1,$2,$3,'AWAITING_CUSTOMER_APPROVAL',$4,'Admin proposed change',now())`,
+      [params.tenantId, params.bookingId, booking.operational_status, params.adminId],
+    ).catch(() => {});
+
+    const approvalUrl = `${process.env.PUBLIC_APP_URL ?? 'https://chauffeur-saa-s.vercel.app'}/customer-portal/booking-changes/approve?token=${approvalToken}`;
 
     // Notify customer (best-effort)
     this.notificationService
@@ -193,10 +224,11 @@ export class BookingChangeService {
         old_snapshot: oldSnapshot,
         new_snapshot: newSnapshot,
         price_delta_minor: priceDelta,
+        approval_url: approvalUrl,
       })
       .catch(() => {});
 
-    return { mode: 'PROPOSED', changeRequestId: change.id };
+    return { mode: 'PROPOSED', changeRequestId: change.id, approvalUrl };
   }
 
   private async createChangeRequest(params: {
@@ -209,12 +241,16 @@ export class BookingChangeService {
     newSnapshot: any;
     priceDelta: number | null;
     status: typeof CHANGE_STATUSES[keyof typeof CHANGE_STATUSES];
+    approvalToken?: string | null;
+    approvalTokenExpiresAt?: string | null;
   }) {
+    await this.ensureChangeRequestColumns();
     const [row] = await this.db.query(
       `INSERT INTO public.booking_change_requests
         (tenant_id, booking_id, proposed_by_role, proposed_by_id,
-         change_payload, old_snapshot, new_snapshot, price_delta_minor, status)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+         change_payload, old_snapshot, new_snapshot, price_delta_minor, status,
+         approval_token, approval_token_expires_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
        RETURNING *`,
       [
         params.tenantId,
@@ -226,6 +262,8 @@ export class BookingChangeService {
         params.newSnapshot,
         params.priceDelta,
         params.status,
+        params.approvalToken ?? null,
+        params.approvalTokenExpiresAt ?? null,
       ],
     );
     return row;
@@ -264,6 +302,95 @@ export class BookingChangeService {
        SET status = $1, approved_at = now()
        WHERE id = $2`,
       [CHANGE_STATUSES.APPROVED, params.changeRequestId],
+    );
+
+    return { status: CHANGE_STATUSES.APPROVED };
+  }
+
+  async approveChangeByToken(params: { token: string }) {
+    await this.ensureChangeRequestColumns();
+    const rows = await this.db.query(
+      `SELECT * FROM public.booking_change_requests
+       WHERE approval_token = $1 AND status = $2`,
+      [params.token, CHANGE_STATUSES.PENDING_CUSTOMER_APPROVAL],
+    );
+    if (!rows.length) throw new NotFoundException('Change request not found');
+
+    const cr = rows[0];
+    if (cr.approval_token_expires_at && new Date(cr.approval_token_expires_at).getTime() < Date.now()) {
+      throw new BadRequestException('Approval link expired');
+    }
+
+    // Load booking + customer stripe customer id
+    const bookingRows = await this.db.query(
+      `SELECT b.*, c.stripe_customer_id
+       FROM public.bookings b
+       JOIN public.customers c ON c.id = b.customer_id
+       WHERE b.id = $1 AND b.tenant_id = $2`,
+      [cr.booking_id, cr.tenant_id],
+    );
+    if (!bookingRows.length) throw new NotFoundException('Booking not found');
+    const b = bookingRows[0];
+
+    // If price delta is positive, charge the difference off-session
+    const delta = cr.price_delta_minor ?? 0;
+    if (delta > 0) {
+      // Require saved payment method
+      const pmRows = await this.db.query(
+        `SELECT stripe_payment_method_id FROM public.saved_payment_methods
+         WHERE customer_id = $1 AND tenant_id = $2 AND is_default = true LIMIT 1`,
+        [b.customer_id, cr.tenant_id],
+      );
+      if (!pmRows.length) throw new BadRequestException('No default payment method saved');
+
+      const intRows = await this.db.query(
+        `SELECT stripe_secret_key FROM public.tenant_settings WHERE tenant_id = $1 LIMIT 1`,
+        [cr.tenant_id],
+      );
+      const secretKey = intRows[0]?.stripe_secret_key ?? process.env.STRIPE_SECRET_KEY;
+      if (!secretKey) throw new BadRequestException('Stripe not configured');
+
+      const Stripe = (await import('stripe')).default;
+      const stripe = new Stripe(secretKey);
+
+      try {
+        await stripe.paymentIntents.create({
+          amount: delta,
+          currency: (b.currency ?? 'AUD').toLowerCase(),
+          customer: b.stripe_customer_id,
+          payment_method: pmRows[0].stripe_payment_method_id,
+          confirm: true,
+          off_session: true,
+          metadata: { tenant_id: cr.tenant_id, booking_id: b.id, payment_type: 'CHANGE_DELTA' },
+        });
+      } catch (err: any) {
+        throw new BadRequestException(`Charge failed: ${err?.message ?? 'unknown error'}`);
+      }
+    }
+
+    // Apply changes after charge success (or no charge needed)
+    await this.applyBookingUpdate(cr.tenant_id, cr.booking_id, cr.change_payload);
+
+    // Update booking status back to CONFIRMED
+    await this.db.query(
+      `UPDATE public.bookings
+       SET operational_status = 'CONFIRMED', updated_at = now()
+       WHERE id = $1 AND tenant_id = $2`,
+      [cr.booking_id, cr.tenant_id],
+    ).catch(() => {});
+
+    await this.db.query(
+      `INSERT INTO public.booking_status_history
+         (id, tenant_id, booking_id, previous_status, new_status, triggered_by, reason, created_at)
+       VALUES (gen_random_uuid(),$1,$2,$3,'CONFIRMED',NULL,'Customer approved change',now())`,
+      [cr.tenant_id, cr.booking_id, b.operational_status],
+    ).catch(() => {});
+
+    await this.db.query(
+      `UPDATE public.booking_change_requests
+       SET status = $1, approved_at = now()
+       WHERE id = $2`,
+      [CHANGE_STATUSES.APPROVED, cr.id],
     );
 
     return { status: CHANGE_STATUSES.APPROVED };

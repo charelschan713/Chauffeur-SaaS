@@ -133,6 +133,7 @@ export class NotificationService {
       case 'BookingReceived':               await this.onBookingReceived(tenantId, payload); break;
       case 'BookingModified':               await this.onBookingModified(tenantId, payload); break;
       case 'ModificationRequest':           await this.onModificationRequest(tenantId, payload); break;
+      case 'BookingChangeProposed':         await this.onBookingChangeProposed(tenantId, payload); break;
       case 'AdditionalCharge':              await this.onAdditionalCharge(tenantId, payload); break;
       case 'AdjustmentFailed':              await this.onAdjustmentFailed(tenantId, payload); break;
       case 'AdjustmentFailedAdmin':         await this.onAdjustmentFailed(tenantId, payload); break;
@@ -1410,6 +1411,29 @@ export class NotificationService {
     const admins = await this.getAdminContacts(tenantId);
     for (const admin of admins) {
       if (admin.email) await this.sendFromTemplate(tenantId, 'ModificationRequest', 'email', vars, admin.email, booking.id).catch(() => {});
+    }
+  }
+
+  // Admin proposes change → customer approval link
+  private async onBookingChangeProposed(tenantId: string, payload: any) {
+    const booking = await this.getBooking(payload.booking_id);
+    if (!booking) return;
+
+    const vars: Record<string, string> = {
+      ...this.bookingVars(booking),
+      modification_details: payload.modification_details ?? '',
+      price_delta_minor: payload.price_delta_minor ?? 0,
+      approval_url: payload.approval_url ?? '',
+    };
+
+    await this.sendBoth(tenantId, 'BookingChangeProposed', vars, booking.customer_email, null, booking.id).catch(() => {});
+
+    const smsIntegration = await this.integrationResolver.resolve(tenantId, 'twilio');
+    if (smsIntegration) {
+      const customerPhone = toE164(booking.customer_phone_country_code, booking.customer_phone_number);
+      if (customerPhone) {
+        await this.sendFromTemplate(tenantId, 'BookingChangeProposed', 'sms', vars, customerPhone, booking.id).catch(() => {});
+      }
     }
   }
 
