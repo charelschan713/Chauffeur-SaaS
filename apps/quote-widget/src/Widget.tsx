@@ -139,6 +139,7 @@ export function Widget({ slug }: { slug: string }) {
   const [infantSeats, setInfantSeats] = useState('0');
   const [toddlerSeats, setToddlerSeats] = useState('0');
   const [boosterSeats, setBoosterSeats] = useState('0');
+  const [showExtras, setShowExtras] = useState(false);
   const seatOptions = ['0','1','2','3','4','5'];
   const allowReturnTrip = tenant?.booking_entry?.allow_return_trip ?? true;
   const ws = withDefaults(tenant?.widget_settings ?? null);
@@ -311,10 +312,8 @@ export function Widget({ slug }: { slug: string }) {
           // @ts-ignore
           <img src={tenant.logo_url} alt={tenant.company_name} className="cw-logo" />
         )}
-        <div className="cw-section-label">Instant Quote</div>
-        <div className="cw-title">{tenant?.company_name ?? 'Instant Quote'}</div>
-        <div className="cw-subtitle">Get Your Quote in Seconds</div>
-        <div className="cw-muted">Instant Fare Estimate</div>
+        <div className="cw-title">Get an Instant Quote</div>
+        <div className="cw-subtitle">{tenant?.company_name ?? 'Luxury chauffeur service'}</div>
       </div>
 
       {error && (
@@ -325,7 +324,7 @@ export function Widget({ slug }: { slug: string }) {
 
       {step === 1 && (
         <div className="cw-form cw-panel">
-          {/* City */}
+          {/* City + Service */}
           {cities.length > 0 && (
             <div className="cw-span-2">
               <div className="cw-label">City</div>
@@ -333,12 +332,6 @@ export function Widget({ slug }: { slug: string }) {
                 value={cityId}
                 onChange={(e) => { setCityId(e.target.value); clearQuote(); }}
                 className="cw-input"
-                style={{
-                  backgroundColor: 'hsl(var(--card) / 0.55)',
-                  color: 'hsl(var(--foreground))',
-                  borderColor: 'hsl(var(--input-border) / 0.7)',
-                  WebkitTextFillColor: 'hsl(var(--foreground))',
-                }}
               >
                 {cities.map((c) => (
                   <option key={c.id} value={c.id}>{c.name}</option>
@@ -347,7 +340,6 @@ export function Widget({ slug }: { slug: string }) {
             </div>
           )}
 
-          {/* Service Type */}
           {serviceTypes.length > 0 && (
             <div className="cw-span-2">
               <div className="cw-label">Service Type</div>
@@ -355,12 +347,6 @@ export function Widget({ slug }: { slug: string }) {
                 value={serviceTypeId}
                 onChange={(e) => { setServiceTypeId(e.target.value); setTripMode('ONE_WAY'); clearQuote(); }}
                 className="cw-input"
-                style={{
-                  backgroundColor: 'hsl(var(--card) / 0.55)',
-                  color: 'hsl(var(--foreground))',
-                  borderColor: 'hsl(var(--input-border) / 0.7)',
-                  WebkitTextFillColor: 'hsl(var(--foreground))',
-                }}
               >
                 {serviceTypes.map((st) => (
                   <option key={st.id} value={st.id}>{st.name}</option>
@@ -369,7 +355,6 @@ export function Widget({ slug }: { slug: string }) {
             </div>
           )}
 
-          {/* Service notice */}
           {(isWedding || (isHourly && minHours)) && (
             <div className="cw-alert">
               <span>•</span>
@@ -377,7 +362,6 @@ export function Widget({ slug }: { slug: string }) {
             </div>
           )}
 
-          {/* Trip Type / Duration */}
           {isHourly ? (
             <div className="cw-span-2">
               <div className="cw-label">Duration (hours)</div>
@@ -387,49 +371,13 @@ export function Widget({ slug }: { slug: string }) {
                 ))}
               </select>
             </div>
-          ) : (
-            <div className="cw-span-2">
-              <div className="cw-label">Trip Type</div>
-              <select
-                value={effectiveTripMode}
-                onChange={(e) => { setTripMode(e.target.value as 'ONE_WAY' | 'RETURN'); clearQuote(); }}
-                className="cw-input"
-              >
-                <option value="ONE_WAY">One Way</option>
-                <option value="RETURN">Return</option>
-              </select>
-            </div>
-          )}
+          ) : null}
 
-          {/* Date & Time (full width like legacy widget) */}
-          <div className="cw-span-2">
-            <div className="cw-label">Pickup date & time</div>
-            <LuxDateTimePicker
-              dateValue={datetime ? datetime.split('T')[0] : ''}
-              timeValue={datetime && datetime.includes('T') ? (datetime.split('T')[1] ?? '').slice(0,5) : ''}
-              onDateChange={(v)=>{ const t = datetime?.split('T')[1] ?? ''; setDatetime(v && t ? `${v}T${t}` : (v ? `${v}T` : '')); clearQuote(); }}
-              onTimeChange={(v)=>{ const d = datetime?.split('T')[0] ?? ''; setDatetime(d && v ? `${d}T${v}` : (v ? `T${v}` : '')); clearQuote(); }}
-              minDate={new Date().toISOString().slice(0,10)}
-            />
-
-            {showFlight && (
-              <div style={{ marginTop: 10 }}>
-                <div className="cw-label">Flight number (optional)</div>
-                <input
-                  value={flightNumber}
-                  onChange={(e) => setFlightNumber(e.target.value)}
-                  placeholder="e.g. QF401"
-                  className="cw-input"
-                  style={{ backgroundColor: 'hsl(var(--card) / 0.55)', color: 'hsl(var(--foreground))', borderColor: 'hsl(var(--input-border) / 0.7)', WebkitTextFillColor: 'hsl(var(--foreground))' }}
-                />
-              </div>
-            )}
-          </div>
-
-          {/* Addresses (like legacy widget) */}
-          <div className="cw-span-2" style={{ display: 'grid', gap: 12 }}>
-            <div>
-              <div className="cw-label">Pickup Location</div>
+          {/* Route */}
+          <div className="cw-span-2 cw-group">
+            <div className="cw-group-title">Route</div>
+            <div className="cw-field">
+              <div className="cw-label">Pickup</div>
               <PlacesAutocomplete
                 tenantSlug={tenant?.slug ?? slug}
                 id="widget-pickup"
@@ -442,13 +390,12 @@ export function Widget({ slug }: { slug: string }) {
               />
             </div>
 
-            {/* Stops (between pickup and drop-off) */}
             {showWaypoints && (
-              <div>
+              <div className="cw-field">
                 <div className="cw-label">Stops (optional)</div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <div className="cw-stack">
                   {waypoints.map((wp, idx) => (
-                    <div key={idx} style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                    <div key={idx} className="cw-inline">
                       <PlacesAutocomplete
                         tenantSlug={tenant?.slug ?? slug}
                         id={`waypoint-${idx}`}
@@ -470,18 +417,7 @@ export function Widget({ slug }: { slug: string }) {
                           const next = waypoints.filter((_, i) => i !== idx);
                           setWaypoints(next);
                         }}
-                        className="cw-muted"
-                        style={{
-                          background: 'transparent',
-                          border: 0,
-                          cursor: 'pointer',
-                          width: 36,
-                          height: 36,
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          borderRadius: 12,
-                        }}
+                        className="cw-icon-btn"
                         aria-label="Remove stop"
                       >
                         ×
@@ -495,7 +431,6 @@ export function Widget({ slug }: { slug: string }) {
                       onClick={() => {
                         setWaypoints((prev) => {
                           const next = [...prev, ''];
-                          // focus new row on next tick
                           setTimeout(() => {
                             const el = document.querySelector(`#waypoint-${next.length - 1} input`) as HTMLInputElement | null;
                             el?.focus();
@@ -512,8 +447,8 @@ export function Widget({ slug }: { slug: string }) {
               </div>
             )}
 
-            <div>
-              <div className="cw-label">Drop-off Location <span className="cw-optional">(optional)</span></div>
+            <div className="cw-field">
+              <div className="cw-label">Drop-off</div>
               <PlacesAutocomplete
                 tenantSlug={tenant?.slug ?? slug}
                 id="widget-dropoff"
@@ -527,103 +462,160 @@ export function Widget({ slug }: { slug: string }) {
             </div>
           </div>
 
-          {showReturn && tripMode === 'RETURN' && !isHourly && (
-            <div className="cw-span-2" style={{ paddingTop: 10, borderTop: '1px solid rgba(255,255,255,0.12)' }}>
-              <div className="cw-section-label" style={{ marginBottom: 6 }}>Return Trip</div>
-              <div style={{ marginTop: 6 }}>
-                <LuxDateTimePicker
-                  dateValue={returnDatetime ? returnDatetime.split('T')[0] : ''}
-                  timeValue={returnDatetime && returnDatetime.includes('T') ? (returnDatetime.split('T')[1] ?? '').slice(0,5) : ''}
-                  onDateChange={(v)=>{ const t = returnDatetime?.split('T')[1] ?? ''; setReturnDatetime(v && t ? `${v}T${t}` : (v ? `${v}T` : '')); clearQuote(); }}
-                  onTimeChange={(v)=>{ const d = returnDatetime?.split('T')[0] ?? ''; setReturnDatetime(d && v ? `${d}T${v}` : (v ? `T${v}` : '')); clearQuote(); }}
-                  minDate={(datetime ? datetime.split('T')[0] : '') || new Date().toISOString().slice(0,10)}
-                />
-              </div>
-              <div className="cw-muted" style={{ fontSize: 12, marginTop: 6 }}>Return pickup from drop-off location.</div>
+          {/* Time */}
+          <div className="cw-span-2 cw-group">
+            <div className="cw-group-title">Time</div>
+            <LuxDateTimePicker
+              dateValue={datetime ? datetime.split('T')[0] : ''}
+              timeValue={datetime && datetime.includes('T') ? (datetime.split('T')[1] ?? '').slice(0,5) : ''}
+              onDateChange={(v)=>{ const t = datetime?.split('T')[1] ?? ''; setDatetime(v && t ? `${v}T${t}` : (v ? `${v}T` : '')); clearQuote(); }}
+              onTimeChange={(v)=>{ const d = datetime?.split('T')[0] ?? ''; setDatetime(d && v ? `${d}T${v}` : (v ? `T${v}` : '')); clearQuote(); }}
+              minDate={new Date().toISOString().slice(0,10)}
+            />
+          </div>
 
-              {showFlight && (
-                <div style={{ marginTop: 10 }}>
-                  <div className="cw-label">Return flight (optional)</div>
-                  <input
-                    value={returnFlightNumber}
-                    onChange={(e) => setReturnFlightNumber(e.target.value)}
-                    placeholder="e.g. QF402"
-                    className="cw-input"
-                    style={{ backgroundColor: 'hsl(var(--card) / 0.55)', color: 'hsl(var(--foreground))', borderColor: 'hsl(var(--input-border) / 0.7)', WebkitTextFillColor: 'hsl(var(--foreground))' }}
+          {/* Return Trip */}
+          {showReturn && !isHourly && allowReturnTrip && (
+            <div className="cw-span-2 cw-group">
+              <div className="cw-group-title">Return Trip</div>
+              <button
+                type="button"
+                className={`cw-toggle ${tripMode === 'RETURN' ? 'cw-toggle-active' : ''}`}
+                onClick={() => { setTripMode(tripMode === 'RETURN' ? 'ONE_WAY' : 'RETURN'); clearQuote(); }}
+              >
+                Return Trip
+              </button>
+              {tripMode === 'RETURN' && (
+                <div className="cw-field" style={{ marginTop: 12 }}>
+                  <LuxDateTimePicker
+                    dateValue={returnDatetime ? returnDatetime.split('T')[0] : ''}
+                    timeValue={returnDatetime && returnDatetime.includes('T') ? (returnDatetime.split('T')[1] ?? '').slice(0,5) : ''}
+                    onDateChange={(v)=>{ const t = returnDatetime?.split('T')[1] ?? ''; setReturnDatetime(v && t ? `${v}T${t}` : (v ? `${v}T` : '')); clearQuote(); }}
+                    onTimeChange={(v)=>{ const d = returnDatetime?.split('T')[0] ?? ''; setReturnDatetime(d && v ? `${d}T${v}` : (v ? `T${v}` : '')); clearQuote(); }}
+                    minDate={(datetime ? datetime.split('T')[0] : '') || new Date().toISOString().slice(0,10)}
                   />
                 </div>
               )}
             </div>
           )}
 
-
-          {/* Passengers / Luggage (v2: steppers) */}
+          {/* Capacity */}
           {(showPassengers || showLuggage) && (
-            <div className="cw-grid-2">
-              {showPassengers && (
-                <div>
-                  <div className="cw-label">Passengers</div>
-                  <div className="cw-stepper-portal">
-                    <button type="button" onClick={() => { setPax((p) => Math.max(1, p - 1)); clearQuote(); }}>−</button>
-                    <div className="cw-stepper-value-portal">
-                      <input type="number" min={1} max={50} value={pax} onChange={(e)=>{const n=Math.max(1,Math.min(50,parseInt(e.target.value)||1)); setPax(n); clearQuote();}} />
-                      <span>passengers</span>
+            <div className="cw-span-2 cw-group">
+              <div className="cw-group-title">Capacity</div>
+              <div className="cw-grid-2">
+                {showPassengers && (
+                  <div>
+                    <div className="cw-label">Passengers</div>
+                    <div className="cw-stepper-portal">
+                      <button type="button" onClick={() => { setPax((p) => Math.max(1, p - 1)); clearQuote(); }}>−</button>
+                      <div className="cw-stepper-value-portal">
+                        <input type="number" min={1} max={50} value={pax} onChange={(e)=>{const n=Math.max(1,Math.min(50,parseInt(e.target.value)||1)); setPax(n); clearQuote();}} />
+                      </div>
+                      <button type="button" onClick={() => { setPax((p) => Math.min(50, p + 1)); clearQuote(); }}>+</button>
                     </div>
-                    <button type="button" onClick={() => { setPax((p) => Math.min(50, p + 1)); clearQuote(); }}>+</button>
                   </div>
-                </div>
-              )}
-              {showLuggage && (
-                <div>
-                  <div className="cw-label">Luggage</div>
-                  <div className="cw-stepper-portal">
-                    <button type="button" onClick={() => { setBags((b) => Math.max(0, b - 1)); clearQuote(); }}>−</button>
-                    <div className="cw-stepper-value-portal">
-                      <input type="number" min={0} max={50} value={bags} onChange={(e)=>{const n=Math.max(0,Math.min(50,parseInt(e.target.value)||0)); setBags(n); clearQuote();}} />
-                      <span>bags</span>
+                )}
+                {showLuggage && (
+                  <div>
+                    <div className="cw-label">Luggage</div>
+                    <div className="cw-stepper-portal">
+                      <button type="button" onClick={() => { setBags((b) => Math.max(0, b - 1)); clearQuote(); }}>−</button>
+                      <div className="cw-stepper-value-portal">
+                        <input type="number" min={0} max={50} value={bags} onChange={(e)=>{const n=Math.max(0,Math.min(50,parseInt(e.target.value)||0)); setBags(n); clearQuote();}} />
+                      </div>
+                      <button type="button" onClick={() => { setBags((b) => Math.min(50, b + 1)); clearQuote(); }}>+</button>
                     </div>
-                    <button type="button" onClick={() => { setBags((b) => Math.min(50, b + 1)); clearQuote(); }}>+</button>
                   </div>
-                </div>
-              )}
+                )}
+              </div>
             </div>
           )}
 
-          {/* Baby seats (match portal: dropdowns) */}
-          {showBabySeats && (
-            <div className="cw-span-2">
-              <div className="cw-section-label" style={{ color: '#9ca3af' }}>Baby Seats <span className="cw-optional">(optional)</span></div>
-              <div className="cw-seat-grid">
-                <div className="cw-seat-col">
-                  <div className="cw-seat-label">Infant</div>
-                  <div className="cw-seat-sub">Rear-facing · 0–6 months</div>
-                  <select className="cw-select" value={infantSeats} onChange={(e) => { setInfantSeats(e.target.value); clearQuote(); }}>
-                    {[0,1,2,3].map((v) => (<option key={`infant-${v}`} value={v}>{v}</option>))}
-                  </select>
+          {/* Extras */}
+          {(showBabySeats || showFlight || showPromo) && (
+            <div className="cw-span-2 cw-group">
+              <div className="cw-group-title">Extras</div>
+              <button
+                type="button"
+                className={`cw-toggle ${showExtras ? 'cw-toggle-active' : ''}`}
+                onClick={() => setShowExtras((v) => !v)}
+              >
+                Add extras / Child seats
+              </button>
+              {showExtras && (
+                <div className="cw-stack" style={{ marginTop: 12 }}>
+                  {showBabySeats && (
+                    <div>
+                      <div className="cw-label">Child Seats</div>
+                      <div className="cw-seat-grid">
+                        <div className="cw-seat-col">
+                          <div className="cw-seat-label">Infant</div>
+                          <div className="cw-seat-sub">Rear-facing · 0–6 months</div>
+                          <select className="cw-select" value={infantSeats} onChange={(e) => { setInfantSeats(e.target.value); clearQuote(); }}>
+                            {[0,1,2,3].map((v) => (<option key={`infant-${v}`} value={v}>{v}</option>))}
+                          </select>
+                        </div>
+                        <div className="cw-seat-col">
+                          <div className="cw-seat-label">Toddler</div>
+                          <div className="cw-seat-sub">Forward-facing · 0–4 yrs</div>
+                          <select className="cw-select" value={toddlerSeats} onChange={(e) => { setToddlerSeats(e.target.value); clearQuote(); }}>
+                            {[0,1,2,3].map((v) => (<option key={`toddler-${v}`} value={v}>{v}</option>))}
+                          </select>
+                        </div>
+                        <div className="cw-seat-col">
+                          <div className="cw-seat-label">Booster</div>
+                          <div className="cw-seat-sub">4–8 years old</div>
+                          <select className="cw-select" value={boosterSeats} onChange={(e) => { setBoosterSeats(e.target.value); clearQuote(); }}>
+                            {[0,1,2,3].map((v) => (<option key={`booster-${v}`} value={v}>{v}</option>))}
+                          </select>
+                        </div>
+                      </div>
+                      {seatError && (
+                        <div className="cw-seat-error">Baby seats ({totalSeats}) must be less than total passengers ({pax}) — at least 1 adult required.</div>
+                      )}
+                    </div>
+                  )}
+
+                  {showFlight && (
+                    <div>
+                      <div className="cw-label">Flight Details</div>
+                      <input
+                        value={flightNumber}
+                        onChange={(e) => setFlightNumber(e.target.value)}
+                        placeholder="Flight number"
+                        className="cw-input"
+                      />
+                      {showReturn && tripMode === 'RETURN' && (
+                        <input
+                          value={returnFlightNumber}
+                          onChange={(e) => setReturnFlightNumber(e.target.value)}
+                          placeholder="Return flight number"
+                          className="cw-input"
+                          style={{ marginTop: 10 }}
+                        />
+                      )}
+                    </div>
+                  )}
+
+                  {showPromo && (
+                    <div>
+                      <div className="cw-label">Promo Code</div>
+                      <input
+                        value={promoCode}
+                        onChange={(e) => setPromoCode(e.target.value)}
+                        placeholder="Promo code"
+                        className="cw-input"
+                      />
+                    </div>
+                  )}
                 </div>
-                <div className="cw-seat-col">
-                  <div className="cw-seat-label">Toddler</div>
-                  <div className="cw-seat-sub">Forward-facing · 0–4 yrs</div>
-                  <select className="cw-select" value={toddlerSeats} onChange={(e) => { setToddlerSeats(e.target.value); clearQuote(); }}>
-                    {[0,1,2,3].map((v) => (<option key={`toddler-${v}`} value={v}>{v}</option>))}
-                  </select>
-                </div>
-                <div className="cw-seat-col">
-                  <div className="cw-seat-label">Booster</div>
-                  <div className="cw-seat-sub">4–8 years old</div>
-                  <select className="cw-select" value={boosterSeats} onChange={(e) => { setBoosterSeats(e.target.value); clearQuote(); }}>
-                    {[0,1,2,3].map((v) => (<option key={`booster-${v}`} value={v}>{v}</option>))}
-                  </select>
-                </div>
-              </div>
-              {seatError && (
-                <div className="cw-seat-error">Baby seats ({totalSeats}) must be less than total passengers ({pax}) — at least 1 adult required.</div>
               )}
             </div>
           )}
 
           <button onClick={handleGetQuote} disabled={loading || seatError || !pickup || !datetime || !serviceTypeId} className="cw-btn-primary cw-span-2" style={{ marginTop: 14 }}>
-            {loading ? 'Calculating…' : <><span>{quoteData ? '↻ Recalculate' : 'Get Instant Quote'}</span><span style={{ marginLeft: 8 }}>→</span></>}
+            {loading ? 'Calculating…' : <><span>{quoteData ? 'Update Quote' : 'Get Quote'}</span><span style={{ marginLeft: 8 }}>→</span></>}
           </button>
         </div>
       )}
@@ -650,37 +642,45 @@ export function Widget({ slug }: { slug: string }) {
                     <div className="cw-card-price">
                       {fmt(r.pricing_snapshot_preview?.final_fare_minor ?? 0, r.currency)}
                     </div>
-                    <div className="cw-card-sub">Estimated price</div>
+                    <div className="cw-card-sub">Total</div>
                     {r.pricing_snapshot_preview ? (
                       <div className="cw-breakdown">
-                        {r.pricing_snapshot_preview.leg1_minor != null && (
-                          <div className="cw-breakdown-row"><span>Outbound price</span><span>{toMoney(r.pricing_snapshot_preview.leg1_minor, r.currency)}</span></div>
-                        )}
-                        {(r.pricing_snapshot_preview.leg1_surcharge_minor ?? 0) > 0 && (
-                          <div className="cw-breakdown-row"><span>Outbound surcharge</span><span>+{toMoney(r.pricing_snapshot_preview.leg1_surcharge_minor, r.currency)}</span></div>
-                        )}
-                        {typeof r.pricing_snapshot_preview.leg2_minor === 'number' && r.pricing_snapshot_preview.leg2_minor > 0 && (
-                          <>
-                            <div className="cw-breakdown-row"><span>Return price</span><span>{toMoney(r.pricing_snapshot_preview.leg2_minor!, r.currency)}</span></div>
-                            {(r.pricing_snapshot_preview.leg2_surcharge_minor ?? 0) > 0 && (
-                              <div className="cw-breakdown-row"><span>Return surcharge</span><span>+{toMoney(r.pricing_snapshot_preview.leg2_surcharge_minor, r.currency)}</span></div>
-                            )}
-                          </>
-                        )}
-                        {(r.pricing_snapshot_preview.toll_minor ?? 0) > 0 && (
-                          <div className="cw-breakdown-row"><span>Toll</span><span>+{toMoney(r.pricing_snapshot_preview.toll_minor, r.currency)}</span></div>
-                        )}
-                        {(r.pricing_snapshot_preview.parking_minor ?? 0) > 0 && (
-                          <div className="cw-breakdown-row"><span>Parking</span><span>+{toMoney(r.pricing_snapshot_preview.parking_minor, r.currency)}</span></div>
-                        )}
-                        {r.pricing_snapshot_preview.discount_amount_minor > 0 && (
-                          <div className="cw-breakdown-row cw-breakdown-discount"><span>{r.discount?.name ?? 'Discount'}</span><span>-{toMoney(r.pricing_snapshot_preview.discount_amount_minor, r.currency)}</span></div>
-                        )}
-                        <div className="cw-breakdown-row cw-breakdown-total"><span>Total</span><span>{toMoney(r.pricing_snapshot_preview.final_fare_minor ?? 0, r.currency)}</span></div>
+                        {(() => {
+                          const snap = r.pricing_snapshot_preview;
+                          const leg1 = snap.leg1_minor ?? 0;
+                          const leg2 = snap.leg2_minor ?? 0;
+                          const leg1S = snap.leg1_surcharge_minor ?? 0;
+                          const leg2S = snap.leg2_surcharge_minor ?? 0;
+                          const leg1Toll = (snap as any).leg1_toll_minor ?? 0;
+                          const leg2Toll = (snap as any).leg2_toll_minor ?? 0;
+                          const tollTotal = snap.toll_minor ?? 0;
+                          const parking = snap.parking_minor ?? 0;
+                          const hasSplitToll = leg1Toll > 0 || leg2Toll > 0;
+                          const discount = snap.discount_amount_minor ?? 0;
+                          return (
+                            <>
+                              {leg1 > 0 && <div className="cw-breakdown-row"><span>Outbound price</span><span>{toMoney(leg1, r.currency)}</span></div>}
+                              {leg1S > 0 && <div className="cw-breakdown-row"><span>Outbound surcharge</span><span>+{toMoney(leg1S, r.currency)}</span></div>}
+                              {hasSplitToll ? (leg1Toll > 0 && <div className="cw-breakdown-row"><span>Outbound toll</span><span>+{toMoney(leg1Toll, r.currency)}</span></div>) : (tollTotal > 0 && <div className="cw-breakdown-row"><span>Toll</span><span>+{toMoney(tollTotal, r.currency)}</span></div>)}
+
+                              {leg2 > 0 && (
+                                <>
+                                  <div className="cw-breakdown-row"><span>Return price</span><span>{toMoney(leg2, r.currency)}</span></div>
+                                  {leg2S > 0 && <div className="cw-breakdown-row"><span>Return surcharge</span><span>+{toMoney(leg2S, r.currency)}</span></div>}
+                                  {hasSplitToll && leg2Toll > 0 && <div className="cw-breakdown-row"><span>Return toll</span><span>+{toMoney(leg2Toll, r.currency)}</span></div>}
+                                </>
+                              )}
+
+                              {parking > 0 && <div className="cw-breakdown-row"><span>Parking</span><span>+{toMoney(parking, r.currency)}</span></div>}
+                              {discount > 0 && <div className="cw-breakdown-row cw-breakdown-discount"><span>{r.discount?.name ?? 'Discount'}</span><span>-{toMoney(discount, r.currency)}</span></div>}
+                              <div className="cw-breakdown-row cw-breakdown-total"><span>Total</span><span>{toMoney(snap.final_fare_minor ?? 0, r.currency)}</span></div>
+                            </>
+                          );
+                        })()}
                       </div>
                     ) : null}
                   </div>
-                  <button onClick={() => handleBookNow(r)} className="cw-btn-primary cw-card-cta">Book now</button>
+                  <button onClick={() => handleBookNow(r)} className="cw-btn-primary cw-card-cta">Book Now</button>
                 </div>
               ))}
             </div>
