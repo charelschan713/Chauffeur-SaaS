@@ -929,25 +929,41 @@ export class CustomerPortalService implements OnModuleInit {
     const pm = await stripe.paymentMethods.retrieve(pmId);
 
     // Save payment method
+    const hasAny = await this.db.query(
+      `SELECT 1 FROM public.saved_payment_methods WHERE customer_id=$1 AND tenant_id=$2 LIMIT 1`,
+      [customerId, tenantId],
+    );
+
     const [saved] = await this.db.query(
       `INSERT INTO public.saved_payment_methods
          (customer_id, tenant_id, stripe_payment_method_id, last4, brand, exp_month, exp_year, is_default)
-       VALUES ($1, $2, $3, $4, $5, $6, $7,
-         NOT EXISTS (SELECT 1 FROM public.saved_payment_methods WHERE customer_id=$1 AND tenant_id=$2))
-       ON CONFLICT DO NOTHING
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+       ON CONFLICT (customer_id, tenant_id, stripe_payment_method_id)
+       DO UPDATE SET updated_at = now()
        RETURNING *`,
       [
         customerId, tenantId, pmId,
         pm.card?.last4, pm.card?.brand,
         pm.card?.exp_month, pm.card?.exp_year,
+        !hasAny.length,
       ],
     );
 
-    // If booking attached, update operational_status to PENDING_CUSTOMER_CONFIRMATION
+    // If this is the first payment method, make it default
+    if (!hasAny.length) {
+      await this.db.query(
+        `UPDATE public.saved_payment_methods
+         SET is_default = (stripe_payment_method_id = $1)
+         WHERE customer_id=$2 AND tenant_id=$3`,
+        [pmId, customerId, tenantId],
+      ).catch(() => {});
+    }
+
+    // If booking attached, update operational_status to AWAITING_CONFIRMATION
     if (dto.bookingId) {
       await this.db.query(
         `UPDATE public.bookings
-         SET operational_status = 'PENDING_CUSTOMER_CONFIRMATION',
+         SET operational_status = 'AWAITING_CONFIRMATION',
              updated_at = now()
          WHERE id=$1 AND customer_id=$2 AND tenant_id=$3`,
         [dto.bookingId, customerId, tenantId],
@@ -1139,6 +1155,40 @@ export class CustomerPortalService implements OnModuleInit {
     }
 
     if (pi.status === 'succeeded') {
+      // Save payment method as default if customer has none
+      if (b.customer_id && pi.payment_method) {
+        const pmId = typeof pi.payment_method === 'string' ? pi.payment_method : (pi.payment_method as any).id;
+        try {
+          const pm = await stripe.paymentMethods.retrieve(pmId);
+          const hasAny = await this.db.query(
+            `SELECT 1 FROM public.saved_payment_methods WHERE customer_id=$1 AND tenant_id=$2 LIMIT 1`,
+            [b.customer_id, b.tenant_id],
+          );
+          await this.db.query(
+            `INSERT INTO public.saved_payment_methods
+               (customer_id, tenant_id, stripe_payment_method_id, last4, brand, exp_month, exp_year, is_default)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+             ON CONFLICT (customer_id, tenant_id, stripe_payment_method_id)
+             DO UPDATE SET updated_at = now()
+             RETURNING *`,
+            [
+              b.customer_id, b.tenant_id, pmId,
+              pm.card?.last4, pm.card?.brand,
+              pm.card?.exp_month, pm.card?.exp_year,
+              !hasAny.length,
+            ],
+          );
+          if (!hasAny.length) {
+            await this.db.query(
+              `UPDATE public.saved_payment_methods
+               SET is_default = (stripe_payment_method_id = $1)
+               WHERE customer_id=$2 AND tenant_id=$3`,
+              [pmId, b.customer_id, b.tenant_id],
+            );
+          }
+        } catch {}
+      }
+
       await this.markBookingPaid(b.id, pi.id, b.tenant_id);
     }
 
