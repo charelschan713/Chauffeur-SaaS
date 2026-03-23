@@ -538,3 +538,52 @@ sequenceDiagram
   end
   API-->>Admin: fulfilment result
 ```
+
+### 15.4 Pricing Resolution (Internal)
+```mermaid
+sequenceDiagram
+  participant API as PublicPricingService
+  participant PR as PricingResolver
+  participant SR as SurchargeService
+  participant DR as DiscountResolver
+  participant DB as Postgres
+
+  API->>DB: fetch car types + service type flags
+  API->>PR: resolve(ctx) per car type
+  PR->>SR: compute surcharges (leg1/leg2)
+  PR->>DR: tier/loyalty discount
+  PR-->>API: pricing_snapshot (legs + toll/parking + discount)
+  API->>DB: create quote_sessions
+```
+
+### 15.5 Booking Status Transitions (Simplified)
+```mermaid
+stateDiagram-v2
+  [*] --> PENDING_CUSTOMER_CONFIRMATION
+  PENDING_CUSTOMER_CONFIRMATION --> CONFIRMED
+  PENDING_CUSTOMER_CONFIRMATION --> PAYMENT_FAILED
+  PAYMENT_FAILED --> CONFIRMED
+  CONFIRMED --> ASSIGNED
+  ASSIGNED --> IN_PROGRESS
+  IN_PROGRESS --> COMPLETED
+  COMPLETED --> FULFILLED
+  CONFIRMED --> CANCELLED
+  ASSIGNED --> CANCELLED
+  IN_PROGRESS --> CANCELLED
+  COMPLETED --> CANCELLED
+```
+
+### 15.6 Data Model (Core Entities)
+```mermaid
+erDiagram
+  TENANTS ||--o{ TENANT_SERVICE_TYPES : has
+  TENANTS ||--o{ TENANT_SERVICE_CLASSES : has
+  TENANTS ||--o{ BOOKINGS : owns
+  TENANTS ||--o{ CUSTOMERS : owns
+  CUSTOMERS ||--o{ BOOKINGS : places
+  BOOKINGS ||--o{ ASSIGNMENTS : dispatches
+  BOOKINGS ||--o{ PAYMENTS : paid_by
+  BOOKINGS ||--o{ INVOICES : billed_by
+  BOOKINGS ||--o{ BOOKING_STATUS_HISTORY : status_log
+  BOOKINGS ||--o{ DRIVER_EXTRA_REPORTS : report
+```
