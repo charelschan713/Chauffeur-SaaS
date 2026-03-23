@@ -55,11 +55,11 @@
 #chauffeur-quote .cw-shell {
   max-width: 560px;
   margin: 0 auto;
-  background: hsl(var(--card) / 0.65);
-  border: 1px solid hsl(var(--border) / 0.55);
-  border-radius: 1.25rem;
+  background: hsl(var(--background));
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 16px;
   padding: 1.25rem;
-  box-shadow: var(--shadow-lg);
+  box-shadow: 0 25px 50px -12px rgba(0,0,0,0.45);
   backdrop-filter: blur(14px);
   padding-bottom: max(1.25rem, env(safe-area-inset-bottom));
 }
@@ -75,30 +75,30 @@
 }
 #chauffeur-quote .cw-subtitle {
   font-size: 13px;
-  color: hsl(var(--muted-foreground));
+  color: rgba(255,255,255,0.55);
   margin-top: 4px;
   letter-spacing: .02em;
 }
 #chauffeur-quote .cw-section-label {
-  color: hsl(var(--primary));
-  font-size: 0.7rem;
-  font-weight: 700;
+  color: rgba(255,255,255,0.6);
+  font-size: 11px;
+  font-weight: 600;
   letter-spacing: 0.26em;
   text-transform: uppercase;
   margin-bottom: 6px;
 }
 
 #chauffeur-quote .cw-panel {
-  background: hsl(var(--card) / 0.35);
-  border: 1px solid hsl(var(--border) / 0.45);
-  border-radius: 1.1rem;
-  padding: 1rem;
-  box-shadow: var(--shadow-md);
+  background: rgba(255,255,255,0.02);
+  border: 1px solid rgba(255,255,255,0.10);
+  border-radius: 16px;
+  padding: 1.25rem;
+  box-shadow: 0 25px 50px -12px rgba(0,0,0,0.45);
 }
 
 #chauffeur-quote .cw-form {
   display: grid;
-  gap: 12px;
+  gap: 20px;
 }
 
 @media (max-width: 640px) {
@@ -128,45 +128,44 @@
 }
 
 #chauffeur-quote .cw-title {
-  font-family: "Playfair Display", Georgia, serif;
   font-weight: 600;
-  letter-spacing: -0.01em;
-  color: hsl(var(--foreground));
-  font-size: 18px;
+  letter-spacing: 0.02em;
+  color: #fff;
+  font-size: 20px;
 }
 
 #chauffeur-quote .cw-label {
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: .22em;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: .24em;
   text-transform: uppercase;
-  color: rgba(255,255,255,.72);
-  margin: 0 0 .45rem;
+  color: rgba(255,255,255,0.6);
+  margin: 0 0 .5rem;
 }
 
 #chauffeur-quote .cw-input {
   width: 100%;
-  height: 46px;
-  border-radius: var(--radius-input, 14px);
-  border: 1px solid rgba(255,255,255,0.16) !important;
-  background: rgba(13, 18, 26, 0.75) !important;
-  color: hsl(var(--foreground)) !important;
-  padding: 0 0.95rem;
+  height: 48px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.10) !important;
+  background: rgba(255,255,255,0.04) !important;
+  color: #fff !important;
+  padding: 0 12px;
   outline: none;
-  box-shadow: inset 0 1px 2px rgba(0,0,0,.35);
+  box-shadow: none;
   appearance: none;
   -webkit-appearance: none;
   color-scheme: dark;
-  transition: var(--transition-base, all 0.2s ease);
+  transition: border-color 0.2s ease, background-color 0.2s ease;
 }
 #chauffeur-quote .cw-input:hover {
-  border-color: rgba(255,255,255,0.4) !important;
+  border-color: rgba(255,255,255,0.25) !important;
 }
 #chauffeur-quote .cw-input:focus {
-  border-color: rgba(200,169,107,0.85) !important;
-  box-shadow: 0 0 0 2px rgba(200,169,107,0.22);
+  border-color: rgba(255,255,255,0.35) !important;
+  box-shadow: 0 0 0 2px rgba(255,255,255,0.06);
 }
-#chauffeur-quote .cw-input::placeholder { color: rgba(255,255,255,.5) !important; }
+#chauffeur-quote .cw-input::placeholder { color: rgba(255,255,255,.45) !important; }
 
 #chauffeur-quote .cw-toggle {
   width: 100%;
@@ -215,7 +214,9 @@
   height: 16px;
   color: rgba(255,255,255,0.55);
   flex-shrink: 0;
+  display: block;
 }
+#chauffeur-quote .cw-date-btn svg { display: block; }
 #chauffeur-quote .cw-date-text.is-placeholder { color: rgba(255,255,255,0.5); }
 #chauffeur-quote .cw-date-text.is-value { color: #fff; }
 
@@ -367,12 +368,12 @@
 #chauffeur-quote input.cw-input,
 #chauffeur-quote select.cw-input,
 #chauffeur-quote textarea.cw-input {
-  background-color: hsl(var(--card) / 0.55) !important;
-  color: hsl(var(--foreground)) !important;
+  background-color: rgba(255,255,255,0.04) !important;
+  color: #fff !important;
 }
 #chauffeur-quote select.cw-input option {
   background: hsl(var(--card)) !important;
-  color: hsl(var(--foreground)) !important;
+  color: #fff !important;
 }
 #chauffeur-quote input[type="datetime-local"].cw-input::-webkit-calendar-picker-indicator {
   filter: invert(1) opacity(.85);
@@ -397,15 +398,15 @@
 #chauffeur-quote .cw-stepper {
   display: flex;
   align-items: center;
-  height: 44px;
-  border-radius: 0.9rem;
-  border: 1px solid hsl(var(--border) / 0.55);
-  background: hsl(var(--card) / 0.55);
+  height: 48px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.10);
+  background: rgba(255,255,255,0.04);
   overflow: hidden;
 }
 #chauffeur-quote .cw-stepper button {
   width: 44px;
-  height: 44px;
+  height: 48px;
   border: 0;
   background: transparent;
   color: rgba(255,255,255,.55);
@@ -416,8 +417,8 @@
 #chauffeur-quote .cw-stepper .cw-stepper-value {
   flex: 1;
   text-align: center;
-  color: hsl(var(--foreground));
-  font-weight: 700;
+  color: #fff;
+  font-weight: 600;
   font-size: 13px;
 }
 
