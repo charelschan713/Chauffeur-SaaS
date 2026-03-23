@@ -385,3 +385,29 @@
   - Returns active quote sessions for customer (max 10), computes cheapest option.
 - `getInvoicePdf(customerId, tenantId, bookingId)`
   - Validates ownership and returns final invoice PDF if SENT/PAID.
+
+---
+
+## 12) Function‑Level Notes (Phase 3 — Customer Quote UI)
+
+### `apps/customer/app/quote/QuoteClient.tsx`
+- `getTenantSlug()`
+  - Resolves tenant slug from cookie or hostname; fallback `aschauffeured`.
+- `fmtMoney()` / `todayISO()` / `isHourly()`
+  - Formatting + helper predicates.
+- `LuxDateTimePicker` + `DropdownPortal`
+  - Custom date/time picker with fixed-position portal clamped to viewport.
+- `PlacesAutocomplete` + `useDebounce()`
+  - Debounced SaaS autocomplete via `/public/maps/autocomplete` (sessiontoken randomized per query).
+- `useEffect: load config`
+  - Loads cities/service types/car types.
+  - Auto-discount fetch with retry/backoff from `/public/discounts/auto`.
+- `useEffect: pending quotes`
+  - If logged in, calls `/customer-portal/pending-quotes` for resumable quotes.
+- `handleGetQuote()`
+  - Validates required inputs and 12-hour minimum notice (shows urgent modal).
+  - Builds outbound + return routes via `/public/maps/route`.
+  - Posts `/public/pricing/quote` with passengers/luggage/waypoints/baby seats.
+  - Sets `quoteResults`, `quoteId`, and auto-selects first car type.
+- `Book Now button`
+  - Routes to `/book?quote_id=...&car_type_id=...`.
