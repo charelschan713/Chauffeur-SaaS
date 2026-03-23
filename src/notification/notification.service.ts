@@ -60,6 +60,9 @@ export class NotificationService {
       case 'DriverAcceptedAssignment':
         await this.onDriverAccepted(tenantId, payload);
         break;
+      case 'DriverJobAssigned':
+        await this.onDriverJobAssigned(tenantId, payload);
+        break;
       case 'DriverInvitationSent':
         await this.onDriverInvitation(tenantId, payload);
         break;
@@ -185,8 +188,8 @@ export class NotificationService {
     console.log(`[DriverAcceptedAssignment] driver accepted booking ${payload.booking_id} — no notification sent (internal)`);
   }
 
-  private async onDriverInvitation(tenantId: string, payload: any) {
-    const eventType = 'DriverInvitationSent';
+  private async onDriverJobAssigned(tenantId: string, payload: any) {
+    const eventType = 'DriverJobAssigned';
     const booking = await this.getBooking(payload.booking_id);
     if (!booking) return;
     const driver = await this.getDriver(payload.driver_id);
@@ -200,7 +203,7 @@ export class NotificationService {
       (await this.integrationResolver.resolve(tenantId, 'sendgrid')) ??
       (await this.integrationResolver.resolve(tenantId, 'mailgun'));
     if (emailIntegration && driver.email) {
-      await this.sendFromTemplate(tenantId, 'DriverInvitationSent', 'email', templateVars, driver.email, booking.id).catch(() => {});
+      await this.sendFromTemplate(tenantId, 'DriverJobAssigned', 'email', templateVars, driver.email, booking.id).catch(() => {});
     }
 
     // SMS
@@ -215,7 +218,7 @@ export class NotificationService {
 
     const smsTemplate = await this.templateResolver.resolve(
       tenantId,
-      'DriverInvitationSent',
+      'DriverJobAssigned',
       'sms',
     );
 
@@ -223,6 +226,38 @@ export class NotificationService {
 
     const driverPhone = toE164(driver.phone_country_code, driver.phone_number);
     if (driverPhone) await this.sendSmsWithLog(tenantId, eventType, smsIntegration, driverPhone, body, booking.id).catch(() => {});
+  }
+
+  private async onDriverInvitation(tenantId: string, payload: any) {
+    const eventType = 'DriverInvitationSent';
+    const driver = await this.getDriver(payload.driver_id);
+    if (!driver) return;
+
+    const templateVars: Record<string, string> = {
+      company_name: payload.company_name ?? '',
+      driver_first_name: driver.first_name ?? '',
+      driver_last_name: driver.last_name ?? '',
+      driver_name: `${driver.first_name ?? ''} ${driver.last_name ?? ''}`.trim(),
+      driver_app_url: process.env.DRIVER_APP_URL ?? 'https://chauffeur-driver-portal.vercel.app',
+    };
+
+    // Email (if configured)
+    const emailIntegration =
+      (await this.integrationResolver.resolve(tenantId, 'resend')) ??
+      (await this.integrationResolver.resolve(tenantId, 'sendgrid')) ??
+      (await this.integrationResolver.resolve(tenantId, 'mailgun'));
+    if (emailIntegration && driver.email) {
+      await this.sendFromTemplate(tenantId, 'DriverInvitationSent', 'email', templateVars, driver.email, null).catch(() => {});
+    }
+
+    const smsIntegration = await this.integrationResolver.resolve(tenantId, 'twilio');
+    if (!smsIntegration) return;
+
+    const smsTemplate = await this.templateResolver.resolve(tenantId, 'DriverInvitationSent', 'sms');
+    const body = renderTemplate(smsTemplate.body || 'You are invited to join {{company_name}}. Open: {{driver_app_url}}', templateVars);
+
+    const driverPhone = toE164(driver.phone_country_code, driver.phone_number);
+    if (driverPhone) await this.sendSmsWithLog(tenantId, eventType, smsIntegration, driverPhone, body, null).catch(() => {});
   }
 
   private async onJobCompleted(tenantId: string, payload: any) {

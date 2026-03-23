@@ -1,4 +1,5 @@
 export const DISPATCH_EVENTS = {
+  DRIVER_JOB_ASSIGNED: 'DriverJobAssigned',
   DRIVER_INVITATION_SENT: 'DriverInvitationSent',
   DRIVER_ACCEPTED_ASSIGNMENT: 'DriverAcceptedAssignment',
   DRIVER_DECLINED_ASSIGNMENT: 'DriverDeclinedAssignment',

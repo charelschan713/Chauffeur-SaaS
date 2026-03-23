@@ -78,7 +78,7 @@ export class DispatchService {
         [tenantId, assignment.id, dispatcherId],
       );
 
-      await this.insertOutboxEvent(manager, tenantId, bookingId, assignment.id, DISPATCH_EVENTS.DRIVER_INVITATION_SENT, {
+      await this.insertOutboxEvent(manager, tenantId, bookingId, assignment.id, DISPATCH_EVENTS.DRIVER_JOB_ASSIGNED, {
         tenant_id: tenantId,
         booking_id: bookingId,
         assignment_id: assignment.id,
