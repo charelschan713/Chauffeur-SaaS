@@ -11,11 +11,11 @@ export function Card({ title, actions, className = '', children, ...props }: Car
   return (
     <div
       {...props}
-      className={`bg-white rounded-xl border border-gray-100 shadow-sm ${className}`}
+      className={`bg-white rounded-xl border border-gray-200/70 shadow-sm ${className}`}
     >
       {(title || actions) && (
-        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
-          {title && <div className="text-sm font-medium text-gray-900">{title}</div>}
+        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200/70">
+          {title && <div className="text-sm font-semibold text-gray-900">{title}</div>}
           {actions && <div>{actions}</div>}
         </div>
       )}

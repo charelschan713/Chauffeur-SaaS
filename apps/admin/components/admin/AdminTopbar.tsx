@@ -49,7 +49,7 @@ export function AdminTopbar({ tenantName = 'Tenant', onLogout }: AdminTopbarProp
   const pageTitle = crumbs[crumbs.length - 1] ?? 'Dashboard';
 
   return (
-    <header className="flex items-center justify-between h-14 border-b border-gray-200 bg-white px-6 shrink-0">
+    <header className="flex items-center justify-between h-14 border-b border-gray-200/70 bg-white px-6 shrink-0">
       {/* Breadcrumb */}
       <nav className="flex items-center gap-1 text-sm" aria-label="Breadcrumb">
         {crumbs.length > 1 ? (
