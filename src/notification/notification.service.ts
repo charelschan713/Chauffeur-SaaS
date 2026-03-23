@@ -175,11 +175,7 @@ export class NotificationService {
       }
     }
 
-    // Also notify admins (email only)
-    const admins = await this.getAdminContacts(tenantId);
-    for (const admin of admins) {
-      if (admin.email) await this.sendFromTemplate(tenantId, 'AdminNewBooking', 'email', vars, admin.email, booking.id).catch(() => {});
-    }
+    // Admin performed action — no admin email needed
   }
 
   private async onDriverAccepted(tenantId: string, payload: any) {
