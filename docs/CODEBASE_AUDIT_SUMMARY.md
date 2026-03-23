@@ -468,3 +468,73 @@
 - `/public/tenant-info` provides branding + widget settings.
 - `TenantProvider` and widget apply CSS variables for theme.
 - Admin updates branding + widget toggles in settings.
+
+---
+
+## 15) System/Data‑Flow Diagrams (Mermaid)
+
+### 15.1 High‑Level System Flow
+```mermaid
+flowchart LR
+  subgraph Frontend
+    W[Quote Widget]
+    C[Customer Portal]
+    A[Admin Portal]
+    D[Driver Portal]
+  end
+
+  subgraph Backend
+    P[Public API]
+    B[Booking Service]
+    PR[Pricing Resolver]
+    N[Notification Service]
+    PAY[Payment Service/Stripe]
+    DISP[Dispatch/Assignments]
+  end
+
+  W -->|quote/route| P --> PR
+  C -->|quote/book| P --> PR
+  P --> B
+  A --> B
+  B --> PAY
+  B --> N
+  A --> DISP
+  D --> DISP
+```
+
+### 15.2 Quote → Book Sequence
+```mermaid
+sequenceDiagram
+  participant UI as Widget/Customer UI
+  participant API as Public API
+  participant PR as PricingResolver
+  participant DB as Postgres
+  participant STR as Stripe
+
+  UI->>API: /public/maps/route
+  UI->>API: /public/pricing/quote
+  API->>PR: resolveV41
+  PR-->>API: pricing_snapshot + totals
+  API->>DB: INSERT quote_sessions
+  UI->>API: /customer-portal/quote/:id (book)
+  API->>STR: setup/payment intent
+  API->>DB: INSERT booking (PENDING/CONFIRM)
+```
+
+### 15.3 Fulfilment + Settlement
+```mermaid
+sequenceDiagram
+  participant Admin as Admin UI
+  participant API as Booking Service
+  participant STR as Stripe
+  participant DB as Postgres
+
+  Admin->>API: /bookings/:id/fulfil
+  API->>DB: set FULFILLED + adjustment_status
+  alt extra charge needed
+    API->>STR: off-session payment intent
+    STR-->>API: success/fail
+    API->>DB: update adjustment_status
+  end
+  API-->>Admin: fulfilment result
+```
