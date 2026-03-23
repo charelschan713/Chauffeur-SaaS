@@ -18,6 +18,12 @@ export async function fetchCities(slug: string) {
   return res.json();
 }
 
+export async function fetchCarTypes(slug: string) {
+  const res = await fetch(`${API_BASE}/public/car-types?tenant_slug=${encodeURIComponent(slug)}`);
+  if (!res.ok) throw new Error('Failed to load car types');
+  return res.json();
+}
+
 export async function fetchRoute(slug: string, origin: string, destination: string, waypoints?: string[]) {
   const params = new URLSearchParams({ tenant_slug: slug, origin, destination });
   (waypoints ?? []).forEach((w) => params.append('waypoints', w));

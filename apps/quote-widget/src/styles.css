@@ -486,6 +486,11 @@
   font-size: 15px;
   color: #fff;
 }
+#chauffeur-quote .cw-card-meta {
+  font-size: 12px;
+  color: rgba(255,255,255,0.6);
+  margin-top: 2px;
+}
 #chauffeur-quote .cw-card-price {
   font-size: 24px;
   font-weight: 700;
@@ -511,6 +516,15 @@
   color: rgba(255,255,255,.78);
   display: grid;
   gap: 4px;
+}
+#chauffeur-quote .cw-card-reassure {
+  font-size: 11px;
+  color: rgba(255,255,255,0.45);
+}
+#chauffeur-quote .cw-field-error {
+  font-size: 12px;
+  color: rgba(239, 68, 68, 0.95);
+  margin-top: 6px;
 }
 #chauffeur-quote .cw-breakdown-row {
   display: flex;

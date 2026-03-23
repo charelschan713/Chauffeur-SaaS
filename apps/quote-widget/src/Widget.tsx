@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { fetchTenantInfo, fetchServiceTypes, fetchCities, fetchRoute, fetchQuote } from './api';
+import { fetchTenantInfo, fetchServiceTypes, fetchCities, fetchCarTypes, fetchRoute, fetchQuote } from './api';
 import { LuxDateTimePicker } from './components/LuxDateTimePicker';
 
 import { withDefaults, type WidgetSettings } from './widgetConfig';
@@ -81,6 +81,13 @@ interface QuoteResult {
   };
 }
 
+interface CarType {
+  id: string;
+  name: string;
+  max_passengers?: number | null;
+  luggage_capacity?: number | null;
+}
+
 interface QuoteData {
   quoted_at: string;
   expires_at: string;
@@ -117,9 +124,11 @@ export function Widget({ slug }: { slug: string }) {
   const [tenant, setTenant] = useState<TenantInfo | null>(null);
   const [cities, setCities] = useState<City[]>([]);
   const [serviceTypes, setServiceTypes] = useState<ServiceType[]>([]);
+  const [carTypes, setCarTypes] = useState<CarType[]>([]);
   const [step, setStep] = useState<1 | 2>(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<{ pickup?: string; dropoff?: string; datetime?: string; returnDatetime?: string }>({});
 
   // Form state
   const [cityId, setCityId] = useState('');
@@ -173,6 +182,7 @@ export function Widget({ slug }: { slug: string }) {
   };
 
   const [openBreakdowns, setOpenBreakdowns] = useState<Record<string, boolean>>({});
+  const resultsRef = useRef<HTMLDivElement>(null);
 
   const applyTenantTheme = (t: Tenant) => {
     const branding = (t as any).branding ?? (t as any).theme_json?.branding ?? null;
@@ -215,16 +225,23 @@ export function Widget({ slug }: { slug: string }) {
         setServiceTypes(types);
         if (types.length > 0) setServiceTypeId(types[0].id);
       });
+
+    fetchCarTypes(slug)
+      .then((rows) => {
+        setCarTypes(Array.isArray(rows) ? rows : []);
+      })
+      .catch(() => {});
   }, [slug]);
 
   async function handleGetQuote() {
-    if (!pickup) { setError('Please select a pickup location.'); return; }
-    if (!dropoff) { setError('Please select a drop-off location.'); return; }
-    if (!datetime || !serviceTypeId) { setError('Please select date, time, and service.'); return; }
-    if (showReturn && effectiveTripMode === 'RETURN' && !returnDatetime) {
-      setError('Please select return pickup date & time.');
-      return;
-    }
+    const errors: { pickup?: string; dropoff?: string; datetime?: string; returnDatetime?: string } = {};
+    if (!pickup) errors.pickup = 'Please select a pickup location.';
+    if (!dropoff) errors.dropoff = 'Please select a drop-off location.';
+    if (!datetime || !serviceTypeId) errors.datetime = 'Please select pickup date & time.';
+    if (showReturn && effectiveTripMode === 'RETURN' && !returnDatetime) errors.returnDatetime = 'Please select return pickup date & time.';
+    setFieldErrors(errors);
+    if (Object.keys(errors).length > 0) return;
+
     setLoading(true);
     setError(null);
     try {
@@ -275,6 +292,7 @@ export function Widget({ slug }: { slug: string }) {
       setQuoteData(quote);
       setOpenBreakdowns({});
       setStep(2);
+      setTimeout(() => resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
     } catch {
       setError('Quote unavailable. Please try again.');
     } finally {
@@ -385,11 +403,12 @@ export function Widget({ slug }: { slug: string }) {
                 id="widget-pickup"
                 name="widget-pickup"
                 value={pickup}
-                onChange={(v) => { setPickup(v); clearQuote(); }}
-                placeholder="Airport, hotel or address..."
+                onChange={(v) => { setPickup(v); clearQuote(); setFieldErrors((e)=>({ ...e, pickup: undefined })); }}
+                placeholder="Enter pickup location"
                 pinColor="gold"
                 cityBias={selectedCity?.lat && selectedCity?.lng ? { lat: selectedCity.lat, lng: selectedCity.lng } : undefined}
               />
+              {fieldErrors.pickup && <div className="cw-field-error">{fieldErrors.pickup}</div>}
             </div>
 
             {showWaypoints && (
@@ -456,24 +475,26 @@ export function Widget({ slug }: { slug: string }) {
                 id="widget-dropoff"
                 name="widget-dropoff"
                 value={dropoff}
-                onChange={(v) => { setDropoff(v); clearQuote(); }}
-                placeholder="Airport, hotel or destination..."
+                onChange={(v) => { setDropoff(v); clearQuote(); setFieldErrors((e)=>({ ...e, dropoff: undefined })); }}
+                placeholder="Enter drop-off location"
                 pinColor="muted"
                 cityBias={selectedCity?.lat && selectedCity?.lng ? { lat: selectedCity.lat, lng: selectedCity.lng } : undefined}
               />
+              {fieldErrors.dropoff && <div className="cw-field-error">{fieldErrors.dropoff}</div>}
             </div>
           </div>
 
           {/* Time */}
           <div className="cw-span-2 cw-group">
-            <div className="cw-group-title">Time</div>
+            <div className="cw-group-title">Date & Time</div>
             <LuxDateTimePicker
               dateValue={datetime ? datetime.split('T')[0] : ''}
               timeValue={datetime && datetime.includes('T') ? (datetime.split('T')[1] ?? '').slice(0,5) : ''}
-              onDateChange={(v)=>{ const t = datetime?.split('T')[1] ?? ''; setDatetime(v && t ? `${v}T${t}` : (v ? `${v}T` : '')); clearQuote(); }}
-              onTimeChange={(v)=>{ const d = datetime?.split('T')[0] ?? ''; setDatetime(d && v ? `${d}T${v}` : (v ? `T${v}` : '')); clearQuote(); }}
+              onDateChange={(v)=>{ const t = datetime?.split('T')[1] ?? ''; setDatetime(v && t ? `${v}T${t}` : (v ? `${v}T` : '')); clearQuote(); setFieldErrors((e)=>({ ...e, datetime: undefined })); }}
+              onTimeChange={(v)=>{ const d = datetime?.split('T')[0] ?? ''; setDatetime(d && v ? `${d}T${v}` : (v ? `T${v}` : '')); clearQuote(); setFieldErrors((e)=>({ ...e, datetime: undefined })); }}
               minDate={new Date().toISOString().slice(0,10)}
             />
+            {fieldErrors.datetime && <div className="cw-field-error">{fieldErrors.datetime}</div>}
           </div>
 
           {/* Return Trip */}
@@ -483,7 +504,14 @@ export function Widget({ slug }: { slug: string }) {
               <button
                 type="button"
                 className={`cw-toggle ${tripMode === 'RETURN' ? 'cw-toggle-active' : ''}`}
-                onClick={() => { setTripMode(tripMode === 'RETURN' ? 'ONE_WAY' : 'RETURN'); clearQuote(); }}
+                onClick={() => {
+                  const next = tripMode === 'RETURN' ? 'ONE_WAY' : 'RETURN';
+                  setTripMode(next as 'ONE_WAY' | 'RETURN');
+                  if (next === 'RETURN' && !returnDatetime && datetime) {
+                    setReturnDatetime(datetime);
+                  }
+                  clearQuote();
+                }}
               >
                 Return Trip
               </button>
@@ -492,10 +520,11 @@ export function Widget({ slug }: { slug: string }) {
                   <LuxDateTimePicker
                     dateValue={returnDatetime ? returnDatetime.split('T')[0] : ''}
                     timeValue={returnDatetime && returnDatetime.includes('T') ? (returnDatetime.split('T')[1] ?? '').slice(0,5) : ''}
-                    onDateChange={(v)=>{ const t = returnDatetime?.split('T')[1] ?? ''; setReturnDatetime(v && t ? `${v}T${t}` : (v ? `${v}T` : '')); clearQuote(); }}
-                    onTimeChange={(v)=>{ const d = returnDatetime?.split('T')[0] ?? ''; setReturnDatetime(d && v ? `${d}T${v}` : (v ? `T${v}` : '')); clearQuote(); }}
+                    onDateChange={(v)=>{ const t = returnDatetime?.split('T')[1] ?? ''; setReturnDatetime(v && t ? `${v}T${t}` : (v ? `${v}T` : '')); clearQuote(); setFieldErrors((e)=>({ ...e, returnDatetime: undefined })); }}
+                    onTimeChange={(v)=>{ const d = returnDatetime?.split('T')[0] ?? ''; setReturnDatetime(d && v ? `${d}T${v}` : (v ? `T${v}` : '')); clearQuote(); setFieldErrors((e)=>({ ...e, returnDatetime: undefined })); }}
                     minDate={(datetime ? datetime.split('T')[0] : '') || new Date().toISOString().slice(0,10)}
                   />
+                  {fieldErrors.returnDatetime && <div className="cw-field-error">{fieldErrors.returnDatetime}</div>}
                 </div>
               )}
             </div>
@@ -543,7 +572,7 @@ export function Widget({ slug }: { slug: string }) {
                 className={`cw-toggle ${showExtras ? 'cw-toggle-active' : ''}`}
                 onClick={() => setShowExtras((v) => !v)}
               >
-                Add extras / Child seats
+                Child seats & extras
               </button>
               {showExtras && (
                 <div className="cw-stack" style={{ marginTop: 12 }}>
@@ -645,6 +674,15 @@ export function Widget({ slug }: { slug: string }) {
                   <div key={r.service_class_id} className="cw-card">
                     <div className="cw-card-main">
                       <div className="cw-card-title">{r.service_class_name}</div>
+                      <div className="cw-card-meta">
+                        {(() => {
+                          const ct = carTypes.find(c => c.id === r.service_class_id);
+                          const paxLabel = ct?.max_passengers ? `${ct.max_passengers} passengers` : null;
+                          const bagLabel = ct?.luggage_capacity ? `${ct.luggage_capacity} luggage` : null;
+                          if (!paxLabel && !bagLabel) return null;
+                          return <span>{[paxLabel, bagLabel].filter(Boolean).join(' · ')}</span>;
+                        })()}
+                      </div>
                       <div className="cw-card-price">
                         {fmt(r.pricing_snapshot_preview?.final_fare_minor ?? 0, r.currency)}
                       </div>
@@ -695,6 +733,7 @@ export function Widget({ slug }: { slug: string }) {
                         </div>
                       ) : null}
                     </div>
+                    <div className="cw-card-reassure">Secure booking in minutes</div>
                     <button onClick={() => handleBookNow(r)} className="cw-btn-primary cw-card-cta">Book Now</button>
                   </div>
                 );
