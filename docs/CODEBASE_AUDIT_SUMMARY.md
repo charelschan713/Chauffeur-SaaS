@@ -411,3 +411,24 @@
   - Sets `quoteResults`, `quoteId`, and auto-selects first car type.
 - `Book Now button`
   - Routes to `/book?quote_id=...&car_type_id=...`.
+
+---
+
+## 13) Function‑Level Notes (Phase 4 — Quote Widget)
+
+### `apps/quote-widget/src/Widget.tsx`
+- `localToUtc(localDatetime, tz)`
+  - Sends **naive local** datetime string to backend (backend treats as local time).
+- `applyTenantTheme(tenant)`
+  - Applies branding CSS variables (`--primary`, `--background`, `--card`, etc.).
+- `useEffect: initial load`
+  - Fetch tenant info, cities, service types; sets defaults and theme.
+- `handleGetQuote()`
+  - Validates required fields; optional return datetime.
+  - Fetches route → builds quote payload → `/public/pricing/quote`.
+  - Handles return leg route, reversed waypoints, and return fields.
+- `handleBookNow(result)`
+  - Redirects to portal booking page with `quote_id` + `car_type_id` (plus flight numbers).
+  - Resolves portal base URL from env/custom domain/fallback slug.
+- `step` state
+  - Step 1 = form, Step 2 = results cards with pricing breakdown.
