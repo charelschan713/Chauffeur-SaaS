@@ -121,6 +121,7 @@
 2. `return_waypoints_count` should be validated vs backend expectations
 3. Hardcoded Stripe publishable key risks in multi‑tenant
 4. Return trip display logic varies across UI → confirm consistent fields
+5. Booking change approval flow now uses public token links — ensure link expiry + audit coverage
 
 ---
 
@@ -238,6 +239,8 @@
   - Auto‑discount via `/public/discounts/auto`.
   - **Flight details** fields (pickup + return) shown only if tenant config enables; default **false**.
   - Pending quotes list for logged‑in users.
+- `apps/customer/app/booking-changes/approve/page.tsx`
+  - Public approval landing (no login). Approves change + charges delta if needed.
 - `apps/customer/app/book/BookPageClient.tsx`
   - Loads quote session and handles Stripe setup intent.
   - Supports guest + logged‑in flows.
@@ -450,8 +453,9 @@
 
 ### B) Admin Confirmation & Payment
 1. Admin reviews booking in `apps/admin`.
-2. If booking is pending, admin can **Confirm & Charge** (off‑session Stripe).
-3. Success → `CONFIRMED` + `PAID`; failure → `PAYMENT_FAILED` (retryable).
+2. Customer‑submitted bookings start at `AWAITING_ADMIN_REVIEW`.
+3. Admin can **Confirm & Charge** (off‑session Stripe) when in `CONFIRMED` or `PAYMENT_FAILED`.
+4. Success → `CONFIRMED` + `PAID`; failure → `PAYMENT_FAILED` (retryable).
 
 ### C) Dispatch / Driver Execution
 1. Admin assigns driver (internal or partner) via dispatch board.
