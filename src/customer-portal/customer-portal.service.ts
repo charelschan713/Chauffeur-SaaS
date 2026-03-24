@@ -1401,11 +1401,32 @@ export class CustomerPortalService implements OnModuleInit {
 
     let customerId: string;
     const existing = await this.db.query(
-      `SELECT id FROM public.customers WHERE tenant_id=$1 AND email=$2 LIMIT 1`,
-      [tenantId, email],
+      `SELECT id FROM public.customers
+       WHERE tenant_id = $1
+         AND (
+           ($2 IS NOT NULL AND email = $2)
+           OR ($3 IS NOT NULL AND phone_number = $3)
+           OR ($4 IS NOT NULL AND CONCAT(phone_country_code, phone_number) = $4)
+         )
+       ORDER BY is_guest ASC, created_at ASC
+       LIMIT 1`,
+      [tenantId, email, phoneNumber, rawPhone || null],
     );
     if (existing.length) {
       customerId = existing[0].id;
+      // keep profile up-to-date when we reuse an existing customer record
+      await this.db.query(
+        `UPDATE public.customers
+         SET first_name = COALESCE(NULLIF($1,''), first_name),
+             last_name = COALESCE(NULLIF($2,''), last_name),
+             email = COALESCE($3, email),
+             phone_country_code = COALESCE($4, phone_country_code),
+             phone_number = COALESCE($5, phone_number),
+             is_guest = true,
+             updated_at = now()
+         WHERE id = $6`,
+        [dto.firstName ?? '', dto.lastName ?? '', email, phoneCode, phoneNumber, customerId],
+      );
     } else {
       const [c] = await this.db.query(
         `INSERT INTO public.customers
