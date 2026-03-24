@@ -257,12 +257,12 @@ function PlacesAutocomplete({ value='', onChange, placeholder='Enter a location'
         <MapPin className={`absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 pointer-events-none ${PIN[pinColor]}`}/>
         <input ref={inputRef} type="text" autoComplete="off" autoCorrect="off" spellCheck={false}
           value={inputValue} placeholder={placeholder}
-          onChange={e=>{ setInputValue(e.target.value); if(!e.target.value) onChange?.(''); }}
+          onChange={e=>{ setInputValue(e.target.value); onChange?.(e.target.value, undefined); }}
           onKeyDown={e=>{ if(!open||!predictions.length) return; if(e.key==='ArrowDown'){e.preventDefault();setActiveIdx(i=>Math.min(i+1,predictions.length-1));} else if(e.key==='ArrowUp'){e.preventDefault();setActiveIdx(i=>Math.max(i-1,0));} else if(e.key==='Enter'&&activeIdx>=0){e.preventDefault();select(predictions[activeIdx]);} else if(e.key==='Escape'){setOpen(false);setActiveIdx(-1);} }}
           onFocus={()=>{ if(predictions.length>0) setOpen(true); }}
           className="w-full h-12 pl-9 pr-9 rounded-xl text-sm bg-white/5 border border-white/10 text-white placeholder:text-gray-400 focus:outline-none focus:border-amber-400/50 focus:bg-white/8 focus:ring-2 focus:ring-amber-400/10 transition-all"/>
         <div className="absolute right-3 top-1/2 -translate-y-1/2">
-          {loading ? <Loader2 className="h-4 w-4 text-gray-400 animate-spin"/> : inputValue ? <button type="button" onClick={()=>{setInputValue('');setPredictions([]);setOpen(false);onChange?.('');inputRef.current?.focus();}} className="text-gray-400 hover:text-gray-600 transition-colors p-0.5 rounded"><X className="h-3.5 w-3.5"/></button> : null}
+          {loading ? <Loader2 className="h-4 w-4 text-gray-400 animate-spin"/> : inputValue ? <button type="button" onClick={()=>{setInputValue('');setPredictions([]);setOpen(false);onChange?.('', undefined);inputRef.current?.focus();}} className="text-gray-400 hover:text-gray-600 transition-colors p-0.5 rounded"><X className="h-3.5 w-3.5"/></button> : null}
         </div>
       </div>
       {open && predictions.length>0 && (
@@ -316,6 +316,8 @@ export function QuoteClient() {
   const [tripType, setTripType]         = useState<'ONE_WAY'|'RETURN'>('ONE_WAY');
   const [pickup, setPickup]             = useState('');
   const [dropoff, setDropoff]           = useState('');
+  const [pickupPlaceId, setPickupPlaceId] = useState<string | null>(null);
+  const [dropoffPlaceId, setDropoffPlaceId] = useState<string | null>(null);
   const [waypoints, setWaypoints]       = useState<string[]>([]);
   const [date, setDate]                 = useState('');
   const [time, setTime]                 = useState('');
@@ -333,6 +335,7 @@ export function QuoteClient() {
 
   const [autoDiscount, setAutoDiscount] = useState<{ name: string; rate: number } | null>(null);
   const [showUrgentModal, setShowUrgentModal] = useState(false);
+  const [locationError, setLocationError] = useState<string | null>(null);
 
   const [quoting, setQuoting]           = useState(false);
   const [quoteId, setQuoteId]           = useState<string | null>(null);
@@ -349,6 +352,10 @@ export function QuoteClient() {
   const minHours            = selectedServiceType?.minimum_hours ?? (isHourly(selectedServiceType) ? 2 : null);
   const hasSurge            = (selectedServiceType?.surge_multiplier ?? 1) > 1;
   const surgePercent        = hasSurge ? Math.round(((selectedServiceType!.surge_multiplier! - 1) * 100)) : 0;
+  const requiresDropoff     = !isHourly(selectedServiceType);
+  const missingPickupPlace  = !pickupPlaceId;
+  const missingDropoffPlace = requiresDropoff && !dropoffPlaceId;
+  const missingDropoff      = requiresDropoff && !dropoff;
 
   const clearQuote = useCallback(() => { setQuoteId(null); setQuoteResults([]); setSelectedCarTypeId(null); }, []);
 
@@ -421,7 +428,29 @@ export function QuoteClient() {
 
   // Get Quote
   const handleGetQuote = useCallback(async () => {
+    setLocationError(null);
     if (!pickup || !date || !time) return;
+
+    const isHourlyTrip = isHourly(selectedServiceType);
+    if (!pickupPlaceId) {
+      setLocationError('Please select the pickup address from the suggestions.');
+      return;
+    }
+    if (!isHourlyTrip) {
+      if (!dropoff) {
+        setLocationError('Please enter a drop-off address.');
+        return;
+      }
+      if (!dropoffPlaceId) {
+        setLocationError('Please select the drop-off address from the suggestions.');
+        return;
+      }
+      if (pickup.trim().toLowerCase() === dropoff.trim().toLowerCase()) {
+        setLocationError('Pickup and drop-off cannot be the same.');
+        return;
+      }
+    }
+
     const pickupMs = new Date(`${date}T${time}:00`).getTime();
     if (pickupMs - Date.now() < 12 * 3600 * 1000) { setShowUrgentModal(true); return; }
     if (tripType === 'RETURN' && (!returnDate || !returnTime)) return;
@@ -433,7 +462,7 @@ export function QuoteClient() {
     const tz   = selectedCity?.timezone ?? 'Australia/Sydney';
 
     try {
-      const effectiveDropoff = dropoff || pickup;
+      const effectiveDropoff = isHourly(selectedServiceType) ? (dropoff || pickup) : dropoff;
       const activeWaypoints = waypoints.filter(Boolean);
       const pickupAtUtcStr = new Date(`${date}T${time}:00`).toISOString();
 
@@ -673,7 +702,7 @@ export function QuoteClient() {
           <div className="space-y-4">
             <div>
               <FL><MapPin className="h-3 w-3 text-emerald-400"/> Pickup Location</FL>
-              <PlacesAutocomplete value={pickup} onChange={v=>{setPickup(v);clearQuote();}} placeholder="Airport, hotel or address..." pinColor="green" cityBias={selectedCity?.lat&&selectedCity?.lng?{lat:selectedCity.lat,lng:selectedCity.lng}:undefined}/>
+              <PlacesAutocomplete value={pickup} onChange={(v, pid)=>{setPickup(v);setPickupPlaceId(pid ?? null);setLocationError(null);clearQuote();}} placeholder="Airport, hotel or address..." pinColor="green" cityBias={selectedCity?.lat&&selectedCity?.lng?{lat:selectedCity.lat,lng:selectedCity.lng}:undefined}/>
             </div>
 
             {/* Waypoints */}
@@ -693,8 +722,9 @@ export function QuoteClient() {
             )}
 
             <div>
-              <FL><MapPin className="h-3 w-3 text-[hsl(var(--primary))]"/> Drop-off Location <span className="normal-case text-gray-400 font-normal ml-1">(optional)</span></FL>
-              <PlacesAutocomplete value={dropoff} onChange={v=>{setDropoff(v);clearQuote();}} placeholder="Airport, hotel or destination..." pinColor="gold" cityBias={selectedCity?.lat&&selectedCity?.lng?{lat:selectedCity.lat,lng:selectedCity.lng}:undefined}/>
+              <FL><MapPin className="h-3 w-3 text-[hsl(var(--primary))]"/> Drop-off Location {isHourly(selectedServiceType) && <span className="normal-case text-gray-400 font-normal ml-1">(optional)</span>}</FL>
+              <PlacesAutocomplete value={dropoff} onChange={(v, pid)=>{setDropoff(v);setDropoffPlaceId(pid ?? null);setLocationError(null);clearQuote();}} placeholder="Airport, hotel or destination..." pinColor="gold" cityBias={selectedCity?.lat&&selectedCity?.lng?{lat:selectedCity.lat,lng:selectedCity.lng}:undefined}/>
+              {locationError && <p className="mt-2 text-xs text-red-400">{locationError}</p>}
             </div>
           </div>
 
@@ -773,7 +803,7 @@ export function QuoteClient() {
           )}
 
           {/* Get Quote CTA */}
-          <button onClick={handleGetQuote} disabled={quoting||seatError||!pickup||!date||!time}
+          <button onClick={handleGetQuote} disabled={quoting||seatError||!pickup||!date||!time||missingPickupPlace||missingDropoff||missingDropoffPlace}
             className={cn('mt-4 w-full h-12 rounded-lg font-semibold text-base tracking-wide transition-all duration-300 flex items-center justify-center gap-2',
               'bg-gradient-to-r from-[hsl(var(--primary))] to-[hsl(var(--primary)/0.8)] text-[hsl(var(--primary-foreground))]',
               'hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed')}>
