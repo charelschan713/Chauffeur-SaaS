@@ -16,7 +16,7 @@ import { cn } from '@/lib/utils';
 import { BackButton } from '@/components/BackButton';
 import {
   Loader2, MapPin, Plus, X, ChevronRight, ArrowRight,
-  CalendarIcon, Clock,
+  CalendarIcon, Clock, LogIn, Home,
 } from 'lucide-react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'https://chauffeur-saas-production.up.railway.app';
@@ -585,8 +585,26 @@ export function QuoteClient() {
           gap: 12,
         }}
       >
-        <BackButton fallback="/login" />
+        <BackButton fallback="/" />
         <h1 className="font-semibold text-white">Get a Quote</h1>
+        <div className="ml-auto flex items-center gap-2">
+          <a
+            href="https://aschauffeured.com.au"
+            className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-full border border-white/15 text-white/80 hover:text-white hover:border-white/30 transition-colors"
+            title="Back to Home"
+          >
+            <Home className="h-3.5 w-3.5" /> Home
+          </a>
+          <a
+            href="/login"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-full border border-white/15 text-white/80 hover:text-white hover:border-white/30 transition-colors"
+            title="Login"
+          >
+            <LogIn className="h-3.5 w-3.5" /> Login
+          </a>
+        </div>
       </div>
 
       <div className="max-w-2xl mx-auto px-4 pt-5 pb-8">

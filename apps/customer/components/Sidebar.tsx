@@ -72,7 +72,7 @@ export function Sidebar() {
   const router = useRouter();
   const tenant = useTenant();
   const { clearAuth } = useAuthStore();
-  const showSidebar = NAV_PAGES.some(p => pathname === p || pathname.startsWith(p + '/'));
+  const showSidebar = NAV_PAGES.some(p => pathname === p || pathname.startsWith(p + '/')) && !pathname.startsWith('/quote');
 
   if (!showSidebar) return null;
 
