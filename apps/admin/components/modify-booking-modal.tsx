@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { Button } from '@/components/ui/Button';
 import { ErrorAlert } from '@/components/ui/ErrorAlert';
+import { PlacesAutocomplete } from '@/components/ui/PlacesAutocomplete';
 
 interface ModifyBookingModalProps {
   isOpen: boolean;
@@ -37,11 +38,12 @@ export function ModifyBookingModal({ isOpen, onClose, booking, serviceTypes, car
   const [flightNumber, setFlightNumber] = useState('');
   const [specialRequests, setSpecialRequests] = useState('');
 
-  const [customerFirst, setCustomerFirst] = useState('');
-  const [customerLast, setCustomerLast] = useState('');
-  const [customerEmail, setCustomerEmail] = useState('');
-  const [customerPhoneCode, setCustomerPhoneCode] = useState('+61');
-  const [customerPhone, setCustomerPhone] = useState('');
+  const [passengerFirst, setPassengerFirst] = useState('');
+  const [passengerLast, setPassengerLast] = useState('');
+  const [passengerPhoneCode, setPassengerPhoneCode] = useState('+61');
+  const [passengerPhone, setPassengerPhone] = useState('');
+  const [pickupPlaceId, setPickupPlaceId] = useState<string>('');
+  const [dropoffPlaceId, setDropoffPlaceId] = useState<string>('');
 
   const [newTotal, setNewTotal] = useState('');
 
@@ -58,11 +60,12 @@ export function ModifyBookingModal({ isOpen, onClose, booking, serviceTypes, car
     setLuggageCount(Number(booking.luggage_count ?? 0));
     setFlightNumber(booking.flight_number ?? '');
     setSpecialRequests(booking.special_requests ?? '');
-    setCustomerFirst(booking.customer_first_name ?? '');
-    setCustomerLast(booking.customer_last_name ?? '');
-    setCustomerEmail(booking.customer_email ?? '');
-    setCustomerPhoneCode(booking.customer_phone_country_code ?? '+61');
-    setCustomerPhone(booking.customer_phone_number ?? '');
+    setPassengerFirst(booking.passenger_first_name ?? booking.customer_first_name ?? '');
+    setPassengerLast(booking.passenger_last_name ?? booking.customer_last_name ?? '');
+    setPassengerPhoneCode(booking.passenger_phone_country_code ?? booking.customer_phone_country_code ?? '+61');
+    setPassengerPhone(booking.passenger_phone_number ?? booking.customer_phone_number ?? '');
+    setPickupPlaceId('');
+    setDropoffPlaceId('');
     setNewTotal(booking.total_price_minor ? (booking.total_price_minor / 100).toFixed(2) : '');
     setError(null);
   }, [booking, isOpen]);
@@ -76,6 +79,15 @@ export function ModifyBookingModal({ isOpen, onClose, booking, serviceTypes, car
     setLoading(true);
     setError(null);
     try {
+      if (!pickupAddr?.trim() || !dropoffAddr?.trim()) {
+        setError('Pickup and drop-off addresses are required.');
+        return;
+      }
+      if (pickupAddr.trim().toLowerCase() === dropoffAddr.trim().toLowerCase()) {
+        setError('Pickup and drop-off cannot be the same.');
+        return;
+      }
+
       const payload: any = {
         pickup_address_text: pickupAddr,
         dropoff_address_text: dropoffAddr,
@@ -88,11 +100,12 @@ export function ModifyBookingModal({ isOpen, onClose, booking, serviceTypes, car
         luggage_count: luggageCount,
         flight_number: flightNumber || null,
         special_requests: specialRequests || null,
-        customer_first_name: customerFirst || null,
-        customer_last_name: customerLast || null,
-        customer_email: customerEmail || null,
-        customer_phone_country_code: customerPhoneCode || null,
-        customer_phone_number: customerPhone || null,
+        passenger_first_name: passengerFirst || null,
+        passenger_last_name: passengerLast || null,
+        passenger_phone_country_code: passengerPhoneCode || null,
+        passenger_phone_number: passengerPhone || null,
+        pickup_place_id: pickupPlaceId || null,
+        dropoff_place_id: dropoffPlaceId || null,
       };
 
       const totalMinor = Math.round(Number(newTotal || 0) * 100);
@@ -109,7 +122,7 @@ export function ModifyBookingModal({ isOpen, onClose, booking, serviceTypes, car
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="w-full max-w-3xl rounded-2xl bg-white p-6 shadow-xl">
+      <div className="w-full max-w-4xl rounded-2xl bg-white p-6 md:p-7 shadow-[0_24px_60px_rgba(0,0,0,0.2)]">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold">Modify Booking</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600">✕</button>
@@ -123,11 +136,19 @@ export function ModifyBookingModal({ isOpen, onClose, booking, serviceTypes, car
 
           <div>
             <label className="text-sm font-medium text-gray-700 block mb-1">Pickup Address</label>
-            <Input value={pickupAddr} onChange={(e) => setPickupAddr(e.target.value)} />
+            <PlacesAutocomplete
+              value={pickupAddr}
+              onChange={(val, placeId) => { setPickupAddr(val); setPickupPlaceId(placeId ?? ''); }}
+              placeholder="Search pickup address"
+            />
           </div>
           <div>
             <label className="text-sm font-medium text-gray-700 block mb-1">Drop-off Address</label>
-            <Input value={dropoffAddr} onChange={(e) => setDropoffAddr(e.target.value)} />
+            <PlacesAutocomplete
+              value={dropoffAddr}
+              onChange={(val, placeId) => { setDropoffAddr(val); setDropoffPlaceId(placeId ?? ''); }}
+              placeholder="Search drop-off address"
+            />
           </div>
 
           <div>
@@ -169,26 +190,26 @@ export function ModifyBookingModal({ isOpen, onClose, booking, serviceTypes, car
             <Input value={specialRequests} onChange={(e) => setSpecialRequests(e.target.value)} />
           </div>
 
-          <div>
-            <label className="text-sm font-medium text-gray-700 block mb-1">Customer First Name</label>
-            <Input value={customerFirst} onChange={(e) => setCustomerFirst(e.target.value)} />
+          <div className="md:col-span-2 pt-1">
+            <h3 className="text-sm font-semibold text-gray-800">Passenger Details</h3>
+            <p className="text-xs text-gray-500 mt-0.5">Customer profile is not editable here. Update passenger name/phone only.</p>
           </div>
           <div>
-            <label className="text-sm font-medium text-gray-700 block mb-1">Customer Last Name</label>
-            <Input value={customerLast} onChange={(e) => setCustomerLast(e.target.value)} />
+            <label className="text-sm font-medium text-gray-700 block mb-1">Passenger First Name</label>
+            <Input value={passengerFirst} onChange={(e) => setPassengerFirst(e.target.value)} />
           </div>
           <div>
-            <label className="text-sm font-medium text-gray-700 block mb-1">Customer Email</label>
-            <Input value={customerEmail} onChange={(e) => setCustomerEmail(e.target.value)} />
+            <label className="text-sm font-medium text-gray-700 block mb-1">Passenger Last Name</label>
+            <Input value={passengerLast} onChange={(e) => setPassengerLast(e.target.value)} />
           </div>
-          <div className="flex gap-2">
-            <div className="flex-1">
+          <div className="flex gap-2 md:col-span-2">
+            <div className="w-28">
               <label className="text-sm font-medium text-gray-700 block mb-1">Country</label>
-              <Input value={customerPhoneCode} onChange={(e) => setCustomerPhoneCode(e.target.value)} />
+              <Input value={passengerPhoneCode} onChange={(e) => setPassengerPhoneCode(e.target.value)} />
             </div>
-            <div className="flex-[2]">
-              <label className="text-sm font-medium text-gray-700 block mb-1">Phone</label>
-              <Input value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} />
+            <div className="flex-1">
+              <label className="text-sm font-medium text-gray-700 block mb-1">Passenger Phone</label>
+              <Input value={passengerPhone} onChange={(e) => setPassengerPhone(e.target.value)} />
             </div>
           </div>
         </div>
