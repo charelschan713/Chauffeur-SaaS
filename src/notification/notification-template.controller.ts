@@ -14,13 +14,33 @@ export class NotificationTemplateController {
     private readonly notificationService: NotificationService,
   ) {}
 
+  private normalizeEventType(eventType: string): string {
+    const map: Record<string, string> = {
+      CustomerOtp: 'CustomerOtpSent',
+      DriverNewDispatch: 'DriverJobAssigned',
+      DriverDocApproved: 'DriverDocumentApproved',
+      DriverDocRejected: 'DriverDocumentRejected',
+      DriverDocExpiry30: 'DriverDocumentExpirySoon',
+      DriverDocExpiry7: 'DriverDocumentExpirySoon',
+      BookingConfirmedCustomer: 'BookingConfirmed',
+      BookingModifiedCustomer: 'BookingModified',
+      PaymentFailedCustomer: 'PaymentFailed',
+      PaymentFailedAdmin: 'AdminPaymentFailed',
+      InvoicePaidAdmin: 'AdminInvoicePaid',
+      BookingCancelledByAdmin: 'BookingCancelled',
+      AssignmentCancelled: 'DriverJobCancelled',
+    };
+    return map[eventType] ?? eventType;
+  }
+
   /** DEV/TEST: Fire any notification event manually */
   @Post('fire-test')
   async fireTest(@Req() req: any, @Body() body: { eventType: string; payload?: Record<string, any> }) {
     const tenantId = req.user.tenant_id;
+    const eventType = this.normalizeEventType(body.eventType);
     const payload = { tenant_id: tenantId, ...(body.payload ?? {}) };
-    await this.notificationService.handleEvent(body.eventType, payload);
-    return { fired: body.eventType, tenant_id: tenantId, payload };
+    await this.notificationService.handleEvent(eventType, payload);
+    return { fired: eventType, tenant_id: tenantId, payload };
   }
 
   /** UI test: send a test notification to a provided email/phone */
@@ -30,7 +50,10 @@ export class NotificationTemplateController {
     @Body() body: { eventType: string; channel: 'email' | 'sms'; to_email?: string; phone?: string; country_code?: string },
   ) {
     const tenantId = req.user.tenant_id;
-    await this.notificationService.sendTestTemplate(tenantId, body);
+    await this.notificationService.sendTestTemplate(tenantId, {
+      ...body,
+      eventType: this.normalizeEventType(body.eventType),
+    });
     return { sent: true };
   }
 
@@ -52,11 +75,12 @@ export class NotificationTemplateController {
 
   @Get(':event/:channel')
   async get(@Req() req: any, @Param('event') event: string, @Param('channel') channel: string) {
+    const normalized = this.normalizeEventType(event);
     const rows = await this.dataSource.query(
       `SELECT * FROM public.tenant_notification_templates
        WHERE tenant_id = $1 AND event_type = $2 AND channel = $3
        LIMIT 1`,
-      [req.user.tenant_id, event, channel],
+      [req.user.tenant_id, normalized, channel],
     );
     return rows[0] ?? null;
   }
@@ -64,13 +88,14 @@ export class NotificationTemplateController {
   @Post()
   @TenantRoles('tenant_admin')
   async upsert(@Req() req: any, @Body() body: any) {
+    const eventType = this.normalizeEventType(body.event_type);
     await this.dataSource.query(
       `INSERT INTO public.tenant_notification_templates
          (tenant_id, event_type, channel, subject, body, active)
        VALUES ($1,$2,$3,$4,$5,true)
        ON CONFLICT (tenant_id, event_type, channel)
        DO UPDATE SET subject = EXCLUDED.subject, body = EXCLUDED.body, active = true, updated_at = now()`,
-      [req.user.tenant_id, body.event_type, body.channel, body.subject, body.body],
+      [req.user.tenant_id, eventType, body.channel, body.subject, body.body],
     );
     return { success: true };
   }
@@ -79,8 +104,9 @@ export class NotificationTemplateController {
   @Patch(':event/:channel')
   @TenantRoles('tenant_admin')
   async patch(@Req() req: any, @Param('event') event: string, @Param('channel') channel: string, @Body() body: any) {
+    const normalized = this.normalizeEventType(event);
     const setClauses: string[] = [];
-    const params: any[] = [req.user.tenant_id, event, channel];
+    const params: any[] = [req.user.tenant_id, normalized, channel];
 
     if (typeof body.active === 'boolean') {
       params.push(body.active);
@@ -120,11 +146,12 @@ export class NotificationTemplateController {
   @Delete(':event/:channel')
   @TenantRoles('tenant_admin')
   async reset(@Req() req: any, @Param('event') event: string, @Param('channel') channel: string) {
+    const normalized = this.normalizeEventType(event);
     await this.dataSource.query(
       `UPDATE public.tenant_notification_templates
        SET active = false, updated_at = now()
        WHERE tenant_id = $1 AND event_type = $2 AND channel = $3`,
-      [req.user.tenant_id, event, channel],
+      [req.user.tenant_id, normalized, channel],
     );
     return { success: true };
   }
