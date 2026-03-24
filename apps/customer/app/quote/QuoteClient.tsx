@@ -12,6 +12,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/lib/auth-store';
+import api from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { BackButton } from '@/components/BackButton';
 import {
@@ -304,6 +305,7 @@ function FL({ children }: { children: React.ReactNode }) {
 export function QuoteClient() {
   const router = useRouter();
   const { token } = useAuthStore();
+  const [profileName, setProfileName] = useState<string>('');
 
   const [cities, setCities]             = useState<City[]>([]);
   const [serviceTypes, setServiceTypes] = useState<ServiceType[]>([]);
@@ -385,6 +387,16 @@ export function QuoteClient() {
       .then(data => setPendingQuotes(Array.isArray(data) ? data : []))
       .catch(() => setPendingQuotes([]))
       .finally(() => setLoadingPending(false));
+  }, [token]);
+
+  useEffect(() => {
+    if (!token) { setProfileName(''); return; }
+    api.get('/customer-portal/profile')
+      .then(({ data }) => {
+        const name = `${data?.first_name ?? ''} ${data?.last_name ?? ''}`.trim();
+        setProfileName(name);
+      })
+      .catch(() => setProfileName(''));
   }, [token]);
 
   // Load config
@@ -595,15 +607,21 @@ export function QuoteClient() {
           >
             <Home className="h-3.5 w-3.5" /> Home
           </a>
-          <a
-            href="/login"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-full border border-white/15 text-white/80 hover:text-white hover:border-white/30 transition-colors"
-            title="Login"
-          >
-            <LogIn className="h-3.5 w-3.5" /> Login
-          </a>
+          {token ? (
+            <div className="text-xs text-white/80 px-2.5 py-1.5 rounded-full border border-white/10">
+              Welcome back{profileName ? `, ${profileName}` : ''}
+            </div>
+          ) : (
+            <a
+              href="/login"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-full border border-white/15 text-white/80 hover:text-white hover:border-white/30 transition-colors"
+              title="Login"
+            >
+              <LogIn className="h-3.5 w-3.5" /> Login
+            </a>
+          )}
         </div>
       </div>
 
