@@ -39,7 +39,7 @@ const formSchema = z
     passenger_phone_country_code: z.string().default('+61'),
     passenger_phone_number: z.string().trim().optional(),
     pickup_address_text: z.string().trim().min(2, 'Pickup address must be at least 2 characters'),
-    dropoff_address_text: z.string().trim().optional(),
+    dropoff_address_text: z.string().trim().min(2, 'Dropoff address must be at least 2 characters'),
     waypoints: z.array(z.string()).default([]),
     pickup_at_utc: z.string().min(1, 'Pickup time is required'),
     is_return_trip: z.boolean().default(false),
@@ -420,6 +420,18 @@ export default function CreateBookingPage() {
       setQuote({ status: 'error', message: 'Please complete Service, Date & Time, and Route before quoting.' });
       return;
     }
+    if (!pickupPlaceId) {
+      setQuote({ status: 'error', message: 'Please select the pickup address from suggestions.' });
+      return;
+    }
+    if (!dropoffPlaceId) {
+      setQuote({ status: 'error', message: 'Please select the dropoff address from suggestions.' });
+      return;
+    }
+    if (values.pickup_address_text.trim().toLowerCase() === values.dropoff_address_text.trim().toLowerCase()) {
+      setQuote({ status: 'error', message: 'Pickup and dropoff cannot be the same.' });
+      return;
+    }
     if (values.is_return_trip && !values.return_pickup_at_utc) {
       setQuote({ status: 'error', message: 'Return pickup time is required.' });
       return;
@@ -626,7 +638,7 @@ export default function CreateBookingPage() {
   const seatCountValid = totalBabySeats <= maxBabySeats;
 
   const canQuote = Boolean(
-    values.service_type_id && values.city_id && values.pickup_address_text && values.dropoff_address_text && values.pickup_at_utc && seatCountValid,
+    values.service_type_id && values.city_id && values.pickup_address_text && values.dropoff_address_text && values.pickup_at_utc && seatCountValid && pickupPlaceId && dropoffPlaceId,
   );
 
   const summaries = {
@@ -907,16 +919,58 @@ export default function CreateBookingPage() {
                               <span>+${toDisplay(bd.leg1_surcharge_minor)}</span>
                             </div>
                           )}
-                          {(bd.toll_minor ?? 0) > 0 && (
-                            <div className="flex justify-between text-amber-600">
-                              <span>Toll</span><span>+${toDisplay(bd.toll_minor)}</span>
-                            </div>
-                          )}
-                          {(bd.parking_minor ?? 0) > 0 && (
-                            <div className="flex justify-between text-amber-600">
-                              <span>Parking</span><span>+${toDisplay(bd.parking_minor)}</span>
-                            </div>
-                          )}
+                          {(() => {
+                            const leg1Toll = (bd as any).leg1_toll_minor ?? 0;
+                            const leg2Toll = (bd as any).leg2_toll_minor ?? 0;
+                            const hasSplit = leg1Toll > 0 || leg2Toll > 0;
+                            if (!hasSplit) {
+                              return (bd.toll_minor ?? 0) > 0 ? (
+                                <div className="flex justify-between text-amber-600">
+                                  <span>Toll</span><span>+${toDisplay(bd.toll_minor)}</span>
+                                </div>
+                              ) : null;
+                            }
+                            return (
+                              <>
+                                {leg1Toll > 0 && (
+                                  <div className="flex justify-between text-amber-600">
+                                    <span>Outbound toll</span><span>+${toDisplay(leg1Toll)}</span>
+                                  </div>
+                                )}
+                                {leg2Toll > 0 && (
+                                  <div className="flex justify-between text-amber-600">
+                                    <span>Return toll</span><span>+${toDisplay(leg2Toll)}</span>
+                                  </div>
+                                )}
+                              </>
+                            );
+                          })()}
+                          {(() => {
+                            const leg1Parking = (bd as any).leg1_parking_minor ?? 0;
+                            const leg2Parking = (bd as any).leg2_parking_minor ?? 0;
+                            const hasSplit = leg1Parking > 0 || leg2Parking > 0;
+                            if (!hasSplit) {
+                              return (bd.parking_minor ?? 0) > 0 ? (
+                                <div className="flex justify-between text-amber-600">
+                                  <span>Parking</span><span>+${toDisplay(bd.parking_minor)}</span>
+                                </div>
+                              ) : null;
+                            }
+                            return (
+                              <>
+                                {leg1Parking > 0 && (
+                                  <div className="flex justify-between text-amber-600">
+                                    <span>Outbound parking</span><span>+${toDisplay(leg1Parking)}</span>
+                                  </div>
+                                )}
+                                {leg2Parking > 0 && (
+                                  <div className="flex justify-between text-amber-600">
+                                    <span>Return parking</span><span>+${toDisplay(leg2Parking)}</span>
+                                  </div>
+                                )}
+                              </>
+                            );
+                          })()}
                           {(bd.leg2_minor ?? 0) > 0 && (
                             <div className="flex justify-between text-gray-500">
                               <span>Return price</span><span>${toDisplay(bd.leg2_minor)}</span>
@@ -1199,12 +1253,38 @@ export default function CreateBookingPage() {
                         {(bd.leg2_surcharge_minor ?? 0) > 0 && (
                           <div className="text-amber-600">Return {(bd.surcharge_items?.[0]?.label || bd.surcharge_labels?.[0] || 'surcharge')}: +${toDisplay(bd.leg2_surcharge_minor)}</div>
                         )}
-                        {(bd.toll_minor ?? 0) > 0 && (
-                          <div className="text-amber-600">Toll: +${toDisplay(bd.toll_minor)}</div>
-                        )}
-                        {(bd.parking_minor ?? 0) > 0 && (
-                          <div className="text-amber-600">Parking: +${toDisplay(bd.parking_minor)}</div>
-                        )}
+                        {(() => {
+                          const leg1Toll = (bd as any).leg1_toll_minor ?? 0;
+                          const leg2Toll = (bd as any).leg2_toll_minor ?? 0;
+                          const hasSplit = leg1Toll > 0 || leg2Toll > 0;
+                          if (!hasSplit) {
+                            return (bd.toll_minor ?? 0) > 0 ? (
+                              <div className="text-amber-600">Toll: +${toDisplay(bd.toll_minor)}</div>
+                            ) : null;
+                          }
+                          return (
+                            <>
+                              {leg1Toll > 0 && <div className="text-amber-600">Outbound toll: +${toDisplay(leg1Toll)}</div>}
+                              {leg2Toll > 0 && <div className="text-amber-600">Return toll: +${toDisplay(leg2Toll)}</div>}
+                            </>
+                          );
+                        })()}
+                        {(() => {
+                          const leg1Parking = (bd as any).leg1_parking_minor ?? 0;
+                          const leg2Parking = (bd as any).leg2_parking_minor ?? 0;
+                          const hasSplit = leg1Parking > 0 || leg2Parking > 0;
+                          if (!hasSplit) {
+                            return (bd.parking_minor ?? 0) > 0 ? (
+                              <div className="text-amber-600">Parking: +${toDisplay(bd.parking_minor)}</div>
+                            ) : null;
+                          }
+                          return (
+                            <>
+                              {leg1Parking > 0 && <div className="text-amber-600">Outbound parking: +${toDisplay(leg1Parking)}</div>}
+                              {leg2Parking > 0 && <div className="text-amber-600">Return parking: +${toDisplay(leg2Parking)}</div>}
+                            </>
+                          );
+                        })()}
                         {(bd.discount_amount_minor ?? 0) > 0 && (
                           <div className="text-emerald-600">Discount: -${toDisplay(bd.discount_amount_minor)}</div>
                         )}
