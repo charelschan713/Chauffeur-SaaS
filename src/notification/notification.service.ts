@@ -15,6 +15,7 @@ import {
   ascJobCompletedEmail,
   ascPaymentLinkEmail,
   ascFulfilledWithExtrasEmail,
+  ascGenericEmail,
 } from './templates/asc-brand';
 
 const ASC_TENANT_ID = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
@@ -556,7 +557,7 @@ export class NotificationService {
       case 'JobCompleted':            return ascJobCompletedEmail(vars);
       case 'PaymentLinkSent':          return ascPaymentLinkEmail(vars);
       case 'JobFulfilledWithExtras':   return ascFulfilledWithExtrasEmail(vars);
-      default:                         return null;
+      default:                         return ascGenericEmail(vars, eventType.replace(/([A-Z])/g, ' $1').trim());
     }
   }
 

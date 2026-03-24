@@ -402,3 +402,27 @@ export function ascFulfilledWithExtrasEmail(vars: Record<string, string>): strin
     footerNote: 'This is your final receipt. Please retain for your records.',
   });
 }
+
+// Generic branded fallback for any ASC email event
+export function ascGenericEmail(vars: Record<string, string>, title: string): string {
+  return ascBrandedEmail({
+    title,
+    introHtml: `Hi ${vars.customer_first_name || ''}, here is an update regarding your booking.`,
+    bookingRef: vars.booking_reference,
+    sections: [
+      {
+        rows: [
+          { label: 'Booking', value: vars.booking_reference || '—' },
+          { label: 'Pickup', value: vars.pickup_address || '—' },
+          { label: 'Drop-off', value: vars.dropoff_address || '—' },
+          { label: 'Date & Time', value: vars.pickup_time || '—' },
+          { label: 'Vehicle', value: vars.car_type_name || '—' },
+          { label: 'Passenger', value: vars.passenger_name || vars.customer_name || '—' },
+        ],
+      },
+    ],
+    ctaLabel: 'View Booking',
+    ctaUrl: vars.booking_url || 'https://aschauffeured.chauffeurssolution.com/quote',
+    footerNote: 'Thank you for choosing ASChauffeured.',
+  });
+}
