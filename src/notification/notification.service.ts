@@ -995,21 +995,8 @@ export class NotificationService {
   }
 
   private async onTripStarted(tenantId: string, payload: any) {
-    // SMS to PASSENGER only — no email
-    const booking = await this.getBooking(payload.booking_id);
-    if (!booking) return;
-    const vars: Record<string, string> = {
-      ...this.bookingVars(booking),
-      passenger_name: booking.passenger_name ?? `${booking.customer_first_name ?? ''} ${booking.customer_last_name ?? ''}`.trim(),
-    };
-    const smsIntegration = await this.integrationResolver.resolve(tenantId, 'twilio');
-    if (smsIntegration) {
-      const passengerPhone = toE164(
-        booking.passenger_phone_country_code ?? booking.customer_phone_country_code,
-        booking.passenger_phone_number ?? booking.customer_phone_number,
-      );
-      if (passengerPhone) await this.sendFromTemplate(tenantId, 'TripStarted', 'sms', vars, passengerPhone, booking.id).catch(() => {});
-    }
+    // Disabled: passenger is already in car; no TripStarted notification
+    return;
   }
 
   private async onDriverArrived(tenantId: string, payload: any) {
