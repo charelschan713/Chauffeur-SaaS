@@ -9,10 +9,10 @@ type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
 };
 
 const VARIANT_CLASSES: Record<Variant, string> = {
-  primary: 'bg-blue-600 text-white hover:bg-blue-700 focus-visible:ring-blue-600',
-  secondary: 'bg-gray-100 text-gray-900 hover:bg-gray-200 focus-visible:ring-gray-500',
-  danger: 'bg-red-600 text-white hover:bg-red-700 focus-visible:ring-red-600',
-  ghost: 'bg-transparent text-gray-700 hover:bg-gray-100 focus-visible:ring-gray-500',
+  primary: 'bg-blue-600 text-white hover:bg-blue-700 focus-visible:ring-blue-600 shadow-sm hover:-translate-y-[1px] active:translate-y-0',
+  secondary: 'bg-gray-100 text-gray-900 hover:bg-gray-200 focus-visible:ring-gray-500 shadow-sm hover:-translate-y-[1px] active:translate-y-0',
+  danger: 'bg-red-600 text-white hover:bg-red-700 focus-visible:ring-red-600 shadow-sm hover:-translate-y-[1px] active:translate-y-0',
+  ghost: 'bg-transparent text-gray-700 hover:bg-gray-100 focus-visible:ring-gray-500 hover:-translate-y-[1px] active:translate-y-0',
 };
 
 export function Button({ variant = 'primary', className = '', ...props }: ButtonProps) {

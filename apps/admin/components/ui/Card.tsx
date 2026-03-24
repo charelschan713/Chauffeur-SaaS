@@ -11,7 +11,7 @@ export function Card({ title, actions, className = '', children, ...props }: Car
   return (
     <div
       {...props}
-      className={`bg-white rounded-xl border border-gray-200/70 shadow-sm ${className}`}
+      className={`bg-white rounded-xl border border-gray-200/70 shadow-[0_10px_30px_rgba(15,23,42,0.08)] ${className}`}
     >
       {(title || actions) && (
         <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200/70">
