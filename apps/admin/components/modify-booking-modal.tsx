@@ -30,7 +30,7 @@ export function ModifyBookingModal({ isOpen, onClose, booking, serviceTypes, car
   const [returnAt, setReturnAt] = useState('');
   const [pickupAddr, setPickupAddr] = useState('');
   const [dropoffAddr, setDropoffAddr] = useState('');
-  const [waypoints, setWaypoints] = useState('');
+  const [waypointList, setWaypointList] = useState<string[]>([]);
   const [serviceTypeId, setServiceTypeId] = useState('');
   const [carTypeId, setCarTypeId] = useState('');
   const [passengerCount, setPassengerCount] = useState(1);
@@ -53,7 +53,7 @@ export function ModifyBookingModal({ isOpen, onClose, booking, serviceTypes, car
     setReturnAt(booking.return_pickup_at_utc ?? '');
     setPickupAddr(booking.pickup_address_text ?? booking.pickup_address ?? '');
     setDropoffAddr(booking.dropoff_address_text ?? booking.dropoff_address ?? '');
-    setWaypoints(Array.isArray(booking.waypoints) ? booking.waypoints.join('\n') : '');
+    setWaypointList(Array.isArray(booking.waypoints) ? booking.waypoints.map((w: any) => String(w ?? '')) : []);
     setServiceTypeId(booking.service_type_id ?? '');
     setCarTypeId(booking.service_class_id ?? '');
     setPassengerCount(Number(booking.passenger_count ?? 1));
@@ -93,7 +93,7 @@ export function ModifyBookingModal({ isOpen, onClose, booking, serviceTypes, car
         dropoff_address_text: dropoffAddr,
         pickup_at_utc: pickupAt,
         return_pickup_at_utc: returnAt || null,
-        waypoints: waypoints.split(/\n|\r/).map((w) => w.trim()).filter(Boolean),
+        waypoints: waypointList.map((w) => w.trim()).filter(Boolean),
         service_type_id: serviceTypeId || null,
         service_class_id: carTypeId || null,
         passenger_count: passengerCount,
@@ -151,9 +151,33 @@ export function ModifyBookingModal({ isOpen, onClose, booking, serviceTypes, car
             />
           </div>
 
-          <div>
-            <label className="text-sm font-medium text-gray-700 block mb-1">Waypoints (one per line)</label>
-            <Input value={waypoints} onChange={(e) => setWaypoints(e.target.value)} />
+          <div className="md:col-span-2">
+            <label className="text-sm font-medium text-gray-700 block mb-2">Stops</label>
+            <div className="space-y-2">
+              {waypointList.map((stop, idx) => (
+                <div key={idx} className="flex gap-2">
+                  <Input
+                    value={stop}
+                    onChange={(e) => setWaypointList((prev) => prev.map((v, i) => i === idx ? e.target.value : v))}
+                    placeholder={`Stop ${idx + 1}`}
+                  />
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={() => setWaypointList((prev) => prev.filter((_, i) => i !== idx))}
+                  >
+                    Remove
+                  </Button>
+                </div>
+              ))}
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => setWaypointList((prev) => [...prev, ''])}
+              >
+                + Add Stop
+              </Button>
+            </div>
           </div>
 
           <div>
