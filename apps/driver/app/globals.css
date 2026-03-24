@@ -132,6 +132,11 @@ body {
   font-family: var(--font-sans), system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  background-image:
+    radial-gradient(1200px 600px at 80% -10%, rgba(200, 169, 107, 0.08), transparent 60%),
+    radial-gradient(900px 500px at 10% 10%, rgba(255, 255, 255, 0.04), transparent 55%),
+    linear-gradient(180deg, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.9) 100%);
+  background-attachment: fixed;
   overflow-x: hidden;
 }
 
