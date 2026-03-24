@@ -17,7 +17,7 @@ import { PhoneCountrySelect } from '@/components/PhoneCountrySelect';
 import { BookDebugPanel } from '@/components/BookDebugPanel';
 import {
   MapPin, Clock, Users, Car, ChevronRight,
-  AlertCircle, CheckCircle2, Timer, ArrowLeft,
+  AlertCircle, CheckCircle2, Timer, ArrowLeft, LogIn,
 } from 'lucide-react';
 
 
@@ -1049,7 +1049,7 @@ export function BookPageClient() {
           paddingTop: 'max(12px, env(safe-area-inset-top))',
         }}
       >
-        <div className="max-w-lg mx-auto px-4 pb-4 flex items-center gap-3">
+        <div className="max-w-6xl mx-auto px-4 pb-4 flex items-center gap-3">
           <button
             onClick={() => router.replace('/quote')}
             aria-label="Back to quote"
@@ -1060,6 +1060,15 @@ export function BookPageClient() {
             </svg>
           </button>
           <h1 className="font-serif text-lg font-medium text-[hsl(var(--foreground))]">Complete Booking</h1>
+          <div className="ml-auto">
+            <a
+              href="/login"
+              className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[hsl(var(--primary)/0.5)] bg-[hsl(var(--primary)/0.12)] text-[hsl(var(--primary))] hover:bg-[hsl(var(--primary)/0.2)]"
+              title="Sign in"
+            >
+              <LogIn className="h-4 w-4" />
+            </a>
+          </div>
         </div>
       </header>
 
@@ -1075,7 +1084,40 @@ export function BookPageClient() {
         </div>
       )}
 
-      <main className="max-w-lg mx-auto px-4 py-5 space-y-4" style={{ paddingBottom: 'calc(100px + env(safe-area-inset-bottom, 0px))' }}>
+      <div className="max-w-6xl mx-auto w-full px-4 py-5 lg:grid lg:grid-cols-[320px_minmax(0,1fr)] lg:gap-10" style={{ paddingBottom: 'calc(100px + env(safe-area-inset-bottom, 0px))' }}>
+        {/* Left luxury panel (desktop) */}
+        <aside className="hidden lg:block">
+          <div className="sticky top-28 space-y-6 rounded-2xl border border-white/10 bg-white/5 p-6 shadow-[0_20px_60px_rgba(0,0,0,0.45)]">
+            <div>
+              <p className="text-[10px] tracking-[0.3em] uppercase text-white/60">ASCHAUFFEURED</p>
+              <h2 className="mt-2 font-serif text-2xl text-white">Luxury Chauffeur Booking</h2>
+              <div className="mt-3 h-px w-24 bg-gradient-to-r from-transparent via-[hsl(var(--primary))] to-transparent" />
+            </div>
+            <div className="space-y-3 text-sm text-white/70">
+              <p>Secure booking with verified pricing and professional chauffeurs.</p>
+              <p>Pay safely by card — instant confirmation after payment.</p>
+              <p>Support available 24/7 for urgent changes.</p>
+            </div>
+            <div className="space-y-2 text-sm">
+              <a href="tel:+611300010272" className="flex items-center gap-2 text-[hsl(var(--primary))] hover:opacity-80">
+                <span className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-[hsl(var(--primary)/0.4)] bg-[hsl(var(--primary)/0.1)]">☎</span>
+                1300 010 272
+              </a>
+              <a href="https://aschauffeured.com.au" className="text-white/70 hover:text-white">aschauffeured.com.au</a>
+            </div>
+            <div className="pt-2">
+              <a
+                href="/login"
+                className="inline-flex items-center gap-2 rounded-full border border-[hsl(var(--primary)/0.5)] bg-[hsl(var(--primary)/0.12)] px-4 py-2 text-xs font-semibold uppercase tracking-widest text-[hsl(var(--primary))] hover:bg-[hsl(var(--primary)/0.2)]"
+                title="Sign in"
+              >
+                <LogIn className="h-4 w-4" /> Sign in
+              </a>
+            </div>
+          </div>
+        </aside>
+
+        <main className="space-y-4">
 
         {/* Inline error/expiry banner — never redirects, keeps form intact */}
         {quoteError && (
@@ -1396,6 +1438,7 @@ export function BookPageClient() {
         </Card>
 
       </main>
+      </div>
 
       <BookDebugPanel
         step={step}

@@ -600,34 +600,76 @@ export function QuoteClient() {
       >
         <BackButton fallback="/" />
         <h1 className="font-semibold text-white/90 text-sm">Quote</h1>
+        <div className="ml-auto">
+          <a
+            href="/login"
+            className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[hsl(var(--primary)/0.5)] bg-[hsl(var(--primary)/0.12)] text-[hsl(var(--primary))] hover:bg-[hsl(var(--primary)/0.2)]"
+            title="Sign in"
+          >
+            <LogIn className="h-4 w-4" />
+          </a>
+        </div>
       </div>
 
-      <div className="max-w-2xl mx-auto w-full px-4 pt-5 pb-8 md:flex-1 md:flex md:flex-col md:justify-center">
-        {/* Utility row above form */}
-        <div className="mb-3 flex items-center justify-end gap-2">
-          <a
-            href="https://aschauffeured.com.au"
-            className="inline-flex items-center gap-1.5 text-[11px] px-2.5 py-1.5 rounded-full border border-white/10 text-white/70 hover:text-white hover:border-white/30 transition-colors"
-            title="Back to Home"
-          >
-            <Home className="h-3.5 w-3.5" /> Home
-          </a>
-          {token ? (
-            <div className="text-[11px] text-white/75 px-2.5 py-1.5 rounded-full border border-white/10">
-              Welcome back{profileName ? `, ${profileName}` : ''}
+      <div className="max-w-6xl mx-auto w-full px-4 pt-5 pb-8 md:flex-1 lg:grid lg:grid-cols-[320px_minmax(0,1fr)] lg:gap-10">
+        {/* Left luxury panel (desktop) */}
+        <aside className="hidden lg:block">
+          <div className="sticky top-24 space-y-6 rounded-2xl border border-white/10 bg-white/5 p-6 shadow-[0_20px_60px_rgba(0,0,0,0.45)]">
+            <div>
+              <p className="text-[10px] tracking-[0.3em] uppercase text-white/60">ASCHAUFFEURED</p>
+              <h2 className="mt-2 font-serif text-2xl text-white">Mercedes‑Benz & Maybach Chauffeurs</h2>
+              <div className="mt-3 h-px w-24 bg-gradient-to-r from-transparent via-[hsl(var(--primary))] to-transparent" />
             </div>
-          ) : (
+            <div className="space-y-3 text-sm text-white/70">
+              <p>Instant online quotes with transparent pricing.</p>
+              <p>Book in minutes — professional chauffeurs, premium fleet.</p>
+              <p>24/7 service across Sydney, Melbourne & Queensland.</p>
+            </div>
+            <div className="space-y-2 text-sm">
+              <a href="tel:+611300010272" className="flex items-center gap-2 text-[hsl(var(--primary))] hover:opacity-80">
+                <span className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-[hsl(var(--primary)/0.4)] bg-[hsl(var(--primary)/0.1)]">☎</span>
+                1300 010 272
+              </a>
+              <a href="https://aschauffeured.com.au" className="text-white/70 hover:text-white">aschauffeured.com.au</a>
+            </div>
+            <div className="pt-2">
+              <a
+                href="/login"
+                className="inline-flex items-center gap-2 rounded-full border border-[hsl(var(--primary)/0.5)] bg-[hsl(var(--primary)/0.12)] px-4 py-2 text-xs font-semibold uppercase tracking-widest text-[hsl(var(--primary))] hover:bg-[hsl(var(--primary)/0.2)]"
+                title="Sign in"
+              >
+                <LogIn className="h-4 w-4" /> Sign in
+              </a>
+            </div>
+          </div>
+        </aside>
+
+        <div className="w-full">
+          {/* Utility row above form */}
+          <div className="mb-3 flex items-center justify-between gap-2">
             <a
-              href="/login"
-              target="_blank"
-              rel="noopener noreferrer"
+              href="https://aschauffeured.com.au"
               className="inline-flex items-center gap-1.5 text-[11px] px-2.5 py-1.5 rounded-full border border-white/10 text-white/70 hover:text-white hover:border-white/30 transition-colors"
-              title="Login"
+              title="Back to Home"
             >
-              <LogIn className="h-3.5 w-3.5" /> Login
+              <Home className="h-3.5 w-3.5" /> Home
             </a>
-          )}
-        </div>
+            <div className="flex items-center gap-2">
+              {token ? (
+                <div className="text-[11px] text-white/75 px-2.5 py-1.5 rounded-full border border-white/10">
+                  Welcome back{profileName ? `, ${profileName}` : ''}
+                </div>
+              ) : (
+                <a
+                  href="/login"
+                  className="inline-flex items-center gap-1.5 text-[11px] px-2.5 py-1.5 rounded-full border border-[hsl(var(--primary)/0.4)] text-[hsl(var(--primary))] hover:bg-[hsl(var(--primary)/0.1)] transition-colors"
+                  title="Login"
+                >
+                  <LogIn className="h-3.5 w-3.5" /> Login
+                </a>
+              )}
+            </div>
+          </div>
 
         {/* ── Pending / Resumable Quotes ── */}
         {token && !loadingPending && pendingQuotes.length > 0 && (
