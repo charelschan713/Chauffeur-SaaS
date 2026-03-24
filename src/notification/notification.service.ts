@@ -878,11 +878,11 @@ export class NotificationService {
     const vars = await this.sampleTemplateVars(tenantId);
     const tpl = await this.templateResolver.resolve(tenantId, payload.eventType, payload.channel);
     if (!tpl.active) return;
-    const body = renderTemplate(tpl.body || '', vars);
+    const body = this.normalizeRendered(renderTemplate(tpl.body || '', vars), payload.eventType);
     if (payload.channel === 'email') {
       const { email } = await this.resolveIntegrations(tenantId);
       if (!email || !payload.to_email) return;
-      const subject = renderTemplate(tpl.subject || `${payload.eventType} Test`, vars);
+      const subject = this.normalizeSubject(renderTemplate(tpl.subject || `${payload.eventType} Test`, vars), payload.eventType);
       await this.emailProvider.send(email, {
         to: payload.to_email,
         subject,
@@ -905,9 +905,9 @@ export class NotificationService {
     const { email, sms } = await this.resolveIntegrations(tenantId);
     const tpl = await this.templateResolver.resolve(tenantId, eventType, channel);
     if (!tpl || !tpl.active || !tpl.body) return;
-    const body = renderTemplate(tpl.body, vars);
+    const body = this.normalizeRendered(renderTemplate(tpl.body, vars), eventType);
     if (channel === 'email' && email) {
-      const subject = renderTemplate(tpl.subject ?? eventType, vars);
+      const subject = this.normalizeSubject(renderTemplate(tpl.subject ?? eventType, vars), eventType);
       await this.sendEmailWithLog(tenantId, eventType, email,
         { to, subject, html: body }, bookingId, vars);
     }
@@ -1666,6 +1666,16 @@ export class NotificationService {
       city:                 b.city_name ?? '',
       driver_app_url:       process.env.DRIVER_APP_URL ?? 'https://chauffeur-driver-portal.vercel.app',
     };
+  }
+
+  private normalizeRendered(text: string, eventType: string): string {
+    const cleaned = (text || '').replace(/\n{3,}/g, '\n\n').trim();
+    return cleaned || `${eventType}: update available.`;
+  }
+
+  private normalizeSubject(subject: string, eventType: string): string {
+    const s = (subject || '').trim();
+    return s || eventType;
   }
 
   private async sampleTemplateVars(tenantId: string): Promise<Record<string, string>> {

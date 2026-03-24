@@ -15,7 +15,7 @@ export function renderTemplate(template: string, vars: TemplateVariables): strin
   // Replace all {{variable}} placeholders
   result = result.replace(/\{\{(\w+)\}\}/g, (_match, key) => {
     const val = (vars as Record<string, unknown>)[key];
-    if (val === undefined || val === null) return '';
+    if (val === undefined || val === null || val === '') return 'N/A';
     return String(val);
   });
 
