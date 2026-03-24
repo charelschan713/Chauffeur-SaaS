@@ -188,73 +188,13 @@ export function Widget({ slug }: { slug: string }) {
   const [openBreakdowns, setOpenBreakdowns] = useState<Record<string, boolean>>({});
   const resultsRef = useRef<HTMLDivElement>(null);
 
-  const applyTenantTheme = (t: Tenant) => {
-    const branding = (t as any).branding ?? (t as any).theme_json?.branding ?? null;
-    const root = document.documentElement;
-    const primary = branding?.primary_color ?? t.primary_color;
-    if (primary) {
-      root.style.setProperty('--asc-primary', primary);
-      root.style.setProperty('--primary', primary);
-      root.style.setProperty('--ring', primary);
-      root.style.setProperty('--gold', primary);
-    }
-    if (branding?.background_color) root.style.setProperty('--background', branding.background_color);
-    if (branding?.card_color) root.style.setProperty('--card', branding.card_color);
-    if (branding?.text_color) root.style.setProperty('--foreground', branding.text_color);
-    if (branding?.muted_text_color) root.style.setProperty('--muted-foreground', branding.muted_text_color);
-    if (branding?.border_color) root.style.setProperty('--border', branding.border_color);
-    if (branding?.font_family) root.style.setProperty('--font-display', `'${branding.font_family}', Georgia, serif`);
-    if (branding?.button_radius != null) root.style.setProperty('--radius-button', `${branding.button_radius}px`);
-    if (branding?.card_radius != null) root.style.setProperty('--radius-card', `${branding.card_radius}px`);
-    if (branding?.input_radius != null) root.style.setProperty('--radius-input', `${branding.input_radius}px`);
-  };
-
-  const applyCustomCss = (t: Tenant) => {
-    const ws = (t as any).widget_settings ?? null;
-    const customCss = ws?.customCss ?? ws?.custom_css ?? null;
-    const customCssUrl = ws?.customCssUrl ?? ws?.custom_css_url ?? null;
-
-    const styleId = 'cw-custom-css';
-    const linkId = 'cw-custom-css-link';
-
-    // Inline CSS
-    const existingStyle = document.getElementById(styleId) as HTMLStyleElement | null;
-    if (customCss && typeof customCss === 'string') {
-      if (existingStyle) {
-        existingStyle.textContent = customCss;
-      } else {
-        const style = document.createElement('style');
-        style.id = styleId;
-        style.textContent = customCss;
-        document.head.appendChild(style);
-      }
-    } else if (existingStyle) {
-      existingStyle.remove();
-    }
-
-    // CSS URL
-    const existingLink = document.getElementById(linkId) as HTMLLinkElement | null;
-    if (customCssUrl && typeof customCssUrl === 'string') {
-      if (existingLink) {
-        existingLink.href = customCssUrl;
-      } else {
-        const link = document.createElement('link');
-        link.id = linkId;
-        link.rel = 'stylesheet';
-        link.href = customCssUrl;
-        document.head.appendChild(link);
-      }
-    } else if (existingLink) {
-      existingLink.remove();
-    }
-  };
+  // NOTE: Tenant theme is now hard-coded per tenant in the widget bundle.
+  // We intentionally do NOT read theme_json / widget_settings for styling here.
 
   useEffect(() => {
     fetchTenantInfo(slug)
       .then((t) => {
         setTenant(t);
-        applyTenantTheme(t);
-        applyCustomCss(t);
       })
       .catch(() => setError('Could not load booking widget.'));
 
