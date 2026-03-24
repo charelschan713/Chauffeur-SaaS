@@ -64,22 +64,18 @@ export class PublicTenantService {
       brandingError = err?.message ?? 'unknown';
     }
 
-    // Tenant-scoped widget settings + branding (optional)
-    let widget_settings: any = null;
+    // Tenant-scoped widget settings are disabled (widget is now hard-coded per tenant)
     let branding_settings: any = null;
     try {
       const [row] = await this.db.query(
-        `SELECT settings->'widget_settings' AS widget_settings,
-                settings->'branding'        AS branding
+        `SELECT settings->'branding' AS branding
          FROM public.tenant_settings
          WHERE tenant_id = $1
          LIMIT 1`,
         [tenant.id],
       );
-      widget_settings = row?.widget_settings ?? null;
       branding_settings = row?.branding ?? null;
     } catch {
-      widget_settings = null;
       branding_settings = null;
     }
 
@@ -97,7 +93,6 @@ export class PublicTenantService {
       cancel_window_hours: branding?.cancel_window_hours ?? 24,
       website_url: branding?.website_url ?? null,
       booking_entry: branding?.booking_entry_config ?? null,
-      widget_settings,
       branding: branding_settings ?? {
         logo_url: branding?.logo_url ?? null,
         primary_color: branding?.primary_color ?? null,
