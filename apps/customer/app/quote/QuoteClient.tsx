@@ -35,6 +35,10 @@ type CarType     = { id: string; name: string; description: string | null; max_p
 type QuoteResult = {
   service_class_id: string; service_class_name: string;
   estimated_total_minor: number; currency: string;
+  distance_km?: number;
+  duration_minutes?: number;
+  return_distance_km?: number;
+  return_duration_minutes?: number;
   discount?: { name: string; type: string; value: number; discount_minor: number; capped_by_max: boolean } | null;
   pricing_snapshot_preview: {
     base_calculated_minor: number;
@@ -813,6 +817,28 @@ export function QuoteClient() {
                         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-3 text-[11px] text-gray-400">
                           {(carType?.max_passengers??0)>0 && <span className="flex items-center gap-1"><svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>Up to {carType!.max_passengers} passengers</span>}
                           {(carType?.luggage_capacity??0)>0 && <span className="flex items-center gap-1"><svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>{carType!.luggage_capacity} bags</span>}
+                          {(() => {
+                            const dist = typeof result.distance_km === 'number' && Number.isFinite(result.distance_km) ? result.distance_km : null;
+                            const dur = typeof result.duration_minutes === 'number' && Number.isFinite(result.duration_minutes) ? result.duration_minutes : null;
+                            const rDist = typeof result.return_distance_km === 'number' && Number.isFinite(result.return_distance_km) ? result.return_distance_km : null;
+                            const rDur = typeof result.return_duration_minutes === 'number' && Number.isFinite(result.return_duration_minutes) ? result.return_duration_minutes : null;
+                            const fmtKm = (v: number) => `${v % 1 === 0 ? v.toFixed(0) : v.toFixed(1)} km`;
+                            const fmtMin = (v: number) => `${Math.round(v)} min`;
+                            if (!dist && !dur && !rDist && !rDur) return null;
+                            return (
+                              <span className="flex items-center gap-1">
+                                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3M12 3a9 9 0 100 18 9 9 0 000-18z" />
+                                </svg>
+                                {dist != null || dur != null ? (
+                                  <span>Outbound: {dist != null ? fmtKm(dist) : '—'} · {dur != null ? fmtMin(dur) : '—'}</span>
+                                ) : null}
+                                {(rDist != null || rDur != null) && (
+                                  <span className="text-[10px] text-gray-500">/ Return: {rDist != null ? fmtKm(rDist) : '—'} · {rDur != null ? fmtMin(rDur) : '—'}</span>
+                                )}
+                              </span>
+                            );
+                          })()}
 
                           {(() => {
                             const leg1 = typeof preview.leg1_minor === 'number' ? preview.leg1_minor : 0;
