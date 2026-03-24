@@ -207,7 +207,7 @@ export default function SurchargesPage() {
             </tbody>
           </table>
         </div>
-        <p className="text-xs text-gray-400 mt-2">💡 Overnight ranges work automatically — e.g. 23:00–05:00 wraps midnight correctly.</p>
+        <p className="text-xs text-gray-400 mt-2">💡 Uses booking local time (no timezone conversion). Overnight ranges work automatically — e.g. 23:00–05:00 wraps midnight correctly.</p>
       </div>
 
       {/* ── Public Holidays ──────────────────────────────────────── */}
