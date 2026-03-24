@@ -634,10 +634,11 @@ export function BookPageClient() {
                 <span className="font-medium text-[hsl(var(--foreground)/0.9)]">{pickupDate}</span>
               </div>
               {(() => {
-                const dist = typeof req.distance_km === 'number' && Number.isFinite(req.distance_km) ? req.distance_km : null;
-                const dur = typeof req.duration_minutes === 'number' && Number.isFinite(req.duration_minutes) ? req.duration_minutes : null;
-                const rDist = typeof req.return_distance_km === 'number' && Number.isFinite(req.return_distance_km) ? req.return_distance_km : null;
-                const rDur = typeof req.return_duration_minutes === 'number' && Number.isFinite(req.return_duration_minutes) ? req.return_duration_minutes : null;
+                const reqAny = req as any;
+                const dist = typeof reqAny.distance_km === 'number' && Number.isFinite(reqAny.distance_km) ? reqAny.distance_km : null;
+                const dur = typeof reqAny.duration_minutes === 'number' && Number.isFinite(reqAny.duration_minutes) ? reqAny.duration_minutes : null;
+                const rDist = typeof reqAny.return_distance_km === 'number' && Number.isFinite(reqAny.return_distance_km) ? reqAny.return_distance_km : null;
+                const rDur = typeof reqAny.return_duration_minutes === 'number' && Number.isFinite(reqAny.return_duration_minutes) ? reqAny.return_duration_minutes : null;
                 const fmtKm = (v: number) => `${v % 1 === 0 ? v.toFixed(0) : v.toFixed(1)} km`;
                 const fmtMin = (v: number) => `${Math.round(v)} min`;
                 if (!dist && !dur && !rDist && !rDur) return null;
