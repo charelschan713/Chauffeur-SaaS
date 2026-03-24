@@ -54,6 +54,30 @@ export class TemplateResolver {
       };
     }
 
-    return { subject: '', body: '', source: 'PLATFORM', recipients: [], active: false };
+    // Generic platform fallback (so every event has a default body tenants can customize)
+    if (channel === 'email') {
+      return {
+        subject: `${eventType} — {{booking_reference}}`,
+        body: `<div style="font-family:Arial,sans-serif;color:#111">
+  <p>Hello {{customer_first_name}},</p>
+  <p>This is an update regarding your booking <strong>{{booking_reference}}</strong>.</p>
+  <p>Company: {{company_name}}</p>
+  <p>Pickup: {{pickup_time}} — {{pickup_address}}</p>
+  <p>Dropoff: {{dropoff_address}}</p>
+  <p>If you have questions, please contact {{company_name}}.</p>
+</div>`,
+        source: 'PLATFORM',
+        recipients: ['customer'],
+        active: true,
+      };
+    }
+
+    return {
+      subject: '',
+      body: '{{company_name}}: Update for booking {{booking_reference}} — {{pickup_time}}.',
+      source: 'PLATFORM',
+      recipients: ['customer'],
+      active: true,
+    };
   }
 }
