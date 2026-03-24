@@ -1,4 +1,15 @@
 {
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "Content-Security-Policy",
+          "value": "frame-ancestors https://aschauffeured.com.au https://www.aschauffeured.com.au"
+        }
+      ]
+    }
+  ],
   "rewrites": [
     {
       "source": "/(.*)",
