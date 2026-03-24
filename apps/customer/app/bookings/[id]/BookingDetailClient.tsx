@@ -228,6 +228,12 @@ export function BookingDetailClient({ id }: { id: string }) {
                     {booking.return_pickup_at_utc && (
                       <Row label="Return time" value={fmtDate(booking.return_pickup_at_utc, booking.timezone)} />
                     )}
+                    {booking.distance_km != null && (
+                      <Row label="Outbound distance" value={`${booking.distance_km} km`} />
+                    )}
+                    {booking.duration_minutes != null && (
+                      <Row label="Outbound duration" value={`${booking.duration_minutes} min`} />
+                    )}
                     {booking.return_distance_km != null && (
                       <Row label="Return distance" value={`${booking.return_distance_km} km`} />
                     )}
