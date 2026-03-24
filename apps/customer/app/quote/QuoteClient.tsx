@@ -352,7 +352,7 @@ export function QuoteClient() {
   const minHours            = selectedServiceType?.minimum_hours ?? (isHourly(selectedServiceType) ? 2 : null);
   const hasSurge            = (selectedServiceType?.surge_multiplier ?? 1) > 1;
   const surgePercent        = hasSurge ? Math.round(((selectedServiceType!.surge_multiplier! - 1) * 100)) : 0;
-  const requiresDropoff     = !isHourly(selectedServiceType);
+  const requiresDropoff     = true;
   const missingPickupPlace  = !pickupPlaceId;
   const missingDropoffPlace = requiresDropoff && !dropoffPlaceId;
   const missingDropoff      = requiresDropoff && !dropoff;
@@ -722,7 +722,7 @@ export function QuoteClient() {
             )}
 
             <div>
-              <FL><MapPin className="h-3 w-3 text-[hsl(var(--primary))]"/> Drop-off Location {isHourly(selectedServiceType) && <span className="normal-case text-gray-400 font-normal ml-1">(optional)</span>}</FL>
+              <FL><MapPin className="h-3 w-3 text-[hsl(var(--primary))]"/> Drop-off Location</FL>
               <PlacesAutocomplete value={dropoff} onChange={(v, pid)=>{setDropoff(v);setDropoffPlaceId(pid ?? null);setLocationError(null);clearQuote();}} placeholder="Airport, hotel or destination..." pinColor="gold" cityBias={selectedCity?.lat&&selectedCity?.lng?{lat:selectedCity.lat,lng:selectedCity.lng}:undefined}/>
               {locationError && <p className="mt-2 text-xs text-red-400">{locationError}</p>}
             </div>
