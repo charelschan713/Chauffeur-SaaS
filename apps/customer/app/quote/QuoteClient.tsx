@@ -861,7 +861,18 @@ export function QuoteClient() {
                                     </>
                                   );
                                 })()}
-                                {parking > 0 && <span className="text-gray-500">Parking: +{fmtMoney(parking, currency)}</span>}
+                                {(() => {
+                                  const leg1Parking = typeof (preview as any).leg1_parking_minor === 'number' ? (preview as any).leg1_parking_minor : 0;
+                                  const leg2Parking = typeof (preview as any).leg2_parking_minor === 'number' ? (preview as any).leg2_parking_minor : 0;
+                                  const hasSplit = leg1Parking > 0 || leg2Parking > 0;
+                                  if (!hasSplit) return parking > 0 ? <span className="text-gray-500">Parking: +{fmtMoney(parking, currency)}</span> : null;
+                                  return (
+                                    <>
+                                      {leg1Parking > 0 && <span className="text-gray-500">Outbound parking: +{fmtMoney(leg1Parking, currency)}</span>}
+                                      {leg2Parking > 0 && <span className="text-gray-500">Return parking: +{fmtMoney(leg2Parking, currency)}</span>}
+                                    </>
+                                  );
+                                })()}
                                 {discount > 0 && <span className="text-emerald-400">Discount: -{fmtMoney(discount, currency)}</span>}
                                 {total > 0 && <span className="text-gray-500">Total: {fmtMoney(total, currency)}</span>}
                               </>

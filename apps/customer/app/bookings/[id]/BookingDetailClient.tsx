@@ -302,6 +302,9 @@ export function BookingDetailClient({ id }: { id: string }) {
               const leg2S = typeof snap.leg2_surcharge_minor === 'number' && Number.isFinite(snap.leg2_surcharge_minor) ? snap.leg2_surcharge_minor : 0;
               const toll = typeof snap.toll_minor === 'number' && Number.isFinite(snap.toll_minor) ? snap.toll_minor : 0;
               const parking = typeof snap.parking_minor === 'number' && Number.isFinite(snap.parking_minor) ? snap.parking_minor : 0;
+              const leg1Parking = typeof (snap as any).leg1_parking_minor === 'number' && Number.isFinite((snap as any).leg1_parking_minor) ? (snap as any).leg1_parking_minor : 0;
+              const leg2Parking = typeof (snap as any).leg2_parking_minor === 'number' && Number.isFinite((snap as any).leg2_parking_minor) ? (snap as any).leg2_parking_minor : 0;
+              const hasParkingSplit = leg1Parking > 0 || leg2Parking > 0;
               const discount = typeof snap.discount_amount_minor === 'number' && Number.isFinite(snap.discount_amount_minor) ? snap.discount_amount_minor : 0;
               const total = typeof snap.final_fare_minor === 'number' && Number.isFinite(snap.final_fare_minor)
                 ? snap.final_fare_minor
@@ -320,7 +323,17 @@ export function BookingDetailClient({ id }: { id: string }) {
                   )}
 
                   {toll > 0 && <Row label="Toll" value={`+${fmt(toll)}`} />}
-                  {parking > 0 && <Row label="Parking" value={`+${fmt(parking)}`} />}
+                  {(() => {
+                    if (!hasParkingSplit) {
+                      return parking > 0 ? <Row label="Parking" value={`+${fmt(parking)}`} /> : null;
+                    }
+                    return (
+                      <>
+                        {leg1Parking > 0 && <Row label="Outbound parking" value={`+${fmt(leg1Parking)}`} />}
+                        {leg2Parking > 0 && <Row label="Return parking" value={`+${fmt(leg2Parking)}`} />}
+                      </>
+                    );
+                  })()}
 
                   {discount > 0 && (
                     <Row
