@@ -319,12 +319,12 @@ export function BookingDetailClient({ id }: { id: string }) {
               return (
                 <>
                   {leg1 > 0 && <Row label="Outbound price" value={fmt(leg1)} />}
-                  {leg1S > 0 && <Row label="Outbound surcharge" value={`+${fmt(leg1S)}`} />}
+                  {leg1S > 0 && <Row label={`Outbound surcharge${(snap as any)?.leg1_surcharge_labels?.[0] ? ` (${(snap as any).leg1_surcharge_labels[0]})` : (snap as any)?.surcharge_labels?.[0] ? ` (${(snap as any).surcharge_labels[0]})` : ''}`} value={`+${fmt(leg1S)}`} />}
 
                   {hasReturn && (
                     <>
                       {leg2 > 0 && <Row label="Return price" value={fmt(leg2)} />}
-                      {leg2S > 0 && <Row label="Return surcharge" value={`+${fmt(leg2S)}`} />}
+                      {leg2S > 0 && <Row label={`Return surcharge${(snap as any)?.leg2_surcharge_labels?.[0] ? ` (${(snap as any).leg2_surcharge_labels[0]})` : (snap as any)?.surcharge_labels?.[0] ? ` (${(snap as any).surcharge_labels[0]})` : ''}`} value={`+${fmt(leg2S)}`} />}
                     </>
                   )}
 

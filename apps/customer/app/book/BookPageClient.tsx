@@ -814,7 +814,7 @@ export function BookPageClient() {
                 )}
                 {leg1S > 0 && (
                   <div className="flex justify-between text-amber-400/80">
-                    <span>Outbound surcharge</span>
+                    <span>Outbound surcharge{(preview as any)?.leg1_surcharge_labels?.[0] ? ` (${(preview as any).leg1_surcharge_labels[0]})` : (preview as any)?.surcharge_labels?.[0] ? ` (${(preview as any).surcharge_labels[0]})` : ''}</span>
                     <span>+{fmtMoney(leg1S, selectedResult.currency)}</span>
                   </div>
                 )}
@@ -828,7 +828,7 @@ export function BookPageClient() {
                     )}
                     {leg2S > 0 && (
                       <div className="flex justify-between text-amber-400/80">
-                        <span>Return surcharge</span>
+                        <span>Return surcharge{(preview as any)?.leg2_surcharge_labels?.[0] ? ` (${(preview as any).leg2_surcharge_labels[0]})` : (preview as any)?.surcharge_labels?.[0] ? ` (${(preview as any).surcharge_labels[0]})` : ''}</span>
                         <span>+{fmtMoney(leg2S, selectedResult.currency)}</span>
                       </div>
                     )}
