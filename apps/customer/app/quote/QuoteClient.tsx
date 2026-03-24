@@ -370,6 +370,7 @@ export function QuoteClient() {
     pickup_address: string | null;
     dropoff_address: string | null;
     pickup_at_utc: string | null;
+    timezone?: string | null;
     trip_mode: 'ONE_WAY' | 'RETURN';
     from_minor: number | null;
     options_count: number;
