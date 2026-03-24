@@ -581,35 +581,39 @@ export function QuoteClient() {
 
   return (
     <>
-    <div className="min-h-screen" style={{ paddingBottom: 'calc(96px + env(safe-area-inset-bottom, 0px))' }}>
-      {/* Header */}
+    <div className="min-h-screen flex flex-col" style={{ paddingBottom: 'calc(96px + env(safe-area-inset-bottom, 0px))' }}>
+      {/* Minimal Header */}
       <div
         className="sticky top-0 z-20 border-b border-white/10"
         style={{
           background: 'hsl(var(--background))',
           backdropFilter: 'blur(20px)',
           WebkitBackdropFilter: 'blur(20px)',
-          paddingTop: 'max(12px, env(safe-area-inset-top))',
-          paddingBottom: 12,
+          paddingTop: 'max(10px, env(safe-area-inset-top))',
+          paddingBottom: 10,
           paddingLeft: 16,
           paddingRight: 16,
           display: 'flex',
           alignItems: 'center',
-          gap: 12,
+          gap: 10,
         }}
       >
         <BackButton fallback="/" />
-        <h1 className="font-semibold text-white">Get a Quote</h1>
-        <div className="ml-auto flex items-center gap-2">
+        <h1 className="font-semibold text-white/90 text-sm">Quote</h1>
+      </div>
+
+      <div className="max-w-2xl mx-auto w-full px-4 pt-5 pb-8 md:flex-1 md:flex md:flex-col md:justify-center">
+        {/* Utility row above form */}
+        <div className="mb-3 flex items-center justify-end gap-2">
           <a
             href="https://aschauffeured.com.au"
-            className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-full border border-white/15 text-white/80 hover:text-white hover:border-white/30 transition-colors"
+            className="inline-flex items-center gap-1.5 text-[11px] px-2.5 py-1.5 rounded-full border border-white/10 text-white/70 hover:text-white hover:border-white/30 transition-colors"
             title="Back to Home"
           >
             <Home className="h-3.5 w-3.5" /> Home
           </a>
           {token ? (
-            <div className="text-xs text-white/80 px-2.5 py-1.5 rounded-full border border-white/10">
+            <div className="text-[11px] text-white/75 px-2.5 py-1.5 rounded-full border border-white/10">
               Welcome back{profileName ? `, ${profileName}` : ''}
             </div>
           ) : (
@@ -617,16 +621,13 @@ export function QuoteClient() {
               href="/login"
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-full border border-white/15 text-white/80 hover:text-white hover:border-white/30 transition-colors"
+              className="inline-flex items-center gap-1.5 text-[11px] px-2.5 py-1.5 rounded-full border border-white/10 text-white/70 hover:text-white hover:border-white/30 transition-colors"
               title="Login"
             >
               <LogIn className="h-3.5 w-3.5" /> Login
             </a>
           )}
         </div>
-      </div>
-
-      <div className="max-w-2xl mx-auto px-4 pt-5 pb-8">
 
         {/* ── Pending / Resumable Quotes ── */}
         {token && !loadingPending && pendingQuotes.length > 0 && (
