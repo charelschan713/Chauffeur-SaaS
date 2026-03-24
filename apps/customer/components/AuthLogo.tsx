@@ -19,7 +19,7 @@ export function AuthLogo({ subtitle }: { subtitle?: string }) {
   const logoUrl = tenant?.logo_url;
 
   return (
-    <div className="text-center w-full lg:hidden">
+    <div className="text-center w-full">
       <div className="flex flex-col items-center gap-1">
         {logoUrl ? (
           <div style={{ background: 'transparent' }}>
@@ -61,45 +61,14 @@ export function AuthLogo({ subtitle }: { subtitle?: string }) {
  */
 export function AuthShell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="fixed inset-0 bg-[hsl(var(--background))] overflow-y-auto flex flex-col lg:flex-row">
-
-      {/* ── Left brand panel (desktop only) ─────────────────── */}
-      <div className="hidden lg:flex lg:w-1/2 flex-col items-center justify-center relative overflow-hidden">
-        {/* gradient bg */}
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_#1e1500_0%,_#0d0f14_65%)]" />
-        {/* decorative rings — use primary color with opacity */}
-        <div className="absolute w-[700px] h-[700px] rounded-full border border-primary/4" />
-        <div className="absolute w-[520px] h-[520px] rounded-full border border-primary/6" />
-        <div className="absolute w-[360px] h-[360px] rounded-full border border-primary/10" />
-        <div className="absolute w-[200px] h-[200px] rounded-full border border-primary/15" />
-        {/* content */}
-        <div className="relative flex flex-col items-center text-center gap-8 max-w-sm px-12">
-          <BrandPanel />
-          <div className="w-32 h-px bg-gradient-to-r from-transparent via-primary/40 to-transparent" />
-          <p className="text-white/25 text-sm leading-relaxed tracking-wider font-light">
-            Premium chauffeur services.<br />
-            Luxury at your fingertips.
-          </p>
+    <div className="fixed inset-0 bg-[hsl(var(--background))] overflow-y-auto">
+      {/* unified luxury background */}
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_#1a1200_0%,_#0d0f14_70%)]" />
+      <div className="relative min-h-screen flex flex-col items-center justify-center px-6 py-12">
+        <div className="w-full max-w-md flex flex-col items-stretch gap-6">
+          {children}
         </div>
-        <p className="absolute bottom-8 text-[10px] text-white/12 tracking-[0.2em] uppercase">
-          © {new Date().getFullYear()} Chauffeur Solutions
-        </p>
-      </div>
-
-      {/* ── Right form panel ──────────────────────────────────── */}
-      <div className="flex-1 lg:w-1/2 flex flex-col relative">
-        {/* mobile gradient */}
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_#1a1200_0%,_#0d0f14_60%)] pointer-events-none lg:hidden" />
-        {/* desktop subtle gradient */}
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_#0f1118_0%,_#0d0f14_100%)] pointer-events-none hidden lg:block" />
-        {/* divider line on desktop */}
-        <div className="hidden lg:block absolute left-0 top-0 bottom-0 w-px bg-gradient-to-b from-transparent via-primary/15 to-transparent" />
-        <div className="relative flex-1 flex items-center justify-center px-6 py-12 lg:px-16">
-          <div className="w-full max-w-md flex flex-col items-stretch gap-8">
-            {children}
-          </div>
-        </div>
-        <p className="relative text-center text-xs text-white/15 tracking-widest uppercase pb-6 lg:hidden">
+        <p className="mt-10 text-center text-xs text-white/20 tracking-widest uppercase">
           © {new Date().getFullYear()} Chauffeur Solutions
         </p>
       </div>
