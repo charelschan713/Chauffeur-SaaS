@@ -65,7 +65,7 @@ export default function InvoicesPage() {
               </div>
               <div className="flex justify-between items-center text-sm">
                 <span className="text-[hsl(var(--muted-foreground))]">
-                  Issued {new Date(inv.issue_date ?? inv.issued_at).toLocaleDateString('en-AU')}
+                  Issued {new Date(inv.issue_date ?? inv.issued_at).toLocaleDateString('en-AU', { timeZone: 'Australia/Sydney' })}
                 </span>
                 <span className="font-semibold text-[hsl(var(--primary))]">
                   ${((inv.total_minor ?? 0) / 100).toFixed(2)} {inv.currency}
@@ -73,7 +73,7 @@ export default function InvoicesPage() {
               </div>
               {inv.due_date && (
                 <p className="text-xs text-[hsl(var(--muted-foreground)/0.6)]">
-                  Due {new Date(inv.due_date).toLocaleDateString('en-AU')}
+                  Due {new Date(inv.due_date).toLocaleDateString('en-AU', { timeZone: 'Australia/Sydney' })}
                 </p>
               )}
             </div>

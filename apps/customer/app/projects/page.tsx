@@ -17,7 +17,7 @@ export default function CustomerProjectsPage() {
   });
 
   const fmtDt = (dt: string | null) => dt
-    ? new Date(dt).toLocaleDateString('en-AU', { day: '2-digit', month: 'short', year: 'numeric' })
+    ? new Date(dt).toLocaleDateString('en-AU', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'Australia/Sydney' })
     : null;
 
   if (isLoading) return (
