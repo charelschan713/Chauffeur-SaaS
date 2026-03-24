@@ -633,6 +633,25 @@ export function BookPageClient() {
                 <Clock className="h-3.5 w-3.5 mt-0.5 shrink-0 text-[hsl(var(--primary)/0.7)]" />
                 <span className="font-medium text-[hsl(var(--foreground)/0.9)]">{pickupDate}</span>
               </div>
+              {(() => {
+                const dist = typeof req.distance_km === 'number' && Number.isFinite(req.distance_km) ? req.distance_km : null;
+                const dur = typeof req.duration_minutes === 'number' && Number.isFinite(req.duration_minutes) ? req.duration_minutes : null;
+                const rDist = typeof req.return_distance_km === 'number' && Number.isFinite(req.return_distance_km) ? req.return_distance_km : null;
+                const rDur = typeof req.return_duration_minutes === 'number' && Number.isFinite(req.return_duration_minutes) ? req.return_duration_minutes : null;
+                const fmtKm = (v: number) => `${v % 1 === 0 ? v.toFixed(0) : v.toFixed(1)} km`;
+                const fmtMin = (v: number) => `${Math.round(v)} min`;
+                if (!dist && !dur && !rDist && !rDur) return null;
+                return (
+                  <div className="pl-6 text-[10px] text-[hsl(var(--muted-foreground))]">
+                    {dist != null || dur != null ? (
+                      <div>Outbound: {dist != null ? fmtKm(dist) : '—'} · {dur != null ? fmtMin(dur) : '—'}</div>
+                    ) : null}
+                    {(rDist != null || rDur != null) && (
+                      <div className="text-[hsl(var(--muted-foreground)/0.7)]">Return: {rDist != null ? fmtKm(rDist) : '—'} · {rDur != null ? fmtMin(rDur) : '—'}</div>
+                    )}
+                  </div>
+                );
+              })()}
               {flightNumber && (
                 <div className="pl-6">
                   <Label className="text-[10px] uppercase tracking-widest text-[hsl(var(--muted-foreground)/0.7)]">Flight</Label>
