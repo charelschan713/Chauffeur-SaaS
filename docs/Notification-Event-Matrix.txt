@@ -1,0 +1,77 @@
+# Notification Events — Trigger + Recipient Notes
+
+Event	Handler	Notes
+BookingConfirmed	onBookingConfirmed	Customer email; passenger SMS
+DriverAcceptedAssignment	onDriverAccepted	Admin email
+DriverJobCompleted	onDriverJobCompleted	
+DriverJobAssigned	onDriverInvitation	
+DriverInvitationSent	onDriverInvitation	
+DriverInviteSms	onDriverInviteSms	
+DriverInviteEmail	onDriverInviteEmail	
+JobCompleted	onJobCompleted	Customer email + SMS
+JobFulfilledWithExtras	onJobFulfilledWithExtras	Customer email + SMS
+JobFulfilledNoExtras	onJobFulfilledNoExtras	Customer email + SMS
+BookingCancelled	onBookingCancelled	Customer email+SMS; Admin email
+DriverRejectedAssignment	onDriverRejectedAssignment	
+AssignmentCancelled	onAssignmentCancelled	
+DriverPayUpdated	onDriverPayUpdated	
+CustomerInvitation	onCustomerInvitation	
+CustomerRegistered	onCustomerRegistered	
+CustomerEmailVerification	onCustomerEmailVerification	
+CustomerForgotPassword	onForgotPassword	
+CustomerOtp	onCustomerOtp	
+TripStarted	onTripStarted	Disabled (no SMS)
+DriverArrived	onDriverArrived	Passenger SMS
+RefundIssued	onRefundIssued	
+InvoiceSent	onInvoiceSent	Customer email+SMS
+InvoiceOverdue	onInvoiceOverdue	Customer email+SMS
+PaymentSuccess	onPaymentSuccess	
+PaymentFailed	onPaymentFailed	Customer email+SMS; Admin email
+PaymentRequest	onPaymentRequest	
+DriverNewDispatch	onDriverNewDispatch	
+DriverDocExpiry30	onDriverDocExpiry	
+DriverDocExpiry7	onDriverDocExpiry	
+DriverAccountSuspended	onDriverAccountSuspended	
+DriverDocApproved	onDriverDocResult	
+DriverDocRejected	onDriverDocResult	
+AdminNewBooking	onAdminNewBooking	
+AdminBookingPendingConfirm	onAdminBookingPendingConfirm	
+AdminBookingConfirmedPaid	onAdminBookingConfirmedPaid	
+AdminDriverRejected	onAdminDriverRejected	
+AdminPartnerRejected	onAdminPartnerRejected	
+AdminTransferRequest	onAdminTransferRequest	
+AdminPartnerAccepted	onAdminPartnerAccepted	
+AdminCollabRequest	onAdminCollabRequest	
+AdminCollabApproved	onAdminCollabApproved	
+AdminDriverReview	onAdminDriverReview	
+AdminInvoicePaid	onAdminInvoicePaid	
+AdminPaymentFailed	onAdminPaymentFailed	
+AdminSettlement	onAdminSettlement	
+SuperAdminDriverReview	onSuperAdminDriverReview	
+SuperAdminCollabReview	onSuperAdminCollabReview	
+SuperAdminNewTenant	onSuperAdminNewTenant	
+AdminCreatedPaymentRequest	onPaymentRequest	
+CustomerCreatedBookingReceived	onBookingReceived	
+AdminNewBookingAlert	onAdminNewBooking	
+BookingConfirmedCustomer	onBookingConfirmed	Customer email; passenger SMS
+BookingRejected	onBookingRejected	
+BookingModifiedCustomer	onBookingModified	Customer email+SMS; related drivers/admins
+BookingModificationRequestAdmin	onModificationRequest	
+BookingReceived	onBookingReceived	
+BookingModified	onBookingModified	Customer email+SMS; related drivers/admins
+ModificationRequest	onModificationRequest	
+BookingChangeProposed	onBookingChangeProposed	
+AdditionalCharge	onAdditionalCharge	
+AdjustmentFailed	onAdjustmentFailed	
+AdjustmentFailedAdmin	onAdjustmentFailed	
+JobFulfilled	onJobFulfilledNoExtras	Customer email + SMS
+PaymentFailedCustomer	onPaymentFailed	Customer email+SMS; Admin email
+PaymentFailedAdmin	onAdminPaymentFailed	
+InvoicePaidAdmin	onAdminInvoicePaid	
+DriverJobCancelled	onAssignmentCancelled	
+DriverEnRoute	onDriverEnRoute	Passenger SMS
+AdminConnectionApproved	onAdminCollabApproved	
+AdminTransferReceived	onAdminTransferRequest	
+PlatformNewDriverReview	onSuperAdminDriverReview	
+PlatformNewConnectionReview	onSuperAdminCollabReview	
+PlatformNewTenant	onSuperAdminNewTenant	
