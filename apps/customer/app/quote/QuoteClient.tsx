@@ -572,7 +572,7 @@ export function QuoteClient() {
               const fmt = (v: number | null) =>
                 v != null ? `${q.currency} ${(v / 100).toFixed(0)}` : '';
               const pickupDate = q.pickup_at_utc
-                ? new Date(q.pickup_at_utc).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' })
+                ? new Date(q.pickup_at_utc).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric', timeZone: q.timezone ?? 'Australia/Sydney' })
                 : null;
               const origin  = q.pickup_address  ? q.pickup_address.split(',')[0]  : '—';
               const dest    = q.dropoff_address ? q.dropoff_address.split(',')[0] : '—';
