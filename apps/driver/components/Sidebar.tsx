@@ -62,18 +62,18 @@ export function Sidebar() {
 
   return (
     <aside
-      className="hidden lg:flex flex-col fixed top-0 left-0 h-full w-64 border-r border-white/5 z-40"
-      style={{ background: '#0d0f14' }}
+      className="hidden lg:flex flex-col fixed top-0 left-0 h-full w-64 border-r border-white/5 z-40 bg-[hsl(var(--card))]"
     >
       {/* Logo */}
       <div className="px-6 py-6 border-b border-white/5">
         <span
-          className="text-xl font-semibold text-[#c8a96b]"
+          className="text-xl font-semibold text-gradient-gold"
           style={{ fontFamily: 'var(--font-playfair), Georgia, serif' }}
         >
           Chauffeur Solutions
         </span>
-        <p className="text-xs text-white/50 mt-1">Driver Portal</p>
+        <div className="mt-2 h-px w-20 bg-gradient-to-r from-transparent via-[hsl(var(--primary))] to-transparent" />
+        <p className="text-xs text-white/50 mt-2">Driver Portal</p>
       </div>
 
       {/* Nav links */}

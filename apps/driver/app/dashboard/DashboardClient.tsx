@@ -172,28 +172,24 @@ export function DashboardClient() {
 
       {/* ── Header — Logo + Welcome + avatar ── */}
       <header
-        className="sticky top-0 z-10 bg-[hsl(var(--card))] border-b border-[hsl(var(--border))]"
-        style={{
-          borderBottomColor: '#f0f0f0',
-          paddingTop: 'max(12px, env(safe-area-inset-top))',
-        }}
+        className="sticky top-0 z-10 bg-[hsl(var(--card))]/95 border-b border-[hsl(var(--border))] backdrop-blur"
+        style={{ paddingTop: 'max(12px, env(safe-area-inset-top))' }}
       >
         <div className="max-w-2xl mx-auto flex items-center justify-between px-4 pb-3">
           <div>
             {tenant?.logo_url
               ? <img src={tenant.logo_url} alt={tenant.name} className="h-7 object-contain mb-1" />
-              : <p className="font-bold text-base text-[#1a1a1a]">{tenant?.name ?? 'Portal'}</p>
+              : <p className="font-bold text-base text-[hsl(var(--foreground))]">{tenant?.name ?? 'Portal'}</p>
             }
             <div className="flex items-center gap-2 flex-wrap mt-0.5">
-              <p className="text-[12px]" style={{ color: '#666' }}>Welcome back, {firstName}</p>
+              <p className="text-[12px] text-[hsl(var(--muted-foreground))]">Welcome back, {firstName}</p>
             </div>
           </div>
           <Link
             href="/profile"
-            className="w-9 h-9 rounded-full flex items-center justify-center transition-transform active:scale-95"
-            style={{ backgroundColor: '#f0f0f0' }}
+            className="w-9 h-9 rounded-full flex items-center justify-center transition-transform active:scale-95 bg-[hsl(var(--muted))] border border-[hsl(var(--border))]"
           >
-            <User className="h-4 w-4" style={{ color: '#1a1a1a' }} />
+            <User className="h-4 w-4 text-[hsl(var(--primary))]" />
           </Link>
         </div>
       </header>
@@ -212,7 +208,7 @@ export function DashboardClient() {
         {/* ── Past trips section ── */}
         {past.length > 0 && (
           <section className="space-y-3">
-            <p className="text-[11px] font-bold uppercase tracking-widest" style={{ color: '#999' }}>
+            <p className="text-[11px] font-bold uppercase tracking-widest text-[hsl(var(--muted-foreground))]">
               Past Trips
             </p>
             {past.map((a: any) => <LightBookingCard key={a.id} assignment={a} />)}
@@ -223,8 +219,8 @@ export function DashboardClient() {
         {upcoming.length === 0 && past.length === 0 && !isLoading && (
           <div className="flex flex-col items-center justify-center py-24 gap-3">
             <span className="text-5xl">🛣️</span>
-            <p className="text-lg font-bold" style={{ color: '#1a1a1a' }}>No trips yet</p>
-            <p className="text-sm" style={{ color: '#666' }}>Tap + to book your first luxury ride</p>
+            <p className="text-lg font-bold text-[hsl(var(--foreground))]">No trips yet</p>
+            <p className="text-sm text-[hsl(var(--muted-foreground))]">Tap + to book your first luxury ride</p>
           </div>
         )}
       </main>

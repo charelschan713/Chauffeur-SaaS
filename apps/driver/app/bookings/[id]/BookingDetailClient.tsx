@@ -82,7 +82,7 @@ export function BookingDetailClient({ id }: { id: string }) {
     <div className="min-h-screen" style={{ paddingBottom: 'calc(96px + env(safe-area-inset-bottom, 0px))' }}>
       {/* Header */}
       <div
-        className="sticky top-0 z-20 border-b border-gray-100 px-4 flex items-center gap-3"
+        className="sticky top-0 z-20 border-b border-[hsl(var(--border))] px-4 flex items-center gap-3"
         style={{
           background: 'hsl(var(--background))',
           backdropFilter: 'blur(20px)',
