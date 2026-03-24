@@ -122,6 +122,12 @@ export default function TemplatesPage() {
     (channelActive[`${eventKey}:email`] ?? true) || (channelActive[`${eventKey}:sms`] ?? true);
   const [eventRecipients, setEventRecipients] = useState<Record<string, string[]>>({});
 
+  // Test send inputs
+  const [testEmail, setTestEmail] = useState('');
+  const [testCountry, setTestCountry] = useState('+61');
+  const [testPhone, setTestPhone] = useState('');
+  const [sendingTestKey, setSendingTestKey] = useState<string | null>(null);
+
   const { data: templates = [], isLoading, refetch } = useQuery({
     queryKey: ['notification-templates'],
     queryFn: async () => {
@@ -293,6 +299,19 @@ export default function TemplatesPage() {
     });
   }, [templates]);
 
+  async function handleSendTest(eventType: string, channel: 'email' | 'sms') {
+    const key = `${eventType}:${channel}`;
+    setSendingTestKey(key);
+    await api.post('/notification-templates/send-test', {
+      eventType,
+      channel,
+      to_email: channel === 'email' ? testEmail : undefined,
+      country_code: channel === 'sms' ? testCountry : undefined,
+      phone: channel === 'sms' ? testPhone : undefined,
+    }).catch(() => {});
+    setSendingTestKey(null);
+  }
+
   const variableTokens = useMemo(() => VARIABLES.map((v) => `{{${v}}}`), []);
 
   // ── Tab definitions ────────────────────────────────────────────────────────
@@ -317,6 +336,29 @@ export default function TemplatesPage() {
       table={
         <div className="space-y-0">
           {isLoading && <div className="text-sm text-gray-500 p-4">Loading...</div>}
+
+          {/* ── Test send inputs ─────────────────────────────────────── */}
+          <div className="bg-white border rounded p-4 mb-4">
+            <div className="text-xs font-semibold text-gray-600 uppercase tracking-widest mb-3">Send Test</div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div>
+                <label className="text-xs text-gray-500">Test Email</label>
+                <input value={testEmail} onChange={e=>setTestEmail(e.target.value)} placeholder="test@example.com"
+                  className="mt-1 w-full border rounded px-2 py-2 text-sm" />
+              </div>
+              <div>
+                <label className="text-xs text-gray-500">SMS Country Code</label>
+                <input value={testCountry} onChange={e=>setTestCountry(e.target.value)} placeholder="+61"
+                  className="mt-1 w-full border rounded px-2 py-2 text-sm" />
+              </div>
+              <div>
+                <label className="text-xs text-gray-500">SMS Phone</label>
+                <input value={testPhone} onChange={e=>setTestPhone(e.target.value)} placeholder="412345678"
+                  className="mt-1 w-full border rounded px-2 py-2 text-sm" />
+              </div>
+            </div>
+            <div className="mt-2 text-[11px] text-gray-400">Use the buttons inside each event to send test Email/SMS.</div>
+          </div>
 
           {/* ── Top Tabs ───────────────────────────────────────────────── */}
           <div className="flex border-b mb-6">
@@ -479,6 +521,13 @@ export default function TemplatesPage() {
                         </button>
                         <button onClick={() => handleUseDefault(event.key, ch)} className="px-3 py-1.5 text-xs rounded bg-gray-100 hover:bg-gray-200">
                           Use Default
+                        </button>
+                        <button
+                          onClick={() => handleSendTest(event.key, ch)}
+                          disabled={sendingTestKey === pKey || (ch === 'email' ? !testEmail : !testPhone)}
+                          className="px-3 py-1.5 text-xs rounded border text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                        >
+                          {sendingTestKey === pKey ? 'Sending…' : `Send Test ${ch.toUpperCase()}`}
                         </button>
                         <button
                           onClick={() => handleReset(event.key, ch)}

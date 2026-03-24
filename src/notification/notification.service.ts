@@ -871,6 +871,33 @@ export class NotificationService {
   }
 
   // ── Helper: send from template (DB-driven with {{var}} interpolation) ──
+  public async sendTestTemplate(
+    tenantId: string,
+    payload: { eventType: string; channel: 'email' | 'sms'; to_email?: string; phone?: string; country_code?: string },
+  ) {
+    const vars = await this.sampleTemplateVars(tenantId);
+    const tpl = await this.templateResolver.resolve(tenantId, payload.eventType, payload.channel);
+    if (!tpl.active) return;
+    const body = renderTemplate(tpl.body || '', vars);
+    if (payload.channel === 'email') {
+      const { email } = await this.resolveIntegrations(tenantId);
+      if (!email || !payload.to_email) return;
+      const subject = renderTemplate(tpl.subject || `${payload.eventType} Test`, vars);
+      await this.emailProvider.send(email, {
+        to: payload.to_email,
+        subject,
+        html: body,
+        fromAddress: email.config.from_address,
+        fromName: email.config.from_name,
+      });
+      return;
+    }
+    const { sms } = await this.resolveIntegrations(tenantId);
+    if (!sms || !payload.phone) return;
+    const phone = toE164(payload.country_code, payload.phone) ?? payload.phone;
+    await this.smsProvider.send(sms, phone, body);
+  }
+
   private async sendFromTemplate(
     tenantId: string, eventType: string, channel: 'email' | 'sms',
     vars: Record<string, string>, to: string, bookingId?: string,
@@ -1638,6 +1665,37 @@ export class NotificationService {
         : (b.total_price_minor ? `$${(b.total_price_minor / 100).toFixed(2)}` : (b.total_amount ?? '')),
       city:                 b.city_name ?? '',
       driver_app_url:       process.env.DRIVER_APP_URL ?? 'https://chauffeur-driver-portal.vercel.app',
+    };
+  }
+
+  private async sampleTemplateVars(tenantId: string): Promise<Record<string, string>> {
+    const branding = await this.dataSource.query(
+      `SELECT tb.company_name, tb.contact_email, tb.contact_phone
+       FROM public.tenant_branding tb
+       WHERE tb.tenant_id = $1
+       LIMIT 1`,
+      [tenantId],
+    ).then((r: any) => r?.[0]).catch(() => null);
+
+    return {
+      booking_reference: 'TEST-12345',
+      customer_first_name: 'Test',
+      customer_last_name: 'Customer',
+      customer_name: 'Test Customer',
+      customer_email: 'test@example.com',
+      customer_phone: branding?.contact_phone ?? '+61 400 000 000',
+      pickup_address: 'Sydney CBD, NSW',
+      dropoff_address: 'Sydney Airport (T3)',
+      pickup_time: 'Thu, 26 Mar 2026 3:10 PM',
+      return_pickup_time: 'Mon, 30 Mar 2026 4:00 PM',
+      return_pickup_address: 'Sydney Airport (T3)',
+      currency: 'AUD',
+      total_price: '450.00',
+      total_amount: '450.00',
+      company_name: branding?.company_name ?? 'ASChauffeured',
+      company_email: branding?.contact_email ?? 'info@aschauffeured.com.au',
+      booking_url: 'https://aschauffeured.chauffeurssolution.com/quote',
+      payment_url: 'https://aschauffeured.chauffeurssolution.com/quote',
     };
   }
 }

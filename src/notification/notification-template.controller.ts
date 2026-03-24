@@ -23,6 +23,17 @@ export class NotificationTemplateController {
     return { fired: body.eventType, tenant_id: tenantId, payload };
   }
 
+  /** UI test: send a test notification to a provided email/phone */
+  @Post('send-test')
+  async sendTest(
+    @Req() req: any,
+    @Body() body: { eventType: string; channel: 'email' | 'sms'; to_email?: string; phone?: string; country_code?: string },
+  ) {
+    const tenantId = req.user.tenant_id;
+    await this.notificationService.sendTestTemplate(tenantId, body);
+    return { sent: true };
+  }
+
   @Get()
   async list(@Req() req: any) {
     // Return ALL (including inactive) so UI can show toggle state
