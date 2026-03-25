@@ -89,6 +89,7 @@ ${footer()}
 <p style="${S.p}">We have received your booking request. Our team will review and confirm your reservation shortly.</p>
 <p style="${S.p}">Once confirmed, <strong>{{currency}} {{total_amount}}</strong> will be charged to your saved payment method.</p>
 <table style="${S.table}">${bookingRows()}</table>
+${cta(btnUrl('View Booking →', '{{booking_url}}'))}
 <p style="${S.p}" style="color:#6b7280;font-size:13px">You will receive a confirmation email as soon as your booking is reviewed. Please contact {{company_name}} if you have any urgent questions.</p>
 ${footer()}
 </div>`,

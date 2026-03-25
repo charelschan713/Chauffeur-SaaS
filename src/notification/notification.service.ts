@@ -626,7 +626,12 @@ export class NotificationService {
       payment_url: '',
       admin_booking_url: `https://chauffeur-saa-s.vercel.app/bookings/${booking.id ?? ''}`,
       pay_url: '',
-      booking_url: 'https://aschauffeured.chauffeurssolution.com/quote',
+      booking_url: (() => {
+        const domain = booking.tenant_custom_domain
+          ? `https://${booking.tenant_custom_domain}`
+          : (booking.tenant_slug ? `https://${booking.tenant_slug}.chauffeurssolution.com` : 'https://chauffeurssolution.com');
+        return `${domain}/bookings/${booking.id ?? ''}`;
+      })(),
       reset_url: '',
       // Modification
       modification_details: '',
@@ -780,6 +785,8 @@ export class NotificationService {
       `SELECT
           b.id,
           b.tenant_id,
+          t.slug AS tenant_slug,
+          t.custom_domain AS tenant_custom_domain,
           b.booking_reference,
           b.pickup_address_text,
           b.dropoff_address_text,
@@ -808,6 +815,7 @@ export class NotificationService {
           to_char(b.pickup_at_utc AT TIME ZONE COALESCE(b.timezone, 'UTC'), 'Dy DD Mon YYYY HH12:MI AM') AS pickup_time_local,
           c.name AS city_name
        FROM public.bookings b
+       LEFT JOIN public.tenants t ON t.id = b.tenant_id
        LEFT JOIN public.tenant_service_classes sc ON sc.id = b.service_class_id
        LEFT JOIN public.tenant_service_cities c ON c.id = (
          SELECT id FROM public.tenant_service_cities
