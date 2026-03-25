@@ -138,8 +138,6 @@ export default function CreateBookingPage() {
   const [quote, setQuote] = useState<QuoteState>({ status: 'idle' });
   const [lastQuotePayload, setLastQuotePayload] = useState<any | null>(null);
   const [customerSearch, setCustomerSearch] = useState('');
-  const jobType = watch('job_type');
-  const isDriverJob = jobType === 'DRIVER_JOB';
   const [customerResults, setCustomerResults] = useState<any[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchLabel, setSearchLabel] = useState('Recent Customers');
@@ -226,6 +224,9 @@ export default function CreateBookingPage() {
     },
     mode: 'onBlur',
   });
+
+  const jobType = watch('job_type');
+  const isDriverJob = jobType === 'DRIVER_JOB';
 
   useEffect(() => {
     updateWizard({ activeSection, waypoints });
@@ -854,6 +855,7 @@ export default function CreateBookingPage() {
                 </div>
               )}
             </div>
+            )}
 
             {/* Save as Passenger Profile */}
             {selectedCustomerId && (
@@ -883,7 +885,6 @@ export default function CreateBookingPage() {
                   </div>
                 )}
               </div>
-            )}
             )}
           </div>
           {/* Booking Summary Card */}

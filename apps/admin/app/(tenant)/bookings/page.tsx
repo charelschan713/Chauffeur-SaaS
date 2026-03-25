@@ -35,6 +35,7 @@ interface Booking {
   payment_status?: string | null;
   total_price_minor: number;
   currency: string;
+  job_type?: 'NORMAL' | 'DRIVER_JOB';
 }
 
 const PAY_BADGE: Record<string, 'neutral' | 'warning' | 'success' | 'danger'> = {

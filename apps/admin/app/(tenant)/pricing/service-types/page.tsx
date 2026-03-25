@@ -29,6 +29,7 @@ interface ServiceTypeRow {
   active: boolean;
   toll_enabled: boolean;
   waypoint_charge_enabled: boolean;
+  surge_enabled?: boolean;
 }
 
 type HourlyTier = {

@@ -28,6 +28,7 @@ type Booking = {
   total_price_minor?: number | null;
   currency?: string | null;
   service_class_name?: string | null;
+  job_type?: 'NORMAL' | 'DRIVER_JOB' | null;
   service_type_name?: string | null;
   passenger_count?: number | null;
   luggage_count?: number | null;
