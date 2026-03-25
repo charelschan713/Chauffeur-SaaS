@@ -307,6 +307,9 @@ export class PricingResolver {
     let surchargeMinor = 0;
     let minimumApplied = false;
     let minimumFareMinor = 0;
+    let outboundAfterMultiplier = 0;
+    let returnAfterMultiplier = 0;
+    let waypointMinor = 0;
     let leg1Minor: number | undefined;
     let leg2Minor: number | undefined;
     let combinedBefore: number | undefined;
@@ -366,7 +369,7 @@ export class PricingResolver {
       const carBase = carType.base_fare_minor ?? 0;
       const perKm = carType.per_km_minor ?? 0;
       const perMin = carType.per_min_driving_minor ?? 0;
-      const waypointMinor = carType.waypoint_minor ?? 0;
+      waypointMinor = carType.waypoint_minor ?? 0;
 
       const outboundWithWaypoints = this.calculateReturnableLegMinor(
         carBase,
@@ -381,7 +384,7 @@ export class PricingResolver {
         waypointMinor,
         outboundWaypoints,
       );
-      const outboundAfterMultiplier = this.applyMultiplier(
+      outboundAfterMultiplier = this.applyMultiplier(
         carBase + Math.round(ctx.distanceKm * perKm) + Math.round(ctx.durationMinutes * perMin),
         oneWayMode as MultiplierMode,
         oneWayValue,
@@ -406,7 +409,7 @@ export class PricingResolver {
           waypointMinor,
           returnWaypoints,
         );
-        const returnAfterMultiplier = this.applyMultiplier(
+        returnAfterMultiplier = this.applyMultiplier(
           carBase + Math.round(returnDistance * perKm) + Math.round(returnDuration * perMin),
           oneWayMode as MultiplierMode,
           oneWayValue,
@@ -505,7 +508,25 @@ export class PricingResolver {
     }
 
     const tollParkingMinor = tollMinor + parkingMinor;
-    const fareWithSurcharge = baseMinor + timeSurchargeMinor;
+
+    let baseForDiscountMinor = baseMinor;
+    if (minimumApplied) {
+      if (ctx.tripType === 'RETURN') {
+        const leg1PreMin = outboundAfterMultiplier + outboundWaypoints * waypointMinor;
+        const leg2PreMin = returnAfterMultiplier + returnWaypoints * waypointMinor;
+        const combinedPreMin = leg1PreMin + leg2PreMin;
+        baseForDiscountMinor = this.applyMultiplier(
+          combinedPreMin,
+          multiplierMode,
+          multiplierValue ?? 100,
+          surchargeMinor,
+        );
+      } else {
+        baseForDiscountMinor = outboundAfterMultiplier + outboundWaypoints * waypointMinor;
+      }
+    }
+
+    const fareWithSurcharge = baseForDiscountMinor + timeSurchargeMinor;
     const discountBaseMinor = fareWithSurcharge + babySeatsMinor;
 
     const discount = await this.discountResolver.resolve(
