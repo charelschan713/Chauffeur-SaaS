@@ -88,7 +88,8 @@ export class IntegrationResolver {
           config: {
             account_sid: process.env.TWILIO_ACCOUNT_SID,
             api_key: process.env.TWILIO_AUTH_TOKEN,
-            sender: process.env.TWILIO_FROM_NUMBER ?? '',
+            sender: process.env.TWILIO_SENDER_ID ?? process.env.TWILIO_FROM_NUMBER ?? '',
+            phone_number: process.env.TWILIO_FROM_NUMBER ?? '',
           },
           source: 'PLATFORM',
         };

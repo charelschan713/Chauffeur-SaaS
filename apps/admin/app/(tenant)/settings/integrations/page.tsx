@@ -70,7 +70,8 @@ const INTEGRATIONS: IntegrationConfig[] = [
     fields: [
       { key: 'account_sid', label: 'account_sid' },
       { key: 'api_key', label: 'api_key' },
-      { key: 'sender', label: 'sender' },
+      { key: 'sender', label: 'sender_id' },
+      { key: 'phone_number', label: 'phone_number' },
     ],
   },
   {

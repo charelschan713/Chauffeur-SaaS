@@ -29,7 +29,7 @@ export class SmsProvider {
 
       // Use sender_id (Alpha Sender) if set, otherwise fall back to phone_number
       const fromNumber = config.phone_number ?? config.sender ?? '';
-      const senderId = config.sender_id ?? null;
+      const senderId = config.sender_id ?? config.sender ?? null;
 
       // Use sender_id (e.g. "ASChauffeur") if set, otherwise fall back to phone number
       const form = new URLSearchParams({ To: to, Body: message });
