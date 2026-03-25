@@ -115,7 +115,15 @@ export function DateTimePicker({ value, onChange, label, error, minDate, placeho
 
   function handleConfirm() {
     // emit as UTC ISO string (so display + backend remain consistent)
-    const iso = new Date(draft.getTime() + draft.getTimezoneOffset() * 60000).toISOString();
+    const iso = new Date(Date.UTC(
+      draft.getFullYear(),
+      draft.getMonth(),
+      draft.getDate(),
+      draft.getHours(),
+      draft.getMinutes(),
+      0,
+      0,
+    )).toISOString();
     onChange(iso);
     setOpen(false);
   }
