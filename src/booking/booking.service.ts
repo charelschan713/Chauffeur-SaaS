@@ -113,6 +113,7 @@ export class BookingService {
         b.operational_status,
         b.payment_status,
         b.pickup_at_utc,
+        b.pickup_at_local,
         b.timezone,
         b.pickup_address_text,
         b.dropoff_address_text,
@@ -283,8 +284,8 @@ export class BookingService {
   async createBooking(tenantId: string, dto: any) {
     const id = randomUUID();
     const now = new Date().toISOString();
-    const pickupAtUtc = dto.pickup_at_utc ?? dto.pickupAtUtc;
-    if (!pickupAtUtc) throw new Error('pickup_at_utc is required');
+    const pickupAtLocal = dto.pickup_at_utc ?? dto.pickupAtUtc;
+    if (!pickupAtLocal) throw new Error('pickup_at_utc is required');
 
     this.trace.traceInfo('BOOKING_CREATE_START', {
       tenant_id: tenantId,
@@ -293,6 +294,11 @@ export class BookingService {
       context: { customer_email: dto.customer_email ?? dto.email, total_price_minor: dto.total_price_minor ?? dto.totalPriceMinor, source: dto.booking_source ?? 'ADMIN' },
     });
     const pickupTimezone = dto.timezone || 'Australia/Sydney';
+    const pickupAtUtc = this.toUtcFromLocal(pickupAtLocal, pickupTimezone);
+    const returnPickupAtLocal = dto.return_pickup_at_utc ?? dto.returnPickupAtUtc ?? null;
+    const returnPickupAtUtc = returnPickupAtLocal
+      ? this.toUtcFromLocal(returnPickupAtLocal, pickupTimezone)
+      : null;
 
     // Fetch tenant booking_ref_prefix
     const tenantRows = await this.dataSource.query(
@@ -324,6 +330,10 @@ export class BookingService {
       toddlerSeats: dto.toddler_seats ?? 0,
       boosterSeats: dto.booster_seats ?? 0,
       requestedAtUtc: new Date(pickupAtUtc),
+      pickupAtUtc: pickupAtLocal,
+      returnPickupAtUtc: returnPickupAtLocal,
+      timezone: pickupTimezone,
+      cityId: dto.city_id ?? null,
       currency: dto.currency ?? 'AUD',
       customerId: dto.customer_id ?? null,
       tripType: dto.is_return_trip ? 'RETURN' : 'ONE_WAY' as const,
@@ -372,7 +382,7 @@ export class BookingService {
         customer_phone_country_code, customer_phone_number,
         pickup_address_text, pickup_lat, pickup_lng, pickup_place_id,
         dropoff_address_text, dropoff_lat, dropoff_lng, dropoff_place_id,
-        pickup_at_utc, timezone, passenger_count, luggage_count,
+        pickup_at_utc, pickup_at_local, timezone, passenger_count, luggage_count,
         special_requests, pricing_snapshot, total_price_minor, discount_total_minor, currency,
         operational_status, payment_status,
         estimated_duration_seconds, created_at, updated_at,
@@ -380,7 +390,7 @@ export class BookingService {
         passenger_phone_country_code, passenger_phone_number,
         passenger_is_customer,
         customer_id, passenger_id,
-        is_return_trip, return_pickup_at_utc, return_pickup_address_text,
+        is_return_trip, return_pickup_at_utc, return_pickup_at_local, return_pickup_address_text,
         return_pickup_lat, return_pickup_lng, return_pickup_place_id,
         service_class_id, service_type_id,
         infant_seats, toddler_seats, booster_seats
@@ -390,18 +400,18 @@ export class BookingService {
                $9,$10,
                $11,$12,$13,$14,
                $15,$16,$17,$18,
-               $19,$20,$21,$22,
-               $23,$24,$25,$26,$27,
-               $28,$29,
-               $30,$31,$32,
-               $33,$34,
-               $35,$36,
-               $37,
-               $38,$39,
-               $40,$41,$42,
-               $43,$44,$45,
-               $46,$47,
-               $48,$49,$50
+               $19,$20,$21,$22,$23,
+               $24,$25,$26,$27,$28,
+               $29,$30,
+               $31,$32,$33,
+               $34,$35,
+               $36,$37,
+               $38,
+               $39,$40,
+               $41,$42,$43,
+               $44,$45,$46,
+               $47,$48,
+               $49,$50,$51,$52
        )
        RETURNING *`,
       [
@@ -424,6 +434,7 @@ export class BookingService {
         dto.dropoff_lng ?? null,
         dto.dropoff_place_id ?? null,
         pickupAtUtc,
+        pickupAtLocal,
         pickupTimezone,
         dto.passenger_count ?? 1,
         dto.luggage_count ?? 0,
@@ -445,7 +456,8 @@ export class BookingService {
         dto.customer_id ?? null,
         dto.passenger_id ?? null,
         dto.is_return_trip ?? false,
-        dto.return_pickup_at_utc ?? null,
+        returnPickupAtUtc,
+        returnPickupAtLocal,
         dto.return_pickup_address_text ?? null,
         dto.return_pickup_lat ?? null,
         dto.return_pickup_lng ?? null,
@@ -1225,6 +1237,15 @@ export class BookingService {
       update.waypoints = update.waypoints.filter(Boolean);
     }
 
+    if (update.pickup_at_utc) {
+      update.pickup_at_local = update.pickup_at_utc;
+      update.pickup_at_utc = this.toUtcFromLocal(update.pickup_at_utc, booking.timezone ?? 'Australia/Sydney');
+    }
+    if (update.return_pickup_at_utc) {
+      update.return_pickup_at_local = update.return_pickup_at_utc;
+      update.return_pickup_at_utc = this.toUtcFromLocal(update.return_pickup_at_utc, booking.timezone ?? 'Australia/Sydney');
+    }
+
     const totalMinor = typeof dto?.total_price_minor === 'number' ? dto.total_price_minor : null;
     if (typeof totalMinor === 'number') update.total_price_minor = totalMinor;
 
@@ -1447,5 +1468,47 @@ export class BookingService {
     ).catch(() => {});
 
     return { success: true, adjustmentMinor, action: 'REFUNDED', refundMinor };
+  }
+
+  private toUtcFromLocal(local: string, timeZone: string): string {
+    if (!local) return local;
+    if (/Z$|[+-]\d{2}:?\d{2}$/.test(local)) {
+      const d = new Date(local);
+      return Number.isNaN(d.getTime()) ? local : d.toISOString();
+    }
+
+    const [datePart, timePartRaw] = local.split('T');
+    const timePart = (timePartRaw ?? '00:00:00').slice(0, 8);
+    const [y, m, d] = datePart.split('-').map(Number);
+    const [hh, mm, ss] = timePart.split(':').map(Number);
+    if (!y || !m || !d) return local;
+
+    const utcGuess = new Date(Date.UTC(y, m - 1, d, hh || 0, mm || 0, ss || 0));
+    try {
+      const parts = new Intl.DateTimeFormat('en-US', {
+        timeZone,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false,
+      }).formatToParts(utcGuess);
+      const get = (t: string) => parts.find(p => p.type === t)?.value ?? '00';
+      const tzY = Number(get('year'));
+      const tzM = Number(get('month'));
+      const tzD = Number(get('day'));
+      const tzH = Number(get('hour'));
+      const tzMin = Number(get('minute'));
+      const tzS = Number(get('second'));
+      const tzTime = Date.UTC(tzY, tzM - 1, tzD, tzH, tzMin, tzS);
+      const offset = tzTime - utcGuess.getTime();
+      const utc = Date.UTC(y, m - 1, d, hh || 0, mm || 0, ss || 0) - offset;
+      return new Date(utc).toISOString();
+    } catch {
+      const dObj = new Date(`${datePart}T${timePart}Z`);
+      return Number.isNaN(dObj.getTime()) ? local : dObj.toISOString();
+    }
   }
 }
