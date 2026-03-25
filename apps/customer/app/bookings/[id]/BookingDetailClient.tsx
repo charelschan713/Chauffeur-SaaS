@@ -311,10 +311,21 @@ export function BookingDetailClient({ id }: { id: string }) {
               const leg1Parking = typeof (snap as any).leg1_parking_minor === 'number' && Number.isFinite((snap as any).leg1_parking_minor) ? (snap as any).leg1_parking_minor : 0;
               const leg2Parking = typeof (snap as any).leg2_parking_minor === 'number' && Number.isFinite((snap as any).leg2_parking_minor) ? (snap as any).leg2_parking_minor : 0;
               const hasParkingSplit = leg1Parking > 0 || leg2Parking > 0;
-              const discount = typeof snap.discount_amount_minor === 'number' && Number.isFinite(snap.discount_amount_minor) ? snap.discount_amount_minor : 0;
-              const total = typeof snap.final_fare_minor === 'number' && Number.isFinite(snap.final_fare_minor)
-                ? snap.final_fare_minor
-                : booking.total_price_minor ?? 0;
+              const discount = typeof snap.discount_amount_minor === 'number' && Number.isFinite(snap.discount_amount_minor)
+                ? snap.discount_amount_minor
+                : (booking.discount_total_minor ?? 0);
+              const fare = typeof (snap as any).fare_minor === 'number' && Number.isFinite((snap as any).fare_minor)
+                ? (snap as any).fare_minor
+                : (typeof snap.base_calculated_minor === 'number' && Number.isFinite(snap.base_calculated_minor) ? snap.base_calculated_minor : (typeof snap.final_fare_minor === 'number' ? snap.final_fare_minor : 0));
+              const totalFare = typeof (snap as any).total_fare_minor === 'number' && Number.isFinite((snap as any).total_fare_minor)
+                ? (snap as any).total_fare_minor
+                : (typeof snap.pre_discount_fare_minor === 'number' && Number.isFinite(snap.pre_discount_fare_minor) ? snap.pre_discount_fare_minor : fare);
+              const total = typeof snap.grand_total_minor === 'number' && Number.isFinite(snap.grand_total_minor)
+                ? snap.grand_total_minor
+                : (booking.total_price_minor ?? 0);
+              const waypointsMinor = typeof snap.waypoints_minor === 'number' && Number.isFinite(snap.waypoints_minor) ? snap.waypoints_minor : 0;
+              const extrasMinor = (typeof snap.time_surcharge_minor === 'number' ? snap.time_surcharge_minor : 0)
+                + (typeof snap.baby_seats_minor === 'number' ? snap.baby_seats_minor : 0);
 
               return (
                 <>
@@ -326,6 +337,19 @@ export function BookingDetailClient({ id }: { id: string }) {
                       {leg2 > 0 && <Row label="Return price" value={fmt(leg2)} />}
                       {leg2S > 0 && <Row label={`Return surcharge${(snap as any)?.leg2_surcharge_labels?.[0] ? ` (${(snap as any).leg2_surcharge_labels[0]})` : (snap as any)?.surcharge_labels?.[0] ? ` (${(snap as any).surcharge_labels[0]})` : ''}`} value={`+${fmt(leg2S)}`} />}
                     </>
+                  )}
+
+                  <Row label="Fare" value={fmt(fare)} />
+                  {waypointsMinor > 0 && <Row label="Waypoints" value={`+${fmt(waypointsMinor)}`} />}
+                  {extrasMinor > 0 && <Row label="Extras" value={`+${fmt(extrasMinor)}`} />}
+                  <Row label="Total fare" value={fmt(totalFare)} />
+
+                  {discount > 0 && (
+                    <Row
+                      label="Discount"
+                      value={`-${fmt(discount)}`}
+                      valueClass="text-emerald-500"
+                    />
                   )}
 
                   {toll > 0 && <Row label="Toll" value={`+${fmt(toll)}`} />}
@@ -341,17 +365,9 @@ export function BookingDetailClient({ id }: { id: string }) {
                     );
                   })()}
 
-                  {discount > 0 && (
-                    <Row
-                      label="Discount"
-                      value={`-${fmt(discount)}`}
-                      valueClass="text-emerald-500"
-                    />
-                  )}
-
                   <div className="pt-1 border-t border-[hsl(var(--border))]">
                     <Row
-                      label="Total"
+                      label="Total price"
                       value={fmt(total)}
                       valueClass="text-[hsl(var(--primary))] text-base"
                     />

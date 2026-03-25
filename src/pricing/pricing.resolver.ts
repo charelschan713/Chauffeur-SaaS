@@ -509,8 +509,10 @@ export class PricingResolver {
 
     const tollParkingMinor = tollMinor + parkingMinor;
 
-    const fareWithSurcharge = baseMinor + timeSurchargeMinor;
-    const discountBaseMinor = fareWithSurcharge + babySeatsMinor;
+    const waypointsMinor = totalWaypoints * (carType.waypoint_minor ?? 0);
+    const fareMinor = Math.max(0, baseMinor - waypointsMinor);
+    const totalFareMinor = baseMinor + timeSurchargeMinor + babySeatsMinor;
+    const discountBaseMinor = totalFareMinor;
 
     const discount = await this.discountResolver.resolve(
       ctx.tenantId,
@@ -529,6 +531,8 @@ export class PricingResolver {
       items: [],
       surgeMultiplier: 1,
       subtotalMinor: baseMinor,
+      fare_minor: fareMinor,
+      total_fare_minor: totalFareMinor,
       totalPriceMinor: grandTotalMinor,
       currency: ctx.currency,
       pre_discount_fare_minor: discount.pre_discount_fare_minor,
@@ -546,7 +550,7 @@ export class PricingResolver {
       grand_total_minor: grandTotalMinor,
       discount_source_customer_id: ctx.customerId ?? null,
       extras_minor: babySeatsMinor,
-      waypoints_minor: totalWaypoints * (carType.waypoint_minor ?? 0),
+      waypoints_minor: waypointsMinor,
       baby_seats_minor: babySeatsMinor,
       base_calculated_minor: ctx.tripType === 'RETURN' ? undefined : baseMinor,
       leg1_minor: leg1Minor,
