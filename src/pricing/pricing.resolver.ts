@@ -287,7 +287,7 @@ export class PricingResolver {
 
     const outboundWaypoints = Math.max(0, ctx.waypointsCount ?? 0);
     const returnWaypoints = ctx.tripType === 'RETURN'
-      ? Math.max(0, ctx.returnWaypointsCount ?? outboundWaypoints)
+      ? Math.max(0, outboundWaypoints)
       : 0;
 
     const infantSeats = Math.max(0, ctx.infantSeats ?? ctx.babyseatCount ?? 0);
