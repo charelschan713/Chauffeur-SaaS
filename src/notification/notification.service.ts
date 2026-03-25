@@ -1029,7 +1029,7 @@ export class NotificationService {
     const sms = await this.integrationResolver.resolve(payload.tenant_id, 'twilio');
     if (!sms || !payload.phone) return;
     const body = `Your ASChauffeured verification code is: ${payload.otp}. Valid for 10 minutes.`;
-    await this.sendSmsWithLog(payload.tenant_id, 'CustomerOtp', sms, payload.phone, body, undefined, { forcePhoneNumber: true });
+    await this.sendSmsWithLog(payload.tenant_id, 'CustomerOtp', sms, payload.phone, body);
   }
 
   private async onTripStarted(tenantId: string, payload: any) {
