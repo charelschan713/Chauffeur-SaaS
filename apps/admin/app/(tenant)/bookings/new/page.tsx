@@ -25,6 +25,7 @@ const formSchema = z
     service_type_id: z.string().min(1, 'Service type is required'),
     city_id: z.string().min(1, 'City is required'),
     flight_number: z.string().optional(),
+    job_type: z.enum(['NORMAL', 'DRIVER_JOB']).default('NORMAL'),
     customer_name: z.string().trim().min(2, 'Name must be at least 2 characters'),
     customer_phone_country_code: z.string().default('+61'),
     customer_phone_number: z.string().trim().optional(),
@@ -55,6 +56,13 @@ const formSchema = z
     duration_hours: z.coerce.number().int().min(1).max(24).optional(),
   })
   .superRefine((values, ctx) => {
+    if (values.job_type === 'DRIVER_JOB' && !values.customer_phone_number?.trim()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Passenger phone is required for driver jobs',
+        path: ['customer_phone_number'],
+      });
+    }
     if (!values.passenger_is_customer) {
       if (!values.passenger_first_name?.trim()) {
         ctx.addIssue({
@@ -130,6 +138,8 @@ export default function CreateBookingPage() {
   const [quote, setQuote] = useState<QuoteState>({ status: 'idle' });
   const [lastQuotePayload, setLastQuotePayload] = useState<any | null>(null);
   const [customerSearch, setCustomerSearch] = useState('');
+  const jobType = watch('job_type');
+  const isDriverJob = jobType === 'DRIVER_JOB';
   const [customerResults, setCustomerResults] = useState<any[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchLabel, setSearchLabel] = useState('Recent Customers');
@@ -192,6 +202,7 @@ export default function CreateBookingPage() {
       service_type_id: '',
       city_id: '',
       flight_number: '',
+      job_type: 'NORMAL',
       customer_name: '',
       customer_phone_country_code: '+61',
       customer_phone_number: '',
@@ -227,6 +238,18 @@ export default function CreateBookingPage() {
     return () => subscription.unsubscribe();
   }, [watch, updateWizard]);
 
+  useEffect(() => {
+    if (isDriverJob) {
+      setSelectedCustomerId(null);
+      setCustomerSearch('');
+      setCustomerResults([]);
+      setValue('customer_email', '');
+      setValue('passenger_is_customer', true);
+      setSaveAsPassenger(false);
+      setPassengerLabel('');
+    }
+  }, [isDriverJob, setValue]);
+
   // Load recent customers on mount
   useEffect(() => {
     api.get('/customers?limit=5&sort=recent').then((res) => {
@@ -239,7 +262,7 @@ export default function CreateBookingPage() {
   // ── Clear All ────────────────────────────────────────────────────────────
   function clearAll() {
     reset({
-      service_class_id: '', service_type_id: '', city_id: '', flight_number: '',
+      service_class_id: '', service_type_id: '', city_id: '', flight_number: '', job_type: 'NORMAL',
       customer_name: '', customer_phone_country_code: '+61', customer_phone_number: '', customer_email: '',
       pickup_address_text: '', dropoff_address_text: '', waypoints: [],
       pickup_at_utc: '', is_return_trip: false, return_pickup_at_utc: '', return_pickup_address_text: '',
@@ -295,13 +318,14 @@ export default function CreateBookingPage() {
     mutationFn: async (values: FormValues) => {
       const [firstName, ...rest] = values.customer_name.trim().split(' ');
       const payload = {
+        job_type: values.job_type,
         // Customer fields — flat as backend expects
         customer_first_name: firstName,
         customer_last_name: rest.join(' ') || 'Customer',
-        customer_email: values.customer_email?.trim() || null,
+        customer_email: isDriverJob ? null : (values.customer_email?.trim() || null),
         customer_phone_country_code: values.customer_phone_country_code || '+61',
         customer_phone_number: values.customer_phone_number?.trim() || undefined,
-        customer_id: selectedCustomerId || undefined,
+        customer_id: isDriverJob ? undefined : (selectedCustomerId || undefined),
         // Route
         pickup_address_text: (values.pickup_address_text ?? '').trim(),
         pickup_place_id: pickupPlaceId || undefined,
@@ -325,13 +349,17 @@ export default function CreateBookingPage() {
         flight_number: values.flight_number?.trim() || undefined,
         waypoints: waypoints.filter(Boolean).map((w) => ({ address: w })),
         waypoints_count: waypoints.filter(Boolean).length,
-        passenger_first_name: values.passenger_is_customer ? firstName : (values.passenger_first_name ?? firstName),
-        passenger_last_name: values.passenger_is_customer ? (rest.join(' ') || 'Customer') : ((values.passenger_last_name ?? rest.join(' ')) || 'Customer'),
-        passenger_is_customer: values.passenger_is_customer,
-        passenger_phone_country_code: values.passenger_is_customer
+        passenger_first_name: (isDriverJob || values.passenger_is_customer)
+          ? firstName
+          : (values.passenger_first_name ?? firstName),
+        passenger_last_name: (isDriverJob || values.passenger_is_customer)
+          ? (rest.join(' ') || 'Customer')
+          : ((values.passenger_last_name ?? rest.join(' ')) || 'Customer'),
+        passenger_is_customer: isDriverJob ? true : values.passenger_is_customer,
+        passenger_phone_country_code: (isDriverJob || values.passenger_is_customer)
           ? (values.customer_phone_country_code || '+61')
           : (values.passenger_phone_country_code || '+61'),
-        passenger_phone_number: values.passenger_is_customer
+        passenger_phone_number: (isDriverJob || values.passenger_is_customer)
           ? (values.customer_phone_number?.trim() || undefined)
           : (values.passenger_phone_number?.trim() || undefined),
         infant_seats: values.infant_seats ?? 0,
@@ -719,6 +747,7 @@ export default function CreateBookingPage() {
             <h2 className="font-semibold mb-4">Customer & Passenger</h2>
 
             {/* Customer search / select */}
+            {!isDriverJob && (
             <div className="space-y-2 mb-4">
               <label className="text-xs font-medium text-gray-500 uppercase tracking-wide block">
                 {searchLabel}
@@ -764,8 +793,15 @@ export default function CreateBookingPage() {
                 <p className="text-xs text-gray-400 px-1">No customers found. Fill in details below to create a new one.</p>
               )}
             </div>
+            )}
 
             <div className="space-y-3">
+              <Field label="Booking Type">
+                <Select value={values.job_type} onChange={(e) => setValue('job_type', e.target.value as any)}>
+                  <option value="NORMAL">Normal booking</option>
+                  <option value="DRIVER_JOB">Driver job only</option>
+                </Select>
+              </Field>
               <Field label="Customer Name" error={errors.customer_name?.message}>
                 <Input
                   {...register('customer_name')}
@@ -779,14 +815,17 @@ export default function CreateBookingPage() {
                 onCountryCodeChange={(v) => setValue('customer_phone_country_code', v)}
                 onNumberChange={(v) => setValue('customer_phone_number', v)}
               />
+              {!isDriverJob && (
               <Field label="Email" error={errors.customer_email?.message}>
                 <Input
                   {...register('customer_email')}
                   placeholder="Optional"
                 />
               </Field>
+              )}
             </div>
 
+            {!isDriverJob && (
             <div className="mt-4 space-y-3">
               <label className="text-sm font-medium text-gray-700 space-y-1">
                 <span>Passenger is customer?</span>
@@ -844,6 +883,7 @@ export default function CreateBookingPage() {
                   </div>
                 )}
               </div>
+            )}
             )}
           </div>
           {/* Booking Summary Card */}

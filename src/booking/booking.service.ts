@@ -98,6 +98,7 @@ export class BookingService {
         b.id,
         b.booking_reference,
         b.booking_source,
+        b.job_type,
         b.customer_first_name,
         b.customer_last_name,
         b.passenger_first_name,
@@ -356,11 +357,17 @@ export class BookingService {
       throw new Error(`Pricing resolve failed: ${err?.message ?? String(err)}`);
     }
 
+    const jobType = dto.job_type ?? 'NORMAL';
+    const paymentStatus = jobType === 'DRIVER_JOB' ? 'PAID' : (dto.payment_status ?? 'UNPAID');
+    const operationalStatus = jobType === 'DRIVER_JOB'
+      ? 'CONFIRMED'
+      : (dto.operational_status ?? 'PENDING_CUSTOMER_CONFIRMATION');
+
     let bookingRows: any[];
     try {
     bookingRows = await this.dataSource.query(
       `INSERT INTO public.bookings
-       (id, tenant_id, booking_reference, booking_source,
+       (id, tenant_id, booking_reference, booking_source, job_type,
         customer_first_name, customer_last_name, customer_email,
         customer_phone_country_code, customer_phone_number,
         pickup_address_text, pickup_lat, pickup_lng, pickup_place_id,
@@ -378,23 +385,23 @@ export class BookingService {
         service_class_id, service_type_id,
         infant_seats, toddler_seats, booster_seats
        )
-       VALUES ($1,$2,$3,$4,
-               $5,$6,$7,
-               $8,$9,
-               $10,$11,$12,$13,
-               $14,$15,$16,$17,
-               $18,$19,$20,$21,
-               $22,$23,$24,$25,$26,
-               $27,$28,
-               $29,$30,$31,
-               $32,$33,
-               $34,$35,
-               $36,
-               $37,$38,
-               $39,$40,$41,
-               $42,$43,$44,
-               $45,$46,
-               $47,$48,$49
+       VALUES ($1,$2,$3,$4,$5,
+               $6,$7,$8,
+               $9,$10,
+               $11,$12,$13,$14,
+               $15,$16,$17,$18,
+               $19,$20,$21,$22,
+               $23,$24,$25,$26,$27,
+               $28,$29,
+               $30,$31,$32,
+               $33,$34,
+               $35,$36,
+               $37,
+               $38,$39,
+               $40,$41,$42,
+               $43,$44,$45,
+               $46,$47,
+               $48,$49,$50
        )
        RETURNING *`,
       [
@@ -402,6 +409,7 @@ export class BookingService {
         tenantId,
         dto.booking_reference ?? `${refPrefix}-${Math.random().toString(36).slice(2, 10).toUpperCase()}`,
         dto.booking_source ?? 'ADMIN',
+        jobType,
         resolvedFirstName,
         resolvedLastName,
         resolvedEmail,
@@ -424,8 +432,8 @@ export class BookingService {
         pricing.totalPriceMinor ?? 0,
         pricing.discount_amount_minor ?? 0,
         pricing.currency ?? 'AUD',
-        dto.operational_status ?? 'PENDING_CUSTOMER_CONFIRMATION',
-        dto.payment_status ?? 'UNPAID',
+        operationalStatus,
+        paymentStatus,
         dto.estimated_duration_seconds ?? null,
         now,
         now,
@@ -462,26 +470,26 @@ export class BookingService {
     this.trace.traceInfo('BOOKING_SAVED', {
       tenant_id: tenantId, booking_id: id,
       message: 'Booking saved to DB',
-      context: { booking_reference: bookingRows[0]?.booking_reference, status: dto.operational_status ?? 'PENDING_CUSTOMER_CONFIRMATION' },
+      context: { booking_reference: bookingRows[0]?.booking_reference, status: operationalStatus },
     });
 
     await this.dataSource.query(
       `INSERT INTO public.booking_status_history
        (id, tenant_id, booking_id, previous_status, new_status, triggered_by, reason, created_at)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
-      [randomUUID(), tenantId, id, null, dto.operational_status ?? 'PENDING_CUSTOMER_CONFIRMATION', null, null, now],
+      [randomUUID(), tenantId, id, null, operationalStatus, null, null, now],
     );
 
     // ── Admin-created booking: send ONE email to customer (payment request) ──
     // Admin knows they created it — no need to notify admin.
     // If CONFIRMED (e.g. cash booking), send BookingConfirmed instead.
     const notifPayload = { tenant_id: tenantId, booking_id: id };
-    const status = dto.operational_status ?? 'PENDING_CUSTOMER_CONFIRMATION';
-    if (status === 'PENDING_CUSTOMER_CONFIRMATION') {
+    const status = operationalStatus;
+    if (jobType !== 'DRIVER_JOB' && status === 'PENDING_CUSTOMER_CONFIRMATION') {
       // Generate payment token and send payment request email to customer only
       this.sendPaymentLink(tenantId, id)
         .catch((e) => console.error('[Notification] AdminCreatedPaymentRequest FAILED:', e?.message));
-    } else if (status === 'CONFIRMED') {
+    } else if (jobType !== 'DRIVER_JOB' && status === 'CONFIRMED') {
       this.notificationService.handleEvent('BookingConfirmed', notifPayload)
         .catch((e) => console.error('[Notification] BookingConfirmed FAILED:', e?.message));
     }

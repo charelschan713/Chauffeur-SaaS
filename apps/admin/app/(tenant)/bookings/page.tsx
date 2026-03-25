@@ -187,7 +187,14 @@ export default function BookingsPage() {
                 className="hover:bg-gray-50 cursor-pointer"
                 onClick={() => router.push(`/bookings/${booking.id}`)}
               >
-                <td className="px-6 py-4 font-medium text-gray-900">{booking.booking_reference}</td>
+                <td className="px-6 py-4 font-medium text-gray-900">
+                  <div className="flex flex-col gap-1">
+                    <span>{booking.booking_reference}</span>
+                    {booking.job_type === 'DRIVER_JOB' && (
+                      <Badge variant="neutral">Driver job</Badge>
+                    )}
+                  </div>
+                </td>
                 <td className="px-6 py-4 text-sm text-gray-700">{customerName || '—'}</td>
                 <td className="px-6 py-4 text-sm text-gray-700">
                   {shortAddress(booking.pickup_address_text)} → {shortAddress(booking.dropoff_address_text)}
