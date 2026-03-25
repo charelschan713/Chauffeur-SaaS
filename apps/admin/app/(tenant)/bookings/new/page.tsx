@@ -884,7 +884,6 @@ export default function CreateBookingPage() {
                 )}
               </div>
             )}
-            )}
           </div>
           {/* Booking Summary Card */}
           <div className="bg-white border rounded p-5 space-y-3">
