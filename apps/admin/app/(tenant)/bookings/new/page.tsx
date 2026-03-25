@@ -793,6 +793,7 @@ export default function CreateBookingPage() {
                 <p className="text-xs text-gray-400 px-1">No customers found. Fill in details below to create a new one.</p>
               )}
             </div>
+            )}
 
             <div className="space-y-3">
               <Field label="Booking Type">
