@@ -30,9 +30,8 @@ export class SurchargeService {
       ? pickupAtUtc
       : pickupAtUtc.toISOString();
 
-    // Use booking-local time for surcharge rules (convert from UTC using timezone)
-    const effectiveTimezone = await this.resolveCityTimezone(tenantId, cityId, timezone);
-    const { localDate, localTime } = this.toLocalDateTime(pickupRaw, effectiveTimezone);
+    // Use booking-local time directly (no timezone conversion)
+    const { localDate, localTime } = this.parseLocalDateTime(pickupRaw);
 
     // Weekday/weekend based on the booking-local date
     const [y, m, d] = localDate.split('-').map(Number);
@@ -128,54 +127,19 @@ export class SurchargeService {
     return 'Late night surcharge';
   }
 
-  private async resolveCityTimezone(
-    tenantId: string,
-    cityId: string | null,
-    fallback: string,
-  ) {
-    if (!cityId) return fallback;
-    try {
-      const rows = await this.db.query(
-        `SELECT timezone FROM public.tenant_service_cities WHERE tenant_id = $1 AND id = $2`,
-        [tenantId, cityId],
-      );
-      return rows?.[0]?.timezone || fallback;
-    } catch (e) {
-      this.logger.warn(`Failed to resolve city timezone: ${String(e)}`);
-      return fallback;
+  private parseLocalDateTime(pickupRaw: string) {
+    if (pickupRaw.includes('T')) {
+      const [datePart, timePartRaw] = pickupRaw.split('T');
+      const timePart = (timePartRaw ?? '').slice(0, 8) || '00:00:00';
+      return { localDate: datePart, localTime: timePart.length === 5 ? `${timePart}:00` : timePart };
     }
-  }
-
-  private toLocalDateTime(pickupRaw: string, timeZone: string) {
+    // Fallback: try Date parsing
     const dt = new Date(pickupRaw);
     if (!Number.isNaN(dt.getTime())) {
-      const parts = new Intl.DateTimeFormat('en-GB', {
-        timeZone,
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-        hour12: false,
-      }).formatToParts(dt);
-      const get = (t: string) => parts.find(p => p.type === t)?.value ?? '';
-      const y = get('year');
-      const m = get('month');
-      const d = get('day');
-      const hh = get('hour');
-      const mm = get('minute');
-      const ss = get('second') || '00';
-      if (y && m && d && hh && mm) {
-        return { localDate: `${y}-${m}-${d}`, localTime: `${hh}:${mm}:${ss}` };
-      }
+      const iso = dt.toISOString();
+      return { localDate: iso.slice(0, 10), localTime: iso.slice(11, 19) };
     }
-
-    // Fallback: parse as local datetime string (no timezone)
-    const isoMatch = pickupRaw.match(/^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})(?::(\d{2}))?/);
-    const localDate = isoMatch ? isoMatch[1] : pickupRaw.slice(0, 10);
-    const localTime = isoMatch ? `${isoMatch[2]}:${isoMatch[3] ?? '00'}` : pickupRaw.slice(11, 19);
-    return { localDate, localTime };
+    return { localDate: '', localTime: '' };
   }
 
   private timeInRange(time: string, start: string, end: string): boolean {
