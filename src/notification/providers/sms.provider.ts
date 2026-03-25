@@ -9,10 +9,11 @@ export class SmsProvider {
     integration: ResolvedIntegration,
     to: string,
     message: string,
+    opts?: { forcePhoneNumber?: boolean },
   ): Promise<boolean> {
     this.logger.log(`Sending SMS via ${integration.provider} to ${to}`);
     if (integration.provider === 'twilio') {
-      return this.sendViaTwilio(integration.config, to, message);
+      return this.sendViaTwilio(integration.config, to, message, opts);
     }
     this.logger.warn(`Unknown SMS provider: ${integration.provider}`);
     return false;
@@ -22,6 +23,7 @@ export class SmsProvider {
     config: Record<string, string>,
     to: string,
     message: string,
+    opts?: { forcePhoneNumber?: boolean },
   ): Promise<boolean> {
     try {
       const accountSid = config.account_sid;
@@ -31,9 +33,10 @@ export class SmsProvider {
       const fromNumber = config.phone_number ?? config.sender ?? '';
       const senderId = config.sender_id ?? config.sender ?? null;
 
-      // Use sender_id (e.g. "ASChauffeur") if set, otherwise fall back to phone number
+      // Use sender_id unless forced to phone number
       const form = new URLSearchParams({ To: to, Body: message });
-      form.append('From', senderId || fromNumber || '');
+      const fromValue = opts?.forcePhoneNumber ? (fromNumber || '') : (senderId || fromNumber || '');
+      form.append('From', fromValue);
 
       const res = await fetch(
         `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`,

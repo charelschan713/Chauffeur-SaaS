@@ -185,7 +185,7 @@ export class NotificationService {
     if (smsIntegration) {
       const passengerPhone = toE164(booking.passenger_phone_country_code ?? booking.customer_phone_country_code, booking.passenger_phone_number ?? booking.customer_phone_number);
       if (passengerPhone) {
-        await this.sendFromTemplate(tenantId, 'BookingConfirmed', 'sms', vars, passengerPhone, booking.id).catch(() => {});
+        await this.sendFromTemplate(tenantId, 'BookingConfirmed', 'sms', vars, passengerPhone, booking.id, { forcePhoneNumber: true }).catch(() => {});
       }
     }
 
@@ -347,7 +347,7 @@ export class NotificationService {
       const body = renderTemplate(smsTemplate.body || platformBody, templateVars);
 
       const customerPhone = toE164(booking.customer_phone_country_code, booking.customer_phone_number);
-      if (customerPhone) await this.sendSmsWithLog(tenantId, eventType, smsIntegration, customerPhone, body, booking.id).catch(() => {});
+      if (customerPhone) await this.sendSmsWithLog(tenantId, eventType, smsIntegration, customerPhone, body, booking.id, { forcePhoneNumber: true }).catch(() => {});
     }
   }
 
@@ -457,7 +457,7 @@ export class NotificationService {
         booking.passenger_phone_number ?? booking.customer_phone_number,
       );
       if (passengerPhone) {
-        await this.sendFromTemplate(tenantId, 'BookingCancelled', 'sms', vars, passengerPhone, booking.id).catch(() => {});
+        await this.sendFromTemplate(tenantId, 'BookingCancelled', 'sms', vars, passengerPhone, booking.id, { forcePhoneNumber: true }).catch(() => {});
       }
     }
 
@@ -507,7 +507,7 @@ export class NotificationService {
     const body = renderTemplate(smsTemplate.body || platformBody, templateVars);
 
     const customerPhone = toE164(booking.customer_phone_country_code, booking.customer_phone_number);
-    if (customerPhone) await this.sendSmsWithLog(tenantId, eventType, smsIntegration, customerPhone, body, booking.id).catch(() => {});
+    if (customerPhone) await this.sendSmsWithLog(tenantId, eventType, smsIntegration, customerPhone, body, booking.id, { forcePhoneNumber: true }).catch(() => {});
   }
 
   private async onDriverPayUpdated(tenantId: string, payload: any) {
@@ -534,7 +534,7 @@ export class NotificationService {
     const body = renderTemplate(smsTemplate.body || platformBody, templateVars);
 
     const customerPhone = toE164(booking.customer_phone_country_code, booking.customer_phone_number);
-    if (customerPhone) await this.sendSmsWithLog(tenantId, eventType, smsIntegration, customerPhone, body, booking.id).catch(() => {});
+    if (customerPhone) await this.sendSmsWithLog(tenantId, eventType, smsIntegration, customerPhone, body, booking.id, { forcePhoneNumber: true }).catch(() => {});
   }
 
   private static formatMinor(minor: number | string | null | undefined): string {
@@ -764,9 +764,10 @@ export class NotificationService {
     phone: string,
     body: string,
     bookingId?: string,
+    opts?: { forcePhoneNumber?: boolean },
   ): Promise<void> {
     try {
-      await this.smsProvider.send(integration, phone, body);
+      await this.smsProvider.send(integration, phone, body, opts);
       await this.logNotification({
         tenantId, eventType, channel: 'sms', recipientPhone: phone,
         body, status: 'SENT', bookingId,
@@ -909,6 +910,7 @@ export class NotificationService {
   private async sendFromTemplate(
     tenantId: string, eventType: string, channel: 'email' | 'sms',
     vars: Record<string, string>, to: string, bookingId?: string,
+    opts?: { forcePhoneNumber?: boolean },
   ) {
     const { email, sms } = await this.resolveIntegrations(tenantId);
     const tpl = await this.templateResolver.resolve(tenantId, eventType, channel);
@@ -920,7 +922,7 @@ export class NotificationService {
         { to, subject, html: body }, bookingId, vars);
     }
     if (channel === 'sms' && sms) {
-      await this.sendSmsWithLog(tenantId, eventType, sms, to, body, bookingId);
+      await this.sendSmsWithLog(tenantId, eventType, sms, to, body, bookingId, opts);
     }
   }
 
@@ -947,13 +949,13 @@ export class NotificationService {
 
     const promises: Promise<any>[] = [];
 
-    const sendTo = (email?: string | null, phone?: string | null) => {
+    const sendTo = (email?: string | null, phone?: string | null, opts?: { forcePhoneNumber?: boolean }) => {
       if (email) promises.push(this.sendFromTemplate(tenantId, eventType, 'email', vars, email, bookingId).catch(() => {}));
-      if (phone) promises.push(this.sendFromTemplate(tenantId, eventType, 'sms', vars, phone, bookingId).catch(() => {}));
+      if (phone) promises.push(this.sendFromTemplate(tenantId, eventType, 'sms', vars, phone, bookingId, opts).catch(() => {}));
     };
 
     for (const role of recipients) {
-      if (role === 'customer') sendTo(toEmail, toPhone);
+      if (role === 'customer') sendTo(toEmail, toPhone, { forcePhoneNumber: true });
       if (role === 'driver' && contacts?.driver) sendTo(contacts.driver.email, contacts.driver.phone);
       if (role === 'admin') {
         const admins = contacts?.admin ?? await this.getAdminContacts(tenantId);
@@ -1027,7 +1029,7 @@ export class NotificationService {
     const sms = await this.integrationResolver.resolve(payload.tenant_id, 'twilio');
     if (!sms || !payload.phone) return;
     const body = `Your ASChauffeured verification code is: ${payload.otp}. Valid for 10 minutes.`;
-    await this.sendSmsWithLog(payload.tenant_id, 'CustomerOtp', sms, payload.phone, body);
+    await this.sendSmsWithLog(payload.tenant_id, 'CustomerOtp', sms, payload.phone, body, undefined, { forcePhoneNumber: true });
   }
 
   private async onTripStarted(tenantId: string, payload: any) {
@@ -1054,7 +1056,7 @@ export class NotificationService {
         booking.passenger_phone_country_code ?? booking.customer_phone_country_code,
         booking.passenger_phone_number ?? booking.customer_phone_number,
       );
-      if (passengerPhone) await this.sendFromTemplate(tenantId, 'DriverArrived', 'sms', vars, passengerPhone, booking.id).catch(() => {});
+      if (passengerPhone) await this.sendFromTemplate(tenantId, 'DriverArrived', 'sms', vars, passengerPhone, booking.id, { forcePhoneNumber: true }).catch(() => {});
     }
     // Push to customer
     this.sendCustomerPush(booking.customer_id, '📍 Your Chauffeur Has Arrived', `${vars['driver_name']} is waiting at the pickup point.`, { booking_id: booking.id }).catch(() => {});
@@ -1546,7 +1548,7 @@ export class NotificationService {
     if (smsIntegration) {
       const customerPhone = toE164(booking.customer_phone_country_code, booking.customer_phone_number);
       if (customerPhone) {
-        await this.sendFromTemplate(tenantId, 'BookingChangeProposed', 'sms', vars, customerPhone, booking.id).catch(() => {});
+        await this.sendFromTemplate(tenantId, 'BookingChangeProposed', 'sms', vars, customerPhone, booking.id, { forcePhoneNumber: true }).catch(() => {});
       }
     }
   }
@@ -1601,7 +1603,7 @@ export class NotificationService {
         booking.passenger_phone_country_code ?? booking.customer_phone_country_code,
         booking.passenger_phone_number ?? booking.customer_phone_number,
       );
-      if (passengerPhone) await this.sendFromTemplate(tenantId, 'DriverEnRoute', 'sms', vars, passengerPhone, booking.id).catch(() => {});
+      if (passengerPhone) await this.sendFromTemplate(tenantId, 'DriverEnRoute', 'sms', vars, passengerPhone, booking.id, { forcePhoneNumber: true }).catch(() => {});
     }
     // Push to customer
     const eta = vars['eta_minutes'] ? ` ETA ${vars['eta_minutes']} mins.` : '';
