@@ -267,12 +267,15 @@ export class PricingResolver {
       `SELECT id, calculation_type,
               one_way_type, one_way_value, one_way_surcharge_minor,
               return_type, return_value, return_surcharge_minor,
-              minimum_hours, km_per_hour_included, hourly_tiers
+              minimum_hours, km_per_hour_included, hourly_tiers,
+              surge_enabled
        FROM public.tenant_service_types
        WHERE tenant_id = $1 AND id = $2`,
       [ctx.tenantId, ctx.serviceTypeId],
     );
     const serviceType = serviceTypeRows[0];
+
+    const { surgeMultiplier } = await this.multiplierResolver.resolve(ctx.tenantId, ctx.serviceClassId);
 
     const classRows = await this.dataSource.query(
       `SELECT id, name,
@@ -512,6 +515,14 @@ export class PricingResolver {
       }
     }
 
+    const surgeApplied = serviceType?.surge_enabled === false ? 1 : surgeMultiplier;
+    if (surgeApplied && surgeApplied !== 1) {
+      baseMinor = Math.round(baseMinor * surgeApplied);
+      if (leg1Minor !== undefined) leg1Minor = Math.round(leg1Minor * surgeApplied);
+      if (leg2Minor !== undefined) leg2Minor = Math.round(leg2Minor * surgeApplied);
+      if (combinedBefore !== undefined) combinedBefore = Math.round(combinedBefore * surgeApplied);
+    }
+
     const tollParkingMinor = tollMinor + parkingMinor;
 
     const waypointsMinor = totalWaypoints * (carType.waypoint_minor ?? 0);
@@ -534,7 +545,7 @@ export class PricingResolver {
       resolvedItemsCount: 0,
       serviceClass: { id: ctx.serviceClassId, name: carType?.name ?? 'Service Class' },
       items: [],
-      surgeMultiplier: 1,
+      surgeMultiplier: surgeApplied,
       subtotalMinor: baseMinor,
       fare_minor: fareMinor,
       total_fare_minor: totalFareMinor,

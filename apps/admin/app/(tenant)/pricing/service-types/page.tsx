@@ -54,6 +54,7 @@ type FormState = {
   km_per_hour_included: string;
   toll_enabled: boolean;
   waypoint_charge_enabled: boolean;
+  surge_enabled: boolean;
 };
 
 const emptyForm: FormState = {
@@ -69,6 +70,7 @@ const emptyForm: FormState = {
   km_per_hour_included: '0',
   toll_enabled: false,
   waypoint_charge_enabled: false,
+  surge_enabled: true,
 };
 
 function toMoney(minor: number) {
@@ -156,6 +158,7 @@ export default function ServiceTypesPage() {
       km_per_hour_included: String(row.km_per_hour_included ?? 0),
       toll_enabled: row.toll_enabled ?? false,
       waypoint_charge_enabled: row.waypoint_charge_enabled ?? false,
+      surge_enabled: row.surge_enabled ?? true,
     });
     const next = normalizeTiers(row.hourly_tiers ?? []);
     setTiers(next);
@@ -181,6 +184,7 @@ export default function ServiceTypesPage() {
       km_per_hour_included: Number(form.km_per_hour_included),
       toll_enabled: form.toll_enabled,
       waypoint_charge_enabled: form.waypoint_charge_enabled,
+      surge_enabled: form.surge_enabled,
       hourly_tiers: nextTiers,
     });
     setForm(emptyForm);
@@ -210,6 +214,7 @@ export default function ServiceTypesPage() {
       km_per_hour_included: Number(form.km_per_hour_included),
       toll_enabled: form.toll_enabled,
       waypoint_charge_enabled: form.waypoint_charge_enabled,
+      surge_enabled: form.surge_enabled,
       hourly_tiers: nextTiers,
     });
     setEditingId(null);
@@ -509,6 +514,22 @@ export default function ServiceTypesPage() {
             </span>
           </div>
 
+          {/* Surge toggle */}
+          <div className="flex items-center gap-3 py-1">
+            <button
+              type="button"
+              role="switch"
+              aria-checked={form.surge_enabled}
+              onClick={() => setForm((prev) => ({ ...prev, surge_enabled: !prev.surge_enabled }))}
+              className={`relative w-11 h-6 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 ${form.surge_enabled ? 'bg-blue-600' : 'bg-gray-200'}`}
+            >
+              <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${form.surge_enabled ? 'translate-x-5' : ''}`} />
+            </button>
+            <span className="text-sm font-medium text-gray-700">
+              {form.surge_enabled ? '⚡ Surge Enabled' : 'No Surge Applied'}
+            </span>
+          </div>
+
           <div className="flex items-end gap-2">
             <Button onClick={editingId ? handleUpdate : handleCreate}>
               {editingId ? 'Update' : 'Create'}
@@ -533,7 +554,7 @@ export default function ServiceTypesPage() {
         ) : items.length === 0 ? (
           <EmptyState title="No service types yet" description="Create your first service type to get started." />
         ) : (
-          <Table headers={['Name', 'Calculation', 'One Way', 'Return', 'Min Hours', 'Toll', 'Waypoints', 'Active', '']}>
+          <Table headers={['Name', 'Calculation', 'One Way', 'Return', 'Min Hours', 'Toll', 'Waypoints', 'Surge', 'Active', '']}>
             {items.map((row) => (
               <tr key={row.id} className="hover:bg-gray-50">
                 <td className="px-6 py-4 font-medium text-gray-900">{row.display_name}</td>
@@ -554,6 +575,13 @@ export default function ServiceTypesPage() {
                   {row.waypoint_charge_enabled && (
                     <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-700">
                       📍 Charged ✓
+                    </span>
+                  )}
+                </td>
+                <td className="px-6 py-4 text-sm">
+                  {row.surge_enabled && (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-700">
+                      ⚡ Surge ✓
                     </span>
                   )}
                 </td>
