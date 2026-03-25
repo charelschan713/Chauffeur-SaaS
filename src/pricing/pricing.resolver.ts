@@ -325,16 +325,21 @@ export class PricingResolver {
     let leg2SurchargeMinor = 0;
     let surchargeLabels: string[] = [];
     let surchargeItems: { label: string; amount_minor: number }[] = [];
+    let hourlyIncludedKm = 0;
+    let hourlyExcessKm = 0;
+    let hourlyChargeMinor = 0;
     const totalWaypoints = outboundWaypoints + returnWaypoints;
+    const isHourly = serviceType?.calculation_type === 'HOURLY_CHARTER' || !!ctx.bookedHours;
 
-    if (serviceType?.calculation_type === 'HOURLY_CHARTER' || ctx.bookedHours) {
+    if (isHourly) {
       const bookedHours = ctx.bookedHours ?? 0;
       const actualHours = Math.max(bookedHours, serviceType?.minimum_hours ?? 2);
-      const includedKm = actualHours * (serviceType?.km_per_hour_included ?? 0);
-      const excessKm = Math.max(0, ctx.distanceKm - includedKm);
+      hourlyIncludedKm = actualHours * (serviceType?.km_per_hour_included ?? 0);
+      hourlyExcessKm = Math.max(0, ctx.distanceKm - hourlyIncludedKm);
       const subtotal =
         Math.round(actualHours * (carType.hourly_rate_minor ?? 0)) +
-        Math.round(excessKm * (carType.per_km_minor ?? 0));
+        Math.round(hourlyExcessKm * (carType.per_km_minor ?? 0));
+      hourlyChargeMinor = subtotal;
       const tiers = Array.isArray(serviceType?.hourly_tiers) ? serviceType.hourly_tiers : [];
       const tier = this.findTier(tiers as HourlyTier[], actualHours);
       multiplierMode = (tier.type ?? 'PERCENTAGE') as MultiplierMode;
@@ -510,8 +515,8 @@ export class PricingResolver {
     const tollParkingMinor = tollMinor + parkingMinor;
 
     const waypointsMinor = totalWaypoints * (carType.waypoint_minor ?? 0);
-    const fareMinor = Math.max(0, baseMinor - waypointsMinor);
-    const totalFareMinor = baseMinor + timeSurchargeMinor + babySeatsMinor;
+    const fareMinor = isHourly ? baseMinor : Math.max(0, baseMinor - waypointsMinor);
+    const totalFareMinor = baseMinor + timeSurchargeMinor + babySeatsMinor + (isHourly ? waypointsMinor : 0);
     const discountBaseMinor = totalFareMinor;
 
     const discount = await this.discountResolver.resolve(
@@ -533,6 +538,9 @@ export class PricingResolver {
       subtotalMinor: baseMinor,
       fare_minor: fareMinor,
       total_fare_minor: totalFareMinor,
+      hourly_included_km: hourlyIncludedKm,
+      hourly_excess_km: hourlyExcessKm,
+      hourly_charge_minor: hourlyChargeMinor,
       totalPriceMinor: grandTotalMinor,
       currency: ctx.currency,
       pre_discount_fare_minor: discount.pre_discount_fare_minor,

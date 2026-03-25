@@ -326,44 +326,70 @@ export function BookingDetailClient({ id }: { id: string }) {
               const waypointsMinor = typeof snap.waypoints_minor === 'number' && Number.isFinite(snap.waypoints_minor) ? snap.waypoints_minor : 0;
               const extrasMinor = (typeof snap.time_surcharge_minor === 'number' ? snap.time_surcharge_minor : 0)
                 + (typeof snap.baby_seats_minor === 'number' ? snap.baby_seats_minor : 0);
+              const hourlyCharge = typeof (snap as any).hourly_charge_minor === 'number' && Number.isFinite((snap as any).hourly_charge_minor)
+                ? (snap as any).hourly_charge_minor
+                : 0;
+              const isHourly = hourlyCharge > 0;
+
+              const combinedLegMinor = (leg1 ?? 0) + (leg2 ?? 0);
+              const outboundRatio = hasReturn && combinedLegMinor > 0 ? (leg1 ?? 0) / combinedLegMinor : 1;
+              const outboundTotalFare = hasReturn ? Math.round(totalFare * outboundRatio) : totalFare;
+              const returnTotalFare = hasReturn ? (totalFare - outboundTotalFare) : 0;
+              const outboundDiscount = hasReturn ? Math.round(discount * outboundRatio) : discount;
+              const returnDiscount = hasReturn ? (discount - outboundDiscount) : 0;
+
+              const outboundToll = hasReturn ? (leg1Toll || 0) : toll;
+              const returnToll = hasReturn ? (leg2Toll || 0) : 0;
+              const outboundParking = hasReturn ? (leg1Parking || 0) : parking;
+              const returnParking = hasReturn ? (leg2Parking || 0) : 0;
 
               return (
                 <>
-                  {leg1 > 0 && <Row label="Outbound price" value={fmt(leg1)} />}
-                  {leg1S > 0 && <Row label={`Outbound surcharge${(snap as any)?.leg1_surcharge_labels?.[0] ? ` (${(snap as any).leg1_surcharge_labels[0]})` : (snap as any)?.surcharge_labels?.[0] ? ` (${(snap as any).surcharge_labels[0]})` : ''}`} value={`+${fmt(leg1S)}`} />}
-
-                  {hasReturn && (
+                  {isHourly ? (
                     <>
-                      {leg2 > 0 && <Row label="Return price" value={fmt(leg2)} />}
-                      {leg2S > 0 && <Row label={`Return surcharge${(snap as any)?.leg2_surcharge_labels?.[0] ? ` (${(snap as any).leg2_surcharge_labels[0]})` : (snap as any)?.surcharge_labels?.[0] ? ` (${(snap as any).surcharge_labels[0]})` : ''}`} value={`+${fmt(leg2S)}`} />}
+                      <Row label="Total hourly charge" value={fmt(hourlyCharge)} />
+                      {waypointsMinor > 0 && <Row label="Waypoints" value={`+${fmt(waypointsMinor)}`} />}
+                      {extrasMinor > 0 && <Row label="Extras" value={`+${fmt(extrasMinor)}`} />}
+                      <Row label="Total fare" value={fmt(totalFare)} />
+                      {discount > 0 && (
+                        <Row
+                          label="Discount amount"
+                          value={`-${fmt(discount)}`}
+                          valueClass="text-emerald-500"
+                        />
+                      )}
+                      {toll > 0 && <Row label="Toll" value={`+${fmt(toll)}`} />}
+                      {parking > 0 && <Row label="Parking" value={`+${fmt(parking)}`} />}
+                    </>
+                  ) : (
+                    <>
+                      <Row label="Outbound total fare" value={fmt(outboundTotalFare)} />
+                      {outboundDiscount > 0 && (
+                        <Row
+                          label="Discount amount"
+                          value={`-${fmt(outboundDiscount)}`}
+                          valueClass="text-emerald-500"
+                        />
+                      )}
+                      {outboundToll > 0 && <Row label="Outbound toll" value={`+${fmt(outboundToll)}`} />}
+                      {outboundParking > 0 && <Row label="Outbound parking" value={`+${fmt(outboundParking)}`} />}
+
+                      {hasReturn && (
+                        <>
+                          <Row label="Return total fare" value={fmt(returnTotalFare)} />
+                          {returnDiscount > 0 && (
+                            <Row
+                              label="Return discount"
+                              value={`-${fmt(returnDiscount)}`}
+                              valueClass="text-emerald-500"
+                            />
+                          )}
+                          {returnToll > 0 && <Row label="Return toll" value={`+${fmt(returnToll)}`} />}
+                          {returnParking > 0 && <Row label="Return parking" value={`+${fmt(returnParking)}`} />}
+                        </>
+                      )}
                     </>
                   )}
-
-                  <Row label="Fare" value={fmt(fare)} />
-                  {waypointsMinor > 0 && <Row label="Waypoints" value={`+${fmt(waypointsMinor)}`} />}
-                  {extrasMinor > 0 && <Row label="Extras" value={`+${fmt(extrasMinor)}`} />}
-                  <Row label="Total fare" value={fmt(totalFare)} />
-
-                  {discount > 0 && (
-                    <Row
-                      label="Discount"
-                      value={`-${fmt(discount)}`}
-                      valueClass="text-emerald-500"
-                    />
-                  )}
-
-                  {toll > 0 && <Row label="Toll" value={`+${fmt(toll)}`} />}
-                  {(() => {
-                    if (!hasParkingSplit) {
-                      return parking > 0 ? <Row label="Parking" value={`+${fmt(parking)}`} /> : null;
-                    }
-                    return (
-                      <>
-                        {leg1Parking > 0 && <Row label="Outbound parking" value={`+${fmt(leg1Parking)}`} />}
-                        {leg2Parking > 0 && <Row label="Return parking" value={`+${fmt(leg2Parking)}`} />}
-                      </>
-                    );
-                  })()}
 
                   <div className="pt-1 border-t border-[hsl(var(--border))]">
                     <Row

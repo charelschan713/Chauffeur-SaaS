@@ -50,6 +50,11 @@ export interface PricingSnapshot {
   subtotalMinor: number;
   totalPriceMinor: number;
   currency: string;
+  fare_minor?: number;
+  total_fare_minor?: number;
+  hourly_included_km?: number;
+  hourly_excess_km?: number;
+  hourly_charge_minor?: number;
   pre_discount_fare_minor?: number;
   discount_type?: 'NONE' | 'TIER' | 'CUSTOM_PERCENT' | 'CUSTOM_FIXED';
   discount_value?: number;
