@@ -509,24 +509,7 @@ export class PricingResolver {
 
     const tollParkingMinor = tollMinor + parkingMinor;
 
-    let baseForDiscountMinor = baseMinor;
-    if (minimumApplied) {
-      if (ctx.tripType === 'RETURN') {
-        const leg1PreMin = outboundAfterMultiplier + outboundWaypoints * waypointMinor;
-        const leg2PreMin = returnAfterMultiplier + returnWaypoints * waypointMinor;
-        const combinedPreMin = leg1PreMin + leg2PreMin;
-        baseForDiscountMinor = this.applyMultiplier(
-          combinedPreMin,
-          multiplierMode,
-          multiplierValue ?? 100,
-          surchargeMinor,
-        );
-      } else {
-        baseForDiscountMinor = outboundAfterMultiplier + outboundWaypoints * waypointMinor;
-      }
-    }
-
-    const fareWithSurcharge = baseForDiscountMinor + timeSurchargeMinor;
+    const fareWithSurcharge = baseMinor + timeSurchargeMinor;
     const discountBaseMinor = fareWithSurcharge + babySeatsMinor;
 
     const discount = await this.discountResolver.resolve(
