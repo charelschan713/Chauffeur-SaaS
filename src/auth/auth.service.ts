@@ -245,7 +245,7 @@ export class AuthService implements OnModuleInit {
 
     const accessToken = await this.jwt.signAsync(payload, {
       secret: process.env.JWT_ACCESS_SECRET!,
-      expiresIn: '8h',
+      expiresIn: '30d',
     });
 
     const refreshToken = await this.jwt.signAsync(payload, {
@@ -262,7 +262,7 @@ export class AuthService implements OnModuleInit {
       [user.sub, tenantId, hash],
     );
 
-    return { accessToken, refreshToken, expiresIn: 28800 }; // 8h
+    return { accessToken, refreshToken, expiresIn: 2592000 }; // 30d
   }
 
   private async resolveRole(

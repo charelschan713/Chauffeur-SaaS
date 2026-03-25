@@ -340,9 +340,9 @@ export class CustomerAuthService {
     };
     const accessToken = await this.jwt.signAsync(payload, {
       secret: process.env.JWT_ACCESS_SECRET!,
-      expiresIn: '7d',
+      expiresIn: '30d',
     });
-    return { accessToken, expiresIn: 604800, customerId };
+    return { accessToken, expiresIn: 2592000, customerId };
   }
 
   // ── Email OTP Login (unauthenticated) ────────────────────────────────────
