@@ -153,6 +153,7 @@ export default function CreateBookingPage() {
   const [outboundFlight, setOutboundFlight] = useState('');
   const [returnFlight, setReturnFlight] = useState('');
   const [driverDiscountCode, setDriverDiscountCode] = useState('');
+  const [isDriverJobPage, setIsDriverJobPage] = useState(false);
 
   const { data: carTypes = [] } = useQuery({
     queryKey: ['car-types'],
@@ -241,9 +242,9 @@ export default function CreateBookingPage() {
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const fromQuery = new URLSearchParams(window.location.search).get('job_type');
-    if (fromQuery === 'DRIVER_JOB') {
-      setValue('job_type', 'DRIVER_JOB', { shouldValidate: true });
-    }
+    const driverPage = fromQuery === 'DRIVER_JOB';
+    setIsDriverJobPage(driverPage);
+    setValue('job_type', driverPage ? 'DRIVER_JOB' : 'NORMAL', { shouldValidate: true });
   }, [setValue]);
 
   useEffect(() => {
@@ -816,12 +817,11 @@ export default function CreateBookingPage() {
             )}
 
             <div className="space-y-3">
-              <Field label="Booking Type">
-                <Select value={values.job_type} onChange={(e) => setValue('job_type', e.target.value as any)}>
-                  <option value="NORMAL">Normal booking</option>
-                  <option value="DRIVER_JOB">Driver job only</option>
-                </Select>
-              </Field>
+              {isDriverJobPage && (
+                <Field label="Booking Type">
+                  <Input value="Driver job only" disabled />
+                </Field>
+              )}
               <Field label="Customer Name" error={errors.customer_name?.message}>
                 <Input
                   {...register('customer_name')}
