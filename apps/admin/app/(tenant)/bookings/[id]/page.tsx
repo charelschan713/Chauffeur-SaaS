@@ -194,6 +194,19 @@ function BookingDetailInner() {
     || customerName;
   const dispatchHref = `/dispatch?booking_id=${booking.id}&return=/bookings/${booking.id}`;
 
+  const normalizedPickup = (booking.pickup_address_text ?? '').trim().toLowerCase();
+  const normalizedDropoff = (booking.dropoff_address_text ?? '').trim().toLowerCase();
+  const normalizedReturnPickup = (booking.return_pickup_address_text ?? '').trim().toLowerCase();
+  const returnPickupDisplay = (() => {
+    if (!booking.is_return_trip) return booking.return_pickup_address_text ?? booking.dropoff_address_text ?? '—';
+    if (!booking.return_pickup_address_text) return booking.dropoff_address_text ?? '—';
+    // Guard against wrongly stored return pickup equal to outbound pickup
+    if (normalizedReturnPickup && normalizedPickup && normalizedReturnPickup === normalizedPickup && normalizedDropoff) {
+      return booking.dropoff_address_text;
+    }
+    return booking.return_pickup_address_text;
+  })();
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -663,7 +676,7 @@ function BookingDetailInner() {
                   <div className="text-gray-500 text-xs uppercase tracking-wider mb-1">Return Leg (Leg B)</div>
                   <div>
                     <span className="text-gray-500">Return pickup:</span>{' '}
-                    {booking.return_pickup_address_text ?? booking.dropoff_address_text}
+                    {returnPickupDisplay}
                   </div>
                   <div>
                     <span className="text-gray-500">Return drop-off:</span>{' '}
@@ -918,7 +931,7 @@ function BookingDetailInner() {
           {booking.is_return_trip && (
             <Card title="Return Leg (Leg B)">
               <div className="text-xs text-gray-500 mb-3">
-                Return pickup: <strong className="text-gray-700">{booking.return_pickup_address_text ?? '—'}</strong>
+                Return pickup: <strong className="text-gray-700">{returnPickupDisplay}</strong>
                 {booking.return_pickup_at_utc && (
                   <> · <strong className="text-gray-700">{new Date(booking.return_pickup_at_utc).toLocaleString('en-AU', { timeZone: 'Australia/Sydney', weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit', hour12: true })}</strong></>
                 )}
