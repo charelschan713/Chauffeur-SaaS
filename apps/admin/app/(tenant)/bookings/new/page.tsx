@@ -152,6 +152,7 @@ export default function CreateBookingPage() {
   const [activeSection, setActiveSection] = useState(wizardState.activeSection ?? 'service');
   const [outboundFlight, setOutboundFlight] = useState('');
   const [returnFlight, setReturnFlight] = useState('');
+  const [driverDiscountCode, setDriverDiscountCode] = useState('');
 
   const { data: carTypes = [] } = useQuery({
     queryKey: ['car-types'],
@@ -182,6 +183,15 @@ export default function CreateBookingPage() {
     queryFn: async () => {
       const res = await api.get('/tenants/business');
       return res.data ?? null;
+    },
+  });
+
+  const { data: discounts = [] } = useQuery({
+    queryKey: ['discounts'],
+    queryFn: async () => {
+      const res = await api.get('/discounts');
+      const rows = Array.isArray(res.data) ? res.data : [];
+      return rows.filter((d: any) => d?.active !== false && d?.code);
     },
   });
 
@@ -543,6 +553,7 @@ export default function CreateBookingPage() {
         infant_seats: values.infant_seats ?? 0,
         toddler_seats: values.toddler_seats ?? 0,
         booster_seats: values.booster_seats ?? 0,
+        promo_code: isDriverJob && driverDiscountCode ? driverDiscountCode : undefined,
       };
 
       if (values.duration_hours) {
@@ -1248,6 +1259,22 @@ export default function CreateBookingPage() {
                       </div>
                     ))}
                   </div>
+
+                  {isDriverJob && (
+                    <div className="mt-4">
+                      <label className="text-sm font-medium text-gray-700 block mb-1">Loyalty Discount</label>
+                      <Select value={driverDiscountCode}
+                        onChange={(e) => setDriverDiscountCode(e.target.value)}>
+                        <option value="">No discount</option>
+                        {discounts.map((d: any) => (
+                          <option key={d.id} value={d.code}>
+                            {d.name} ({d.type === 'PERCENTAGE' ? `${d.value}%` : `$${Number(d.value || 0).toFixed(2)}`})
+                          </option>
+                        ))}
+                      </Select>
+                    </div>
+                  )}
+
                   {seatError ? (
                     <p className="text-xs text-red-600 mt-2 font-medium">
                       ⚠️ Baby seats ({totalBabySeats}) must be less than total passengers ({values.passenger_count ?? 1}) — at least 1 adult required. Babies are included in the passenger count.
