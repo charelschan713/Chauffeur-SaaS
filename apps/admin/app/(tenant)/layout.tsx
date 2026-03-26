@@ -30,6 +30,7 @@ const NAV_SECTIONS = [
       { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
       { href: '/bookings', label: 'All Bookings', icon: CalendarCheck },
       { href: '/bookings/new', label: 'Create Booking', icon: CalendarCheck },
+      { href: '/bookings/new?job_type=DRIVER_JOB', label: 'Create Driver Job', icon: CalendarCheck },
     ],
   },
   {
