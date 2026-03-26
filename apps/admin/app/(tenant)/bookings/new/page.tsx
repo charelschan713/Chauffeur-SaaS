@@ -449,7 +449,13 @@ export default function CreateBookingPage() {
   const tenantSlug = tenantBusiness?.slug ?? null;
 
   useEffect(() => {
-    if (!values.flight_number) return;
+    if (!values.flight_number) {
+      if (outboundFlight || returnFlight) {
+        setOutboundFlight('');
+        setReturnFlight('');
+      }
+      return;
+    }
     if (outboundFlight || returnFlight) return;
     const raw = String(values.flight_number);
     const parts = raw.split('/ Return ');
@@ -918,14 +924,14 @@ export default function CreateBookingPage() {
             <div className="space-y-2 text-sm">
               {/* Customer */}
               <div className="flex gap-2">
-                <span className="text-gray-400 w-5 shrink-0">👤</span>
+                <span className="text-gray-500 w-24 shrink-0">Customer</span>
                 <span className={values.customer_name ? 'text-gray-900' : 'text-gray-300'}>
                   {values.customer_name || 'No customer'}
                 </span>
               </div>
               {values.customer_phone_number && (
                 <div className="flex gap-2">
-                  <span className="text-gray-400 w-5 shrink-0">📞</span>
+                  <span className="text-gray-500 w-24 shrink-0">Contact</span>
                   <span className="text-gray-900">
                     {`${values.customer_phone_country_code || '+61'} ${values.customer_phone_number}`}
                   </span>
@@ -933,7 +939,7 @@ export default function CreateBookingPage() {
               )}
               {/* Service */}
               <div className="flex gap-2">
-                <span className="text-gray-400 w-5 shrink-0">🏙️</span>
+                <span className="text-gray-500 w-24 shrink-0">Service</span>
                 <span className={selectedCity ? 'text-gray-900' : 'text-gray-300'}>
                   {selectedCity?.name && selectedServiceType?.display_name
                     ? `${selectedCity.name} · ${selectedServiceType.display_name}`
@@ -942,7 +948,7 @@ export default function CreateBookingPage() {
               </div>
               {/* Date/time */}
               <div className="flex gap-2">
-                <span className="text-gray-400 w-5 shrink-0">🕐</span>
+                <span className="text-gray-500 w-24 shrink-0">Pickup time</span>
                 <span className={values.pickup_at_utc ? 'text-gray-900' : 'text-gray-300'}>
                   {values.pickup_at_utc
                     ? formatBookingTime(values.pickup_at_utc, values.timezone, selectedCity?.name)
@@ -951,7 +957,7 @@ export default function CreateBookingPage() {
               </div>
               {outboundFlight?.trim() && (
                 <div className="flex gap-2">
-                  <span className="text-gray-400 w-5 shrink-0">✈️</span>
+                  <span className="text-gray-500 w-24 shrink-0">Flight</span>
                   <span className="text-gray-700">{outboundFlight.trim()}</span>
                 </div>
               )}
@@ -959,7 +965,7 @@ export default function CreateBookingPage() {
               {values.is_return_trip && (
                 <>
                   <div className="flex gap-2">
-                    <span className="text-gray-400 w-5 shrink-0">↩️</span>
+                    <span className="text-gray-500 w-24 shrink-0">Return time</span>
                     <span className={values.return_pickup_at_utc ? 'text-gray-900' : 'text-gray-300'}>
                       {values.return_pickup_at_utc
                         ? formatBookingTime(values.return_pickup_at_utc, values.timezone, selectedCity?.name)
@@ -968,7 +974,7 @@ export default function CreateBookingPage() {
                   </div>
                   {returnFlight?.trim() && (
                     <div className="flex gap-2">
-                      <span className="text-gray-400 w-5 shrink-0">✈️</span>
+                      <span className="text-gray-500 w-24 shrink-0">Return flight</span>
                       <span className="text-gray-700">{returnFlight.trim()}</span>
                     </div>
                   )}
@@ -977,7 +983,7 @@ export default function CreateBookingPage() {
 
               {/* Route */}
               <div className="flex gap-2 items-start">
-                <span className="text-gray-400 w-5 shrink-0 mt-0.5">📍</span>
+                <span className="text-gray-500 w-24 shrink-0 mt-0.5">Route</span>
                 <span className={values.pickup_address_text ? 'text-gray-900' : 'text-gray-300 text-sm'}>
                   {values.pickup_address_text ? (
                     <span className="block space-y-0.5">
@@ -997,7 +1003,7 @@ export default function CreateBookingPage() {
               {/* Car type + price */}
               {selectedCarType && (
                 <div className="flex gap-2">
-                  <span className="text-gray-400 w-5 shrink-0">🚘</span>
+                  <span className="text-gray-500 w-24 shrink-0">Vehicle</span>
                   <div className="flex-1">
                     <span className="text-gray-900 font-medium">{selectedCarType.name}</span>
                     {quote.status === 'success' && (() => {
@@ -1104,7 +1110,7 @@ export default function CreateBookingPage() {
               )}
               {/* Pax */}
               <div className="flex gap-2">
-                <span className="text-gray-400 w-5 shrink-0">🧳</span>
+                <span className="text-gray-500 w-24 shrink-0">Passengers</span>
                 <span className="text-gray-600">{values.passenger_count} pax · {values.luggage_count ?? 0} bags</span>
               </div>
             </div>
