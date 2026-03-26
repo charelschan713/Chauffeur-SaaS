@@ -935,6 +935,32 @@ export default function CreateBookingPage() {
                     : 'No date/time'}
                 </span>
               </div>
+              {outboundFlight?.trim() && (
+                <div className="flex gap-2">
+                  <span className="text-gray-400 w-5 shrink-0">✈️</span>
+                  <span className="text-gray-700">{outboundFlight.trim()}</span>
+                </div>
+              )}
+
+              {values.is_return_trip && (
+                <>
+                  <div className="flex gap-2">
+                    <span className="text-gray-400 w-5 shrink-0">↩️</span>
+                    <span className={values.return_pickup_at_utc ? 'text-gray-900' : 'text-gray-300'}>
+                      {values.return_pickup_at_utc
+                        ? formatBookingTime(values.return_pickup_at_utc, values.timezone, selectedCity?.name)
+                        : 'No return date/time'}
+                    </span>
+                  </div>
+                  {returnFlight?.trim() && (
+                    <div className="flex gap-2">
+                      <span className="text-gray-400 w-5 shrink-0">✈️</span>
+                      <span className="text-gray-700">{returnFlight.trim()}</span>
+                    </div>
+                  )}
+                </>
+              )}
+
               {/* Route */}
               <div className="flex gap-2 items-start">
                 <span className="text-gray-400 w-5 shrink-0 mt-0.5">📍</span>
