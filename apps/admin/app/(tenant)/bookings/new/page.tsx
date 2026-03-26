@@ -923,14 +923,14 @@ export default function CreateBookingPage() {
                   {values.customer_name || 'No customer'}
                 </span>
               </div>
-              <div className="flex gap-2">
-                <span className="text-gray-400 w-5 shrink-0">📞</span>
-                <span className={values.customer_phone_number ? 'text-gray-900' : 'text-gray-300'}>
-                  {values.customer_phone_number
-                    ? `${values.customer_phone_country_code || '+61'} ${values.customer_phone_number}`
-                    : 'No passenger contact'}
-                </span>
-              </div>
+              {values.customer_phone_number && (
+                <div className="flex gap-2">
+                  <span className="text-gray-400 w-5 shrink-0">📞</span>
+                  <span className="text-gray-900">
+                    {`${values.customer_phone_country_code || '+61'} ${values.customer_phone_number}`}
+                  </span>
+                </div>
+              )}
               {/* Service */}
               <div className="flex gap-2">
                 <span className="text-gray-400 w-5 shrink-0">🏙️</span>
