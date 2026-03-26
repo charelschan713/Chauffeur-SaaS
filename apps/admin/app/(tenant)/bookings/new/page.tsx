@@ -237,15 +237,21 @@ export default function CreateBookingPage() {
   });
 
   const jobType = watch('job_type');
-  const currentSearch = typeof window !== 'undefined' ? window.location.search : '';
   const isDriverJob = isDriverJobPage || jobType === 'DRIVER_JOB';
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    const driverPage = new URLSearchParams(window.location.search).get('job_type') === 'DRIVER_JOB';
-    setIsDriverJobPage(driverPage);
-    setValue('job_type', driverPage ? 'DRIVER_JOB' : 'NORMAL', { shouldValidate: true });
-  }, [currentSearch, setValue]);
+
+    const syncFromQuery = () => {
+      const driverPage = new URLSearchParams(window.location.search).get('job_type') === 'DRIVER_JOB';
+      setIsDriverJobPage(prev => (prev === driverPage ? prev : driverPage));
+      setValue('job_type', driverPage ? 'DRIVER_JOB' : 'NORMAL', { shouldValidate: false });
+    };
+
+    syncFromQuery();
+    const timer = window.setInterval(syncFromQuery, 250);
+    return () => window.clearInterval(timer);
+  }, [setValue]);
 
   useEffect(() => {
     updateWizard({ activeSection, waypoints });
