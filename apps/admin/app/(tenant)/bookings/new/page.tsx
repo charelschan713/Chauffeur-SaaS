@@ -153,7 +153,6 @@ export default function CreateBookingPage() {
   const [outboundFlight, setOutboundFlight] = useState('');
   const [returnFlight, setReturnFlight] = useState('');
   const [driverDiscountCode, setDriverDiscountCode] = useState('');
-  const [isDriverJobPage, setIsDriverJobPage] = useState(false);
 
   const { data: carTypes = [] } = useQuery({
     queryKey: ['car-types'],
@@ -237,15 +236,13 @@ export default function CreateBookingPage() {
   });
 
   const jobType = watch('job_type');
-  const isDriverJob = jobType === 'DRIVER_JOB';
+  const isDriverJobPage = typeof window !== 'undefined'
+    && new URLSearchParams(window.location.search).get('job_type') === 'DRIVER_JOB';
+  const isDriverJob = isDriverJobPage || jobType === 'DRIVER_JOB';
 
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const fromQuery = new URLSearchParams(window.location.search).get('job_type');
-    const driverPage = fromQuery === 'DRIVER_JOB';
-    setIsDriverJobPage(driverPage);
-    setValue('job_type', driverPage ? 'DRIVER_JOB' : 'NORMAL', { shouldValidate: true });
-  }, [setValue]);
+    setValue('job_type', isDriverJobPage ? 'DRIVER_JOB' : 'NORMAL', { shouldValidate: true });
+  }, [isDriverJobPage, setValue]);
 
   useEffect(() => {
     updateWizard({ activeSection, waypoints });
@@ -338,7 +335,7 @@ export default function CreateBookingPage() {
     mutationFn: async (values: FormValues) => {
       const [firstName, ...rest] = values.customer_name.trim().split(' ');
       const payload = {
-        job_type: values.job_type,
+        job_type: isDriverJobPage ? 'DRIVER_JOB' : values.job_type,
         // Customer fields — flat as backend expects
         customer_first_name: firstName,
         customer_last_name: rest.join(' ') || 'Customer',
