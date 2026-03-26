@@ -236,12 +236,13 @@ export default function DashboardPage() {
           <div className="grid grid-cols-2 gap-2">
             {[
               { href: '/bookings/new', label: 'New Booking', icon: Plus, accent: 'blue' },
+              { href: '/bookings/new?job_type=DRIVER_JOB', label: 'New Driver Job', icon: Plus, accent: 'blue' },
               { href: '/dispatch', label: 'Dispatch Board', icon: Car, accent: 'gray' },
               { href: '/drivers', label: 'Manage Drivers', icon: Car, accent: 'gray' },
               { href: '/bookings', label: 'All Bookings', icon: CalendarCheck, accent: 'gray' },
             ].map(({ href, label, icon: Icon, accent }) => (
               <Link
-                key={href}
+                key={label}
                 href={href}
                 className={`flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
                   accent === 'blue'

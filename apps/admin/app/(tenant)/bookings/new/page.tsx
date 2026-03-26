@@ -229,6 +229,14 @@ export default function CreateBookingPage() {
   const isDriverJob = jobType === 'DRIVER_JOB';
 
   useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const fromQuery = new URLSearchParams(window.location.search).get('job_type');
+    if (fromQuery === 'DRIVER_JOB') {
+      setValue('job_type', 'DRIVER_JOB', { shouldValidate: true });
+    }
+  }, [setValue]);
+
+  useEffect(() => {
     updateWizard({ activeSection, waypoints });
   }, [activeSection, waypoints, updateWizard]);
 
