@@ -153,6 +153,7 @@ export default function CreateBookingPage() {
   const [outboundFlight, setOutboundFlight] = useState('');
   const [returnFlight, setReturnFlight] = useState('');
   const [driverDiscountCode, setDriverDiscountCode] = useState('');
+  const [isDriverJobPage, setIsDriverJobPage] = useState(false);
 
   const { data: carTypes = [] } = useQuery({
     queryKey: ['car-types'],
@@ -236,13 +237,15 @@ export default function CreateBookingPage() {
   });
 
   const jobType = watch('job_type');
-  const isDriverJobPage = typeof window !== 'undefined'
-    && new URLSearchParams(window.location.search).get('job_type') === 'DRIVER_JOB';
+  const currentSearch = typeof window !== 'undefined' ? window.location.search : '';
   const isDriverJob = isDriverJobPage || jobType === 'DRIVER_JOB';
 
   useEffect(() => {
-    setValue('job_type', isDriverJobPage ? 'DRIVER_JOB' : 'NORMAL', { shouldValidate: true });
-  }, [isDriverJobPage, setValue]);
+    if (typeof window === 'undefined') return;
+    const driverPage = new URLSearchParams(window.location.search).get('job_type') === 'DRIVER_JOB';
+    setIsDriverJobPage(driverPage);
+    setValue('job_type', driverPage ? 'DRIVER_JOB' : 'NORMAL', { shouldValidate: true });
+  }, [currentSearch, setValue]);
 
   useEffect(() => {
     updateWizard({ activeSection, waypoints });
