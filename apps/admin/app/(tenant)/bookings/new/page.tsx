@@ -86,8 +86,8 @@ const formSchema = z
         });
       }
     }
-    // Return trip: return time must be after outbound pickup time
-    if (values.is_return_trip && values.return_pickup_at_utc && values.pickup_at_utc) {
+    // Return trip constraints (skip for Driver Job)
+    if (values.job_type !== 'DRIVER_JOB' && values.is_return_trip && values.return_pickup_at_utc && values.pickup_at_utc) {
       const outbound = new Date(values.pickup_at_utc).getTime();
       const ret = new Date(values.return_pickup_at_utc).getTime();
       if (ret <= outbound) {
@@ -98,8 +98,7 @@ const formSchema = z
         });
       }
     }
-    // Return trip: return time is required if is_return_trip is checked
-    if (values.is_return_trip && !values.return_pickup_at_utc) {
+    if (values.job_type !== 'DRIVER_JOB' && values.is_return_trip && !values.return_pickup_at_utc) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: 'Return pickup time is required',
@@ -1131,7 +1130,7 @@ export default function CreateBookingPage() {
                   <DateTimePicker label="Return Date & Time" value={values.return_pickup_at_utc ?? ''}
                     onChange={(v) => setValue('return_pickup_at_utc', v, { shouldValidate: true })}
                     error={errors.return_pickup_at_utc?.message}
-                    minDate={values.pickup_at_utc || undefined} />
+                    minDate={isDriverJob ? undefined : (values.pickup_at_utc || undefined)} />
                   <Field label="Return Flight (optional)">
                     <Input value={returnFlight} onChange={(e) => setReturnFlight(e.target.value)} placeholder="e.g. QF402" />
                   </Field>
