@@ -114,17 +114,9 @@ export function DateTimePicker({ value, onChange, label, error, minDate, placeho
   }
 
   function handleConfirm() {
-    // emit as UTC ISO string (so display + backend remain consistent)
-    const iso = new Date(Date.UTC(
-      draft.getFullYear(),
-      draft.getMonth(),
-      draft.getDate(),
-      draft.getHours(),
-      draft.getMinutes(),
-      0,
-      0,
-    )).toISOString();
-    onChange(iso);
+    // emit as booking-local datetime (no timezone conversion)
+    const local = `${draft.getFullYear()}-${pad(draft.getMonth() + 1)}-${pad(draft.getDate())}T${pad(draft.getHours())}:${pad(draft.getMinutes())}:00`;
+    onChange(local);
     setOpen(false);
   }
 
