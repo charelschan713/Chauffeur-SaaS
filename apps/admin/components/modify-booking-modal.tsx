@@ -121,9 +121,9 @@ export function ModifyBookingModal({ isOpen, onClose, booking, serviceTypes, car
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="w-full max-w-4xl rounded-2xl bg-white p-6 md:p-7 shadow-[0_24px_60px_rgba(0,0,0,0.2)]">
-        <div className="flex items-center justify-between mb-4">
+    <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 p-3 sm:p-4 overflow-y-auto">
+      <div className="w-full max-w-4xl rounded-2xl bg-white p-5 md:p-7 shadow-[0_24px_60px_rgba(0,0,0,0.2)] max-h-[92vh] overflow-y-auto my-4">
+        <div className="flex items-center justify-between mb-4 sticky top-0 bg-white z-10 pb-2">
           <h2 className="text-lg font-semibold">Modify Booking</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600">✕</button>
         </div>
@@ -250,7 +250,7 @@ export function ModifyBookingModal({ isOpen, onClose, booking, serviceTypes, car
           </div>
         </div>
 
-        <div className="mt-5 flex justify-end gap-2">
+        <div className="mt-5 flex justify-end gap-2 sticky bottom-0 bg-white pt-3">
           <Button variant="secondary" onClick={onClose}>Cancel</Button>
           <Button onClick={handleSubmit} disabled={loading}>{loading ? 'Saving…' : 'Save changes'}</Button>
         </div>
