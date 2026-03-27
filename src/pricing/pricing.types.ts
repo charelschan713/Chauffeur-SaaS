@@ -52,6 +52,7 @@ export interface PricingSnapshot {
   currency: string;
   fare_minor?: number;
   total_fare_minor?: number;
+  booked_hours?: number;
   hourly_included_km?: number;
   hourly_excess_km?: number;
   hourly_charge_minor?: number;
