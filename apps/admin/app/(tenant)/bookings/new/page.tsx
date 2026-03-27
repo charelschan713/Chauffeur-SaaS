@@ -1157,6 +1157,7 @@ export default function CreateBookingPage() {
             <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">Date & Time</h2>
             <div className="space-y-4">
               <input type="hidden" {...register('timezone')} />
+              <input type="hidden" {...register('flight_number')} />
               <DateTimePicker label="Pickup Date & Time" value={values.pickup_at_utc}
                 onChange={(v) => setValue('pickup_at_utc', v, { shouldValidate: true })}
                 error={errors.pickup_at_utc?.message} />
