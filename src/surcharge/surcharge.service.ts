@@ -30,8 +30,8 @@ export class SurchargeService {
       ? pickupAtUtc
       : pickupAtUtc.toISOString();
 
-    // Use booking-local time directly (no timezone conversion)
-    const { localDate, localTime } = this.parseLocalDateTime(pickupRaw);
+    // Use booking-local time in the provided timezone
+    const { localDate, localTime } = this.toLocalDateTime(pickupRaw, timezone);
 
     // Weekday/weekend based on the booking-local date
     const [y, m, d] = localDate.split('-').map(Number);
@@ -127,18 +127,30 @@ export class SurchargeService {
     return 'Late night surcharge';
   }
 
-  private parseLocalDateTime(pickupRaw: string) {
-    if (pickupRaw.includes('T')) {
+  private toLocalDateTime(pickupRaw: string, timezone: string) {
+    // If pickupRaw already looks like local datetime without timezone, keep it.
+    if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(pickupRaw) && !/[Z+-]\d{2}:?\d{2}$/.test(pickupRaw)) {
       const [datePart, timePartRaw] = pickupRaw.split('T');
       const timePart = (timePartRaw ?? '').slice(0, 8) || '00:00:00';
       return { localDate: datePart, localTime: timePart.length === 5 ? `${timePart}:00` : timePart };
     }
-    // Fallback: try Date parsing
+
+    // Convert from UTC/offset to the booking timezone
     const dt = new Date(pickupRaw);
     if (!Number.isNaN(dt.getTime())) {
-      const iso = dt.toISOString();
-      return { localDate: iso.slice(0, 10), localTime: iso.slice(11, 19) };
+      const formatter = new Intl.DateTimeFormat('en-CA', {
+        timeZone: timezone || 'Australia/Sydney',
+        year: 'numeric', month: '2-digit', day: '2-digit',
+        hour: '2-digit', minute: '2-digit', second: '2-digit',
+        hour12: false,
+      });
+      const parts = formatter.formatToParts(dt);
+      const get = (t: string) => parts.find(p => p.type === t)?.value ?? '';
+      const localDate = `${get('year')}-${get('month')}-${get('day')}`;
+      const localTime = `${get('hour')}:${get('minute')}:${get('second')}`;
+      return { localDate, localTime };
     }
+
     return { localDate: '', localTime: '' };
   }
 
