@@ -506,6 +506,8 @@ export class CustomerPortalService implements OnModuleInit {
       dropoffAddress  = dropoffAddress  ?? req.dropoffAddress ?? req.dropoff_address ?? req.dropoff_address_text;
       pickupAtUtc     = pickupAtUtc     ?? req.pickupAtUtc    ?? req.pickup_at_utc  ?? req.pickup_at;
       serviceTypeId   = serviceTypeId   ?? req.serviceTypeId  ?? req.service_type_id ?? null;
+      const bookedHours = dto.booked_hours ?? dto.duration_hours ?? req.duration_hours ?? null;
+      if (bookedHours != null) dto.booked_hours = bookedHours;
       vehicleClassId  = dto.vehicleClassId ?? null;
       currency        = currency        ?? payload.currency ?? 'AUD';
       passengerCount  = passengerCount  ?? req.passengers     ?? req.passenger_count ?? 1;
@@ -585,6 +587,27 @@ export class CustomerPortalService implements OnModuleInit {
           discount_guard:      'loyalty_applied_on_booking',
         };
         vehicleClassId  = result.service_class_id ?? dto.vehicleClassId ?? null;
+      }
+    }
+
+    // Ensure hourly metadata is present for hourly-charter bookings
+    if (pricingSnapshot && dto.booked_hours != null) {
+      try {
+        const [st] = await this.db.query(
+          `SELECT calculation_type, km_per_hour_included
+             FROM public.tenant_service_types
+            WHERE id = $1 AND tenant_id = $2 LIMIT 1`,
+          [serviceTypeId, tenantId],
+        );
+        const isHourly = st?.calculation_type === 'HOURLY_CHARTER' || (dto.booked_hours ?? 0) > 0;
+        if (isHourly) {
+          if (pricingSnapshot.booked_hours == null) pricingSnapshot.booked_hours = dto.booked_hours;
+          if (pricingSnapshot.hourly_included_km == null && st?.km_per_hour_included != null) {
+            pricingSnapshot.hourly_included_km = Number(st.km_per_hour_included) * Number(dto.booked_hours ?? 0);
+          }
+        }
+      } catch (_e) {
+        // non-fatal: keep booking creation even if hourly metadata lookup fails
       }
     }
 
