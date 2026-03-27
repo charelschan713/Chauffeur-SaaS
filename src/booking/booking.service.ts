@@ -162,6 +162,15 @@ export class BookingService {
     return rows[0].id;
   }
 
+  async resendBookingConfirmation(tenantId: string, idOrRef: string) {
+    const resolvedId = await this.resolveBookingId(tenantId, idOrRef);
+    await this.notificationService.handleEvent('BookingConfirmed', {
+      tenant_id: tenantId,
+      booking_id: resolvedId,
+    });
+    return { success: true };
+  }
+
   async getBookingDetail(tenantId: string, bookingId: string) {
     const resolvedId = await this.resolveBookingId(tenantId, bookingId);
     const bookings = await this.dataSource.query(

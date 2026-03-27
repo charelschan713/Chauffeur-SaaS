@@ -150,6 +150,14 @@ export class BookingController {
     return this.service.confirmAndCharge(tenantId, bookingId);
   }
 
+  @Post(':id/resend-confirmation')
+  resendConfirmation(
+    @Param('id') bookingId: string,
+    @CurrentUser('tenant_id') tenantId: string,
+  ) {
+    return this.service.resendBookingConfirmation(tenantId, bookingId);
+  }
+
   @Post(':id/modify-admin')
   modifyAdmin(
     @Param('id') bookingId: string,
