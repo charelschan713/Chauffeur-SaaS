@@ -148,7 +148,22 @@ export class BookingService {
     };
   }
 
+  private isUuid(value: string): boolean {
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+  }
+
+  private async resolveBookingId(tenantId: string, idOrRef: string): Promise<string> {
+    if (this.isUuid(idOrRef)) return idOrRef;
+    const rows = await this.dataSource.query(
+      `SELECT id FROM public.bookings WHERE booking_reference = $1 AND tenant_id = $2 LIMIT 1`,
+      [idOrRef, tenantId],
+    );
+    if (!rows.length) throw new NotFoundException('Booking not found');
+    return rows[0].id;
+  }
+
   async getBookingDetail(tenantId: string, bookingId: string) {
+    const resolvedId = await this.resolveBookingId(tenantId, bookingId);
     const bookings = await this.dataSource.query(
       `SELECT b.*,
               tst.display_name AS service_type_name,
@@ -157,7 +172,7 @@ export class BookingService {
          LEFT JOIN public.tenant_service_types tst ON tst.id = b.service_type_id
          LEFT JOIN public.tenant_service_classes tsc ON tsc.id = b.service_class_id
         WHERE b.id = $1 AND b.tenant_id = $2`,
-      [bookingId, tenantId],
+      [resolvedId, tenantId],
     );
     if (!bookings.length) throw new NotFoundException('Booking not found');
     const booking = bookings[0];
@@ -167,7 +182,7 @@ export class BookingService {
         `SELECT * FROM public.booking_status_history
          WHERE booking_id = $1
          ORDER BY created_at ASC`,
-        [bookingId],
+        [resolvedId],
       ),
       this.dataSource.query(
         `SELECT a.*, u.full_name as driver_name,
@@ -188,13 +203,13 @@ export class BookingService {
            LEFT JOIN public.platform_vehicles pv ON pv.id = tv.platform_vehicle_id
           WHERE a.booking_id = $1
           ORDER BY a.created_at DESC`,
-        [bookingId],
+        [resolvedId],
       ),
       this.dataSource.query(
         `SELECT * FROM public.payments
           WHERE booking_id = $1
           ORDER BY created_at ASC`,
-        [bookingId],
+        [resolvedId],
       ),
       // Check if customer has a saved Stripe payment method
       booking.customer_id ? this.dataSource.query(
@@ -211,7 +226,7 @@ export class BookingService {
            LEFT JOIN public.users u ON u.id = r.driver_id
           WHERE r.booking_id = $1
           ORDER BY r.created_at DESC LIMIT 1`,
-        [bookingId],
+        [resolvedId],
       ).catch(() => []),
     ]);
 

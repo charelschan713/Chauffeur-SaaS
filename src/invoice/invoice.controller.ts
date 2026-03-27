@@ -17,6 +17,20 @@ export class InvoiceController {
     private readonly tenantInvoice: TenantInvoiceService,
   ) {}
 
+  private isUuid(value: string): boolean {
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+  }
+
+  private async resolveBookingId(tenantId: string, idOrRef: string): Promise<string> {
+    if (this.isUuid(idOrRef)) return idOrRef;
+    const rows = await this.db.query(
+      `SELECT id FROM public.bookings WHERE booking_reference = $1 AND tenant_id = $2 LIMIT 1`,
+      [idOrRef, tenantId],
+    );
+    if (!rows.length) throw new NotFoundException('Booking not found');
+    return rows[0].id;
+  }
+
   private async nextNumber(tenantId: string): Promise<string> {
     const rows = await this.db.query(
       `SELECT COUNT(*) FROM public.invoices WHERE tenant_id = $1`, [tenantId],
@@ -36,7 +50,11 @@ export class InvoiceController {
     const params: any[] = [req.user.tenant_id];
     if (status)    { conds.push(`i.status = $${params.length + 1}`); params.push(status); }
     if (type)      { conds.push(`i.invoice_type = $${params.length + 1}`); params.push(type); }
-    if (bookingId) { conds.push(`i.booking_id = $${params.length + 1}`); params.push(bookingId); }
+    if (bookingId) {
+      const resolvedId = await this.resolveBookingId(req.user.tenant_id, bookingId);
+      conds.push(`i.booking_id = $${params.length + 1}`);
+      params.push(resolvedId);
+    }
     const where = conds.join(' AND ');
     const [rows, count] = await Promise.all([
       this.db.query(
