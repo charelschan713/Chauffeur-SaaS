@@ -1309,16 +1309,21 @@ export default function CreateBookingPage() {
 
                   {isDriverJob && (
                     <div className="mt-4">
-                      <label className="text-sm font-medium text-gray-700 block mb-1">Loyalty Discount</label>
-                      <Select value={driverDiscountCode}
-                        onChange={(e) => setDriverDiscountCode(e.target.value)}>
-                        <option value="">No discount</option>
+                      <label className="text-sm font-medium text-gray-700 block mb-1">Loyalty Discount Code</label>
+                      <Input
+                        list="driver-discount-codes"
+                        placeholder="Enter discount code (optional)"
+                        value={driverDiscountCode}
+                        onChange={(e) => setDriverDiscountCode(e.target.value.toUpperCase())}
+                      />
+                      <datalist id="driver-discount-codes">
                         {discounts.map((d: any) => (
                           <option key={d.id} value={d.code}>
                             {d.name} ({d.type === 'PERCENTAGE' ? `${d.value}%` : `$${Number(d.value || 0).toFixed(2)}`})
                           </option>
                         ))}
-                      </Select>
+                      </datalist>
+                      <p className="text-xs text-gray-400 mt-1">You can type any code or pick from existing discounts.</p>
                     </div>
                   )}
 
