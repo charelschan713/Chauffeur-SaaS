@@ -181,6 +181,19 @@ export function BookingDetailClient({ id }: { id: string }) {
             );
           })()}
           {booking.passenger_count && <Row label="Passengers" value={`${booking.passenger_count} pax`} />}
+          {(() => {
+            const snap = booking.pricing_snapshot as any;
+            const bookedHours = typeof snap?.booked_hours === 'number' && Number.isFinite(snap.booked_hours) ? snap.booked_hours : null;
+            const includedKm = typeof snap?.hourly_included_km === 'number' && Number.isFinite(snap.hourly_included_km) ? snap.hourly_included_km : null;
+            const isHourly = (typeof snap?.hourly_charge_minor === 'number' && snap.hourly_charge_minor > 0) || (bookedHours != null && bookedHours > 0);
+            if (!isHourly) return null;
+            return (
+              <>
+                {bookedHours != null && <Row label="Duration" value={`${bookedHours} hours`} />}
+                {includedKm != null && <Row label="Included distance" value={`${includedKm} km`} />}
+              </>
+            );
+          })()}
           {booking.special_requests && <Row label="Notes" value={booking.special_requests} />}
         </Section>
 

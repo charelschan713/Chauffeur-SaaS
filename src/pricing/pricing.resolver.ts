@@ -549,6 +549,7 @@ export class PricingResolver {
       subtotalMinor: baseMinor,
       fare_minor: fareMinor,
       total_fare_minor: totalFareMinor,
+      booked_hours: ctx.bookedHours ?? null,
       hourly_included_km: hourlyIncludedKm,
       hourly_excess_km: hourlyExcessKm,
       hourly_charge_minor: hourlyChargeMinor,

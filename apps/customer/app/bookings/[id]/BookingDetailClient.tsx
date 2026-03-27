@@ -329,7 +329,13 @@ export function BookingDetailClient({ id }: { id: string }) {
               const hourlyCharge = typeof (snap as any).hourly_charge_minor === 'number' && Number.isFinite((snap as any).hourly_charge_minor)
                 ? (snap as any).hourly_charge_minor
                 : 0;
-              const isHourly = hourlyCharge > 0;
+              const bookedHours = typeof (snap as any).booked_hours === 'number' && Number.isFinite((snap as any).booked_hours)
+                ? (snap as any).booked_hours
+                : null;
+              const includedKm = typeof (snap as any).hourly_included_km === 'number' && Number.isFinite((snap as any).hourly_included_km)
+                ? (snap as any).hourly_included_km
+                : null;
+              const isHourly = hourlyCharge > 0 || (bookedHours != null && bookedHours > 0);
 
               const combinedLegMinor = (leg1 ?? 0) + (leg2 ?? 0);
               const outboundRatio = hasReturn && combinedLegMinor > 0 ? (leg1 ?? 0) / combinedLegMinor : 1;
@@ -347,6 +353,8 @@ export function BookingDetailClient({ id }: { id: string }) {
                 <>
                   {isHourly ? (
                     <>
+                      {bookedHours != null && <Row label="Duration" value={`${bookedHours} hours`} />}
+                      {includedKm != null && <Row label="Included distance" value={`${includedKm} km`} />}
                       <Row label="Total hourly charge" value={fmt(hourlyCharge)} />
                       {waypointsMinor > 0 && <Row label="Waypoints" value={`+${fmt(waypointsMinor)}`} />}
                       {extrasMinor > 0 && <Row label="Extras" value={`+${fmt(extrasMinor)}`} />}
