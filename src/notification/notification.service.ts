@@ -565,7 +565,13 @@ export class NotificationService {
     const currency = booking.currency ?? 'AUD';
     const snapshot = booking.pricing_snapshot ?? {};
 
-    const waypointAddrs: string[] = (booking.waypoints ?? [])
+    const rawWaypoints = booking.waypoints ?? [];
+    const waypointArray: any[] = Array.isArray(rawWaypoints)
+      ? rawWaypoints
+      : (typeof rawWaypoints === 'string'
+          ? (() => { try { const parsed = JSON.parse(rawWaypoints); return Array.isArray(parsed) ? parsed : []; } catch { return []; } })()
+          : []);
+    const waypointAddrs: string[] = waypointArray
       .map((w: any) => (typeof w === 'string' ? w : (w.address ?? w.name ?? '')))
       .filter(Boolean);
     const waypointsStr = waypointAddrs.map((addr, i) => `Stop ${i + 1}: ${addr}`).join('\n');
