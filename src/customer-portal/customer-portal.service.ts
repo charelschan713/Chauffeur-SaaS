@@ -659,7 +659,15 @@ export class CustomerPortalService implements OnModuleInit {
         dto.luggageCount ?? 0,
         notes,
         totalPriceMinor,                          // $24 — prepay_total_minor
-        dto.waypoints?.filter(Boolean) ?? [],     // $25 — waypoints
+        JSON.stringify((() => {
+          const raw = dto.waypoints ?? [];
+          if (Array.isArray(raw)) return raw.filter(Boolean);
+          if (typeof raw === 'string') {
+            try { const parsed = JSON.parse(raw); return Array.isArray(parsed) ? parsed.filter(Boolean) : []; }
+            catch { return []; }
+          }
+          return [];
+        })()),                                  // $25 — waypoints
         dto.isReturnTrip ? true : false,          // $26 — is_return_trip
         dto.returnPickupAtUtc ?? null,            // $27 — return_pickup_at_utc
         dto.returnPickupAddressText ?? null,      // $28 — return_pickup_address_text
