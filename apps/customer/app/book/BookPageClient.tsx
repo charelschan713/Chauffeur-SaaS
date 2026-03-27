@@ -531,7 +531,16 @@ export function BookPageClient() {
   const renderQuoteSummary = () => {
     if (!session || !selectedResult) return null;
     const req     = session.payload.request;
-    const preview = selectedResult.pricing_snapshot_preview;
+    const preview = loyaltyDiscount
+      ? {
+          ...selectedResult.pricing_snapshot_preview,
+          discount_amount_minor: loyaltyDiscount.discountMinor,
+          discount_rate: loyaltyDiscount.discountRate,
+          discount_name: loyaltyDiscount.discountName,
+          final_fare_minor: loyaltyDiscount.finalFareMinor,
+          grand_total_minor: loyaltyDiscount.finalFareMinor,
+        }
+      : selectedResult.pricing_snapshot_preview;
     const isReturnTrip = req.trip_mode === 'RETURN';
     const outboundWaypoints = req.waypoints?.filter(Boolean) ?? [];
     const returnWaypoints = [...outboundWaypoints].reverse();
