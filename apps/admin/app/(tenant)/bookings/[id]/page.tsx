@@ -747,9 +747,13 @@ function BookingDetailInner() {
                   const discountMinor = typeof snap.discount_amount_minor === 'number' ? snap.discount_amount_minor : 0;
                   const discountLabel = snap.discount_name ?? null;
                   const discountGuard = snap.discount_guard ?? null;
-                  const total = typeof snap.final_fare_minor === 'number'
-                    ? snap.final_fare_minor
-                    : booking.total_price_minor ?? 0;
+                  const bookingTotalMinor = typeof booking.total_price_minor === 'number'
+                    ? booking.total_price_minor
+                    : (typeof booking.total_price_minor === 'string' ? Number(booking.total_price_minor) : null);
+                  const snapshotTotalMinor = typeof snap.grand_total_minor === 'number'
+                    ? snap.grand_total_minor
+                    : (typeof snap.final_fare_minor === 'number' ? snap.final_fare_minor : null);
+                  const total = bookingTotalMinor ?? snapshotTotalMinor ?? 0;
                   const isReturn = booking.trip_mode === 'RETURN';
                   const bookedHours = typeof snap.booked_hours === 'number' && Number.isFinite(snap.booked_hours) ? snap.booked_hours : null;
                   const includedKm = typeof snap.hourly_included_km === 'number' && Number.isFinite(snap.hourly_included_km) ? snap.hourly_included_km : null;
