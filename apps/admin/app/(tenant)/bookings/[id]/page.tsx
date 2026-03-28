@@ -767,7 +767,8 @@ function BookingDetailInner() {
                   const isReturn = booking.trip_mode === 'RETURN';
                   const bookedHours = typeof snap.booked_hours === 'number' && Number.isFinite(snap.booked_hours) ? snap.booked_hours : null;
                   const includedKm = typeof snap.hourly_included_km === 'number' && Number.isFinite(snap.hourly_included_km) ? snap.hourly_included_km : null;
-                  const isHourly = (typeof snap.hourly_charge_minor === 'number' && snap.hourly_charge_minor > 0) || (bookedHours != null && bookedHours > 0);
+                  const hourlyChargeMinor = typeof snap.hourly_charge_minor === 'number' ? snap.hourly_charge_minor : 0;
+                  const isHourly = (hourlyChargeMinor > 0) || (bookedHours != null && bookedHours > 0);
                   return (
                     <>
                       {leg1 > 0 && <div className="flex justify-between"><span className="text-gray-500">Outbound price</span><span>{fmt(leg1)}</span></div>}
@@ -815,6 +816,9 @@ function BookingDetailInner() {
                       )}
                       {isHourly && includedKm != null && (
                         <div className="flex justify-between"><span className="text-gray-500">Included distance</span><span>{includedKm} km</span></div>
+                      )}
+                      {isHourly && hourlyChargeMinor > 0 && (
+                        <div className="flex justify-between"><span className="text-gray-500">Total hourly charge</span><span>{fmt(hourlyChargeMinor)}</span></div>
                       )}
 
                       <div className="flex justify-between font-semibold border-t pt-1 mt-1">

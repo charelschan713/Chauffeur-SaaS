@@ -185,12 +185,16 @@ export function BookingDetailClient({ id }: { id: string }) {
             const snap = booking.pricing_snapshot as any;
             const bookedHours = typeof snap?.booked_hours === 'number' && Number.isFinite(snap.booked_hours) ? snap.booked_hours : null;
             const includedKm = typeof snap?.hourly_included_km === 'number' && Number.isFinite(snap.hourly_included_km) ? snap.hourly_included_km : null;
-            const isHourly = (typeof snap?.hourly_charge_minor === 'number' && snap.hourly_charge_minor > 0) || (bookedHours != null && bookedHours > 0);
+            const hourlyChargeMinor = typeof snap?.hourly_charge_minor === 'number' && Number.isFinite(snap.hourly_charge_minor)
+              ? snap.hourly_charge_minor
+              : 0;
+            const isHourly = hourlyChargeMinor > 0 || (bookedHours != null && bookedHours > 0);
             if (!isHourly) return null;
             return (
               <>
                 {bookedHours != null && <Row label="Duration" value={`${bookedHours} hours`} />}
                 {includedKm != null && <Row label="Included distance" value={`${includedKm} km`} />}
+                {hourlyChargeMinor > 0 && <Row label="Total hourly charge" value={`${(hourlyChargeMinor / 100).toFixed(2)} ${booking.currency ?? 'AUD'}`} />}
               </>
             );
           })()}
