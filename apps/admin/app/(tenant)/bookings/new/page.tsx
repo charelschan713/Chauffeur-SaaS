@@ -458,6 +458,9 @@ export default function CreateBookingPage() {
     if (parts.length > 1) {
       setOutboundFlight(parts[0].trim());
       setReturnFlight(parts.slice(1).join('/ Return ').trim());
+    } else if (/^\s*Return\s+/i.test(raw)) {
+      setOutboundFlight('');
+      setReturnFlight(raw.replace(/^\s*Return\s+/i, '').trim());
     } else {
       setOutboundFlight(raw);
     }
