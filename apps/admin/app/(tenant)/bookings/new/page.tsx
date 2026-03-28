@@ -772,7 +772,7 @@ export default function CreateBookingPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left Column */}
         <div className="lg:col-span-1 space-y-4">
-          <div className="bg-white border rounded p-5 sticky top-6">
+          <div className="bg-white border border-gray-200 rounded-lg p-5 shadow-sm sticky top-6">
             <h2 className="font-semibold mb-4">Customer & Passenger</h2>
 
             {/* Customer search / select */}
@@ -915,7 +915,7 @@ export default function CreateBookingPage() {
             )}
           </div>
           {/* Booking Summary Card */}
-          <div className="bg-white border rounded p-5 space-y-3">
+          <div className="bg-white border border-gray-200 rounded-lg p-5 shadow-sm space-y-3">
             <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Booking Summary</h3>
             <div className="space-y-2 text-sm">
               {/* Customer */}
