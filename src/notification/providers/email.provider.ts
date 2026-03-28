@@ -73,8 +73,9 @@ export class EmailProvider {
       if (!res.ok) {
         const body = await res.text();
         this.logger.error(`Resend error body: ${body}`);
+        throw new Error(`Resend failed: ${res.status} ${body}`);
       }
-      return res.ok;
+      return true;
     } catch (err) {
       this.logger.error('Resend error', err as Error);
       return false;

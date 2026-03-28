@@ -748,7 +748,8 @@ export class NotificationService {
       fromName: resolvedFromName,
     };
     try {
-      await this.emailProvider.send(integration, finalOpts);
+      const ok = await this.emailProvider.send(integration, finalOpts);
+      if (!ok) throw new Error('Email provider returned failure');
       await this.logNotification({
         tenantId, eventType, channel: 'email', recipientEmail: finalOpts.to,
         subject: finalOpts.subject, body: finalOpts.html, status: 'SENT', bookingId,
