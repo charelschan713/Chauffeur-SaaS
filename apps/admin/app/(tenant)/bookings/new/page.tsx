@@ -1161,7 +1161,20 @@ export default function CreateBookingPage() {
                 onChange={(v) => setValue('pickup_at_utc', v, { shouldValidate: true })}
                 error={errors.pickup_at_utc?.message} />
               <Field label="Flight Number (optional)">
-                <Input value={outboundFlight} onChange={(e) => setOutboundFlight(e.target.value)} placeholder="e.g. QF401" />
+                <Input
+                  value={outboundFlight}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    setOutboundFlight(v);
+                    if (!v && !returnFlight) {
+                      setValue('flight_number', '', { shouldDirty: true });
+                      return;
+                    }
+                    const returnPart = returnFlight ? ` / Return ${returnFlight}` : '';
+                    setValue('flight_number', `${v}${returnPart}`.trim(), { shouldDirty: true });
+                  }}
+                  placeholder="e.g. QF401"
+                />
               </Field>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* P2P / Event / Wedding — Trip Type */}
@@ -1198,7 +1211,21 @@ export default function CreateBookingPage() {
                     error={errors.return_pickup_at_utc?.message}
                     minDate={values.pickup_at_utc || undefined} />
                   <Field label="Return Flight (optional)">
-                    <Input value={returnFlight} onChange={(e) => setReturnFlight(e.target.value)} placeholder="e.g. QF402" />
+                    <Input
+                      value={returnFlight}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        setReturnFlight(v);
+                        if (!v && !outboundFlight) {
+                          setValue('flight_number', '', { shouldDirty: true });
+                          return;
+                        }
+                        const base = outboundFlight ? outboundFlight.trim() : '';
+                        const composed = v ? `${base}${base ? ' / Return ' : 'Return '}${v}` : base;
+                        setValue('flight_number', composed.trim(), { shouldDirty: true });
+                      }}
+                      placeholder="e.g. QF402"
+                    />
                   </Field>
                   <p className="text-xs text-gray-400">Return pickup from drop-off location.</p>
                 </div>
