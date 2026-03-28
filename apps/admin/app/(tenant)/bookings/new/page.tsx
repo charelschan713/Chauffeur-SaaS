@@ -298,6 +298,8 @@ export default function CreateBookingPage() {
     setWaypoints([]);
     setPickupPlaceId('');
     setDropoffPlaceId('');
+    setOutboundFlight('');
+    setReturnFlight('');
     setSelectedCustomerId(null);
     setSaveAsPassenger(false);
     setPassengerLabel('');
@@ -449,13 +451,7 @@ export default function CreateBookingPage() {
   const tenantSlug = tenantBusiness?.slug ?? null;
 
   useEffect(() => {
-    if (!values.flight_number) {
-      if (outboundFlight || returnFlight) {
-        setOutboundFlight('');
-        setReturnFlight('');
-      }
-      return;
-    }
+    if (!values.flight_number) return;
     if (outboundFlight || returnFlight) return;
     const raw = String(values.flight_number);
     const parts = raw.split('/ Return ');
