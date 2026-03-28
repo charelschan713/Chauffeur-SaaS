@@ -255,7 +255,7 @@ export function Widget({ slug }: { slug: string }) {
       const waypointList = showWaypoints ? normalizeWaypointsForRoute(waypoints) : [];
       const route = await fetchRoute(slug, pickup, dropoff, waypointList);
       setRouteData(route);
-      const pickupUtc = localToUtc(datetime, tenant?.timezone ?? 'Australia/Sydney');
+      const pickupUtc = datetime; // local time; backend converts to UTC
 
       let returnRoute: { distance_km: number; duration_minutes: number } | null = null;
       if (showReturn && effectiveTripMode === 'RETURN' && !isHourly) {
@@ -264,7 +264,7 @@ export function Widget({ slug }: { slug: string }) {
       }
 
       const returnPickupUtc = (showReturn && effectiveTripMode === 'RETURN')
-        ? localToUtc(returnDatetime, tenant?.timezone ?? 'Australia/Sydney')
+        ? returnDatetime
         : undefined;
 
       const quote = await fetchQuote(slug, {

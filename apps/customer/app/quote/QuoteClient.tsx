@@ -477,7 +477,7 @@ export function QuoteClient() {
     try {
       const effectiveDropoff = isHourly(selectedServiceType) ? (dropoff || pickup) : dropoff;
       const activeWaypoints = waypoints.filter(Boolean);
-      const pickupAtUtcStr = new Date(`${date}T${time}:00`).toISOString();
+      const pickupAtUtcStr = `${date}T${time}:00`;
 
       // Outbound route: A → [B…] → C
       const outboundParams = new URLSearchParams({ tenant_slug: slug, origin: pickup, destination: effectiveDropoff, pickup_at: pickupAtUtcStr });
@@ -487,7 +487,7 @@ export function QuoteClient() {
       // Return route: C → [B…reversed] → A (separate calculation — tolls may differ by direction)
       let returnRoute = outboundRoute;
       if (tripType === 'RETURN' && !isHourly(selectedServiceType)) {
-        const returnPickupAtUtcStr = new Date(`${returnDate}T${returnTime}:00`).toISOString();
+        const returnPickupAtUtcStr = `${returnDate}T${returnTime}:00`;
         const returnParams = new URLSearchParams({ tenant_slug: slug, origin: effectiveDropoff, destination: pickup, pickup_at: returnPickupAtUtcStr });
         // Reverse waypoints for return leg: C → [B…reversed] → A
         [...activeWaypoints].reverse().forEach(wp => returnParams.append('waypoints', wp));

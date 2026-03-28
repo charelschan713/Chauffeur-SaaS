@@ -518,7 +518,7 @@ export class CustomerPortalService implements OnModuleInit {
         // Build return_pickup_at_utc from return_date + return_time if not already set
         if (!dto.returnPickupAtUtc && req.return_date) {
           const returnLocal = `${req.return_date}T${req.return_time ?? '00:00'}:00`;
-          dto.returnPickupAtUtc = new Date(returnLocal).toISOString();
+          dto.returnPickupAtUtc = returnLocal;
         }
         dto.returnPickupAtUtc = dto.returnPickupAtUtc ?? req.return_pickup_at_utc ?? null;
         dto.returnPickupAddressText = dto.returnPickupAddressText ?? req.pickup_address ?? pickupAddress;
@@ -632,6 +632,10 @@ export class CustomerPortalService implements OnModuleInit {
        FROM public.customers WHERE id=$1 LIMIT 1`,
       [customerId],
     );
+
+    const tz = dto.timezone ?? tenantRow?.timezone ?? 'Australia/Sydney';
+    if (pickupAtUtc) pickupAtUtc = this.toUtcFromLocal(pickupAtUtc, tz);
+    if (dto.returnPickupAtUtc) dto.returnPickupAtUtc = this.toUtcFromLocal(dto.returnPickupAtUtc, tz);
 
     const [booking] = await this.db.query(
       `INSERT INTO public.bookings
@@ -1792,5 +1796,40 @@ export class CustomerPortalService implements OnModuleInit {
       [customerId],
     );
     return rows[0]?.stripe_customer_id ?? null;
+  }
+
+  private toUtcFromLocal(local: string, timeZone: string): string {
+    if (!local) return local;
+    if (/Z$|[+-]\d{2}:?\d{2}$/.test(local)) {
+      const d = new Date(local);
+      return Number.isNaN(d.getTime()) ? local : d.toISOString();
+    }
+    const [datePart, timePartRaw] = local.split('T');
+    const timePart = (timePartRaw ?? '00:00:00').slice(0, 8);
+    const [y, m, d] = datePart.split('-').map(Number);
+    const [hh, mm, ss] = timePart.split(':').map(Number);
+    if (!y || !m || !d) return local;
+    const utcGuess = new Date(Date.UTC(y, m - 1, d, hh || 0, mm || 0, ss || 0));
+    try {
+      const parts = new Intl.DateTimeFormat('en-US', {
+        timeZone,
+        year: 'numeric', month: '2-digit', day: '2-digit',
+        hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false,
+      }).formatToParts(utcGuess);
+      const get = (t: string) => parts.find(p => p.type === t)?.value ?? '00';
+      const tzY = Number(get('year'));
+      const tzM = Number(get('month'));
+      const tzD = Number(get('day'));
+      const tzH = Number(get('hour'));
+      const tzMin = Number(get('minute'));
+      const tzS = Number(get('second'));
+      const tzTime = Date.UTC(tzY, tzM - 1, tzD, tzH, tzMin, tzS);
+      const offset = tzTime - utcGuess.getTime();
+      const utc = Date.UTC(y, m - 1, d, hh || 0, mm || 0, ss || 0) - offset;
+      return new Date(utc).toISOString();
+    } catch {
+      const dObj = new Date(`${datePart}T${timePart}Z`);
+      return Number.isNaN(dObj.getTime()) ? local : dObj.toISOString();
+    }
   }
 }

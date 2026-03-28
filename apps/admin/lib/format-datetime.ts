@@ -9,21 +9,23 @@ export function formatBookingTime(
 ): string {
   if (!utcIso) return '—';
   try {
-    const date = new Date(utcIso);
+    const isNaive = !/Z$|[+-]\d{2}:?\d{2}$/.test(utcIso);
+    const date = isNaive ? toDatePreserveLocal(utcIso) : new Date(utcIso);
+    const tz = isNaive ? 'UTC' : (timezone || 'Australia/Sydney');
     const day = date.toLocaleString('en-AU', {
-      timeZone: timezone || 'Australia/Sydney',
+      timeZone: tz,
       day: 'numeric',
     });
     const month = date.toLocaleString('en-AU', {
-      timeZone: timezone || 'Australia/Sydney',
+      timeZone: tz,
       month: 'short',
     });
     const year = date.toLocaleString('en-AU', {
-      timeZone: timezone || 'Australia/Sydney',
+      timeZone: tz,
       year: 'numeric',
     });
     const time = date.toLocaleString('en-AU', {
-      timeZone: timezone || 'Australia/Sydney',
+      timeZone: tz,
       hour: 'numeric',
       minute: '2-digit',
       hour12: true,
@@ -47,9 +49,10 @@ export function formatBookingTime(
 export function formatDate(iso: string, timezone?: string | null): string {
   if (!iso) return '—';
   try {
-    const date = new Date(iso);
+    const isNaive = !/Z$|[+-]\d{2}:?\d{2}$/.test(iso);
+    const date = isNaive ? toDatePreserveLocal(iso) : new Date(iso);
     return date.toLocaleDateString('en-AU', {
-      timeZone: timezone || 'Australia/Sydney',
+      timeZone: isNaive ? 'UTC' : (timezone || 'Australia/Sydney'),
       day: 'numeric',
       month: 'short',
       year: 'numeric',
@@ -65,9 +68,10 @@ export function formatDate(iso: string, timezone?: string | null): string {
 export function formatTime(iso: string, timezone?: string | null): string {
   if (!iso) return '—';
   try {
-    const date = new Date(iso);
+    const isNaive = !/Z$|[+-]\d{2}:?\d{2}$/.test(iso);
+    const date = isNaive ? toDatePreserveLocal(iso) : new Date(iso);
     return date.toLocaleTimeString('en-AU', {
-      timeZone: timezone || 'Australia/Sydney',
+      timeZone: isNaive ? 'UTC' : (timezone || 'Australia/Sydney'),
       hour: 'numeric',
       minute: '2-digit',
       hour12: true,
@@ -75,4 +79,12 @@ export function formatTime(iso: string, timezone?: string | null): string {
   } catch {
     return iso;
   }
+}
+
+function toDatePreserveLocal(iso: string): Date {
+  const [datePart, timePartRaw] = iso.split('T');
+  const timePart = (timePartRaw ?? '00:00:00').slice(0, 8);
+  const [y, m, d] = datePart.split('-').map(Number);
+  const [hh, mm, ss] = timePart.split(':').map(Number);
+  return new Date(Date.UTC(y || 0, (m || 1) - 1, d || 1, hh || 0, mm || 0, ss || 0));
 }
