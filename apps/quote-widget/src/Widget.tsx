@@ -721,37 +721,19 @@ export function Widget({ slug }: { slug: string }) {
                             const leg2 = snap.leg2_minor ?? 0;
                             const leg1S = snap.leg1_surcharge_minor ?? 0;
                             const leg2S = snap.leg2_surcharge_minor ?? 0;
-                            const leg1Toll = (snap as any).leg1_toll_minor ?? 0;
-                            const leg2Toll = (snap as any).leg2_toll_minor ?? 0;
-                            const tollTotal = snap.toll_minor ?? 0;
-                            const leg1Parking = (snap as any).leg1_parking_minor ?? 0;
-                            const leg2Parking = (snap as any).leg2_parking_minor ?? 0;
-                            const parking = snap.parking_minor ?? 0;
-                            const hasSplitToll = leg1Toll > 0 || leg2Toll > 0;
-                            const hasSplitParking = leg1Parking > 0 || leg2Parking > 0;
                             const discount = snap.discount_amount_minor ?? 0;
                             return (
                               <>
                                 {leg1 > 0 && <div className="cw-breakdown-row"><span>Outbound price</span><span>{toMoney(leg1, r.currency)}</span></div>}
                                 {leg1S > 0 && <div className="cw-breakdown-row"><span>Outbound surcharge</span><span>+{toMoney(leg1S, r.currency)}</span></div>}
-                                {hasSplitToll ? (leg1Toll > 0 && <div className="cw-breakdown-row"><span>Outbound toll</span><span>+{toMoney(leg1Toll, r.currency)}</span></div>) : (tollTotal > 0 && <div className="cw-breakdown-row"><span>Outbound toll</span><span>+{toMoney(tollTotal, r.currency)}</span></div>)}
 
                                 {leg2 > 0 && (
                                   <>
                                     <div className="cw-breakdown-row"><span>Return price</span><span>{toMoney(leg2, r.currency)}</span></div>
                                     {leg2S > 0 && <div className="cw-breakdown-row"><span>Return surcharge</span><span>+{toMoney(leg2S, r.currency)}</span></div>}
-                                    {hasSplitToll && leg2Toll > 0 && <div className="cw-breakdown-row"><span>Return toll</span><span>+{toMoney(leg2Toll, r.currency)}</span></div>}
                                   </>
                                 )}
 
-                                {hasSplitParking ? (
-                                  <>
-                                    {leg1Parking > 0 && <div className="cw-breakdown-row"><span>Outbound parking</span><span>+{toMoney(leg1Parking, r.currency)}</span></div>}
-                                    {leg2Parking > 0 && <div className="cw-breakdown-row"><span>Return parking</span><span>+{toMoney(leg2Parking, r.currency)}</span></div>}
-                                  </>
-                                ) : (
-                                  parking > 0 && <div className="cw-breakdown-row"><span>Parking</span><span>+{toMoney(parking, r.currency)}</span></div>
-                                )}
                                 {discount > 0 && <div className="cw-breakdown-row cw-breakdown-discount"><span>{r.discount?.name ?? 'Discount'}</span><span>-{toMoney(discount, r.currency)}</span></div>}
                                 <div className="cw-breakdown-row cw-breakdown-total"><span>Total</span><span>{toMoney(snap.final_fare_minor ?? 0, r.currency)}</span></div>
                               </>
