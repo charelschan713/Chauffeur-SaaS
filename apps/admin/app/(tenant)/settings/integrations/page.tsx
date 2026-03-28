@@ -97,6 +97,7 @@ export default function IntegrationsPage() {
   const [testStatus, setTestStatus] = useState<Record<string, { ok: boolean; message: string }>>({});
   const [removeTarget, setRemoveTarget] = useState<string | null>(null);
   const [removing, setRemoving] = useState(false);
+  const [toggleLoading, setToggleLoading] = useState<Record<string, boolean>>({});
   const [intSaving, setIntSaving] = useState(false);
   const [toast, setToast] = useState<{ message: string; tone: 'success' | 'error' } | null>(null);
   // Collapsed state — configured integrations start collapsed
@@ -163,6 +164,20 @@ export default function IntegrationsPage() {
     }
   }
 
+  async function toggleIntegration(type: string, active: boolean) {
+    setToggleLoading((prev) => ({ ...prev, [type]: true }));
+    try {
+      await api.patch(`/integrations/${type}/active`, { active });
+      const refreshed = await api.get('/integrations');
+      setRows(refreshed.data ?? []);
+      setToast({ message: `${type} ${active ? 'enabled' : 'disabled'}`, tone: 'success' });
+    } catch (e: any) {
+      setToast({ message: e?.response?.data?.message ?? 'Failed to update integration', tone: 'error' });
+    } finally {
+      setToggleLoading((prev) => ({ ...prev, [type]: false }));
+    }
+  }
+
   if (loading) return <div className="text-gray-500">Loading...</div>;
 
   return (
@@ -177,7 +192,8 @@ export default function IntegrationsPage() {
       {INTEGRATIONS.map((integration) => {
         const current = rows.find((r) => r.type === integration.type);
         const fields = integration.fields;
-        const isConfigured = !!current?.active;
+        const isActive = current?.active === true;
+        const isConfigured = !!current;
         const isExpanded = expanded[integration.type] ?? !isConfigured;
         return (
           <div
@@ -202,12 +218,24 @@ export default function IntegrationsPage() {
                   {integration.description && (
                     <p className="text-xs text-gray-400 mt-0.5">{integration.description}</p>
                   )}
-                  <p className={`text-xs mt-0.5 font-medium ${isConfigured ? 'text-green-600' : 'text-gray-400'}`}>
-                    {isConfigured ? `Active · ${current.masked_preview ?? '****'}` : 'Not configured'}
+                  <p className={`text-xs mt-0.5 font-medium ${isActive ? 'text-green-600' : 'text-gray-400'}`}>
+                    {isConfigured ? `${isActive ? 'Enabled' : 'Disabled'} · ${current?.masked_preview ?? '****'}` : 'Not configured'}
                   </p>
                 </div>
               </div>
               <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                {isConfigured && (
+                  <label className="flex items-center gap-2 text-xs text-gray-500">
+                    <span>{toggleLoading[integration.type] ? 'Saving…' : (isActive ? 'On' : 'Off')}</span>
+                    <input
+                      type="checkbox"
+                      checked={isActive}
+                      disabled={toggleLoading[integration.type]}
+                      onChange={(e) => toggleIntegration(integration.type, e.target.checked)}
+                      className="accent-blue-600"
+                    />
+                  </label>
+                )}
                 {testStatus[integration.type] && (
                   <span className={`text-xs px-2 py-1 rounded font-medium ${
                     testStatus[integration.type].ok ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'

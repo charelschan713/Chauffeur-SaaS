@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, NotFoundException, Param, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, NotFoundException, Param, Post, Patch, Req, UseGuards } from '@nestjs/common';
 import { JwtGuard } from '../common/guards/jwt.guard';
 import { DataSource } from 'typeorm';
 import { EncryptionService } from './encryption.service';
@@ -67,6 +67,20 @@ export class IntegrationController {
       [req.user.tenant_id, type],
     );
     return { success: true };
+  }
+
+  @Patch(':type/active')
+  async setActive(@Param('type') type: string, @Body() body: any, @Req() req: any) {
+    const active = body?.active === true;
+    const rows = await this.dataSource.query(
+      `UPDATE public.tenant_integrations
+       SET active = $3, updated_at = now()
+       WHERE tenant_id = $1 AND integration_type = $2
+       RETURNING id`,
+      [req.user.tenant_id, type, active],
+    );
+    if (!rows.length) throw new NotFoundException('Integration not found');
+    return { success: true, active };
   }
 
   @Post('test/:type')
