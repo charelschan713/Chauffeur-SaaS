@@ -744,6 +744,16 @@ function BookingDetailInner() {
                   const surchargeLabel = snap?.surcharge_items?.[0]?.label || snap?.surcharge_labels?.[0] || 'Surcharge';
                   const toll = typeof snap.toll_minor === 'number' ? snap.toll_minor : 0;
                   const parking = typeof snap.parking_minor === 'number' ? snap.parking_minor : 0;
+                  const leg1Toll = typeof (snap as any).leg1_toll_minor === 'number' ? (snap as any).leg1_toll_minor : 0;
+                  const leg2Toll = typeof (snap as any).leg2_toll_minor === 'number' ? (snap as any).leg2_toll_minor : 0;
+                  const leg1Parking = typeof (snap as any).leg1_parking_minor === 'number' ? (snap as any).leg1_parking_minor : 0;
+                  const leg2Parking = typeof (snap as any).leg2_parking_minor === 'number' ? (snap as any).leg2_parking_minor : 0;
+                  const hasTollSplit = leg1Toll > 0 || leg2Toll > 0;
+                  const hasParkingSplit = leg1Parking > 0 || leg2Parking > 0;
+                  const outboundToll = (hasReturn || hasTollSplit) ? (leg1Toll || 0) : toll;
+                  const returnToll = hasReturn ? (leg2Toll || 0) : 0;
+                  const outboundParking = (hasReturn || hasParkingSplit) ? (leg1Parking || 0) : parking;
+                  const returnParking = hasReturn ? (leg2Parking || 0) : 0;
                   const discountMinor = typeof snap.discount_amount_minor === 'number' ? snap.discount_amount_minor : 0;
                   const discountLabel = snap.discount_name ?? null;
                   const discountGuard = snap.discount_guard ?? null;
@@ -770,8 +780,28 @@ function BookingDetailInner() {
                         </>
                       )}
 
-                      {toll > 0 && <div className="flex justify-between"><span className="text-gray-500">Toll</span><span>+{fmt(toll)}</span></div>}
-                      {parking > 0 && <div className="flex justify-between"><span className="text-gray-500">Parking</span><span>+{fmt(parking)}</span></div>}
+                      {outboundToll > 0 && (
+                        <div className="flex justify-between"><span className="text-gray-500">Outbound toll</span><span>+{fmt(outboundToll)}</span></div>
+                      )}
+                      {outboundParking > 0 && (
+                        <div className="flex justify-between"><span className="text-gray-500">Outbound parking</span><span>+{fmt(outboundParking)}</span></div>
+                      )}
+                      {hasReturn && (
+                        <>
+                          {returnToll > 0 && (
+                            <div className="flex justify-between"><span className="text-gray-500">Return toll</span><span>+{fmt(returnToll)}</span></div>
+                          )}
+                          {returnParking > 0 && (
+                            <div className="flex justify-between"><span className="text-gray-500">Return parking</span><span>+{fmt(returnParking)}</span></div>
+                          )}
+                        </>
+                      )}
+                      {!hasReturn && !hasTollSplit && toll > 0 && (
+                        <div className="flex justify-between"><span className="text-gray-500">Toll</span><span>+{fmt(toll)}</span></div>
+                      )}
+                      {!hasReturn && !hasParkingSplit && parking > 0 && (
+                        <div className="flex justify-between"><span className="text-gray-500">Parking</span><span>+{fmt(parking)}</span></div>
+                      )}
 
                       {discountMinor > 0 && (
                         <div className="flex justify-between text-green-600"><span>{discountLabel ?? 'Discount'}</span><span>− {fmt(discountMinor)}</span></div>
