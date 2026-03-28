@@ -98,6 +98,8 @@ export class PublicPricingService {
           boosterSeats: dto.booster_seats ?? 0,
           requestedAtUtc: new Date(pickupAtUtcIso),
           pickupAtUtc: new Date(pickupAtUtcIso),
+          pickupAtLocal: dto.pickup_at_utc,
+          returnPickupAtLocal: dto.return_pickup_at_utc,
           timezone: tz,
           currency: tenant.currency,
           customerId: dto.customerId ?? null,

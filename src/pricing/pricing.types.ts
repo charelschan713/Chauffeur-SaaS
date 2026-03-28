@@ -15,7 +15,8 @@ export interface PricingContext {
   toddlerSeats?: number;
   boosterSeats?: number;
   requestedAtUtc: Date;
-  pickupAtUtc?: Date | string | null;  // actual pickup time (for surcharge resolution)
+  pickupAtUtc?: Date | string | null;  // audit/reminder UTC time only
+  pickupAtLocal?: string | null;       // local time string for business logic
   timezone?: string | null;            // booking city timezone
   cityId?: string | null;
   currency: string;
@@ -24,7 +25,8 @@ export interface PricingContext {
   tripType?: 'ONE_WAY' | 'RETURN';
   returnDistanceKm?: number;
   returnDurationMinutes?: number;
-  returnPickupAtUtc?: Date | string | null;
+  returnPickupAtUtc?: Date | string | null; // audit/reminder UTC time only
+  returnPickupAtLocal?: string | null;      // local time string for business logic
   returnPickupAddress?: string | null;
   returnDropoffAddress?: string | null;
   bookedHours?: number;

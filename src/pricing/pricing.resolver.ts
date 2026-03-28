@@ -464,11 +464,13 @@ export class PricingResolver {
         leg2ParkingMinor = retParking;
         parkingMinor = outParking + retParking;
 
-        const outboundSr = ctx.pickupAtUtc
-          ? await this.surchargeService.resolve(ctx.tenantId, ctx.pickupAtUtc, leg1Minor, ctx.timezone ?? 'Australia/Sydney', ctx.cityId ?? null)
+        const outboundSurchargeAt = (ctx as any).pickupAtLocal ?? ctx.pickupAtUtc;
+        const returnSurchargeAt = (ctx as any).returnPickupAtLocal ?? returnPickupAt;
+        const outboundSr = outboundSurchargeAt
+          ? await this.surchargeService.resolve(ctx.tenantId, outboundSurchargeAt, leg1Minor, ctx.timezone ?? 'Australia/Sydney', ctx.cityId ?? null)
           : { total_surcharge_minor: 0, surcharges: [] as any[] };
-        const returnSr = returnPickupAt
-          ? await this.surchargeService.resolve(ctx.tenantId, returnPickupAt, leg2Minor, ctx.timezone ?? 'Australia/Sydney', ctx.cityId ?? null)
+        const returnSr = returnSurchargeAt
+          ? await this.surchargeService.resolve(ctx.tenantId, returnSurchargeAt, leg2Minor, ctx.timezone ?? 'Australia/Sydney', ctx.cityId ?? null)
           : { total_surcharge_minor: 0, surcharges: [] as any[] };
 
         const merged = this.mergeReturnSurcharges(outboundSr, returnSr, leg1Minor + leg2Minor);
