@@ -41,17 +41,26 @@ export class SurchargeService {
 
     const surcharges: SurchargeResult[] = [];
 
+    if (!cityId) {
+      return { surcharges, total_surcharge_minor: 0 };
+    }
+
     // ── 1. Check public holidays ────────────────────────────────────
     const holidays = await this.db.query(
-      `SELECT name, surcharge_type, surcharge_value
-       FROM tenant_holidays
-       WHERE tenant_id = $1
-         AND is_active = true
+      `SELECT h.name, h.surcharge_type, h.surcharge_value
+       FROM tenant_holidays h
+       JOIN tenant_surcharge_cities sc
+         ON sc.tenant_id = h.tenant_id
+        AND sc.surcharge_type = 'HOLIDAY'
+        AND sc.surcharge_id = h.id
+       WHERE h.tenant_id = $1
+         AND h.is_active = true
+         AND sc.city_id = $2
          AND (
-           (recurring = true AND to_char(date, 'MM-DD') = to_char($2::date, 'MM-DD'))
-           OR (recurring = false AND date = $2::date)
+           (h.recurring = true AND to_char(h.date, 'MM-DD') = to_char($3::date, 'MM-DD'))
+           OR (h.recurring = false AND h.date = $3::date)
          )`,
-      [tenantId, localDate],
+      [tenantId, cityId, localDate],
     );
 
     for (const h of holidays) {
@@ -67,12 +76,17 @@ export class SurchargeService {
     // ── 2. Check time-based surcharges ──────────────────────────────
     const dayFilter = isWeekend ? ['WEEKEND', 'ALL'] : ['WEEKDAY', 'ALL'];
     const timeSurcharges = await this.db.query(
-      `SELECT name, day_type, start_time, end_time, surcharge_type, surcharge_value
-       FROM tenant_time_surcharges
-       WHERE tenant_id = $1
-         AND is_active = true
-         AND day_type = ANY($2)`,
-      [tenantId, dayFilter],
+      `SELECT ts.name, ts.day_type, ts.start_time, ts.end_time, ts.surcharge_type, ts.surcharge_value
+       FROM tenant_time_surcharges ts
+       JOIN tenant_surcharge_cities sc
+         ON sc.tenant_id = ts.tenant_id
+        AND sc.surcharge_type = 'TIME'
+        AND sc.surcharge_id = ts.id
+       WHERE ts.tenant_id = $1
+         AND ts.is_active = true
+         AND ts.day_type = ANY($2)
+         AND sc.city_id = $3`,
+      [tenantId, dayFilter, cityId],
     );
 
     for (const ts of timeSurcharges) {
@@ -172,18 +186,27 @@ export class SurchargeService {
 
   async listTimeSurcharges(tenantId: string) {
     return this.db.query(
-      `SELECT * FROM tenant_time_surcharges WHERE tenant_id = $1 ORDER BY start_time`,
+      `SELECT ts.*, COALESCE(array_agg(sc.city_id) FILTER (WHERE sc.city_id IS NOT NULL), '{}') AS city_ids
+       FROM tenant_time_surcharges ts
+       LEFT JOIN tenant_surcharge_cities sc
+         ON sc.tenant_id = ts.tenant_id
+        AND sc.surcharge_type = 'TIME'
+        AND sc.surcharge_id = ts.id
+       WHERE ts.tenant_id = $1
+       GROUP BY ts.id
+       ORDER BY ts.start_time`,
       [tenantId],
     );
   }
 
   async createTimeSurcharge(tenantId: string, body: any) {
-    const { name, day_type, start_time, end_time, surcharge_type, surcharge_value } = body;
+    const { name, day_type, start_time, end_time, surcharge_type, surcharge_value, city_ids } = body;
     const [row] = await this.db.query(
       `INSERT INTO tenant_time_surcharges (tenant_id, name, day_type, start_time, end_time, surcharge_type, surcharge_value)
        VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
       [tenantId, name, day_type ?? 'ALL', start_time, end_time, surcharge_type ?? 'PERCENTAGE', surcharge_value],
     );
+    await this.setSurchargeCities(tenantId, 'TIME', row.id, city_ids ?? []);
     return row;
   }
 
@@ -194,32 +217,47 @@ export class SurchargeService {
     for (const key of ['name','day_type','start_time','end_time','surcharge_type','surcharge_value','is_active']) {
       if (body[key] !== undefined) { fields.push(`${key} = $${i++}`); vals.push(body[key]); }
     }
-    if (!fields.length) return;
-    const [row] = await this.db.query(
+    const [row] = fields.length ? await this.db.query(
       `UPDATE tenant_time_surcharges SET ${fields.join(',')} WHERE tenant_id=$1 AND id=$2 RETURNING *`,
       vals,
-    );
-    return row;
+    ) : [null];
+    if (body.city_ids !== undefined) {
+      await this.setSurchargeCities(tenantId, 'TIME', id, body.city_ids ?? []);
+    }
+    return row ?? undefined;
   }
 
   async deleteTimeSurcharge(tenantId: string, id: string) {
     await this.db.query(`DELETE FROM tenant_time_surcharges WHERE tenant_id=$1 AND id=$2`, [tenantId, id]);
+    await this.db.query(
+      `DELETE FROM tenant_surcharge_cities WHERE tenant_id=$1 AND surcharge_type='TIME' AND surcharge_id=$2`,
+      [tenantId, id],
+    );
   }
 
   async listHolidays(tenantId: string) {
     return this.db.query(
-      `SELECT * FROM tenant_holidays WHERE tenant_id = $1 ORDER BY to_char(date,'MM-DD')`,
+      `SELECT h.*, COALESCE(array_agg(sc.city_id) FILTER (WHERE sc.city_id IS NOT NULL), '{}') AS city_ids
+       FROM tenant_holidays h
+       LEFT JOIN tenant_surcharge_cities sc
+         ON sc.tenant_id = h.tenant_id
+        AND sc.surcharge_type = 'HOLIDAY'
+        AND sc.surcharge_id = h.id
+       WHERE h.tenant_id = $1
+       GROUP BY h.id
+       ORDER BY to_char(h.date,'MM-DD')`,
       [tenantId],
     );
   }
 
   async createHoliday(tenantId: string, body: any) {
-    const { name, date, recurring, surcharge_type, surcharge_value } = body;
+    const { name, date, recurring, surcharge_type, surcharge_value, city_ids } = body;
     const [row] = await this.db.query(
       `INSERT INTO tenant_holidays (tenant_id, name, date, recurring, surcharge_type, surcharge_value)
        VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
       [tenantId, name, date, recurring ?? true, surcharge_type ?? 'PERCENTAGE', surcharge_value],
     );
+    await this.setSurchargeCities(tenantId, 'HOLIDAY', row.id, city_ids ?? []);
     return row;
   }
 
@@ -230,15 +268,36 @@ export class SurchargeService {
     for (const key of ['name','date','recurring','surcharge_type','surcharge_value','is_active']) {
       if (body[key] !== undefined) { fields.push(`${key} = $${i++}`); vals.push(body[key]); }
     }
-    if (!fields.length) return;
-    const [row] = await this.db.query(
+    const [row] = fields.length ? await this.db.query(
       `UPDATE tenant_holidays SET ${fields.join(',')} WHERE tenant_id=$1 AND id=$2 RETURNING *`,
       vals,
-    );
-    return row;
+    ) : [null];
+    if (body.city_ids !== undefined) {
+      await this.setSurchargeCities(tenantId, 'HOLIDAY', id, body.city_ids ?? []);
+    }
+    return row ?? undefined;
   }
 
   async deleteHoliday(tenantId: string, id: string) {
     await this.db.query(`DELETE FROM tenant_holidays WHERE tenant_id=$1 AND id=$2`, [tenantId, id]);
+    await this.db.query(
+      `DELETE FROM tenant_surcharge_cities WHERE tenant_id=$1 AND surcharge_type='HOLIDAY' AND surcharge_id=$2`,
+      [tenantId, id],
+    );
+  }
+
+  private async setSurchargeCities(tenantId: string, surchargeType: 'TIME'|'HOLIDAY', surchargeId: string, cityIds: string[]) {
+    await this.db.query(
+      `DELETE FROM tenant_surcharge_cities WHERE tenant_id=$1 AND surcharge_type=$2 AND surcharge_id=$3`,
+      [tenantId, surchargeType, surchargeId],
+    );
+    if (!cityIds || cityIds.length === 0) return; // no cities = disabled
+    for (const cityId of cityIds) {
+      await this.db.query(
+        `INSERT INTO tenant_surcharge_cities (tenant_id, surcharge_type, surcharge_id, city_id)
+         VALUES ($1,$2,$3,$4)`,
+        [tenantId, surchargeType, surchargeId, cityId],
+      );
+    }
   }
 }

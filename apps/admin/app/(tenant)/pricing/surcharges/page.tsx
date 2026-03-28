@@ -8,24 +8,31 @@ type TimeSurcharge = {
   id: string; name: string; day_type: string;
   start_time: string; end_time: string;
   surcharge_type: string; surcharge_value: string; is_active: boolean;
+  city_ids?: string[];
 };
 type Holiday = {
   id: string; name: string; date: string; recurring: boolean;
   surcharge_type: string; surcharge_value: string; is_active: boolean;
+  city_ids?: string[];
 };
+
+type City = { id: string; name: string; active?: boolean };
 
 const emptyTime = (): Partial<TimeSurcharge> => ({
   name:"", day_type:"ALL", start_time:"23:00", end_time:"05:00",
   surcharge_type:"PERCENTAGE", surcharge_value:"20", is_active: true,
+  city_ids: [],
 });
 const emptyHoliday = (): Partial<Holiday> => ({
   name:"", date:"", recurring:true,
   surcharge_type:"PERCENTAGE", surcharge_value:"25", is_active:true,
+  city_ids: [],
 });
 
 export default function SurchargesPage() {
   const [timeSurcharges, setTimeSurcharges] = useState<TimeSurcharge[]>([]);
   const [holidays, setHolidays] = useState<Holiday[]>([]);
+  const [cities, setCities] = useState<City[]>([]);
 
   const [showTimeForm, setShowTimeForm] = useState(false);
   const [showHolidayForm, setShowHolidayForm] = useState(false);
@@ -46,7 +53,12 @@ export default function SurchargesPage() {
     setHolidays(r.data);
   }, []);
 
-  useEffect(() => { loadTime(); loadHolidays(); }, [loadTime, loadHolidays]);
+  const loadCities = useCallback(async () => {
+    const r = await api.get('/cities');
+    setCities(r.data ?? []);
+  }, []);
+
+  useEffect(() => { loadTime(); loadHolidays(); loadCities(); }, [loadTime, loadHolidays, loadCities]);
 
   // ── Time Surcharge save ──────────────────────────────────────────
   const saveTime = async () => {
@@ -103,6 +115,9 @@ export default function SurchargesPage() {
   };
   const surchargeLabel = (type: string, value: string) =>
     type === "PERCENTAGE" ? `+${value}%` : `+$${value}`;
+
+  const cityName = (id: string) => cities.find(c => c.id === id)?.name ?? id;
+  const formatCities = (ids?: string[]) => (ids && ids.length ? ids.map(cityName).join(', ') : 'Disabled');
 
   const statusPill = (active: boolean) => (
     <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
@@ -166,6 +181,22 @@ export default function SurchargesPage() {
                 <label className={labelCls}>{timeForm.surcharge_type === "FIXED" ? "Amount ($)" : "Percentage (%)"}</label>
                 <input type="number" className={inputCls} value={timeForm.surcharge_value ?? ""} onChange={e => setTimeForm(f=>({...f,surcharge_value:e.target.value}))} placeholder="20" />
               </div>
+              <div className="col-span-2">
+                <label className={labelCls}>Applicable Cities (leave empty = disabled)</label>
+                <select
+                  multiple
+                  className={inputCls}
+                  value={timeForm.city_ids ?? []}
+                  onChange={(e) => {
+                    const values = Array.from(e.target.selectedOptions).map(o => o.value);
+                    setTimeForm(f => ({ ...f, city_ids: values }));
+                  }}
+                >
+                  {cities.map(c => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+              </div>
             </div>
             <div className="flex gap-3 pt-1">
               <Button onClick={saveTime} disabled={saving}>{saving ? "Saving…" : editingTime ? "Update" : "Create"}</Button>
@@ -182,19 +213,21 @@ export default function SurchargesPage() {
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">Days</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">Time Window</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">Surcharge</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">Cities</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">Status</th>
                 <th className="px-4 py-3 text-right text-xs font-medium text-gray-500">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5">
               {timeSurcharges.length === 0 ? (
-                <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-500 text-sm">No time rules yet</td></tr>
+                <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-500 text-sm">No time rules yet</td></tr>
               ) : timeSurcharges.map(s => (
                 <tr key={s.id} className="hover:bg-gray-50 transition-colors">
                   <td className="px-4 py-3 font-medium text-gray-900">{s.name}</td>
                   <td className="px-4 py-3 text-gray-500 capitalize">{s.day_type === "ALL" ? "All days" : s.day_type.charAt(0)+s.day_type.slice(1).toLowerCase()+"s"}</td>
                   <td className="px-4 py-3 font-mono text-sm">{fmtTime(s.start_time)} – {fmtTime(s.end_time)}</td>
                   <td className="px-4 py-3 text-primary font-semibold">{surchargeLabel(s.surcharge_type, s.surcharge_value)}</td>
+                  <td className="px-4 py-3 text-gray-500">{formatCities(s.city_ids)}</td>
                   <td className="px-4 py-3">
                     <button onClick={() => toggleTime(s)}>{statusPill(s.is_active)}</button>
                   </td>
@@ -256,6 +289,22 @@ export default function SurchargesPage() {
                   <input type="number" className={inputCls} value={holidayForm.surcharge_value ?? ""} onChange={e => setHolidayForm(f=>({...f,surcharge_value:e.target.value}))} placeholder="25" />
                 </div>
               </div>
+              <div className="col-span-2">
+                <label className={labelCls}>Applicable Cities (leave empty = disabled)</label>
+                <select
+                  multiple
+                  className={inputCls}
+                  value={holidayForm.city_ids ?? []}
+                  onChange={(e) => {
+                    const values = Array.from(e.target.selectedOptions).map(o => o.value);
+                    setHolidayForm(f => ({ ...f, city_ids: values }));
+                  }}
+                >
+                  {cities.map(c => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+              </div>
             </div>
             <div className="flex gap-3 pt-1">
               <Button onClick={saveHoliday} disabled={saving}>{saving ? "Saving…" : editingHoliday ? "Update" : "Create"}</Button>
@@ -272,19 +321,21 @@ export default function SurchargesPage() {
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">Date</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">Recurring</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">Surcharge</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">Cities</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">Status</th>
                 <th className="px-4 py-3 text-right text-xs font-medium text-gray-500">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5">
               {holidays.length === 0 ? (
-                <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-500 text-sm">No holidays yet</td></tr>
+                <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-500 text-sm">No holidays yet</td></tr>
               ) : holidays.map(h => (
                 <tr key={h.id} className="hover:bg-gray-50 transition-colors">
                   <td className="px-4 py-3 font-medium text-gray-900">{h.name}</td>
                   <td className="px-4 py-3 text-gray-700">{fmtDate(h.date)}</td>
                   <td className="px-4 py-3 text-gray-700">{h.recurring ? "↻ Annual" : "Once"}</td>
                   <td className="px-4 py-3 text-primary font-semibold">{surchargeLabel(h.surcharge_type, h.surcharge_value)}</td>
+                  <td className="px-4 py-3 text-gray-500">{formatCities(h.city_ids)}</td>
                   <td className="px-4 py-3">
                     <button onClick={() => toggleHoliday(h)}>{statusPill(h.is_active)}</button>
                   </td>
