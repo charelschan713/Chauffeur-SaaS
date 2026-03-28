@@ -359,13 +359,11 @@ export default function CreateBookingPage() {
         pickup_place_id: pickupPlaceId || undefined,
         dropoff_address_text: (values.dropoff_address_text ?? '').trim(),
         dropoff_place_id: dropoffPlaceId || undefined,
-        // Timing — snake_case to match backend
-        pickup_at_utc: new Date(values.pickup_at_utc).toISOString(),
+        // Timing — pass local time string; backend converts to UTC using timezone
+        pickup_at_utc: values.pickup_at_utc,
         timezone: values.timezone || 'Australia/Sydney',
         is_return_trip: values.is_return_trip,
-        return_pickup_at_utc: values.return_pickup_at_utc
-          ? new Date(values.return_pickup_at_utc).toISOString()
-          : undefined,
+        return_pickup_at_utc: values.return_pickup_at_utc ?? undefined,
         return_pickup_address_text: values.return_pickup_address_text?.trim() || undefined,
         passenger_count: values.passenger_count,
         luggage_count: values.luggage_count ?? 0,
@@ -511,7 +509,7 @@ export default function CreateBookingPage() {
           tenant_slug: tenantSlug,
           origin: values.pickup_address_text,
           destination: values.dropoff_address_text,
-          pickup_at: values.pickup_at_utc ? new Date(values.pickup_at_utc).toISOString() : undefined,
+          pickup_at: values.pickup_at_utc || undefined,
           waypoints: waypoints.filter(Boolean),
         },
       });
@@ -534,7 +532,7 @@ export default function CreateBookingPage() {
             tenant_slug: tenantSlug,
             origin: values.dropoff_address_text,
             destination: returnDestination,
-            pickup_at: values.return_pickup_at_utc ? new Date(values.return_pickup_at_utc).toISOString() : undefined,
+            pickup_at: values.return_pickup_at_utc || undefined,
           },
         });
         if (returnRouteRes.data?.distance_km) {
