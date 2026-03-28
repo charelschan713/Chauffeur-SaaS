@@ -55,7 +55,8 @@ export default function SurchargesPage() {
 
   const loadCities = useCallback(async () => {
     const r = await api.get('/cities');
-    setCities(r.data ?? []);
+    const all = r.data ?? [];
+    setCities(all.filter((c: City) => c.active !== false));
   }, []);
 
   useEffect(() => { loadTime(); loadHolidays(); loadCities(); }, [loadTime, loadHolidays, loadCities]);
