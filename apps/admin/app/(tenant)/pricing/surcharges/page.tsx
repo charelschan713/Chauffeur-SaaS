@@ -120,6 +120,13 @@ export default function SurchargesPage() {
   const cityName = (id: string) => cities.find(c => c.id === id)?.name ?? id;
   const formatCities = (ids?: string[]) => (ids && ids.length ? ids.map(cityName).join(', ') : 'Disabled');
 
+  const toggleCity = (current: string[] | undefined, cityId: string, checked: boolean) => {
+    const set = new Set(current ?? []);
+    if (checked) set.add(cityId);
+    else set.delete(cityId);
+    return Array.from(set);
+  };
+
   const statusPill = (active: boolean) => (
     <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
       active ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-gray-100 text-gray-500"
@@ -184,19 +191,21 @@ export default function SurchargesPage() {
               </div>
               <div className="col-span-2">
                 <label className={labelCls}>Applicable Cities (leave empty = disabled)</label>
-                <select
-                  multiple
-                  className={inputCls}
-                  value={timeForm.city_ids ?? []}
-                  onChange={(e) => {
-                    const values = Array.from(e.target.selectedOptions).map(o => o.value);
-                    setTimeForm(f => ({ ...f, city_ids: values }));
-                  }}
-                >
+                <div className="rounded-lg border border-gray-200 bg-white p-3 grid grid-cols-2 gap-2 max-h-48 overflow-auto">
                   {cities.map(c => (
-                    <option key={c.id} value={c.id}>{c.name}</option>
+                    <label key={c.id} className="inline-flex items-center gap-2 text-sm text-gray-800">
+                      <input
+                        type="checkbox"
+                        checked={(timeForm.city_ids ?? []).includes(c.id)}
+                        onChange={(e) => setTimeForm(f => ({
+                          ...f,
+                          city_ids: toggleCity(f.city_ids, c.id, e.target.checked),
+                        }))}
+                      />
+                      <span>{c.name}</span>
+                    </label>
                   ))}
-                </select>
+                </div>
               </div>
             </div>
             <div className="flex gap-3 pt-1">
@@ -292,19 +301,21 @@ export default function SurchargesPage() {
               </div>
               <div className="col-span-2">
                 <label className={labelCls}>Applicable Cities (leave empty = disabled)</label>
-                <select
-                  multiple
-                  className={inputCls}
-                  value={holidayForm.city_ids ?? []}
-                  onChange={(e) => {
-                    const values = Array.from(e.target.selectedOptions).map(o => o.value);
-                    setHolidayForm(f => ({ ...f, city_ids: values }));
-                  }}
-                >
+                <div className="rounded-lg border border-gray-200 bg-white p-3 grid grid-cols-2 gap-2 max-h-48 overflow-auto">
                   {cities.map(c => (
-                    <option key={c.id} value={c.id}>{c.name}</option>
+                    <label key={c.id} className="inline-flex items-center gap-2 text-sm text-gray-800">
+                      <input
+                        type="checkbox"
+                        checked={(holidayForm.city_ids ?? []).includes(c.id)}
+                        onChange={(e) => setHolidayForm(f => ({
+                          ...f,
+                          city_ids: toggleCity(f.city_ids, c.id, e.target.checked),
+                        }))}
+                      />
+                      <span>{c.name}</span>
+                    </label>
                   ))}
-                </select>
+                </div>
               </div>
             </div>
             <div className="flex gap-3 pt-1">
