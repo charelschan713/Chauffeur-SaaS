@@ -61,7 +61,10 @@ export class IntegrationController {
       if (merged.apiKey && !merged.api_key) merged.api_key = merged.apiKey;
     }
     if (type === 'twilio') {
+      if (merged.accountSid && !merged.account_sid) merged.account_sid = merged.accountSid;
       if (merged.authToken && !merged.auth_token) merged.auth_token = merged.authToken;
+      if (merged.phoneNumber && !merged.phone_number) merged.phone_number = merged.phoneNumber;
+      if (merged.senderId && !merged.sender_id) merged.sender_id = merged.senderId;
       if (merged.sender_id && !merged.sender) merged.sender = merged.sender_id;
       if (merged.apiKey && !merged.api_key) merged.api_key = merged.apiKey;
     }
