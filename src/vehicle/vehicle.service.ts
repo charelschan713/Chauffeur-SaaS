@@ -30,6 +30,22 @@ export class VehicleService {
   }
 
   async claimVehicle(tenantId: string, platformVehicleId: string, body?: any) {
+    const plate = String(body?.plate ?? '').trim().toUpperCase() || null;
+
+    if (plate) {
+      const dup = await this.dataSource.query(
+        `SELECT id FROM public.tenant_vehicles
+          WHERE tenant_id = $1
+            AND deleted_at IS NULL
+            AND lower(plate) = lower($2)
+          LIMIT 1`,
+        [tenantId, plate],
+      );
+      if (dup.length) {
+        throw new BadRequestException('Rego already exists. Plate must be unique per tenant.');
+      }
+    }
+
     const rows = await this.dataSource.query(
       `INSERT INTO public.tenant_vehicles
         (tenant_id, platform_vehicle_id, active, year, colour, plate, passenger_capacity, luggage_capacity, notes, rego_expiry, insurance_expiry)
@@ -40,7 +56,7 @@ export class VehicleService {
         platformVehicleId,
         body?.year ?? null,
         body?.colour ?? null,
-        body?.plate ?? null,
+        plate,
         body?.passenger_capacity ?? 4,
         body?.luggage_capacity ?? 2,
         body?.notes ?? null,
@@ -89,6 +105,25 @@ export class VehicleService {
   }
 
   async updateTenantVehicle(tenantId: string, id: string, body: any) {
+    const normalizedPlate = body.plate === undefined
+      ? null
+      : (String(body.plate ?? '').trim().toUpperCase() || null);
+
+    if (normalizedPlate) {
+      const dup = await this.dataSource.query(
+        `SELECT id FROM public.tenant_vehicles
+          WHERE tenant_id = $1
+            AND deleted_at IS NULL
+            AND id <> $2
+            AND lower(plate) = lower($3)
+          LIMIT 1`,
+        [tenantId, id, normalizedPlate],
+      );
+      if (dup.length) {
+        throw new BadRequestException('Rego already exists. Plate must be unique per tenant.');
+      }
+    }
+
     const rows = await this.dataSource.query(
       `UPDATE public.tenant_vehicles
        SET active = COALESCE($1, active),
@@ -107,7 +142,7 @@ export class VehicleService {
         body.active ?? null,
         body.year ?? null,
         body.colour ?? null,
-        body.plate ?? null,
+        normalizedPlate,
         body.passenger_capacity ?? null,
         body.luggage_capacity ?? null,
         body.notes ?? null,
