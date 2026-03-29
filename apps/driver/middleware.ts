@@ -37,8 +37,12 @@ export function middleware(request: NextRequest) {
     return response;
   }
 
-  // No slug — redirect to error page
-  if (url.pathname === '/no-tenant') return NextResponse.next();
+  // No slug — allow auth entry pages so tenant can be typed manually.
+  const allowWithoutSlug = ['/login', '/forgot-password', '/reset-password', '/no-tenant'];
+  if (allowWithoutSlug.some((p) => url.pathname === p || url.pathname.startsWith(`${p}/`))) {
+    return NextResponse.next();
+  }
+
   url.pathname = '/no-tenant';
   return NextResponse.redirect(url);
 }
