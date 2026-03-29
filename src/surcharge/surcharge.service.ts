@@ -1,4 +1,4 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 
@@ -12,6 +12,17 @@ export interface SurchargeResult {
 @Injectable()
 export class SurchargeService implements OnModuleInit {
   private readonly logger = new Logger(SurchargeService.name);
+
+  private normalizeSurchargeValue(value: unknown): number {
+    if (value === null || value === undefined || value === '') {
+      throw new BadRequestException('Surcharge value is required');
+    }
+    const n = Number(value);
+    if (!Number.isFinite(n)) {
+      throw new BadRequestException('Surcharge value must be a valid number');
+    }
+    return n;
+  }
 
   constructor(@InjectDataSource() private readonly db: DataSource) {}
 
@@ -228,10 +239,11 @@ export class SurchargeService implements OnModuleInit {
 
   async createTimeSurcharge(tenantId: string, body: any) {
     const { name, day_type, start_time, end_time, surcharge_type, surcharge_value, city_ids } = body;
+    const value = this.normalizeSurchargeValue(surcharge_value);
     const [row] = await this.db.query(
       `INSERT INTO tenant_time_surcharges (tenant_id, name, day_type, start_time, end_time, surcharge_type, surcharge_value)
        VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
-      [tenantId, name, day_type ?? 'ALL', start_time, end_time, surcharge_type ?? 'PERCENTAGE', surcharge_value],
+      [tenantId, name, day_type ?? 'ALL', start_time, end_time, surcharge_type ?? 'PERCENTAGE', value],
     );
     await this.setSurchargeCities(tenantId, 'TIME', row.id, city_ids ?? []);
     return row;
@@ -242,7 +254,10 @@ export class SurchargeService implements OnModuleInit {
     const vals: any[] = [tenantId, id];
     let i = 3;
     for (const key of ['name','day_type','start_time','end_time','surcharge_type','surcharge_value','is_active']) {
-      if (body[key] !== undefined) { fields.push(`${key} = $${i++}`); vals.push(body[key]); }
+      if (body[key] !== undefined) {
+        fields.push(`${key} = $${i++}`);
+        vals.push(key === 'surcharge_value' ? this.normalizeSurchargeValue(body[key]) : body[key]);
+      }
     }
     const [row] = fields.length ? await this.db.query(
       `UPDATE tenant_time_surcharges SET ${fields.join(',')} WHERE tenant_id=$1 AND id=$2 RETURNING *`,
@@ -279,10 +294,11 @@ export class SurchargeService implements OnModuleInit {
 
   async createHoliday(tenantId: string, body: any) {
     const { name, date, recurring, surcharge_type, surcharge_value, city_ids } = body;
+    const value = this.normalizeSurchargeValue(surcharge_value);
     const [row] = await this.db.query(
       `INSERT INTO tenant_holidays (tenant_id, name, date, recurring, surcharge_type, surcharge_value)
        VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
-      [tenantId, name, date, recurring ?? true, surcharge_type ?? 'PERCENTAGE', surcharge_value],
+      [tenantId, name, date, recurring ?? true, surcharge_type ?? 'PERCENTAGE', value],
     );
     await this.setSurchargeCities(tenantId, 'HOLIDAY', row.id, city_ids ?? []);
     return row;
@@ -293,7 +309,10 @@ export class SurchargeService implements OnModuleInit {
     const vals: any[] = [tenantId, id];
     let i = 3;
     for (const key of ['name','date','recurring','surcharge_type','surcharge_value','is_active']) {
-      if (body[key] !== undefined) { fields.push(`${key} = $${i++}`); vals.push(body[key]); }
+      if (body[key] !== undefined) {
+        fields.push(`${key} = $${i++}`);
+        vals.push(key === 'surcharge_value' ? this.normalizeSurchargeValue(body[key]) : body[key]);
+      }
     }
     const [row] = fields.length ? await this.db.query(
       `UPDATE tenant_holidays SET ${fields.join(',')} WHERE tenant_id=$1 AND id=$2 RETURNING *`,
