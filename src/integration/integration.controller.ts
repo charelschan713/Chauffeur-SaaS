@@ -28,13 +28,50 @@ export class IntegrationController {
 
   @Post(':type')
   async upsert(@Param('type') type: string, @Body() body: any, @Req() req: any) {
-    const { maskedPreview, ...configData } = body;
-    const configEncrypted = this.encryptionService.encrypt(
-      JSON.stringify(configData),
+    const { maskedPreview, ...incoming } = body;
+
+    // Merge with existing config to avoid wiping secrets when UI sends partial fields.
+    let existing: Record<string, any> = {};
+    const existingRows = await this.dataSource.query(
+      `SELECT config_encrypted
+       FROM public.tenant_integrations
+       WHERE tenant_id = $1 AND integration_type = $2
+       LIMIT 1`,
+      [req.user.tenant_id, type],
     );
+    if (existingRows.length && existingRows[0].config_encrypted) {
+      try {
+        const raw =
+          typeof existingRows[0].config_encrypted === 'string'
+            ? existingRows[0].config_encrypted
+            : JSON.stringify(existingRows[0].config_encrypted);
+        existing = JSON.parse(this.encryptionService.decrypt(raw));
+      } catch {
+        existing = {};
+      }
+    }
+
+    const merged = { ...existing, ...incoming } as Record<string, any>;
+
+    // Normalize aliases and trim whitespace.
+    for (const [k, v] of Object.entries(merged)) {
+      if (typeof v === 'string') merged[k] = v.trim();
+    }
+    if (type === 'resend') {
+      if (merged.apiKey && !merged.api_key) merged.api_key = merged.apiKey;
+    }
+    if (type === 'twilio') {
+      if (merged.authToken && !merged.auth_token) merged.auth_token = merged.authToken;
+      if (merged.sender_id && !merged.sender) merged.sender = merged.sender_id;
+      if (merged.apiKey && !merged.api_key) merged.api_key = merged.apiKey;
+    }
+
+    const configEncrypted = this.encryptionService.encrypt(JSON.stringify(merged));
+    const effectiveKey = merged.api_key ?? merged.password ?? merged.auth_token ?? null;
     const maskedPreviewValue =
       maskedPreview ??
-      (configData.api_key ? `****${configData.api_key.slice(-4)}` : null);
+      (effectiveKey ? `****${String(effectiveKey).slice(-4)}` : null);
+
     const rows = await this.dataSource.query(
       `INSERT INTO public.tenant_integrations (tenant_id, integration_type, config_encrypted, masked_preview, active)
        VALUES ($1,$2,$3,$4,true)
@@ -48,10 +85,10 @@ export class IntegrationController {
     );
 
     // Auto-sync currency from Stripe after save
-    if (type === 'stripe' && configData.secret_key) {
+    if (type === 'stripe' && merged.secret_key) {
       await this.integrationService.syncStripeCurrency(
         req.user.tenant_id,
-        configData.secret_key,
+        merged.secret_key,
       );
     }
 

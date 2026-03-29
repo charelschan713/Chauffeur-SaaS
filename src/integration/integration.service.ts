@@ -45,6 +45,10 @@ export class IntegrationService {
       return this.testTwilio(integration.config);
     }
 
+    if (type === 'resend') {
+      return this.testResend(integration.config);
+    }
+
     return { success: true, message: 'Configuration saved' };
   }
 
@@ -74,22 +78,43 @@ export class IntegrationService {
 
   private async testTwilio(config: Record<string, string>) {
     try {
+      const sid = (config.account_sid ?? '').trim();
+      const token = (config.auth_token ?? config.api_key ?? '').trim();
       const res = await fetch(
-        `https://api.twilio.com/2010-04-01/Accounts/${config.account_sid}.json`,
+        `https://api.twilio.com/2010-04-01/Accounts/${sid}.json`,
         {
           headers: {
-            Authorization: `Basic ${Buffer.from(
-              `${config.account_sid}:${config.auth_token ?? config.api_key}`,
-            ).toString('base64')}`,
+            Authorization: `Basic ${Buffer.from(`${sid}:${token}`).toString('base64')}`,
           },
         },
       );
       if (res.ok) return { success: true, message: 'Twilio connection verified' };
-      return { success: false, message: 'Twilio credentials invalid' };
+      const body = await res.text();
+      return { success: false, message: `Twilio credentials invalid (${res.status}) ${body}` };
     } catch (err: any) {
       return {
         success: false,
         message: err?.message ?? 'Twilio connection failed',
+      };
+    }
+  }
+
+  private async testResend(config: Record<string, string>) {
+    try {
+      const apiKey = (config.api_key ?? '').trim();
+      const res = await fetch('https://api.resend.com/domains', {
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      if (res.ok) return { success: true, message: 'Resend connection verified' };
+      const body = await res.text();
+      return { success: false, message: `Resend credentials invalid (${res.status}) ${body}` };
+    } catch (err: any) {
+      return {
+        success: false,
+        message: err?.message ?? 'Resend connection failed',
       };
     }
   }

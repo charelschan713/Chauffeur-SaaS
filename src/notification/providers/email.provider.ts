@@ -56,10 +56,12 @@ export class EmailProvider {
       throw new Error('Resend failed: missing fromAddress');
     }
 
+    const apiKey = (config.api_key ?? '').trim();
+
     const res = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${config.api_key}`,
+        Authorization: `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
