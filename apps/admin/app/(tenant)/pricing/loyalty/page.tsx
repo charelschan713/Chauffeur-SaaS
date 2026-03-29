@@ -66,12 +66,11 @@ export default function LoyaltyPricingPage() {
     <ListPage
       title="Loyalty Tiers"
       subtitle="Configure tier discounts per tenant. Customer override discount_rate still applies on top."
-      toolbar={<Button onClick={save} disabled={saving}>{saving ? 'Saving…' : 'Save tiers'}</Button>}
-    >
-      {isLoading ? (
-        <div className="text-sm text-gray-500">Loading…</div>
+      actions={<Button onClick={save} disabled={saving}>{saving ? 'Saving…' : 'Save tiers'}</Button>}
+      table={isLoading ? (
+        <div className="p-4 text-sm text-gray-500">Loading…</div>
       ) : (
-        <div className="overflow-x-auto rounded-xl border bg-white">
+        <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-gray-50 text-gray-600">
               <tr>
@@ -114,6 +113,6 @@ export default function LoyaltyPricingPage() {
           </table>
         </div>
       )}
-    </ListPage>
+    />
   );
 }
