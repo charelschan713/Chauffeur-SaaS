@@ -1,9 +1,25 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 
 @Injectable()
-export class VehicleService {
+export class VehicleService implements OnModuleInit {
   constructor(private readonly dataSource: DataSource) {}
+
+  async onModuleInit() {
+    await this.dataSource.query(
+      `ALTER TABLE public.tenant_vehicles DROP CONSTRAINT IF EXISTS tenant_vehicles_tenant_id_platform_vehicle_id_key`,
+    ).catch(() => {});
+
+    await this.dataSource.query(
+      `DROP INDEX IF EXISTS public.idx_tenant_vehicles_tenant_platform_unique`,
+    ).catch(() => {});
+
+    await this.dataSource.query(
+      `CREATE UNIQUE INDEX IF NOT EXISTS idx_tenant_vehicles_unique_plate_ci
+       ON public.tenant_vehicles (tenant_id, lower(plate))
+       WHERE plate IS NOT NULL AND plate <> '' AND deleted_at IS NULL`,
+    ).catch(() => {});
+  }
 
   async listTenantVehicles(tenantId: string) {
     return this.dataSource.query(
