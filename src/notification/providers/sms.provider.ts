@@ -26,12 +26,16 @@ export class SmsProvider {
     opts?: { forcePhoneNumber?: boolean },
   ): Promise<boolean> {
     try {
-      const accountSid = config.account_sid;
-      const authToken = config.auth_token ?? config.api_key; // support both field names
+      const accountSid = String(config.account_sid ?? config.accountSid ?? '').replace(/\s+/g, '');
+      const authToken = String(config.auth_token ?? config.authToken ?? config.api_key ?? '').replace(/\s+/g, '');
 
       // Use sender_id (Alpha Sender) if set, otherwise fall back to phone_number
-      const fromNumber = config.phone_number ?? config.sender ?? '';
-      const senderId = config.sender_id ?? config.sender ?? null;
+      const fromNumber = (config.phone_number ?? config.sender ?? '').trim();
+      const senderId = (config.sender_id ?? config.sender ?? '').trim() || null;
+
+      this.logger.debug(
+        `Twilio auth fingerprint sid=****${accountSid.slice(-4)} token=****${authToken.slice(-4)} from=${fromNumber || 'n/a'} senderId=${senderId || 'n/a'}`,
+      );
 
       // Use sender_id unless forced to phone number
       const form = new URLSearchParams({ To: to, Body: message });
