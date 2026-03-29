@@ -780,7 +780,10 @@ export class NotificationService {
     opts?: { forcePhoneNumber?: boolean },
   ): Promise<void> {
     try {
-      await this.smsProvider.send(integration, phone, body, opts);
+      const ok = await this.smsProvider.send(integration, phone, body, opts);
+      if (!ok) {
+        throw new Error(`SMS provider returned failure (provider=${integration?.provider ?? 'unknown'}, to=${phone}, event=${eventType})`);
+      }
       await this.logNotification({
         tenantId, eventType, channel: 'sms', recipientPhone: phone,
         body, status: 'SENT', bookingId,
@@ -917,7 +920,8 @@ export class NotificationService {
     const { sms } = await this.resolveIntegrations(tenantId);
     if (!sms || !payload.phone) return;
     const phone = toE164(payload.country_code, payload.phone) ?? payload.phone;
-    await this.smsProvider.send(sms, phone, body);
+    const ok = await this.smsProvider.send(sms, phone, body);
+    if (!ok) throw new Error('SMS test failed');
   }
 
   private async sendFromTemplate(
