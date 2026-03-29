@@ -738,18 +738,24 @@ export class NotificationService {
           WHERE tb.tenant_id = $1 LIMIT 1`,
         [tenantId],
       ).catch(() => []);
-      resolvedFrom = branding?.contact_email ?? 'noreply@aschauffeured.com.au';
+      resolvedFrom = branding?.contact_email ?? 'noreply@mail.aschauffeured.com.au';
       resolvedFromName = resolvedFromName ?? branding?.company_name ?? branding?.name ?? 'ASChauffeured';
     }
+
+    const adminCc = (process.env.SYSTEM_EMAIL_CC ?? 'admin@aschauffeured.com.au').trim();
+    const cc = adminCc && adminCc.toLowerCase() !== opts.to.toLowerCase() ? [adminCc] : undefined;
 
     const finalOpts = {
       ...(brandedHtml ? { ...opts, html: brandedHtml } : opts),
       fromAddress: resolvedFrom,
       fromName: resolvedFromName,
+      ...(cc ? { cc } : {}),
     };
     try {
       const ok = await this.emailProvider.send(integration, finalOpts);
-      if (!ok) throw new Error('Email provider returned failure');
+      if (!ok) {
+        throw new Error(`Email provider returned failure (provider=${integration?.provider ?? 'unknown'}, to=${finalOpts.to}, event=${eventType})`);
+      }
       await this.logNotification({
         tenantId, eventType, channel: 'email', recipientEmail: finalOpts.to,
         subject: finalOpts.subject, body: finalOpts.html, status: 'SENT', bookingId,

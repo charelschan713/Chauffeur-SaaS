@@ -14,6 +14,7 @@ export interface SendEmailParams {
   html: string;
   fromAddress?:  string | null;
   fromName?:     string | null;
+  cc?:           string[];
   attachments?:  EmailAttachment[];
 }
 
@@ -48,38 +49,43 @@ export class EmailProvider {
     config: Record<string, string>,
     params: SendEmailParams,
   ): Promise<boolean> {
-    try {
-      const res = await fetch('https://api.resend.com/emails', {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${config.api_key}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          from: `${params.fromName} <${params.fromAddress}>`,
-          to: [params.to],
-          subject: params.subject,
-          html: params.html,
-          ...(params.attachments?.length ? {
-            attachments: params.attachments.map(a => ({
-              filename:    a.filename,
-              content:     a.content.toString('base64'),
-              content_type: a.contentType,
-            })),
-          } : {}),
-        }),
-      });
-      this.logger.log(`Resend response status: ${res.status}`);
-      if (!res.ok) {
-        const body = await res.text();
-        this.logger.error(`Resend error body: ${body}`);
-        throw new Error(`Resend failed: ${res.status} ${body}`);
-      }
-      return true;
-    } catch (err) {
-      this.logger.error('Resend error', err as Error);
-      return false;
+    const fromAddress = params.fromAddress?.trim();
+    const fromName = params.fromName?.trim() || 'ASChauffeured';
+
+    if (!fromAddress) {
+      throw new Error('Resend failed: missing fromAddress');
     }
+
+    const res = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${config.api_key}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        from: `${fromName} <${fromAddress}>`,
+        to: [params.to],
+        ...(params.cc?.length ? { cc: params.cc } : {}),
+        subject: params.subject,
+        html: params.html,
+        ...(params.attachments?.length ? {
+          attachments: params.attachments.map(a => ({
+            filename:    a.filename,
+            content:     a.content.toString('base64'),
+            content_type: a.contentType,
+          })),
+        } : {}),
+      }),
+    });
+
+    this.logger.log(`Resend response status: ${res.status}`);
+    if (!res.ok) {
+      const body = await res.text();
+      this.logger.error(`Resend error body: ${body}`);
+      throw new Error(`Resend failed: ${res.status} ${body}`);
+    }
+
+    return true;
   }
 
   private async sendViaSendGrid(
@@ -94,7 +100,10 @@ export class EmailProvider {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          personalizations: [{ to: [{ email: params.to }] }],
+          personalizations: [{
+            to: [{ email: params.to }],
+            ...(params.cc?.length ? { cc: params.cc.map(email => ({ email })) } : {}),
+          }],
           from: { email: params.fromAddress, name: params.fromName },
           subject: params.subject,
           content: [{ type: 'text/html', value: params.html }],
@@ -139,6 +148,7 @@ export class EmailProvider {
       await transporter.sendMail({
         from: `${params.fromName} <${params.fromAddress}>`,
         to: params.to,
+        ...(params.cc?.length ? { cc: params.cc.join(', ') } : {}),
         subject: params.subject,
         html: params.html,
         ...(params.attachments?.length ? {
@@ -170,6 +180,7 @@ export class EmailProvider {
         subject: params.subject,
         html: params.html,
       });
+      if (params.cc?.length) form.append('cc', params.cc.join(','));
       const res = await fetch(
         `https://api.mailgun.net/v3/${domain}/messages`,
         {
