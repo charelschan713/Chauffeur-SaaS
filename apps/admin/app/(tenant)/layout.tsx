@@ -66,6 +66,7 @@ const NAV_SECTIONS = [
       { href: '/pricing/car-types', label: 'Car Types', icon: Tag },
       { href: '/pricing/service-types', label: 'Service Types', icon: Layers },
       { href: '/pricing/surcharges', label: 'Surcharges', icon: BadgePercent },
+      { href: '/pricing/loyalty', label: 'Loyalty', icon: BadgePercent },
       { href: '/pricing/parking', label: 'Airport Parking', icon: BadgePercent },
     ],
   },

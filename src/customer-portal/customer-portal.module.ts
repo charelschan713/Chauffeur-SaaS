@@ -8,9 +8,10 @@ import { NotificationModule } from '../notification/notification.module';
 import { InvoiceModule } from '../invoice/invoice.module';
 import { ProjectModule } from '../project/project.module';
 import { BookingModule } from '../booking/booking.module';
+import { LoyaltyModule } from '../loyalty/loyalty.module';
 
 @Module({
-  imports: [JwtModule.register({}), CustomerAuthModule, NotificationModule, InvoiceModule, ProjectModule, BookingModule],
+  imports: [JwtModule.register({}), CustomerAuthModule, NotificationModule, InvoiceModule, ProjectModule, BookingModule, LoyaltyModule],
   controllers: [CustomerPortalController],
   providers: [CustomerPortalService, LoyaltyPricingService],
 })

@@ -35,6 +35,7 @@ import { TenantContextMiddleware } from './common/middleware/tenant-context.midd
 import { DebugModule } from './debug/debug.module';
 import { TripEvidenceModule } from './trip-evidence/trip-evidence.module';
 import { ProjectModule } from './project/project.module';
+import { LoyaltyModule } from './loyalty/loyalty.module';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 
 @Module({
@@ -82,6 +83,7 @@ import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
     TenantModule,
     TripEvidenceModule,
     ProjectModule,
+    LoyaltyModule,
     DebugModule,
   ],
   controllers: [HealthController],

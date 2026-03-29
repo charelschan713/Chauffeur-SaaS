@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { DataSource } from 'typeorm';
+import { LoyaltyService } from '../loyalty/loyalty.service';
 
 const TIER_DISCOUNT: Record<string, number> = {
   STANDARD: 0,
@@ -19,7 +20,10 @@ export interface DiscountResult {
 
 @Injectable()
 export class DiscountResolver {
-  constructor(private readonly dataSource: DataSource) {}
+  constructor(
+    private readonly dataSource: DataSource,
+    private readonly loyaltyService: LoyaltyService,
+  ) {}
 
   async resolve(
     tenantId: string,
@@ -77,7 +81,8 @@ export class DiscountResolver {
       };
     }
 
-    const pct = TIER_DISCOUNT[customer.tier] ?? 0;
+    const tierMap = await this.loyaltyService.getTierRateMap(tenantId);
+    const pct = tierMap[customer.tier] ?? TIER_DISCOUNT[customer.tier] ?? 0;
     if (pct === 0) {
       return {
         discount_type: 'NONE',

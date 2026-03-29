@@ -19,6 +19,7 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
+import { LoyaltyService } from '../loyalty/loyalty.service';
 
 export interface LoyaltyPricingResult {
   /** Final amount to charge (discounted fare + toll/parking) */
@@ -51,7 +52,10 @@ const TIER_DISCOUNT: Record<string, number> = {
 
 @Injectable()
 export class LoyaltyPricingService {
-  constructor(@InjectDataSource() private readonly db: DataSource) {}
+  constructor(
+    @InjectDataSource() private readonly db: DataSource,
+    private readonly loyaltyService: LoyaltyService,
+  ) {}
 
   /**
    * Compute loyalty-adjusted fare for a customer against a stored quote result.
@@ -116,7 +120,8 @@ export class LoyaltyPricingService {
        LIMIT 1`,
       [customerId, tenantId],
     );
-    const tierRate  = TIER_DISCOUNT[custRow?.tier ?? 'STANDARD'] ?? 0;
+    const tierMap = await this.loyaltyService.getTierRateMap(tenantId);
+    const tierRate  = tierMap[custRow?.tier ?? 'STANDARD'] ?? TIER_DISCOUNT[custRow?.tier ?? 'STANDARD'] ?? 0;
     const extraRate = Number(custRow?.discount_rate ?? 0);
     const rawCombinedRate = tierRate + extraRate;
 
