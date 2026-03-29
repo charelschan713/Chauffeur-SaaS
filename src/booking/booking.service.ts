@@ -319,7 +319,13 @@ export class BookingService {
     });
     const pickupTimezone = dto.timezone || 'Australia/Sydney';
     const pickupAtUtc = this.toUtcFromLocal(pickupAtLocal, pickupTimezone);
-    const returnPickupAtLocal = dto.return_pickup_at_utc ?? dto.returnPickupAtUtc ?? null;
+
+    const normalizeEmpty = (v: any) =>
+      typeof v === 'string' && v.trim() === '' ? null : v;
+
+    const returnPickupAtLocal = normalizeEmpty(
+      dto.return_pickup_at_utc ?? dto.returnPickupAtUtc ?? null,
+    );
     const returnPickupAtUtc = returnPickupAtLocal
       ? this.toUtcFromLocal(returnPickupAtLocal, pickupTimezone)
       : null;
