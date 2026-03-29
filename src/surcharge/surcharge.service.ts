@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 
@@ -10,10 +10,37 @@ export interface SurchargeResult {
 }
 
 @Injectable()
-export class SurchargeService {
+export class SurchargeService implements OnModuleInit {
   private readonly logger = new Logger(SurchargeService.name);
 
   constructor(@InjectDataSource() private readonly db: DataSource) {}
+
+  async onModuleInit() {
+    // Self-heal for environments where migration wasn't applied yet.
+    await this.db.query(`
+      CREATE TABLE IF NOT EXISTS public.tenant_surcharge_cities (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        tenant_id UUID NOT NULL,
+        surcharge_type TEXT NOT NULL,
+        surcharge_id UUID NOT NULL,
+        city_id UUID NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+        UNIQUE (tenant_id, surcharge_type, surcharge_id, city_id)
+      )
+    `).catch((e) => this.logger.warn(`tenant_surcharge_cities bootstrap failed: ${e?.message || e}`));
+
+    await this.db.query(`
+      CREATE INDEX IF NOT EXISTS idx_tenant_surcharge_cities_tenant ON public.tenant_surcharge_cities(tenant_id)
+    `).catch(() => {});
+
+    await this.db.query(`
+      CREATE INDEX IF NOT EXISTS idx_tenant_surcharge_cities_surcharge ON public.tenant_surcharge_cities(surcharge_type, surcharge_id)
+    `).catch(() => {});
+
+    await this.db.query(`
+      CREATE INDEX IF NOT EXISTS idx_tenant_surcharge_cities_city ON public.tenant_surcharge_cities(city_id)
+    `).catch(() => {});
+  }
 
   /**
    * Resolve all applicable surcharges for a pickup datetime.
