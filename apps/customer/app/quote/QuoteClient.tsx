@@ -442,7 +442,18 @@ export function QuoteClient() {
   // Get Quote
   const handleGetQuote = useCallback(async () => {
     setLocationError(null);
-    if (!pickup || !date || !time) return;
+    if (!cityId) {
+      setLocationError('Please select a city.');
+      return;
+    }
+    if (!serviceTypeId) {
+      setLocationError('Please select a service type.');
+      return;
+    }
+    if (!pickup || !date || !time) {
+      setLocationError('Please complete pickup date/time and pickup address.');
+      return;
+    }
 
     const isHourlyTrip = isHourly(selectedServiceType);
     if (!pickupPlaceId) {
@@ -539,7 +550,11 @@ export function QuoteClient() {
       setQuoteId(quote.quote_id);
       setQuoteResults(quote.results ?? []);
       setCurrency(quote.currency ?? 'AUD');
-      if (quote.results?.length > 0) setSelectedCarTypeId(quote.results[0].service_class_id);
+      if (quote.results?.length > 0) {
+        setSelectedCarTypeId(quote.results[0].service_class_id);
+      } else {
+        setLocationError('Quote generated, but no available vehicles matched this request.');
+      }
       setTimeout(() => resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
       // If discount still not loaded, re-fetch once after quote
       if (!autoDiscount) {
@@ -549,8 +564,8 @@ export function QuoteClient() {
           .then(d => { if (d?.name) setAutoDiscount({ name: d.name, rate: Number(d.discount_value) }); })
           .catch(() => {});
       }
-    } catch {
-      // silent — could add toast
+    } catch (e: any) {
+      setLocationError(e?.message || 'Unable to generate quote. Please try again.');
     } finally {
       setQuoting(false);
     }

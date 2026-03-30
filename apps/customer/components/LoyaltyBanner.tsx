@@ -9,7 +9,7 @@ export function LoyaltyBanner() {
 
   useEffect(() => {
     if (!token) { setInfo(null); return; }
-    api.get('/customer-portal/me')
+    api.get('/customer-portal/profile')
       .then(r => setInfo(r.data))
       .catch(() => {});
   }, [token]);
