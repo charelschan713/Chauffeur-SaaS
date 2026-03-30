@@ -8,6 +8,8 @@ import { DiscountService } from '../discount/discount.service';
 interface QuoteRequest {
   service_type_id: string;
   trip_mode: 'ONE_WAY' | 'RETURN';
+  city?: string;
+  city_id?: string;
   pickup_address: string;
   dropoff_address: string;
   pickup_at_utc: string;
@@ -67,6 +69,27 @@ export class PublicPricingService {
       waypointChargeEnabled = st?.waypoint_charge_enabled ?? true;
     }
 
+    // Resolve city id for surcharge matching (city-scoped surcharge rules)
+    let resolvedCityId: string | null = null;
+    if (dto.city_id) {
+      const [cityById] = await this.db.query(
+        `SELECT id FROM public.tenant_cities WHERE tenant_id = $1 AND id = $2 LIMIT 1`,
+        [tenant.id, dto.city_id],
+      );
+      resolvedCityId = cityById?.id ?? null;
+    }
+    if (!resolvedCityId && dto.city) {
+      const [cityByName] = await this.db.query(
+        `SELECT id
+         FROM public.tenant_cities
+         WHERE tenant_id = $1
+           AND lower(name) = lower($2)
+         LIMIT 1`,
+        [tenant.id, dto.city],
+      );
+      resolvedCityId = cityByName?.id ?? null;
+    }
+
     const results = await Promise.all(
       carTypes.map(async (ct: any) => {
         const tz = dto.timezone ?? 'Australia/Sydney';
@@ -103,6 +126,7 @@ export class PublicPricingService {
           timezone: tz,
           currency: tenant.currency,
           customerId: dto.customerId ?? null,
+          cityId: resolvedCityId,
           tollEnabled,
           pickupAddress: dto.pickup_address,
           dropoffAddress: dto.dropoff_address,
