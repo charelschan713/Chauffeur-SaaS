@@ -847,6 +847,7 @@ export class CustomerPortalService implements OnModuleInit {
       const bookingRows = await this.db.query(
         `SELECT
             ${pick('customer_name', 'customer_name')},
+            ${pick('customer_email', 'customer_email')},
             ${pick('customer_phone_country_code', 'customer_phone_country_code')},
             ${pick('customer_phone_number', 'customer_phone_number')},
             ${pick('passenger_first_name', 'passenger_first_name')},
@@ -874,6 +875,9 @@ export class CustomerPortalService implements OnModuleInit {
           || b.passenger_last_name
           || lastFromCustomerName
           || null;
+        const email = profile.email
+          || b.customer_email
+          || null;
         const phoneCode = profile.phone_country_code
           || b.customer_phone_country_code
           || b.passenger_phone_country_code
@@ -883,16 +887,17 @@ export class CustomerPortalService implements OnModuleInit {
           || b.passenger_phone_number
           || null;
 
-        if (first || last || phone) {
+        if (first || last || phone || email) {
           await this.db.query(
             `UPDATE public.customers
              SET first_name = COALESCE(first_name, $1),
                  last_name = COALESCE(last_name, $2),
-                 phone_country_code = COALESCE(phone_country_code, $3),
-                 phone_number = COALESCE(phone_number, $4),
+                 email = COALESCE(email, $3),
+                 phone_country_code = COALESCE(phone_country_code, $4),
+                 phone_number = COALESCE(phone_number, $5),
                  updated_at = now()
-             WHERE id = $5 ${tenantId ? 'AND tenant_id = $6' : ''}`,
-            tenantId ? [first, last, phoneCode, phone, customerId, tenantId] : [first, last, phoneCode, phone, customerId],
+             WHERE id = $6 ${tenantId ? 'AND tenant_id = $7' : ''}`,
+            tenantId ? [first, last, email, phoneCode, phone, customerId, tenantId] : [first, last, email, phoneCode, phone, customerId],
           );
 
           const [fresh] = await this.db.query(
