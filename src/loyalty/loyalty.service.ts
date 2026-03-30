@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, OnModuleInit } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 
 export type LoyaltyTierCode = 'STANDARD' | 'SILVER' | 'GOLD' | 'PLATINUM' | 'VIP';
@@ -19,8 +19,30 @@ const DEFAULT_TIERS: LoyaltyTierRow[] = [
 ];
 
 @Injectable()
-export class LoyaltyService {
+export class LoyaltyService implements OnModuleInit {
   constructor(private readonly db: DataSource) {}
+
+  async onModuleInit() {
+    await this.db.query(`
+      CREATE TABLE IF NOT EXISTS public.tenant_loyalty_tiers (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        tenant_id UUID NOT NULL,
+        tier VARCHAR(32) NOT NULL,
+        discount_pct NUMERIC(5,2) NOT NULL DEFAULT 0,
+        active BOOLEAN NOT NULL DEFAULT true,
+        sort_order INTEGER NOT NULL DEFAULT 999,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+        CONSTRAINT tenant_loyalty_tiers_tier_chk CHECK (tier IN ('STANDARD','SILVER','GOLD','PLATINUM','VIP')),
+        CONSTRAINT tenant_loyalty_tiers_discount_chk CHECK (discount_pct >= 0 AND discount_pct <= 100),
+        CONSTRAINT tenant_loyalty_tiers_unique UNIQUE (tenant_id, tier)
+      )
+    `).catch(() => {});
+
+    await this.db.query(`
+      CREATE INDEX IF NOT EXISTS idx_tenant_loyalty_tiers_tenant ON public.tenant_loyalty_tiers(tenant_id)
+    `).catch(() => {});
+  }
 
   async list(tenantId: string): Promise<LoyaltyTierRow[]> {
     const rows = await this.db.query(
