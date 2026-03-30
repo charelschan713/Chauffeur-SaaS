@@ -542,7 +542,8 @@ export function QuoteClient() {
       }
 
       const quote = await fetch(`${API_URL}/public/pricing/quote?tenant_slug=${slug}`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       }).then(r => { if (!r.ok) throw new Error('Quote failed'); return r.json(); });
 
