@@ -80,6 +80,8 @@ export class PublicPricingService {
     );
     const hasTenantCities = cityTables.some((t) => t.table_name === 'tenant_cities');
 
+    const hasCities = cityTables.some((t) => t.table_name === 'cities');
+
     if (hasTenantCities) {
       if (dto.city_id) {
         const [cityById] = await this.db.query(
@@ -99,7 +101,7 @@ export class PublicPricingService {
         );
         resolvedCityId = cityByName?.id ?? null;
       }
-    } else {
+    } else if (hasCities) {
       if (dto.city_id) {
         const [cityById] = await this.db.query(
           `SELECT id FROM public.cities WHERE tenant_id = $1 AND id = $2 LIMIT 1`,
