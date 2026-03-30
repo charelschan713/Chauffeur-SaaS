@@ -835,9 +835,24 @@ export class CustomerPortalService implements OnModuleInit {
 
     // Self-heal missing profile fields by backfilling from latest booking/customer contact payload.
     if (!profile.first_name || !profile.last_name || !profile.phone_number) {
+      const cols: Array<{ column_name: string }> = await this.db.query(
+        `SELECT column_name
+           FROM information_schema.columns
+          WHERE table_schema = 'public'
+            AND table_name = 'bookings'`,
+      );
+      const colSet = new Set(cols.map((c) => c.column_name));
+      const pick = (name: string, asName: string) => (colSet.has(name) ? `${name} AS ${asName}` : `NULL::text AS ${asName}`);
+
       const bookingRows = await this.db.query(
-        `SELECT customer_name, customer_phone_country_code, customer_phone_number,
-                passenger_first_name, passenger_last_name, passenger_phone_country_code, passenger_phone_number
+        `SELECT
+            ${pick('customer_name', 'customer_name')},
+            ${pick('customer_phone_country_code', 'customer_phone_country_code')},
+            ${pick('customer_phone_number', 'customer_phone_number')},
+            ${pick('passenger_first_name', 'passenger_first_name')},
+            ${pick('passenger_last_name', 'passenger_last_name')},
+            ${pick('passenger_phone_country_code', 'passenger_phone_country_code')},
+            ${pick('passenger_phone_number', 'passenger_phone_number')}
          FROM public.bookings
          WHERE customer_id = $1 ${tenantId ? 'AND tenant_id = $2' : ''}
          ORDER BY created_at DESC
