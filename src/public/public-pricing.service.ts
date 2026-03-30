@@ -70,24 +70,54 @@ export class PublicPricingService {
     }
 
     // Resolve city id for surcharge matching (city-scoped surcharge rules)
+    // Compatible with both legacy `public.cities` and newer `public.tenant_cities` schemas.
     let resolvedCityId: string | null = null;
-    if (dto.city_id) {
-      const [cityById] = await this.db.query(
-        `SELECT id FROM public.tenant_cities WHERE tenant_id = $1 AND id = $2 LIMIT 1`,
-        [tenant.id, dto.city_id],
-      );
-      resolvedCityId = cityById?.id ?? null;
-    }
-    if (!resolvedCityId && dto.city) {
-      const [cityByName] = await this.db.query(
-        `SELECT id
-         FROM public.tenant_cities
-         WHERE tenant_id = $1
-           AND lower(name) = lower($2)
-         LIMIT 1`,
-        [tenant.id, dto.city],
-      );
-      resolvedCityId = cityByName?.id ?? null;
+    const cityTables: Array<{ table_name: string }> = await this.db.query(
+      `SELECT table_name
+         FROM information_schema.tables
+        WHERE table_schema='public'
+          AND table_name IN ('tenant_cities','cities')`,
+    );
+    const hasTenantCities = cityTables.some((t) => t.table_name === 'tenant_cities');
+
+    if (hasTenantCities) {
+      if (dto.city_id) {
+        const [cityById] = await this.db.query(
+          `SELECT id FROM public.tenant_cities WHERE tenant_id = $1 AND id = $2 LIMIT 1`,
+          [tenant.id, dto.city_id],
+        );
+        resolvedCityId = cityById?.id ?? null;
+      }
+      if (!resolvedCityId && dto.city) {
+        const [cityByName] = await this.db.query(
+          `SELECT id
+             FROM public.tenant_cities
+            WHERE tenant_id = $1
+              AND lower(name) = lower($2)
+            LIMIT 1`,
+          [tenant.id, dto.city],
+        );
+        resolvedCityId = cityByName?.id ?? null;
+      }
+    } else {
+      if (dto.city_id) {
+        const [cityById] = await this.db.query(
+          `SELECT id FROM public.cities WHERE tenant_id = $1 AND id = $2 LIMIT 1`,
+          [tenant.id, dto.city_id],
+        );
+        resolvedCityId = cityById?.id ?? null;
+      }
+      if (!resolvedCityId && dto.city) {
+        const [cityByName] = await this.db.query(
+          `SELECT id
+             FROM public.cities
+            WHERE tenant_id = $1
+              AND lower(name) = lower($2)
+            LIMIT 1`,
+          [tenant.id, dto.city],
+        );
+        resolvedCityId = cityByName?.id ?? null;
+      }
     }
 
     const results = await Promise.all(
