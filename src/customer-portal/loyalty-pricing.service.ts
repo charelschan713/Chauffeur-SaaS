@@ -105,10 +105,10 @@ export class LoyaltyPricingService {
         + Number(snap.baby_seats_minor      ?? 0);
       snapshotSource = 'base_calculated_minor';
     } else {
-      // Final fallback: estimated_total_minor already includes auto-discount and tolls.
-      // Subtract tolls to get the base. This may double-count an existing auto-discount
-      // but it's better than returning 0.
-      trueBase = Math.max(0, Number(quoteResult.estimated_total_minor) - tollParkingMinor);
+      // Final fallback: if final fare exists, reverse-calculate base using combined rate.
+      // This avoids false $0 discount display when snapshot base fields are missing.
+      const estTotal = Math.max(0, Number(quoteResult.estimated_total_minor ?? 0));
+      trueBase = Math.max(0, estTotal - tollParkingMinor);
       snapshotSource = 'fallback';
     }
 
@@ -144,6 +144,16 @@ export class LoyaltyPricingService {
       ? Math.min(rawCombinedRate, maxPctCap)
       : rawCombinedRate;
     const cappedByMax = maxPctCap != null && rawCombinedRate > maxPctCap;
+
+    // If snapshot base is missing but estimated total exists, reverse-calculate base
+    // so discount line doesn't incorrectly show $0.
+    if (trueBase === 0 && cappedCombinedRate > 0) {
+      const estFinal = Math.max(0, Number(quoteResult.estimated_total_minor ?? 0));
+      const netFinal = Math.max(0, estFinal - tollParkingMinor);
+      if (netFinal > 0) {
+        trueBase = Math.round((netFinal * 100) / (100 - cappedCombinedRate));
+      }
+    }
 
     // ── 5. Final amount ────────────────────────────────────────────────────
     const discountMinor = Math.round(trueBase * cappedCombinedRate / 100);

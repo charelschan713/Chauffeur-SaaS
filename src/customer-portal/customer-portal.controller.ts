@@ -222,9 +222,12 @@ export class CustomerPortalController {
     }
 
     const payload = session.payload;
-    const result  = (payload.results ?? []).find((r: any) => r.service_class_id === carTypeId)
-      ?? payload.results?.[0];
-    if (!result) throw new NotFoundException('Car type not found in quote');
+    const results = payload.results ?? [];
+    if (!carTypeId) throw new BadRequestException('car_type_id is required');
+    const result = results.find((r: any) => r.service_class_id === carTypeId);
+    if (!result) {
+      throw new BadRequestException('car_type_id not found in this quote');
+    }
 
     const pricing = await this.loyaltyPricing.compute(
       req.customer.sub,
