@@ -9,6 +9,7 @@ import { JwtService } from '@nestjs/jwt';
 import { DataSource } from 'typeorm';
 import * as crypto from 'crypto';
 import * as bcrypt from 'bcrypt';
+import nodemailer from 'nodemailer';
 
 
 interface UserIdentity {
@@ -312,38 +313,60 @@ export class AuthService implements OnModuleInit {
       [otp, expiresAt.toISOString(), user.id],
     );
 
-    // Send via platform Resend (env var: RESEND_API_KEY)
+    const html = `
+      <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px;background:#1A1A2E;color:#fff;border-radius:12px;">
+        <p style="font-size:13px;letter-spacing:4px;color:#C8A870;margin-bottom:8px;">CHAUFFEUR SOLUTIONS</p>
+        <h2 style="margin:0 0 24px;font-size:20px;">Driver Login Code</h2>
+        <div style="background:#222236;border-radius:10px;padding:24px;text-align:center;margin-bottom:24px;">
+          <p style="font-size:36px;font-weight:700;letter-spacing:12px;color:#C8A870;margin:0;">${otp}</p>
+        </div>
+        <p style="color:#9CA3AF;font-size:13px;">This code expires in <strong style="color:#fff;">10 minutes</strong>.</p>
+        <p style="color:#9CA3AF;font-size:13px;">If you did not request this, please ignore this email.</p>
+      </div>`;
+
     const resendKey = process.env.RESEND_API_KEY;
-    const fromEmail = process.env.RESEND_FROM_EMAIL ?? 'noreply@aschauffeured.com.au';
-    const fromName  = process.env.RESEND_FROM_NAME  ?? 'ASChauffeured';
+    const smtpPassword = process.env.SMTP_PASSWORD;
+
+    const fromEmail = process.env.PLATFORM_FROM_EMAIL ?? process.env.RESEND_FROM_EMAIL ?? process.env.SMTP_FROM_EMAIL ?? 'noreply@chauffeurssolution.com';
+    const fromName  = process.env.PLATFORM_FROM_NAME  ?? process.env.RESEND_FROM_NAME  ?? process.env.SMTP_FROM_NAME  ?? 'Chauffeur Solutions';
 
     if (resendKey) {
-      const html = `
-        <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px;background:#1A1A2E;color:#fff;border-radius:12px;">
-          <p style="font-size:13px;letter-spacing:4px;color:#C8A870;margin-bottom:8px;">ASCHAUFFEURED</p>
-          <h2 style="margin:0 0 24px;font-size:20px;">Driver Login Code</h2>
-          <div style="background:#222236;border-radius:10px;padding:24px;text-align:center;margin-bottom:24px;">
-            <p style="font-size:36px;font-weight:700;letter-spacing:12px;color:#C8A870;margin:0;">${otp}</p>
-          </div>
-          <p style="color:#9CA3AF;font-size:13px;">This code expires in <strong style="color:#fff;">10 minutes</strong>.</p>
-          <p style="color:#9CA3AF;font-size:13px;">If you did not request this, please ignore this email.</p>
-        </div>`;
-
       await fetch('https://api.resend.com/emails', {
         method: 'POST',
         headers: { Authorization: `Bearer ${resendKey}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({
           from: `${fromName} <${fromEmail}>`,
           to: [user.email],
-          subject: `${otp} — Your ASChauffeured Driver Login Code`,
+          subject: `${otp} — Your Driver Login Code`,
           html,
         }),
       }).catch(e => this.logger.error(`[OTP] Resend failed: ${e?.message}`));
+      this.logger.log(`[OTP] Email sent via Resend to ${user.email}`);
+    } else if (smtpPassword) {
+      try {
+        const transporter = nodemailer.createTransport({
+          host: process.env.SMTP_HOST ?? 'smtp.office365.com',
+          port: Number(process.env.SMTP_PORT ?? 587),
+          secure: (process.env.SMTP_SECURE ?? 'false') === 'true',
+          auth: {
+            user: process.env.SMTP_USERNAME ?? fromEmail,
+            pass: smtpPassword,
+          },
+        });
 
-      this.logger.log(`[OTP] Email sent to ${user.email}`);
+        await transporter.sendMail({
+          from: `${fromName} <${fromEmail}>`,
+          to: user.email,
+          subject: `${otp} — Your Driver Login Code`,
+          html,
+        });
+
+        this.logger.log(`[OTP] Email sent via SMTP to ${user.email}`);
+      } catch (e: any) {
+        this.logger.error(`[OTP] SMTP failed: ${e?.message ?? e}`);
+      }
     } else {
-      // Dev fallback
-      this.logger.warn(`[OTP] No RESEND_API_KEY — code for ${user.full_name}: ${otp}`);
+      this.logger.warn(`[OTP] No RESEND_API_KEY/SMTP_PASSWORD — code for ${user.full_name}: ${otp}`);
     }
 
     return { sent: true };
