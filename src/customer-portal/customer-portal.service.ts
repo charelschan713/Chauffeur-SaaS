@@ -820,15 +820,79 @@ export class CustomerPortalService implements OnModuleInit {
 
   // ── Profile ───────────────────────────────────────────────────────────────
   async getProfile(customerId: string, tenantId?: string) {
+    const params = tenantId ? [customerId, tenantId] : [customerId];
+
     const rows = await this.db.query(
       `SELECT id, first_name, last_name, email, phone_country_code, phone_number, created_at,
               tier, discount_rate, custom_discount_type, custom_discount_value
        FROM public.customers
        WHERE id=$1 ${tenantId ? 'AND tenant_id=$2' : ''}`,
-      tenantId ? [customerId, tenantId] : [customerId],
+      params,
     );
     if (!rows.length) throw new NotFoundException('Customer not found');
-    return rows[0];
+
+    const profile = rows[0];
+
+    // Self-heal missing profile fields by backfilling from latest booking/customer contact payload.
+    if (!profile.first_name || !profile.last_name || !profile.phone_number) {
+      const bookingRows = await this.db.query(
+        `SELECT customer_name, customer_phone_country_code, customer_phone_number,
+                passenger_first_name, passenger_last_name, passenger_phone_country_code, passenger_phone_number
+         FROM public.bookings
+         WHERE customer_id = $1 ${tenantId ? 'AND tenant_id = $2' : ''}
+         ORDER BY created_at DESC
+         LIMIT 1`,
+        params,
+      );
+
+      if (bookingRows.length) {
+        const b = bookingRows[0];
+        const inferredName = (b.customer_name ?? '').trim();
+        const [firstFromCustomerName, ...rest] = inferredName ? inferredName.split(/\s+/) : [''];
+        const lastFromCustomerName = rest.join(' ').trim();
+
+        const first = profile.first_name
+          || b.passenger_first_name
+          || firstFromCustomerName
+          || null;
+        const last = profile.last_name
+          || b.passenger_last_name
+          || lastFromCustomerName
+          || null;
+        const phoneCode = profile.phone_country_code
+          || b.customer_phone_country_code
+          || b.passenger_phone_country_code
+          || null;
+        const phone = profile.phone_number
+          || b.customer_phone_number
+          || b.passenger_phone_number
+          || null;
+
+        if (first || last || phone) {
+          await this.db.query(
+            `UPDATE public.customers
+             SET first_name = COALESCE(first_name, $1),
+                 last_name = COALESCE(last_name, $2),
+                 phone_country_code = COALESCE(phone_country_code, $3),
+                 phone_number = COALESCE(phone_number, $4),
+                 updated_at = now()
+             WHERE id = $5 ${tenantId ? 'AND tenant_id = $6' : ''}`,
+            tenantId ? [first, last, phoneCode, phone, customerId, tenantId] : [first, last, phoneCode, phone, customerId],
+          );
+
+          const [fresh] = await this.db.query(
+            `SELECT id, first_name, last_name, email, phone_country_code, phone_number, created_at,
+                    tier, discount_rate, custom_discount_type, custom_discount_value
+             FROM public.customers
+             WHERE id=$1 ${tenantId ? 'AND tenant_id=$2' : ''}`,
+            params,
+          );
+          return fresh;
+        }
+      }
+    }
+
+    return profile;
   }
 
   async updateProfile(customerId: string, tenantId: string, dto: any) {
