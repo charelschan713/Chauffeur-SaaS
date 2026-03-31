@@ -29,6 +29,25 @@ export default function PlatformTenantDetailPage() {
     },
   });
 
+  const { data: perms } = useQuery({
+    queryKey: ['platform-tenant-perms', id],
+    queryFn: async () => {
+      const { data } = await api.get(`/platform/tenants/${id}/permissions`);
+      return data;
+    },
+    enabled: !!id,
+  });
+
+  const permMut = useMutation({
+    mutationFn: async (payload: any) => {
+      const { data } = await api.patch(`/platform/tenants/${id}/permissions`, payload);
+      return data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['platform-tenant-perms', id] });
+    },
+  });
+
   if (isLoading) return <div className="text-sm text-gray-500">Loading tenant details…</div>;
   if (!data) return <div className="text-sm text-red-600">Tenant not found.</div>;
 
@@ -72,6 +91,35 @@ export default function PlatformTenantDetailPage() {
           )}
         </div>
       </div>
+
+      <div className="rounded-lg border bg-white p-4 space-y-4">
+        <div>
+          <h2 className="text-lg font-semibold text-gray-900">Permissions</h2>
+          <p className="text-sm text-gray-500">Whitelist tenant access to platform APIs</p>
+        </div>
+        <div className="grid md:grid-cols-2 gap-4 text-sm">
+          <ToggleRow
+            label="Can push jobs"
+            value={!!perms?.can_push_jobs}
+            onChange={(v) => permMut.mutate({ ...perms, can_push_jobs: v })}
+          />
+          <ToggleRow
+            label="Can partner assign"
+            value={!!perms?.can_partner_assign}
+            onChange={(v) => permMut.mutate({ ...perms, can_partner_assign: v })}
+          />
+          <ToggleRow
+            label="Can driver app access"
+            value={!!perms?.can_driver_app_access}
+            onChange={(v) => permMut.mutate({ ...perms, can_driver_app_access: v })}
+          />
+          <ToggleRow
+            label="Can API access"
+            value={!!perms?.can_api_access}
+            onChange={(v) => permMut.mutate({ ...perms, can_api_access: v })}
+          />
+        </div>
+      </div>
     </div>
   );
 }
@@ -81,6 +129,33 @@ function Info({ label, value, mono }: { label: string; value: string; mono?: boo
     <div className="rounded border border-gray-100 p-2">
       <div className="text-xs uppercase tracking-wide text-gray-500">{label}</div>
       <div className={`text-sm text-gray-900 ${mono ? 'font-mono break-all' : ''}`}>{value}</div>
+    </div>
+  );
+}
+
+function ToggleRow({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: boolean;
+  onChange: (v: boolean) => void;
+}) {
+  return (
+    <div className="flex items-center justify-between rounded border border-gray-100 p-3">
+      <span className="text-gray-800">{label}</span>
+      <button
+        className={`h-6 w-11 rounded-full transition ${value ? 'bg-green-600' : 'bg-gray-300'}`}
+        onClick={() => onChange(!value)}
+        aria-label={label}
+      >
+        <span
+          className={`block h-5 w-5 bg-white rounded-full translate-x-1 transition ${
+            value ? 'translate-x-5' : 'translate-x-1'
+          }`}
+        />
+      </button>
     </div>
   );
 }
