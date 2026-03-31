@@ -2,6 +2,7 @@ import * as express from 'express';
 const cookieParser = require('cookie-parser');
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
@@ -39,6 +40,16 @@ async function bootstrap() {
     },
     credentials: true,
   });
+
+  // Swagger / OpenAPI
+  const swaggerConfig = new DocumentBuilder()
+    .setTitle('Chauffeur SaaS API')
+    .setDescription('SaaS platform + driver APIs')
+    .setVersion('1.0.0')
+    .build();
+  const swaggerDoc = SwaggerModule.createDocument(app, swaggerConfig);
+  SwaggerModule.setup('api-docs', app, swaggerDoc);
+
   const port = Number(process.env.PORT ?? 3000);
   await app.listen(port);
 }
