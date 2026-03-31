@@ -19,10 +19,6 @@ export function middleware(request: NextRequest) {
     }
   }
 
-  // Allow driver.chauffeurssolution.com to map to default tenant
-  if (!slug && hostname.startsWith('driver.chauffeurssolution.com')) {
-    slug = process.env.NEXT_PUBLIC_DEFAULT_TENANT_SLUG || 'aschauffeured';
-  }
 
   // Already have slug in cookie — keep it
   const existingSlug = request.cookies.get('tenant_slug')?.value;
