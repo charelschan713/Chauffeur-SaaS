@@ -13,10 +13,15 @@ export function middleware(request: NextRequest) {
     const parts = hostname.split('.');
     // Need at least 3 parts (sub.domain.tld)
     // Exclude known non-tenant subdomains
-    const excluded = ['www', 'app', 'platform', 'api', 'driver', 'chauffeur-driver-portal'];
+    const excluded = ['www', 'app', 'platform', 'api', 'chauffeur-driver-portal'];
     if (parts.length >= 3 && !excluded.includes(parts[0])) {
       slug = parts[0];
     }
+  }
+
+  // Allow driver.chauffeurssolution.com to map to default tenant
+  if (!slug && hostname.startsWith('driver.chauffeurssolution.com')) {
+    slug = process.env.NEXT_PUBLIC_DEFAULT_TENANT_SLUG || 'aschauffeured';
   }
 
   // Already have slug in cookie — keep it
