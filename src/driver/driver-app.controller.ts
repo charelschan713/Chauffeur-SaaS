@@ -9,6 +9,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { JwtGuard } from '../common/guards/jwt.guard';
+import { DriverTenantPermissionGuard } from '../common/guards/driver-tenant.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { DriverAppService } from './driver-app.service';
 import { NetworkService } from '../network/network.service';
@@ -18,7 +19,7 @@ import { NetworkService } from '../network/network.service';
  * Base: /driver-app
  * Auth: Bearer JWT (same token as admin, driver role)
  */
-@UseGuards(JwtGuard)
+@UseGuards(JwtGuard, DriverTenantPermissionGuard)
 @Controller('driver-app')
 export class DriverAppController {
   constructor(

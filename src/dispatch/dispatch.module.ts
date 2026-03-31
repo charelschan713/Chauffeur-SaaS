@@ -6,6 +6,7 @@ import { DispatchEventListener } from './dispatch-event.listener';
 import { BookingModule } from '../booking/booking.module';
 import { EligibilityResolver } from './eligibility/eligibility.resolver';
 import { DriverModule } from '../driver/driver.module';
+import { TenantPermissionsService } from '../common/tenant-permissions.service';
 
 @Module({
   imports: [BookingModule, DriverModule],
@@ -15,6 +16,7 @@ import { DriverModule } from '../driver/driver.module';
     DispatchTimeoutWorker,
     DispatchEventListener,
     EligibilityResolver,
+    TenantPermissionsService,
   ],
   exports: [DispatchService],
 })

@@ -1,14 +1,19 @@
 import { Body, Controller, Get, Param, Patch, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { JwtGuard } from '../common/guards/jwt.guard';
 import { AssignmentService } from './assignment.service';
+import { TenantPermissionsService } from '../common/tenant-permissions.service';
 
 @Controller('assignments')
 @UseGuards(JwtGuard)
 export class AssignmentController {
-  constructor(private readonly assignmentService: AssignmentService) {}
+  constructor(
+    private readonly assignmentService: AssignmentService,
+    private readonly perms: TenantPermissionsService,
+  ) {}
 
   @Post('/bookings/:bookingId/assign')
   async assign(@Param('bookingId') bookingId: string, @Body() body: any, @Req() req: any) {
+    await this.perms.assertPermission(req.user.tenant_id, 'can_push_jobs');
     return this.assignmentService.manualAssign(
       req.user.tenant_id,
       bookingId,
@@ -49,6 +54,7 @@ export class AssignmentController {
   /** Get approved connections for partner selector */
   @Get('connections/approved')
   async approvedConnections(@Req() req: any) {
+    await this.perms.assertPermission(req.user.tenant_id, 'can_partner_assign');
     return this.assignmentService.getApprovedConnections(req.user.tenant_id);
   }
 
@@ -59,6 +65,7 @@ export class AssignmentController {
     @Body() body: any,
     @Req() req: any,
   ) {
+    await this.perms.assertPermission(req.user.tenant_id, 'can_partner_assign');
     return this.assignmentService.assignToPartner(
       req.user.tenant_id,
       bookingId,

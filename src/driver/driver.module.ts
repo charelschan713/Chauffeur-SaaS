@@ -11,6 +11,8 @@ import { NotificationModule } from '../notification/notification.module';
 import { AdminDriverController, AdminDriverPayController } from './admin-driver.controller';
 import { AdminDriverService } from './admin-driver.service';
 import { TripEvidenceModule } from '../trip-evidence/trip-evidence.module';
+import { TenantPermissionsService } from '../common/tenant-permissions.service';
+import { DriverTenantPermissionGuard } from '../common/guards/driver-tenant.guard';
 
 @Module({
   imports: [JwtModule.register({}), NetworkModule, NotificationModule, TripEvidenceModule],
@@ -19,7 +21,14 @@ import { TripEvidenceModule } from '../trip-evidence/trip-evidence.module';
     DriverInviteController, DriverOnboardingController,
     AdminDriverController, AdminDriverPayController,
   ],
-  providers: [DriverService, DriverAppService, DriverInviteService, AdminDriverService],
+  providers: [
+    DriverService,
+    DriverAppService,
+    DriverInviteService,
+    AdminDriverService,
+    TenantPermissionsService,
+    DriverTenantPermissionGuard,
+  ],
   exports: [DriverAppService, AdminDriverService],
 })
 export class DriverModule {}

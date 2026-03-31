@@ -53,6 +53,51 @@ export class PlatformController {
   }
 
   @UseGuards(JwtGuard)
+  @Get('tenants/:id/permissions')
+  async getTenantPermissions(@Param('id') id: string, @Req() req: Request) {
+    this.assertPlatformAdmin(req);
+    const rows = await this.dataSource.query(
+      `select * from public.tenant_permissions where tenant_id = $1 limit 1`,
+      [id],
+    );
+    return rows?.[0] ?? {
+      tenant_id: id,
+      can_push_jobs: false,
+      can_partner_assign: false,
+      can_driver_app_access: false,
+      can_api_access: false,
+    };
+  }
+
+  @UseGuards(JwtGuard)
+  @Patch('tenants/:id/permissions')
+  async updateTenantPermissions(
+    @Param('id') id: string,
+    @Body() body: any,
+    @Req() req: Request,
+  ) {
+    this.assertPlatformAdmin(req);
+    const row = await this.dataSource.query(
+      `insert into public.tenant_permissions
+        (tenant_id, can_push_jobs, can_partner_assign, can_driver_app_access, can_api_access, updated_at)
+       values ($1,$2,$3,$4,$5, now())
+       on conflict (tenant_id) do update set
+         can_push_jobs = excluded.can_push_jobs,
+         can_partner_assign = excluded.can_partner_assign,
+         can_driver_app_access = excluded.can_driver_app_access,
+         can_api_access = excluded.can_api_access,
+         updated_at = now()
+       returning *`,
+      [id,
+       body.can_push_jobs ?? false,
+       body.can_partner_assign ?? false,
+       body.can_driver_app_access ?? false,
+       body.can_api_access ?? false],
+    );
+    return row?.[0];
+  }
+
+  @UseGuards(JwtGuard)
   @Post('tenants')
   async createTenant(@Body() dto: any, @Req() req: Request) {
     this.assertPlatformAdmin(req);

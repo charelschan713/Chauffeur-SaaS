@@ -11,6 +11,7 @@ import { DispatchService } from './dispatch.service';
 import { JwtGuard } from '../common/guards/jwt.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { EligibilityResolver } from './eligibility/eligibility.resolver';
+import { TenantPermissionsService } from '../common/tenant-permissions.service';
 
 
 class DeclineDto {
@@ -23,6 +24,7 @@ export class DispatchController {
   constructor(
     private readonly dispatch: DispatchService,
     private readonly eligibilityResolver: EligibilityResolver,
+    private readonly perms: TenantPermissionsService,
   ) {}
 
   @Post('offer')
@@ -35,6 +37,7 @@ export class DispatchController {
     @CurrentUser('role') role: string | null,
   ) {
     this.assertRole(role, ['tenant_admin', 'tenant_staff']);
+    await this.perms.assertPermission(tenantId, 'can_push_jobs');
     return this.dispatch.offerAssignment(
       tenantId,
       bookingId,
@@ -52,6 +55,7 @@ export class DispatchController {
     @CurrentUser('role') role: string | null,
   ) {
     this.assertRole(role, ['tenant_admin', 'tenant_staff']);
+    await this.perms.assertPermission(tenantId, 'can_push_jobs');
     return this.dispatch.autoDispatch(tenantId, bookingId, dispatcherId);
   }
 
@@ -62,6 +66,7 @@ export class DispatchController {
     @CurrentUser('role') role: string | null,
   ) {
     this.assertRole(role, ['tenant_admin', 'tenant_staff']);
+    await this.perms.assertPermission(tenantId, 'can_push_jobs');
     return this.eligibilityResolver.resolve(tenantId, bookingId);
   }
 
@@ -73,6 +78,7 @@ export class DispatchController {
     @CurrentUser('role') role: string | null,
   ) {
     this.assertDriverRole(role);
+    await this.perms.assertPermission(tenantId, 'can_driver_app_access');
     return this.dispatch.driverAccept(tenantId, assignmentId, driverId);
   }
 
@@ -85,6 +91,7 @@ export class DispatchController {
     @CurrentUser('role') role: string | null,
   ) {
     this.assertDriverRole(role);
+    await this.perms.assertPermission(tenantId, 'can_driver_app_access');
     return this.dispatch.driverDecline(tenantId, assignmentId, driverId, dto.reason);
   }
 
@@ -96,6 +103,7 @@ export class DispatchController {
     @CurrentUser('role') role: string | null,
   ) {
     this.assertDriverRole(role);
+    await this.perms.assertPermission(tenantId, 'can_driver_app_access');
     return this.dispatch.startTrip(tenantId, assignmentId, driverId);
   }
 
@@ -107,6 +115,7 @@ export class DispatchController {
     @CurrentUser('role') role: string | null,
   ) {
     this.assertDriverRole(role);
+    await this.perms.assertPermission(tenantId, 'can_driver_app_access');
     return this.dispatch.completeTrip(tenantId, assignmentId, driverId);
   }
 
