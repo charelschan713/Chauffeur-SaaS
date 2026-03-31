@@ -16,7 +16,6 @@ import { DataSource } from 'typeorm';
 import { Request } from 'express';
 
 @Controller('platform')
-@UseGuards(JwtGuard)
 export class PlatformController {
   constructor(private readonly dataSource: DataSource) {}
 
@@ -26,6 +25,7 @@ export class PlatformController {
     }
   }
 
+  @UseGuards(JwtGuard)
   @Get('tenants')
   async listTenants(@Req() req: Request) {
     this.assertPlatformAdmin(req);
@@ -36,6 +36,7 @@ export class PlatformController {
     );
   }
 
+  @UseGuards(JwtGuard)
   @Get('tenants/:id')
   async getTenant(@Param('id') id: string, @Req() req: Request) {
     this.assertPlatformAdmin(req);
@@ -51,6 +52,7 @@ export class PlatformController {
     return rows[0];
   }
 
+  @UseGuards(JwtGuard)
   @Post('tenants')
   async createTenant(@Body() dto: any, @Req() req: Request) {
     this.assertPlatformAdmin(req);
@@ -64,6 +66,7 @@ export class PlatformController {
     return rows[0];
   }
 
+  @UseGuards(JwtGuard)
   @Patch('tenants/:id/status')
   async updateTenantStatus(
     @Param('id') id: string,
@@ -80,6 +83,7 @@ export class PlatformController {
     return { success: true };
   }
 
+  @UseGuards(JwtGuard)
   @Get('vehicles')
   async listVehicles(@Req() req: Request) {
     this.assertPlatformAdmin(req);
@@ -102,6 +106,7 @@ export class PlatformController {
     );
   }
 
+  @UseGuards(JwtGuard)
   @Post('vehicles')
   async createVehicle(@Body() body: any, @Req() req: Request) {
     this.assertPlatformAdmin(req);
@@ -114,6 +119,7 @@ export class PlatformController {
     return rows[0];
   }
 
+  @UseGuards(JwtGuard)
   @Patch('vehicles/:id')
   async updateVehicle(@Param('id') id: string, @Body() body: any, @Req() req: Request) {
     this.assertPlatformAdmin(req);
@@ -131,6 +137,7 @@ export class PlatformController {
   }
 
 
+  @UseGuards(JwtGuard)
   @Get('drivers')
   async listDrivers(@Req() req: Request) {
     this.assertPlatformAdmin(req);
@@ -146,6 +153,7 @@ export class PlatformController {
     );
   }
 
+  @UseGuards(JwtGuard)
   @Get('customers')
   async listCustomers(@Req() req: Request) {
     this.assertPlatformAdmin(req);
@@ -159,6 +167,7 @@ export class PlatformController {
     );
   }
 
+  @UseGuards(JwtGuard)
   @Get('bookings')
   async listBookings(@Req() req: Request) {
     this.assertPlatformAdmin(req);
@@ -172,6 +181,7 @@ export class PlatformController {
          LIMIT 100`,
     );
   }
+  @UseGuards(JwtGuard)
   @Get('metrics')
   async getMetrics(@Req() req: Request) {
     this.assertPlatformAdmin(req);
