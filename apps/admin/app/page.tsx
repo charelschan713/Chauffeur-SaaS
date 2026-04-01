@@ -29,7 +29,7 @@ export default function Page() {
         <div className="card">
           <h3>Webhook Events</h3>
           <p className="small">Driver message → tenant webhook payloads.</p>
-          <a className="btn" href="#" onClick={(e) => e.preventDefault()}>Coming soon</a>
+          <span className="btn">Coming soon</span>
         </div>
       </div>
     </main>
