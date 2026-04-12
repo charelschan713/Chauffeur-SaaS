@@ -3,6 +3,8 @@ import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useAuthStore } from '@/lib/auth-store';
 import api from '@/lib/api';
+import StatusTimeline from '@/components/StatusTimeline';
+import MessagePanel from '@/components/MessagePanel';
 
 const STATUS_FLOW: Record<string, { label: string; next: string; nextLabel: string } | null> = {
   assigned:             { label: 'Assigned',            next: 'accepted',            nextLabel: 'Accept Job' },
@@ -85,6 +87,10 @@ export default function JobDetailPage() {
           </span>
         </div>
 
+        <div className="mb-3">
+          <StatusTimeline status={status as any} />
+        </div>
+
         {/* Trip details */}
         <div className="mb-3 rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-4">
           <Row label="Date" value={fmtDate(b.pickup_at)} />
@@ -138,6 +144,10 @@ export default function JobDetailPage() {
             <Row label="Your Pay" value={<span className="font-bold text-[hsl(var(--primary))]">${assignment.driver_pay_amount.toFixed(2)}</span>} />
           </div>
         )}
+
+        <div className="mb-3">
+          <MessagePanel assignmentId={id} />
+        </div>
 
         {error && <p className="mb-3 text-[13px] text-red-500">{error}</p>}
       </div>
